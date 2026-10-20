@@ -1,0 +1,19 @@
+{
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD024": { "siblings_only": true },
+    "MD033": false,
+    "MD041": false,
+    "MD060": false,
+  },
+  "globs": ["**/*.md"],
+  "ignores": [
+    "**/node_modules/**",
+    "docs/brand/source/**",
+    "docs/agent-ops/ORCASUS_AGENT_OPERATING_CONTRACT.md",
+    "docs/agent-ops/templates/**",
+    ".claude/skills/**",
+    "**/CHANGELOG.md",
+  ],
+}

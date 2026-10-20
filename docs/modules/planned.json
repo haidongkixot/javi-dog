@@ -1,0 +1,122 @@
+[
+  {
+    "id": "JD-M01",
+    "name": "@javis-dog/jgr-spec",
+    "path": "packages/jgr-spec",
+    "status": "planned",
+    "sprint": "S1",
+    "description": "Javi Grande Rules: Zod schemas, OpenAPI, conformance test vectors"
+  },
+  {
+    "id": "JD-M02",
+    "name": "@javis-dog/jgr-sdk",
+    "path": "packages/jgr-sdk",
+    "status": "planned",
+    "sprint": "S3",
+    "description": "Client SDK: batching, spool, retry, signing, encryption"
+  },
+  {
+    "id": "JD-M03",
+    "name": "@javis-dog/identity",
+    "path": "packages/identity",
+    "status": "planned",
+    "sprint": "S2",
+    "description": "Authentication (GitHub, Google), users, workspaces"
+  },
+  {
+    "id": "JD-M04",
+    "name": "@javis-dog/projects",
+    "path": "packages/projects",
+    "status": "planned",
+    "sprint": "S1-S2",
+    "description": "Project registry, ingest tokens, privacy settings"
+  },
+  {
+    "id": "JD-M05",
+    "name": "@javis-dog/ingest",
+    "path": "packages/ingest",
+    "status": "planned",
+    "sprint": "S3",
+    "description": "JGR + OTLP/HTTP ingress: scoped auth, validation, dedupe, rate limits"
+  },
+  {
+    "id": "JD-M06",
+    "name": "@javis-dog/event-store",
+    "path": "packages/event-store",
+    "status": "planned",
+    "sprint": "S2",
+    "description": "Neon schema, rollups, retention"
+  },
+  {
+    "id": "JD-M07",
+    "name": "@javis-dog/realtime",
+    "path": "packages/realtime",
+    "status": "planned",
+    "sprint": "S4",
+    "description": "SSE streams, freshness and stale state"
+  },
+  {
+    "id": "JD-M08",
+    "name": "@javis-dog/analytics",
+    "path": "packages/analytics",
+    "status": "planned",
+    "sprint": "S4",
+    "description": "Effectiveness metrics and model comparison"
+  },
+  {
+    "id": "JD-M09",
+    "name": "@javis-dog/notify",
+    "path": "packages/notify",
+    "status": "planned",
+    "sprint": "S2",
+    "description": "Email (Resend + React Email) and alerts"
+  },
+  {
+    "id": "JD-M10",
+    "name": "@javis-dog/github-bridge",
+    "path": "packages/github-bridge",
+    "status": "planned",
+    "sprint": "S5",
+    "description": "GitHub App webhooks, opt-in archive"
+  },
+  {
+    "id": "JD-M11",
+    "name": "@javis-dog/crypto",
+    "path": "packages/crypto",
+    "status": "planned",
+    "sprint": "S5",
+    "description": "Envelope and end-to-end encryption (WebCrypto)"
+  },
+  {
+    "id": "JD-M12",
+    "name": "@javis-dog/resilience",
+    "path": "packages/resilience",
+    "status": "planned",
+    "sprint": "S4-S6",
+    "description": "Budget forecast, exhaustion alerts, BYOK failover"
+  },
+  {
+    "id": "JD-C01",
+    "name": "@javis-dog/collector-claude-code",
+    "path": "collectors/claude-code",
+    "status": "planned",
+    "sprint": "S3",
+    "description": "Claude Code hooks + OpenTelemetry + javi CLI"
+  },
+  {
+    "id": "JD-C02",
+    "name": "@javis-dog/collector-otel-bridge",
+    "path": "collectors/otel-bridge",
+    "status": "planned",
+    "sprint": "S5",
+    "description": "Codex / Gemini CLI to OTLP"
+  },
+  {
+    "id": "JD-C03",
+    "name": "@javis-dog/collector-mcp-server",
+    "path": "collectors/mcp-server",
+    "status": "planned",
+    "sprint": "S5",
+    "description": "Javi MCP server for agent self-report"
+  }
+]

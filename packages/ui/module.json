@@ -1,0 +1,14 @@
+{
+  "id": "JD-M13",
+  "name": "@javis-dog/ui",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Design system: theme-scoped brand tokens (ADR-0003) and, from S1, the shared React components.",
+  "owner": "platform",
+  "provides": [
+    "design tokens (TS)",
+    "tokens.css (CSS custom properties)",
+    "WCAG contrast utilities"
+  ],
+  "consumes": []
+}

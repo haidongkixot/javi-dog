@@ -52,7 +52,7 @@
 
 **Do:** be warm, brief and concrete. Use the *pack* metaphor sparingly and consistently (Pack health, your pack, Agent squad, Pack Pool).
 
-**Voice examples**
+### Voice examples
 
 - "Your pack is in motion."
 - "One thread needs your attention."
@@ -93,7 +93,7 @@
 | `paper` | `#F6F7FB` | App background |
 | `white` | `#FFFFFF` | Cards, topbar |
 | `line` | `#E9EAF2` | Borders, dividers |
-| `muted` | `#7D7D97` | Secondary text — **see accessibility note** |
+| `muted` | `#7D7D97` | Secondary text in the template — product uses AA token `#6E6E8A` |
 | `muted-2` | `#A4A5BA` | Decorative/disabled only (2.42:1, never body text) |
 | `violet-soft` | `#EFEDFF` | Violet tint surfaces |
 | `mint-deep` | `#198F62` | Positive deltas |
@@ -101,7 +101,7 @@
 | `yellow-soft` | `#FFF8DF` | Yellow tint surfaces |
 | `sky-soft` | `#EAFAFF` | Sky tint surfaces |
 
-Sidebar (on Pack Night): hover `#302E53`, active `#46416E` with an inset 3px mint bar, border `#42405F`, nav text `#BFBED4`, labels `#8987AA`.
+Sidebar (on Pack Night): hover `#302E53`, active `#46416E` with an inset 3px mint bar, border `#42405F`, nav text `#BFBED4`, labels `#8987AA` in the template (4.33:1) → AA token `#8F8DAE` (4.67:1).
 
 ### Status colors
 
@@ -141,7 +141,7 @@ Rules adopted for the design system:
 
 ## 4. Typography
 
-- **Inter** (SIL Open Font License), self-hosted via `next/font`. Fallback: `ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`.
+- **Inter** (SIL Open Font License), self-hosted from npm via `@fontsource-variable/inter` (no build-time font download). Fallback: `ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`.
 - Headlines: bold (780–830 weight in the prototype → use 700/800), negative letter-spacing (≈ −0.04em at display sizes).
 - **Metrics:** `font-variant-numeric: tabular-nums`.
 - **IDs, sequences, endpoints, hashes:** monospace (`ui-monospace, SFMono-Regular, Menlo, monospace`).

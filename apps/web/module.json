@@ -1,0 +1,10 @@
+{
+  "id": "JD-APP",
+  "name": "@javis-dog/web",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Next.js App Router application that composes all modules. S0: foundation page with an honest no-backend disclosure.",
+  "owner": "platform",
+  "provides": ["web UI", "route handlers (from S2)"],
+  "consumes": ["JD-M13"]
+}

@@ -18,6 +18,7 @@ Owner-mandated environment: **Vercel, Neon, Resend, GitHub SSO, Google SSO**. No
 | UI runtime | React | 19.3 | |
 | Language | TypeScript (strict) | 5.9 | TS 7 is out, but `typescript-eslint` supports `<6.1`; revisit later |
 | Styling | Tailwind CSS v4 + CSS variables from JD-M13 tokens | 4.3 | See ADR-0003 |
+| Font | Inter via `@fontsource-variable/inter` (self-hosted) | 5.3 | Avoids build-time downloads from Google Fonts |
 | Primitives | Radix UI (via shadcn-generated sources, restyled) | — | Added in S1 when components are built |
 | Database | Neon Postgres + `@neondatabase/serverless` | 1.2 | Neon branches per preview via Vercel Marketplace (readiness B1) |
 | ORM / migrations | Drizzle ORM + drizzle-kit | 0.45 / 0.31 | 1.0 is RC; adopt when stable |

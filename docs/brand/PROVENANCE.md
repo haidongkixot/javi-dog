@@ -13,5 +13,5 @@
 - **Trademark / name clearance: NOT DONE.** The proposal states "Final trademark/name clearance remains separate." Do not register domains, app-store listings or marketing using the mark as final until cleared.
 - The proposal (slide 1) and the template show slightly different ear/face geometry. The template SVG is used as v0.1 by owner decision (2026-10-20). Replace all files above when an official logo package arrives.
 - No dark theme is defined. MVP is light-only by owner decision (2026-10-20); tokens are theme-scoped so a dark theme can be added after beta with separate owner review.
-- No raster exports (PNG/ICO) yet; Next.js generates icons/OG images from the SVG/tokens at build time.
-- Inter is licensed under the SIL Open Font License 1.1 (self-hosted via `next/font/google`).
+- No raster exports (PNG/ICO) yet. Next.js serves `apps/web/src/app/icon.svg` (the tile) as the favicon; an Open Graph image is planned for S1.
+- Inter is licensed under the SIL Open Font License 1.1 (self-hosted via `@fontsource-variable/inter`, bundled at build time — no call to Google Fonts).
