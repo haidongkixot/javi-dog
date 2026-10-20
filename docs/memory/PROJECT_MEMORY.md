@@ -34,8 +34,10 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Open questions / blockers (owner)
 
-- **B1** Add `DATABASE_URL` (dev-agent) as a cloud-environment secret and rotate the `neondb_owner` password (it was pasted in chat). Connectivity itself is verified.
-- **B3, B4, B5** GitHub OAuth, Google OAuth, Resend — no variables present in the session; Vercel env listing is 403 for the agent. Callback base: `https://javisdog.vercel.app`.
+- **B1-rotate** `DATABASE_URL` works from the environment, but the `neondb_owner` password is still the one pasted in chat — rotate it and update the secret.
+- **B3, B4** GitHub + Google OAuth credentials missing (callback base `https://javisdog.vercel.app`).
+- **Better Auth** `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` missing.
+- **B5** `RESEND_API_KEY` present (sending-only); `EMAIL_FROM` missing; domain verification unconfirmed.
 - **ADR-0004** owner review pending.
 
 ## Next actions
