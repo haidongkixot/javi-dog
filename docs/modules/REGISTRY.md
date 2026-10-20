@@ -5,11 +5,11 @@
 
 | ID | Package | Path | Status | Version | Description | Consumes |
 |---|---|---|---|---|---|---|
-| JD-APP | `@javis-dog/web` | `apps/web` | in-progress | 0.1.0 | Next.js App Router application that composes all modules. S0: foundation page with an honest no-backend disclosure. | JD-M13 |
+| JD-APP | `@javis-dog/web` | `apps/web` | in-progress | 0.1.0 | Next.js App Router application that composes all modules. S1a: five-space shell (Overview, Projects, Live agents, Token network concept, JGR & Integrations) with honest empty and not-connected states. | JD-M13 |
 | JD-M01 | `@javis-dog/jgr-spec` | `packages/jgr-spec` | planned | — | Javi Grande Rules: Zod schemas, OpenAPI, conformance test vectors | — |
 | JD-M02 | `@javis-dog/jgr-sdk` | `packages/jgr-sdk` | planned | — | Client SDK: batching, spool, retry, signing, encryption | — |
 | JD-M03 | `@javis-dog/identity` | `packages/identity` | planned | — | Authentication (GitHub, Google), users, workspaces | — |
-| JD-M04 | `@javis-dog/projects` | `packages/projects` | planned | — | Project registry, ingest tokens, privacy settings | — |
+| JD-M04 | `@javis-dog/projects` | `packages/projects` | in-progress | 0.1.0 | Project registry. S1a: draft project schema (Zod) and slug rules; persistence and ingest tokens arrive in S2. | — |
 | JD-M05 | `@javis-dog/ingest` | `packages/ingest` | planned | — | JGR + OTLP/HTTP ingress: scoped auth, validation, dedupe, rate limits | — |
 | JD-M06 | `@javis-dog/event-store` | `packages/event-store` | planned | — | Neon schema, rollups, retention | — |
 | JD-M07 | `@javis-dog/realtime` | `packages/realtime` | planned | — | SSE streams, freshness and stale state | — |
@@ -18,7 +18,7 @@
 | JD-M10 | `@javis-dog/github-bridge` | `packages/github-bridge` | planned | — | GitHub App webhooks, opt-in archive | — |
 | JD-M11 | `@javis-dog/crypto` | `packages/crypto` | planned | — | Envelope and end-to-end encryption (WebCrypto) | — |
 | JD-M12 | `@javis-dog/resilience` | `packages/resilience` | planned | — | Budget forecast, exhaustion alerts, BYOK failover | — |
-| JD-M13 | `@javis-dog/ui` | `packages/ui` | in-progress | 0.1.0 | Design system: theme-scoped brand tokens (ADR-0003) and, from S1, the shared React components. | — |
+| JD-M13 | `@javis-dog/ui` | `packages/ui` | in-progress | 0.1.0 | Design system: theme-scoped brand tokens (ADR-0003), Tailwind theme mapping and shared React components. | — |
 | JD-C01 | `@javis-dog/collector-claude-code` | `collectors/claude-code` | planned | — | Claude Code hooks + OpenTelemetry + javi CLI | — |
 | JD-C02 | `@javis-dog/collector-otel-bridge` | `collectors/otel-bridge` | planned | — | Codex / Gemini CLI to OTLP | — |
 | JD-C03 | `@javis-dog/collector-mcp-server` | `collectors/mcp-server` | planned | — | Javi MCP server for agent self-report | — |

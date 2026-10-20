@@ -1,0 +1,10 @@
+{
+  "id": "JD-M04",
+  "name": "@javis-dog/projects",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Project registry. S1a: draft project schema (Zod) and slug rules; persistence and ingest tokens arrive in S2.",
+  "owner": "platform",
+  "provides": ["ProjectInput / Project schemas", "toSlug()", "privacy class and platform enums"],
+  "consumes": []
+}

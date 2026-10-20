@@ -1,122 +1,101 @@
-import Image from 'next/image';
+import Link from 'next/link';
+import { Card, CardHead, EmptyState, Icon, MetricCard, PageHead } from '@javis-dog/ui/components';
 
-// S0 foundation page. Per product rule 4 ("No mock masquerading as product"), it shows no
-// sample metrics and states plainly that nothing is connected yet. The five-space shell lands in S1.
-
-const promise = [
-  {
-    step: '01',
-    title: 'Observe',
-    body: 'See every project, thread and agent in one place.',
-    signals: 'Status · Heartbeat · Event timeline',
-    badge: 'bg-accent-soft',
-  },
-  {
-    step: '02',
-    title: 'Understand',
-    body: 'Make resource consumption and failure patterns explainable.',
-    signals: 'Token deltas · Retries · Budget guardrails',
-    badge: 'bg-ok-bg',
-  },
-  {
-    step: '03',
-    title: 'Keep the flow',
-    body: 'Spot attention needs early and coordinate next steps.',
-    signals: 'Stale-run alerts · Safe interventions',
-    badge: 'bg-coral-soft',
-  },
-] as const;
-
-const readiness = [
-  { label: 'Brand system & design tokens', state: 'Ready', tone: 'text-ok bg-ok-bg' },
-  { label: 'Sign-in (GitHub, Google)', state: 'Not connected', tone: 'text-info bg-info-bg' },
-  { label: 'Database', state: 'Not connected', tone: 'text-info bg-info-bg' },
-  {
-    label: 'JGR signal ingest',
-    state: 'Protocol draft next',
-    tone: 'text-protocol bg-protocol-bg',
-  },
-] as const;
-
-export default function HomePage() {
+// Overview — "What is happening now?" Every value stays empty until a verified JGR signal
+// exists (product rules 2 and 4). No sample numbers are rendered.
+export default function OverviewPage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-8 px-4 py-10 sm:px-8">
-      <header className="flex items-center gap-3">
-        <Image src="/brand/javis-dog-tile.svg" alt="" width={40} height={40} priority />
-        <div>
-          <p className="text-lg font-extrabold tracking-tight">Javi&apos;s Dog</p>
-          <p className="text-[11px] font-bold tracking-[0.14em] text-muted">AGENT OBSERVABILITY</p>
-        </div>
-      </header>
+    <>
+      <PageHead
+        eyebrow="Pack overview"
+        title="Your pack is waiting for its first signal."
+        description="A command center for your coding agents, projects and resource usage. Connect a coding tool and this page fills with verified, timestamped signals."
+      />
 
-      <div
-        role="status"
-        className="flex items-center gap-2 rounded-control border border-line bg-accent-soft px-3 py-2 text-xs text-ink"
-      >
-        <span aria-hidden className="size-1.5 rounded-full bg-violet" />
-        <strong>Foundation build.</strong>
-        <span>No projects, agents, providers or backend are connected yet.</span>
+      <section aria-label="Key metrics" className="grid grid-cols-4 gap-4 max-[1150px]:grid-cols-2">
+        <MetricCard
+          label="Active projects"
+          value={null}
+          icon={<Icon name="git" />}
+          iconClassName="bg-accent-soft text-protocol"
+        />
+        <MetricCard
+          label="Agents running"
+          value={null}
+          icon={<Icon name="bolt" />}
+          iconClassName="bg-ok-bg text-ok"
+        />
+        <MetricCard
+          label="Token burn rate"
+          value={null}
+          icon={<Icon name="trend" />}
+          iconClassName="bg-warn-bg text-warn"
+        />
+        <MetricCard
+          label="Tasks completed"
+          value={null}
+          icon={<Icon name="check" />}
+          iconClassName="bg-info-bg text-info"
+        />
+      </section>
+
+      <div className="grid grid-cols-[minmax(0,1.65fr)_minmax(280px,1fr)] gap-4 max-[850px]:grid-cols-1">
+        <Card labelledBy="usage-title">
+          <CardHead
+            id="usage-title"
+            title="Token consumption"
+            subtitle="Input, output and failed/retry tokens per day"
+          />
+          <EmptyState title="No usage data yet">
+            Token deltas appear here once a connected thread reports them. Javi&apos;s Dog never
+            estimates usage without labelling it as an estimate.
+          </EmptyState>
+        </Card>
+        <Card labelledBy="activity-title">
+          <CardHead
+            id="activity-title"
+            title="Live activity"
+            subtitle="Recent signals from connected threads"
+          />
+          <EmptyState title="No signals received">
+            Heartbeats, completed tasks and attention requests will stream in here, each with its
+            source and time.
+          </EmptyState>
+        </Card>
       </div>
 
-      <section>
-        <p className="mb-2 text-[11px] font-extrabold tracking-[0.14em] text-accent uppercase">
-          Sprint 0 · Discovery &amp; readiness
-        </p>
-        <h1 className="text-[29px] leading-tight font-extrabold tracking-[-0.04em]">
-          Every agent. One clear signal.
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
-          A loyal companion for the agentic coding world — built to turn scattered coding signals
-          into clear operational insight. Your pack dashboard arrives once real signals can flow.
-        </p>
-      </section>
-
-      <section aria-label="Product promise" className="grid gap-4 sm:grid-cols-3">
-        {promise.map((p) => (
-          <article
-            key={p.step}
-            className="rounded-card border border-line-card bg-surface p-5 shadow-card"
+      <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)] gap-4 max-[850px]:grid-cols-1">
+        <Card labelledBy="health-title">
+          <CardHead
+            id="health-title"
+            title="Project health"
+            subtitle="Work in progress across your pack"
+          />
+          <EmptyState
+            title="No projects yet"
+            action={
+              <Link href="/projects" className="text-xs font-bold text-accent hover:underline">
+                Go to Projects
+              </Link>
+            }
           >
-            <span
-              aria-hidden
-              className={`mb-4 grid size-9 place-items-center rounded-full text-xs font-extrabold text-ink ${p.badge}`}
-            >
-              {p.step}
-            </span>
-            <h2 className="text-sm font-extrabold tracking-wide uppercase">{p.title}</h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-muted">{p.body}</p>
-            <p className="mt-4 border-t border-line pt-3 text-xs font-semibold text-muted">
-              {p.signals}
-            </p>
-          </article>
-        ))}
-      </section>
-
-      <section
-        aria-labelledby="readiness-title"
-        className="rounded-card border border-line-card bg-surface shadow-card"
-      >
-        <h2 id="readiness-title" className="px-5 pt-5 text-sm font-extrabold">
-          Pack readiness
-        </h2>
-        <p className="px-5 pt-1 text-xs text-muted">What is verified today — nothing more.</p>
-        <ul className="mt-3">
-          {readiness.map((r) => (
-            <li
-              key={r.label}
-              className="flex items-center justify-between gap-4 border-t border-line px-5 py-3 text-[13px]"
-            >
-              <span className="font-semibold">{r.label}</span>
-              <span
-                className={`inline-flex items-center gap-1.5 rounded-pill px-2 py-1 text-xs font-extrabold ${r.tone}`}
-              >
-                <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                {r.state}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </main>
+            Project registration opens with sign-in in Sprint 2.
+          </EmptyState>
+        </Card>
+        <Card labelledBy="squad-title">
+          <CardHead id="squad-title" title="Agent squad" subtitle="Who is doing what right now" />
+          <EmptyState
+            title="No agents connected"
+            action={
+              <Link href="/integrations" className="text-xs font-bold text-accent hover:underline">
+                See supported integrations
+              </Link>
+            }
+          >
+            Agents appear when a coding tool sends its first heartbeat.
+          </EmptyState>
+        </Card>
+      </div>
+    </>
   );
 }

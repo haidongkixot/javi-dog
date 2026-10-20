@@ -3,12 +3,13 @@
   "name": "@javis-dog/ui",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Design system: theme-scoped brand tokens (ADR-0003) and, from S1, the shared React components.",
+  "description": "Design system: theme-scoped brand tokens (ADR-0003), Tailwind theme mapping and shared React components.",
   "owner": "platform",
   "provides": [
     "design tokens (TS)",
-    "tokens.css (CSS custom properties)",
-    "WCAG contrast utilities"
+    "tokens.css + theme.css",
+    "WCAG contrast utilities",
+    "React components: StatusPill, DemoBanner, PageHead, Card, CardHead, MetricCard, EmptyState, RuleList, EndpointBlock, Icon, BrandTile"
   ],
   "consumes": []
 }

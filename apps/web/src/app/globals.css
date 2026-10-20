@@ -1,62 +1,6 @@
 @import 'tailwindcss';
 @import '@javis-dog/ui/tokens.css';
-
-/* Map JD-M13 semantic tokens into Tailwind's theme (ADR-0003). Use these utilities, never raw hex. */
-@theme inline {
-  --color-bg: var(--jd-bg);
-  --color-surface: var(--jd-surface);
-  --color-surface-subtle: var(--jd-surface-subtle);
-  --color-line: var(--jd-border);
-  --color-line-card: var(--jd-border-card);
-  --color-ink: var(--jd-text);
-  --color-muted: var(--jd-text-muted);
-  --color-decorative: var(--jd-text-decorative);
-  --color-accent: var(--jd-accent);
-  --color-accent-soft: var(--jd-accent-soft);
-  --color-positive: var(--jd-positive);
-  --color-primary: var(--jd-primary-bg);
-  --color-primary-hover: var(--jd-primary-bg-hover);
-  --color-on-primary: var(--jd-primary-text);
-
-  --color-sidebar: var(--jd-sidebar-bg);
-  --color-sidebar-hover: var(--jd-sidebar-hover);
-  --color-sidebar-active: var(--jd-sidebar-active);
-  --color-sidebar-border: var(--jd-sidebar-border);
-  --color-sidebar-text: var(--jd-sidebar-text);
-  --color-sidebar-label: var(--jd-sidebar-label);
-  --color-sidebar-marker: var(--jd-sidebar-marker);
-
-  --color-ok: var(--jd-status-ok-text);
-  --color-ok-bg: var(--jd-status-ok-bg);
-  --color-warn: var(--jd-status-warn-text);
-  --color-warn-bg: var(--jd-status-warn-bg);
-  --color-danger: var(--jd-status-danger-text);
-  --color-danger-bg: var(--jd-status-danger-bg);
-  --color-info: var(--jd-status-info-text);
-  --color-info-bg: var(--jd-status-info-bg);
-  --color-protocol: var(--jd-status-protocol-text);
-  --color-protocol-bg: var(--jd-status-protocol-bg);
-
-  --color-mint: var(--jd-brand-good-signal-mint);
-  --color-coral: var(--jd-brand-alert-coral);
-  --color-yellow: var(--jd-brand-focus-yellow);
-  --color-sky: var(--jd-brand-clear-sky);
-  --color-violet: var(--jd-brand-signal-violet);
-  --color-pack-night: var(--jd-brand-pack-night);
-  --color-coral-soft: var(--jd-brand-coral-soft);
-  --color-yellow-soft: var(--jd-brand-yellow-soft);
-  --color-sky-soft: var(--jd-brand-sky-soft);
-
-  --font-sans: var(--jd-font-sans);
-  --font-mono: var(--jd-font-mono);
-
-  --radius-card: var(--jd-radius-card);
-  --radius-control: var(--jd-radius-control);
-  --radius-pill: var(--jd-radius-pill);
-
-  --shadow-card: var(--jd-shadow-card);
-  --shadow-primary: var(--jd-shadow-primary);
-}
+@import '@javis-dog/ui/theme.css';
 
 html,
 body {

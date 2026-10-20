@@ -24,14 +24,6 @@
     "description": "Authentication (GitHub, Google), users, workspaces"
   },
   {
-    "id": "JD-M04",
-    "name": "@javis-dog/projects",
-    "path": "packages/projects",
-    "status": "planned",
-    "sprint": "S1-S2",
-    "description": "Project registry, ingest tokens, privacy settings"
-  },
-  {
     "id": "JD-M05",
     "name": "@javis-dog/ingest",
     "path": "packages/ingest",
