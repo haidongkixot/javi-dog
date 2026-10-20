@@ -6,6 +6,7 @@ Append-only handoff log, newest first. Each entry: date · session · what happe
 
 - Re-checked env vars (presence/shape only): all 10 S2 vars present and well-formed; OAuth secrets no longer hold callback URLs. Neon `dev-agent` OK over HTTPS (PG 18.6, 0 tables); psql/TCP times out. Google client authenticates (`invalid_grant` probe). GitHub token endpoint blocked by the sandbox proxy (403); Vercel env listing still 403. Rotation of `neondb_owner` not verifiable.
 - Planned S2a (`docs/sprints/SPRINT-02a.md`), ADR-0005 (Proposed), refreshed `TEST_PLAN.md`, readiness matrix and discovery delta. Sign-in moved to S2b.
+- Owner: B1-rotate deferred ("use first, rotate later"); GitHub OAuth to be proven at S2b sign-in. Agent verified B5: one probe send from `EMAIL_FROM` to `delivered@resend.dev` → HTTP 200 (domain verified for sending).
 - State: docs only, nothing implemented or deployed. Next: owner answers Q1–Q4, then run S2a.
 
 ## 2026-10-20 · Session 1, continued — Sprints 1a and 1b

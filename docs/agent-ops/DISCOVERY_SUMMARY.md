@@ -49,5 +49,5 @@ Grouped in the readiness matrix: B1–B5 are needed before Sprint 2; B2 can be d
 - **Constraint found:** raw TCP to Postgres times out from the sandbox; only the HTTP driver works → migrations use the neon-http migrator, not `drizzle-kit migrate` (ADR-0005).
 - **Boundary finding:** JD-M04 owns `workspaces` in S2a while the registry places workspaces under JD-M03; tables are module-owned and composed by JD-M06 to keep ADR-0001 boundaries without import cycles (ADR-0005).
 - **Better Auth interplay:** its organization plugin would create its own `organization` table; `workspaces` is shaped to be mapped instead (hypothesis, verify in S2b).
-- **Unknowns:** Vercel env vars per environment (403 → `/api/health` will answer), Neon branch for Vercel Preview/Production (Q3), `neondb_owner` rotation (B1-rotate).
+- **Unknowns:** Vercel env vars per environment (403 → `/api/health` will answer), Neon branch for Vercel Preview/Production (Q3). `neondb_owner` rotation deferred by owner (B1-rotate). Resend domain verified by a sink send (B5 done).
 - **Owner questions:** Q1–Q4 in `docs/sprints/SPRINT-02a.md`.
