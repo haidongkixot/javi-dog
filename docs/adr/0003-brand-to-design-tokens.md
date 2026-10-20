@@ -38,7 +38,7 @@ Chosen: **option 2**.
 
 - Good: single source; accessible by default; dark theme becomes a new token set plus review.
 - Good: emails and OG images can import the same TS tokens.
-- Bad: small visible difference from the prototype in secondary text and pill text (slightly darker). Recorded as owner decision **D1** with this as the default.
+- Bad: small visible difference from the prototype in secondary text and pill text (slightly darker). Owner decision **D1** accepted this on 2026-10-20.
 - Bad: one build step (token → CSS generation) to maintain; guarded by a CI check that the CSS is up to date.
 
 ## Links

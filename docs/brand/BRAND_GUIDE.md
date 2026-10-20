@@ -137,7 +137,7 @@ Rules adopted for the design system:
 4. Minimum type size in the product: **12px** for body/table text, **11px** for uppercase labels. The prototype's 9–10px text is treated as a density sketch, not a spec.
 5. These rules are enforced by a unit test in `packages/ui` (`JD-M13`) that checks every declared text/background pair.
 
-> Owner decision recorded as READINESS item **D1**: adopt AA text tokens (recommended) vs. keep exact template text colors. Default until decided: AA tokens.
+> Owner decision **D1** (2026-10-20): AA text tokens **accepted**.
 
 ## 4. Typography
 

@@ -9,8 +9,8 @@
 | Repo & stack | Repository, runtime, package manager | `haidongkixot/javi-dog`, Node, pnpm | AVAILABLE | Repo was empty (no commits) on 2026-10-20; `node v22.22.0`, `pnpm 10.28.0` | — | — | Stack per ADR-0002 | No |
 | Rules | Engineering rules to follow | Orcasus repo | AVAILABLE | `haidongkixot/orcasus@00b241b` (v1.2.1) installed in `.claude/skills/`, `docs/agent-ops/` | — | — | — | No |
 | UX / assets | Brand, design system, logo, fonts | Owner brand kit | AVAILABLE (concept 0.1) | `docs/brand/BRAND_GUIDE.md`, `docs/brand/PROVENANCE.md` | Trademark not cleared; no official logo files; no dark theme | Logo: template SVG v0.1 (decided) · Dark: light-only MVP (decided) | Replace logo when official files arrive | Done (2026-10-20) |
-| UX / a11y | AA-compliant text colors (D1) | Owner acceptance of adjusted text tokens | UNKNOWN | Measured ratios in `BRAND_GUIDE.md` §3: muted 4.00, pills 3.21–4.08, white-on-violet 4.43 | Inaccessible dashboard text | A) AA text tokens, hues unchanged (default) · B) exact template colors (fails AA) · C) new brand palette from designer | A | **Yes (D1)** |
-| Integrations | Hosting | Vercel team | AVAILABLE | Vercel MCP: team `haidongkixots-projects` (`team_wbKguqX6Wj8eVKG1K332eQFD`); no project matching "javi" | No deploy previews | — | Create project `javi-dog` linked to the repo after owner confirms (B2) | **Yes (B2)** |
+| UX / a11y | AA-compliant text colors (D1) | Owner acceptance of adjusted text tokens | AVAILABLE | Measured ratios in `BRAND_GUIDE.md` §3: muted 4.00, pills 3.21–4.08, white-on-violet 4.43 | Inaccessible dashboard text | A) AA text tokens, hues unchanged (default) · B) exact template colors (fails AA) · C) new brand palette from designer | A | Done (accepted 2026-10-20) |
+| Integrations | Hosting | Vercel project `javi-dog` linked to repo | BLOCKED | Owner approved creation 2026-10-20; Vercel MCP `create_git_project` → 403 forbidden (no create permission for this connection); no Vercel CLI/token in session | No deploy previews | A) Owner creates project in dashboard (steps in `docs/how-to/provision-external-services.md` §0) · B) Owner adds team-scoped `VERCEL_TOKEN` to the cloud environment | A | **Yes (B2)** |
 | Integrations | Database | Neon project + `DATABASE_URL` | UNKNOWN | Vercel MCP `list_integration_configurations` → 403 forbidden; no env var present in session | S2+ persistence blocked | A) Neon via Vercel Marketplace (branch per preview, recommended) · B) standalone Neon project + manual env vars | A | **Yes (B1)** |
 | Integrations | GitHub SSO | GitHub OAuth App client id/secret | MISSING | No env var names present | Sign-in with GitHub blocked (S2) | A) OAuth App owned by the owner's account/org · B) GitHub App with user auth (also serves B6) | A now, B6 later | **Yes (B3)** |
 | Integrations | Google SSO | Google OAuth client | MISSING | No env var names present | Sign-in with Google blocked (S2) | A) Google Cloud project owned by owner · B) launch GitHub-only first | A | **Yes (B4)** |
@@ -31,7 +31,7 @@
 
 ## Readiness decision
 
-**Partial.** Sprint 0 and Sprint 1 (brand shell, JGR research/spec) can proceed. Sprint 2 is blocked on B1, B3, B4, B5.
+**Partial.** Sprint 1 (brand shell, JGR research/spec) can proceed. Sprint 2 is blocked on B1, B3, B4, B5 — owner will provision them following `docs/how-to/provision-external-services.md` (2026-10-20). B2 blocked on Vercel permission.
 
 ### Blockers and decisions
 
@@ -39,13 +39,13 @@
 |---|---|---|---|---|---|---|---|---|
 | B0 | Brand kit | Owner upload | Use as Concept 0.1 | — | — | A | Owner | Accepted 2026-10-20 |
 | B1 | Neon database | 403 on integration list | Vercel Marketplace Neon | Standalone Neon | — | A | Owner | Pending |
-| B2 | Vercel project | Team exists, no project | Create `javi-dog` via Vercel MCP linked to GitHub | Owner creates it manually | — | A | Owner | Pending |
+| B2 | Vercel project | MCP create → 403 | Owner creates in dashboard | Owner provides `VERCEL_TOKEN` | — | A | Owner | Approved 2026-10-20; blocked on permission |
 | B3 | GitHub OAuth | Missing | OAuth App | GitHub App user auth | — | A | Owner | Pending |
 | B4 | Google OAuth | Missing | Google Cloud OAuth client | GitHub-only launch | — | A | Owner | Pending |
 | B5 | Resend | Missing | Resend + domain | Defer email | — | A | Owner | Pending |
 | B6 | GitHub App | Missing | Manifest-based app | — | — | A (S5) | Owner | Pending |
 | B7 | Pack Pool legal review | Missing | External review | Drop Pack Pool | — | A before S6 | Owner | Pending |
-| D1 | AA text tokens | Measured contrast | AA tokens, hues unchanged | Exact template colors | Designer revises palette | A | Owner | Default A, awaiting confirmation |
+| D1 | AA text tokens | Measured contrast | AA tokens, hues unchanged | Exact template colors | Designer revises palette | A | Owner | **A accepted 2026-10-20** |
 | D2 | Dark mode | Not in brand kit | Light-only MVP, theme-scoped tokens | — | — | A | Owner | Accepted 2026-10-20 |
 
 ### Gate before implementation (Sprint 0)

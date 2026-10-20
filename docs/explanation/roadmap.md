@@ -1,6 +1,6 @@
 # Roadmap
 
-> Approved by the project owner on 2026-10-20. Backbone follows the brand proposal's delivery roadmap (slide 11): *prove the signal path before expanding the network.* Sprints are gated by evidence, not calendar promises; sprint length is fixed at the end of S0.
+> Approved by the project owner on 2026-10-20. Backbone follows the brand proposal's delivery roadmap (slide 11): *prove the signal path before expanding the network.* Sprints are gated by evidence, not calendar promises. **Timebox: each sprint is at most 30 minutes of agent work** (owner decision, 2026-10-20). A roadmap sprint too large for one timebox is split (S1a, S1b…); unfinished items roll over and are recorded truthfully in the sprint file.
 
 | Sprint | Goal | Key deliverables | Guru checkpoint |
 |---|---|---|---|

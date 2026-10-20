@@ -1,6 +1,6 @@
 # Sprint 00 — Discovery & readiness
 
-- Dates: 2026-10-20 → 2026-10-20 · Status: **CLOSING** (pending owner answers B2, D1 and sprint-length decision)
+- Dates: 2026-10-20 → 2026-10-20 · Status: **CLOSED** (owner: B2 approved but blocked on Vercel permission; D1 accepted; sprint timebox ≤ 30 min)
 - Goal: adopt Orcasus, record discovery and feasibility, turn the brand kit into a working design-token foundation, and set up the second-memory and Guru systems.
 - Modules touched: JD-APP, JD-M13
 - Readiness: `docs/agent-ops/READINESS_MATRIX.md` (verdict **Partial** — S0/S1 unblocked; S2 needs B1, B3, B4, B5)
@@ -23,7 +23,7 @@
 | 4 | Monorepo scaffold, JD-M13 tokens, JD-APP foundation page, CI, doc checks | JD-M13, JD-APP | lint/typecheck/test/build/docs:check exit 0 | Done (`d011b8d`) |
 | 5 | Vendor reviewed third-party skills + `javis-dog-brand` skill | — | Provenance, license and overrides recorded | Done (`509faa5`) |
 | 6 | Javi's Guru agent + `/guru-checkpoint` + G0 | — | Agent defined; G0 entry and first skills in `guru/` | Done (`07ccacc`, G0 commit) |
-| 7 | Create Vercel project `javi-dog` (B2) | — | Owner confirmation | **Waiting on owner** |
+| 7 | Create Vercel project `javi-dog` (B2) | — | Project linked to repo | **BLOCKED** — MCP 403; owner creates via dashboard (rolls to S1a) |
 
 ## Review focus
 
