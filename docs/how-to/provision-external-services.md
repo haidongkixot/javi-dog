@@ -18,7 +18,7 @@ The agent's Vercel connection returned `403 forbidden` on project creation, so c
 2. **Root Directory:** `apps/web` (Vercel detects Next.js and the pnpm workspace).
 3. Leave build/install commands on defaults → **Deploy**.
 4. Production domain: **`https://javisdog.vercel.app`** (project `javisdog`, created 2026-10-20). It is `<APP_URL>` below.
-5. Deployment Protection: the project uses Vercel Authentication for every domain except custom domains, so `javisdog.vercel.app` is not public and OAuth redirects would hit a Vercel login. Add a custom domain (recommended) or turn protection off for production before testing sign-in.
+5. Deployment Protection (`all_except_custom_domains`) protects per-deployment URLs; the production alias `javisdog.vercel.app` was verified public on 2026-10-20, so OAuth callbacks on it work.
 
 Alternative: put a Vercel access token scoped to this team into the cloud environment as `VERCEL_TOKEN`; the agent can then manage the project through the Vercel API.
 
@@ -29,6 +29,7 @@ Recommended: install through Vercel so every preview deployment gets its own dat
 1. Vercel → project `javi-dog` → **Storage** → **Create Database** → **Neon** → region close to your users (e.g. Singapore `aws-ap-southeast-1`) → connect to **Production** and **Preview**. Vercel injects `DATABASE_URL` (and related `PG*` / `POSTGRES_*` variables) automatically.
 2. In the Neon console for that database, create a branch named **`dev-agent`** from `main`. Copy its **pooled** connection string.
 3. Add it to the Claude Code cloud environment as `DATABASE_URL` (the agent runs migrations and integration tests against `dev-agent`, never against production).
+4. Agent note: inside the cloud sandbox, Node's `fetch` only uses the egress proxy with `NODE_USE_ENV_PROXY=1`; database scripts set it.
 
 ## 2. GitHub OAuth App (B3) → `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
 
