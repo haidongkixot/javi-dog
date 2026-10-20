@@ -34,8 +34,8 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Open questions / blockers (owner)
 
-- **B3/B4 invalid values** `GITHUB_CLIENT_ID` is a 3-char placeholder; `GITHUB_CLIENT_SECRET` and `GOOGLE_CLIENT_SECRET` hold the same value; Google returns `invalid_client`. Re-copy real values.
-- **B5** `EMAIL_FROM` missing; Resend domain verification unconfirmed.
+- **B3/B4** `GITHUB_CLIENT_SECRET` and `GOOGLE_CLIENT_SECRET` contain the callback URLs instead of the secrets. IDs are fine.
+- **B5** Resend ready (`EMAIL_FROM` on `eagodi.com`); confirm the domain is Verified.
 - **B1-rotate** Neon `neondb_owner` password still equals the one pasted in chat.
 - **Vercel env** unverifiable by the agent (403) — health route planned in S2.
 - **ADR-0004** owner review pending.
