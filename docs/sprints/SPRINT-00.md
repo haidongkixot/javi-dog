@@ -22,7 +22,7 @@
 | 3 | Discovery, readiness, feasibility, ADR-0001/0002, roadmap, project memory | — | Every resource has a status with evidence; blockers have options | Done (`7a501a3`) |
 | 4 | Monorepo scaffold, JD-M13 tokens, JD-APP foundation page, CI, doc checks | JD-M13, JD-APP | lint/typecheck/test/build/docs:check exit 0 | Done (`d011b8d`) |
 | 5 | Vendor reviewed third-party skills + `javis-dog-brand` skill | — | Provenance, license and overrides recorded | Done (`509faa5`) |
-| 6 | Javi's Guru agent + `/guru-checkpoint` + G0 | — | Agent defined; G0 entry and first skills in `guru/` | In progress |
+| 6 | Javi's Guru agent + `/guru-checkpoint` + G0 | — | Agent defined; G0 entry and first skills in `guru/` | Done (`07ccacc`, G0 commit) |
 | 7 | Create Vercel project `javi-dog` (B2) | — | Owner confirmation | **Waiting on owner** |
 
 ## Review focus
@@ -38,7 +38,8 @@
 - 2026-10-20 — Discovery, readiness matrix, feasibility, ADR-0001/0002, roadmap, project memory — `7a501a3`
 - 2026-10-20 — Monorepo + JD-M13 tokens + JD-APP foundation page + CI + doc checks — `d011b8d`
 - 2026-10-20 — Third-party skills vendored after review; `javis-dog-brand` skill — `509faa5`
-- 2026-10-20 — Guru agent, checkpoint skill, sprint template; G0 — this commit and the G0 commit
+- 2026-10-20 — G0: Guru packaged 4 generalized skills (medium confidence), 8 verified lessons, 6 hypotheses — G0 commit
+- 2026-10-20 — Guru agent, checkpoint skill, sprint template — `07ccacc`
 
 ## Test evidence
 
@@ -74,4 +75,4 @@ Notable failure caught during the sprint: the first `docs:check` after adding `g
 
 ## Guru checkpoint
 
-G0 — see `guru/WISDOM_LOG.md`.
+G0 — completed 2026-10-20. Skills: `accessible-brand-tokens`, `agent-second-memory`, `vendoring-agent-skills`, `verify-dependencies-against-registry` (all v0.1.0, medium confidence). Orchestrator verification: secret scan clean, `contrast.mjs` reproduces `#6E6E8A`, full suite exit 0. Entry: `guru/WISDOM_LOG.md`.

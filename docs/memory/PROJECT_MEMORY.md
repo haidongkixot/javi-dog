@@ -9,7 +9,8 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Current state
 
-- S0 foundations committed on branch `claude/clever-goldberg-wlurty`: Orcasus adopted, brand guide + logo v0.1, feasibility, readiness, ADR-0001…0003, monorepo scaffold, JD-M13 tokens, minimal JD-APP shell, CI, Guru agent.
+- S0 foundations committed on branch `claude/clever-goldberg-wlurty`: Orcasus adopted, brand guide + logo v0.1, feasibility, readiness, ADR-0001…0003, monorepo scaffold, JD-M13 tokens (29 tests), minimal JD-APP page, CI (GitHub Actions green), vendored skills, Guru agent.
+- G0 done: 4 generalized skills in `guru/skills/` (medium confidence); see `guru/WISDOM_LOG.md`.
 - Nothing is deployed. No database, auth or ingest exists yet. The web app shows a disclosure banner.
 
 ## Decisions in force

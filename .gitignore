@@ -23,3 +23,5 @@ blob-report/
 .DS_Store
 .vercel
 **/*-workspace/
+__pycache__/
+*.pyc
