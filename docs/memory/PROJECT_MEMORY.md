@@ -34,10 +34,10 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Open questions / blockers (owner)
 
-- **B1-rotate** `DATABASE_URL` works from the environment, but the `neondb_owner` password is still the one pasted in chat — rotate it and update the secret.
-- **B3, B4** GitHub + Google OAuth credentials missing (callback base `https://javisdog.vercel.app`).
-- **Better Auth** `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` missing.
-- **B5** `RESEND_API_KEY` present (sending-only); `EMAIL_FROM` missing; domain verification unconfirmed.
+- **B3/B4 invalid values** `GITHUB_CLIENT_ID` is a 3-char placeholder; `GITHUB_CLIENT_SECRET` and `GOOGLE_CLIENT_SECRET` hold the same value; Google returns `invalid_client`. Re-copy real values.
+- **B5** `EMAIL_FROM` missing; Resend domain verification unconfirmed.
+- **B1-rotate** Neon `neondb_owner` password still equals the one pasted in chat.
+- **Vercel env** unverifiable by the agent (403) — health route planned in S2.
 - **ADR-0004** owner review pending.
 
 ## Next actions
