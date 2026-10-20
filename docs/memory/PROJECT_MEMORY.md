@@ -28,20 +28,20 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | Owner | Logo = template SVG as concept 0.1, trademark clearance pending |
 | ADR-0001 | Modular monolith, `JD-*` module IDs, lint-enforced boundaries |
 | ADR-0002 | Next.js 16 / React 19 / TS 5.9 / Tailwind 4 / Neon + Drizzle / **Better Auth** / Resend / Vitest |
-| ADR-0003 | Brand → theme-scoped tokens; AA text tokens with unchanged hues (D1 default) |
+| ADR-0003 | Brand → theme-scoped tokens; AA text tokens with unchanged hues (D1 accepted 2026-10-20) |
+| ADR-0004 | JGR v0.1: own strict envelope over HTTPS batches; OTLP/HTTP accepted and stripped at the edge (owner review pending) |
+| Owner | Sprint timebox ≤ 30 minutes; oversized sprints are split (S1a/S1b) |
 
 ## Open questions / blockers (owner)
 
-- **B2** confirm creation of Vercel project `javi-dog` linked to the repo.
-- **B1** Neon (recommended via Vercel Marketplace) — needed by S2.
-- **B3/B4** GitHub + Google OAuth clients — needed by S2.
-- **B5** Resend API key + verified domain — needed by S2.
-- **D1** confirm AA-adjusted text tokens.
+- **B2** Vercel project — approved, but the agent's Vercel connection returns 403 on create. Owner creates it in the dashboard (`docs/how-to/provision-external-services.md` §0) or provides `VERCEL_TOKEN`.
+- **B1, B3, B4, B5** Neon, GitHub OAuth, Google OAuth, Resend — owner is provisioning per the same guide; needed for S2.
+- **ADR-0004** JGR v0.1 envelope/transport — owner review pending.
 
 ## Next actions
 
-1. Close S0: owner answers B2/D1; fix sprint length.
-2. S1: build JD-M13 components and the five-space shell from the template; JGR research + v0.1 draft (JD-M01).
+1. Owner: provision B1–B5 and B2, add values to Vercel + the cloud environment, reply "done", start a new session.
+2. S2 (Identity & projects): Better Auth with GitHub/Google (JD-M03), JD-M06 schema + migrations on the `dev-agent` Neon branch, JD-M04 persistence + ingest tokens, JD-M09 welcome email.
 
 ## Key paths
 

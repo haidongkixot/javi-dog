@@ -33,6 +33,7 @@
 - Research returned; Claude Code privacy/protocol facts spot-checked by direct fetch of the official page.
 - Found and fixed before running tests: placeholder ULIDs contained `I`/`O`, which Crockford base32 excludes.
 - 19:08 — Sprint closed (≈ 8 minutes).
+- Post-sprint (G1 review): refs tightened to opaque IDs (2 new vectors → 22), spec §11 aligned with JGR-R11; see ADR-0004 "Changes".
 
 ## Test evidence
 

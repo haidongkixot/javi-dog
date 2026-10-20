@@ -15,9 +15,26 @@ const files = (dir: string): string[] =>
     return /\.(tsx?|css)$/.test(name) && !name.endsWith('.svg') ? [full] : [];
   });
 
-describe('no raw hex colors in UI code', () => {
+// Raw colors: #rgb, #rgba, #rrggbb, #rrggbbaa and CSS color functions.
+const RAW_COLOR =
+  /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/g;
+
+describe('guard self-test: the raw-color pattern can fail', () => {
+  it.each(['#7c5cff80', '#ffff', '#fff', '#252347', 'rgb(1, 2, 3)', 'oklch(0.5 0.1 200)'])(
+    'catches %s',
+    (text) => {
+      expect(text.match(RAW_COLOR)).not.toBeNull();
+    },
+  );
+
+  it.each(['var(--jd-text)', 'bg-ok-bg text-ok', 'href="#main"'])('ignores %s', (text) => {
+    expect(text.match(RAW_COLOR)).toBeNull();
+  });
+});
+
+describe('no raw colors in UI code', () => {
   it.each(roots.flatMap(files))('%s', (file) => {
     const text = readFileSync(file, 'utf8').replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, '');
-    expect(text.match(/#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g) ?? []).toEqual([]);
+    expect(text.match(RAW_COLOR) ?? []).toEqual([]);
   });
 });

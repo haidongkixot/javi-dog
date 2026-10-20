@@ -11,6 +11,9 @@ const { default: OverviewPage } = await import('@/app/page');
 
 afterEach(cleanup);
 
+// Matches sample-looking metrics such as "67%", "67% capacity", "4.8K/s" or "5.3M".
+const SAMPLE_NUMBER = /\d+(\.\d+)?\s?(K\/s|%|M(?![a-z]))/;
+
 describe('navigation (BRAND_GUIDE §8)', () => {
   it('has exactly the five core spaces', () => {
     expect(allNav.map((n) => n.label)).toEqual([
@@ -46,6 +49,16 @@ describe('Overview (product rule 4: no mock masquerading as product)', () => {
   it('renders every KPI as "No signal yet" without sample numbers', () => {
     render(<OverviewPage />);
     expect(screen.getAllByText('No signal yet')).toHaveLength(4);
-    expect(screen.queryByText(/\d+(\.\d+)?\s?(K\/s|%|M)\b/)).toBeNull();
+    expect(screen.queryByText(SAMPLE_NUMBER)).toBeNull();
+  });
+});
+
+describe('guard self-test: the sample-number pattern can fail', () => {
+  it.each(['67%', '67% capacity', '4.8K/s', '5.3M tokens'])('catches "%s"', (text) => {
+    expect(SAMPLE_NUMBER.test(text)).toBe(true);
+  });
+
+  it.each(['Sprint 2', 'Phase 2 · not live', 'Maximum'])('ignores "%s"', (text) => {
+    expect(SAMPLE_NUMBER.test(text)).toBe(false);
   });
 });

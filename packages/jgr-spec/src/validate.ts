@@ -1,6 +1,6 @@
 import { JGR_LIMITS, JgrBatch, JgrEvent, type JgrEvent as Event } from './schema.ts';
 
-/** Stable machine-readable error codes (spec §7). Clients branch on these, not on messages. */
+/** Stable machine-readable error codes (spec §13). Clients branch on these, not on messages. */
 export type IssueCode =
   | 'schema'
   | 'too_large'

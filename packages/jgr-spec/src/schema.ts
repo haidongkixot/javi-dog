@@ -52,10 +52,8 @@ const REF = z
   .string()
   .min(1)
   .max(JGR_LIMITS.maxRefLength)
-  .regex(
-    /^[A-Za-z0-9._:@/-]+$/,
-    'Refs are opaque identifiers: letters, digits and . _ : @ / - only.',
-  );
+  // Opaque identifiers only: no '/', '.' or '@', so paths, file names and emails cannot pass as refs.
+  .regex(/^[A-Za-z0-9_:-]+$/, 'Refs are opaque identifiers: letters, digits and _ : - only.');
 
 /** Token and cost deltas since the producer's previous report for the same thread (JGR-R08). */
 export const UsageDelta = z

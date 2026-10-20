@@ -2,6 +2,13 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-20 · Session 1, continued — Sprints 1a and 1b
+
+- Owner: B2 approved (blocked by Vercel 403 — dashboard steps written), D1 accepted, sprints ≤ 30 minutes, owner will provision Neon / GitHub OAuth / Google OAuth / Resend (`docs/how-to/provision-external-services.md`).
+- S1a (≈ 9 min): five-space shell, JD-M13 components, JD-M04 draft schema. S1b (≈ 8 min): JGR v0.1 spec, JD-M01 validator, 22 conformance vectors, primary-source research.
+- G1 by Javi's Guru: 3 new skills, 2 updated; found 6 defects in the work (weak guard regexes, refs accepting paths/emails, spec contradiction, overclaiming copy, stale memory, config outside typecheck) — reproduced and fixed with red→green evidence.
+- State: all checks green; nothing deployed. Next: S2 once credentials exist.
+
 ## 2026-10-20 · Session 1 (Claude Code, cloud) — Sprint 0
 
 - Owner brief received; feasibility + 7-sprint plan approved after four owner decisions (resilience first, English docs, Guru → guru/ + Orcasus PRs, collectors Claude Code/Codex/Gemini/GitHub).

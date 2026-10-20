@@ -42,7 +42,7 @@ const integrations: ReadonlyArray<{
   {
     key: 'API',
     name: 'Custom JGR API',
-    desc: 'Signed event ingestion endpoint',
+    desc: 'Token-authenticated ingestion endpoint; request signing planned for v0.2',
     status: 'Spec in progress',
     tone: 'protocol',
   },
