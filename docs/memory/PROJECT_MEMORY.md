@@ -13,7 +13,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - G0 done: 4 generalized skills in `guru/skills/` (medium confidence); see `guru/WISDOM_LOG.md`.
 - S1a done: five-space shell with honest states (JD-APP), JD-M13 components, JD-M04 draft project schema.
 - S1b done: JGR v0.1 draft (JD-M01) — spec `docs/jgr/spec/v0.1.md`, ADR-0004, 20 conformance vectors, primary-source research; 89 tests green workspace-wide.
-- Nothing is deployed (B2 blocked: Vercel MCP 403). No database, auth or ingest exists yet. The web app shows a disclosure banner.
+- Deployed: Vercel project `javisdog` (owner-created), production `javisdog.vercel.app` READY from `c80e548`, behind Vercel Authentication (B2a). No database, auth or ingest exists yet.
 
 ## Decisions in force
 
@@ -34,9 +34,10 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Open questions / blockers (owner)
 
-- **B2** Vercel project — approved, but the agent's Vercel connection returns 403 on create. Owner creates it in the dashboard (`docs/how-to/provision-external-services.md` §0) or provides `VERCEL_TOKEN`.
-- **B1, B3, B4, B5** Neon, GitHub OAuth, Google OAuth, Resend — owner is provisioning per the same guide; needed for S2.
-- **ADR-0004** JGR v0.1 envelope/transport — owner review pending.
+- **B1** Neon `dev-agent` exists, but the session network policy blocks the Neon host and `DATABASE_URL` is not an env secret yet. Owner: allow `*.neon.tech`, add `DATABASE_URL` to environment secrets, new session, then rotate the `neondb_owner` password (it was pasted in chat).
+- **B2a** Production is behind Vercel Authentication — add a custom domain or disable protection for production.
+- **B3, B4, B5** GitHub OAuth, Google OAuth, Resend — status unknown (Vercel env listing is 403 for the agent); callback base is `https://javisdog.vercel.app`.
+- **ADR-0004** owner review pending.
 
 ## Next actions
 

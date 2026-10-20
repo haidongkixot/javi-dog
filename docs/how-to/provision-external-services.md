@@ -4,6 +4,9 @@
 >
 > 1. **Vercel → Project `javi-dog` → Settings → Environment Variables** — used by deployments.
 > 2. **Claude Code cloud environment** (session title bar → cloud environment menu → **Edit** → *Network secrets* / environment variables) — used by the agent for migrations and integration tests. A **new session** picks the values up.
+> 3. **Network access** of the same cloud environment must allow the hosts the agent calls: the Neon host (`*.neon.tech`), `api.resend.com`, and `javisdog.vercel.app` for smoke tests (Network access → Limited → Allowed domains, keep *Allow package managers* ticked). Steps: <https://code.claude.com/docs/en/cloud-environments#network-access>.
+>
+> Never paste secret values into chat; if one was pasted, rotate it after storing it properly.
 >
 > Variable names are listed in `.env.example`. Use separate values for development where noted.
 
@@ -14,7 +17,8 @@ The agent's Vercel connection returned `403 forbidden` on project creation, so c
 1. Vercel dashboard → team **haidongkixot's projects** → **Add New… → Project** → import GitHub repo `haidongkixot/javi-dog`.
 2. **Root Directory:** `apps/web` (Vercel detects Next.js and the pnpm workspace).
 3. Leave build/install commands on defaults → **Deploy**.
-4. Note the production domain (expected `https://javi-dog.vercel.app` if the name is free). It is used as `<APP_URL>` below.
+4. Production domain: **`https://javisdog.vercel.app`** (project `javisdog`, created 2026-10-20). It is `<APP_URL>` below.
+5. Deployment Protection: the project uses Vercel Authentication for every domain except custom domains, so `javisdog.vercel.app` is not public and OAuth redirects would hit a Vercel login. Add a custom domain (recommended) or turn protection off for production before testing sign-in.
 
 Alternative: put a Vercel access token scoped to this team into the cloud environment as `VERCEL_TOKEN`; the agent can then manage the project through the Vercel API.
 
