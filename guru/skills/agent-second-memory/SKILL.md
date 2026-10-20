@@ -1,9 +1,9 @@
 ---
 name: agent-second-memory
-description: Bootstrap and maintain a repository's "second memory" so coding agents (and humans) can resume work across sessions without re-deriving context — project memory, append-only session log, sprint records, ADRs, a readiness matrix, a generated module registry, and CI checks for markdown lint, broken links, stale generated docs and doc drift. Use when starting a new repository or project with AI agents, when agents keep losing context between sessions, when asked to set up docs-as-code, ADRs, handoff notes, a project log or "memory", when docs drift from code, or before a long multi-session build.
+description: Bootstrap and maintain a repository's "second memory" so coding agents (and humans) can resume work across sessions without re-deriving context — project memory, append-only session log, sprint records, ADRs, a readiness matrix, a generated module registry, CI checks for markdown lint, broken links, stale generated docs and doc drift, and short timeboxed iterations that are split and rolled over truthfully. Use when starting a new repository or project with AI agents, when agents keep losing context between sessions, when asked to set up docs-as-code, ADRs, handoff notes, a project log or "memory", when docs drift from code, when an owner sets a short timebox per sprint or iteration, or before a long multi-session build.
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G0"
+  version: "0.2.0"
+  origin: "javis-dog G0; updated G1"
   confidence: medium
 ---
 
@@ -73,8 +73,22 @@ Sessions can end without warning. Small pushed commits with conventional, ID-sco
 
 If the link check fails because a referenced file does not exist yet, create the file (even as a skeleton) or remove the link; do not add an ignore rule or weaken the check to go green. Record notable caught failures in the sprint's test evidence — they are the evidence that the checks earn their keep.
 
+### 8. Timebox iterations and split them truthfully
+
+When the owner sets a short timebox per iteration (the origin used at most 30 minutes of agent work per sprint), write the rule into the roadmap and apply it mechanically:
+
+- A planned iteration too large for one timebox is split into lettered parts (S1 → S1a + S1b), each with its own record, goal and acceptance criteria. Split along a dependency seam (the origin split UI shell from protocol research and spec), not by percentage.
+- Record actual start and end times in each record's header, so iteration length is evidence rather than a feeling.
+- Items blocked on someone else roll over **with their status** (BLOCKED, with the reason and the owner action), not silently.
+- Close each part with its own test evidence and retro; the retro's "change next" line feeds the next part's plan.
+
+### 9. Update every section of the memory, not just the top
+
+At session or iteration end, walk the whole project-memory file: header, current state, decisions, **open questions** and **next actions**. Remove questions the owner has answered and replace finished next actions. A memory whose "current state" is fresh but whose "next actions" are two iterations old sends the next session to work that is already done.
+
 ## Pitfalls
 
+- **Partial memory update.** Appending the latest result to "current state" and leaving open questions and next actions untouched. No check catches this today; review those sections explicitly (step 9).
 - **Memory file as diary.** If the project memory grows past a screen or two, move history to the session log.
 - **Hand-edited generated docs.** Mark them "GENERATED — do not edit" and let `--check` catch edits.
 - **Linting vendored docs.** Third-party files will fail your style rules; exclude them rather than reformatting them (which breaks upstream diffs).
@@ -91,3 +105,11 @@ Javi's Dog, Sprint 0 (2026-10-20), single cloud session. Confidence **medium**: 
 - Caught failure: the first `docs:check` after adding `guru/README.md` failed on two broken links; fixed by creating the files, not by weakening the check (`docs/sprints/SPRINT-00.md`).
 - Same-commit doc fixes: `d011b8d` updated the brand guide and provenance when the font strategy changed (`next/font` → self-hosted npm package), and turned an emphasis-as-heading line (the pattern markdownlint rule MD036 rejects) into a real heading.
 - Retro: the session worker restarted mid-sprint; pushing after each coherent step prevented loss (`docs/sprints/SPRINT-00.md`, Retro).
+
+### Update at G1 (Sprints 1a and 1b, 2026-10-20)
+
+- Timebox rule: owner decision recorded in `docs/explanation/roadmap.md` (`57890b3`) — sprints at most 30 minutes of agent work, oversized sprints split into S1a, S1b…, unfinished items rolled over and recorded truthfully.
+- Applied once: `docs/sprints/SPRINT-01a.md` (18:51 → 19:00 UTC, about 9 minutes) and `docs/sprints/SPRINT-01b.md` (19:00 → 19:08 UTC, about 8 minutes), each with backlog, test evidence and retro; the S0 hosting item rolled over as **BLOCKED** with the owner action (`docs/sprints/SPRINT-00.md`, `57890b3`; `SPRINT-01a.md` Backlog 5). The S1a retro's "change next" (keep the spec small, vectors executable) was applied in S1b.
+- Partial memory update (verified by reading `docs/memory/PROJECT_MEMORY.md` at `a789674`): "Current state" lists S1a and S1b as done, but "Next actions" still reads "Close S0 … S1: build …", and "Open questions" still asks the owner to confirm D1, which the owner accepted in `57890b3` (`docs/agent-ops/READINESS_MATRIX.md`, D1 row).
+- G0 hypotheses still open: no cross-session handoff has happened yet (S0, S1a and S1b ran in one session; `SESSION_LOG.md` has one entry); doc drift is still SKIPPED because no `main` branch exists (`SPRINT-01a.md` Test evidence).
+- Hypothesis: that a 30-minute timebox improves quality or throughput. Two short iterations closed with green checks (GitHub Actions CI succeeded on all four window commits); there is no comparison with longer iterations.

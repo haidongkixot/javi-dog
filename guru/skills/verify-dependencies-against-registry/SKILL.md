@@ -2,8 +2,8 @@
 name: verify-dependencies-against-registry
 description: Choose and pin a dependency stack against the live package registry instead of memory or a plan draft — check release channels (latest vs beta/rc), peer-dependency and engine ranges between tools (linters, type checkers, compilers, framework plugins), avoid pre-release versions for security-critical modules, pin exact versions, and record deviations with revisit triggers in an ADR. Use when scaffolding a new project or monorepo, writing a technology-stack ADR, adding or upgrading a major dependency, choosing an auth/crypto/payments library, when a plan names a library version you have not checked, or when installs fail with peer-dependency or engine conflicts.
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G0"
+  version: "0.1.1"
+  origin: "javis-dog G0; updated G1"
   confidence: medium
 ---
 
@@ -69,6 +69,7 @@ Why record it: the next person (or agent) will read the plan, see the newer vers
 - **Installing first, reading peer warnings later.** Some package managers only warn; the breakage shows up at lint or build time.
 - **Floating ranges for toolchain packages.** A caret range on the compiler lets a fresh install pull a version your linter rejects.
 - **Unrecorded checks.** A registry query that is not written down will be redone, or worse, contradicted from memory.
+- **Tool configs outside the type check.** A new major of a tool can drop a config option that the tool itself then ignores without an error. Include tool config files (`*.config.ts` or equivalent) in the type-check scope so a removed option fails a gate instead of silently doing nothing.
 
 ## Evidence from origin project
 
@@ -81,3 +82,4 @@ Javi's Dog, Sprint 0 (2026-10-20). Confidence **medium**: one stack decision, tw
 - Recorded outcome: lint, typecheck, test and build exit 0 on a fresh run (`docs/sprints/SPRINT-00.md`, Test evidence); retro credits registry pinning with avoiding a beta auth library and a TypeScript/ESLint incompatibility.
 - Re-check at G0 (2026-10-20, read-only `npm view`): `typescript-eslint@8.72.0` peer `typescript` is `>=4.8.4 <6.1.0`; `typescript` `latest` is 7.0.2; `next-auth` `latest` is 4.24.15 and `beta` is 5.0.0-beta.32 — consistent with the ADR.
 - Hypothesis (not yet observed): the Node minimum (`>=22.18`, needed for TypeScript type-stripping in token scripts) will catch contributors on older runtimes; listed as a review-focus risk in `docs/sprints/SPRINT-00.md`.
+- G1 update (2026-10-20): in Sprint 1a the test runner's config contained an `esbuild.jsx` option the runner's current major no longer accepts; the test run did not fail, the workspace type check did, and the option was removed (`docs/sprints/SPRINT-01a.md`, Log and Retro, `0235df1`). Which config file held the option is not recorded. At G1, `apps/web/tsconfig.json` includes root `*.ts` files (so its `vitest.config.ts` is type-checked), while `packages/ui/tsconfig.json` includes only `src`, `scripts` and `test` — the same mistake in the UI package's runner config would not be caught. Verified once.

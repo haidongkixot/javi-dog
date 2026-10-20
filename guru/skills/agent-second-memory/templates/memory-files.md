@@ -58,8 +58,9 @@ Append-only, newest first. One entry per session.
 ```markdown
 # Sprint NN — <name>
 
-- Dates: <start> → <end> · Status: <PLANNED | ACTIVE | CLOSING | DONE>
+- Dates: <start time> → <end time> (timebox <N> min) · Status: <PLANNED | ACTIVE | CLOSING | DONE>
 - Goal: <one sentence>
+- Split: <"roadmap S<n> = S<n>a (this) + S<n>b (…)" or "none"> · Rolled over in: <items from the previous record, with status>
 - Readiness: <link to readiness matrix and its verdict>
 
 ## Backlog
