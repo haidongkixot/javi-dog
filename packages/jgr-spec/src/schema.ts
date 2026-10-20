@@ -64,6 +64,8 @@ export const UsageDelta = z
     output_tokens: z.int().nonnegative().optional(),
     cache_read_tokens: z.int().nonnegative().optional(),
     cache_write_tokens: z.int().nonnegative().optional(),
+    /** Reasoning/thinking tokens (Codex reasoning, Gemini "thought"); research note 2026-10-20 §3. */
+    reasoning_tokens: z.int().nonnegative().optional(),
     cost_usd: z.number().nonnegative().optional(),
     model: z.string().min(1).max(64).optional(),
     /** True when the producer could not read exact counts from the tool. */
@@ -72,9 +74,14 @@ export const UsageDelta = z
   .strict()
   .refine(
     (u) =>
-      [u.input_tokens, u.output_tokens, u.cache_read_tokens, u.cache_write_tokens, u.cost_usd].some(
-        (v) => v !== undefined,
-      ),
+      [
+        u.input_tokens,
+        u.output_tokens,
+        u.cache_read_tokens,
+        u.cache_write_tokens,
+        u.reasoning_tokens,
+        u.cost_usd,
+      ].some((v) => v !== undefined),
     'usage_delta needs at least one counter.',
   );
 export type UsageDelta = z.infer<typeof UsageDelta>;

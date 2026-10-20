@@ -1,5 +1,5 @@
 {
-  "description": "Token delta with model and estimate flag",
+  "description": "Token delta incl. reasoning tokens, model and estimate flag",
   "receivedAt": "2026-10-20T19:00:00Z",
   "event": {
     "jgr": "0.1",
@@ -15,7 +15,8 @@
       "output_tokens": 462,
       "cache_read_tokens": 9000,
       "model": "claude-opus-5-5",
-      "estimated": false
+      "estimated": false,
+      "reasoning_tokens": 310
     }
   },
   "expect": {

@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-20 · Current sprint: **S1b — JGR research & spec v0.1** (S1a closed: `docs/sprints/SPRINT-01a.md`)
+> Last updated: 2026-10-20 · Current sprint: **S2 — Identity & projects** (waiting on B1, B3, B4, B5). Last closed: S1b (`docs/sprints/SPRINT-01b.md`)
 
 ## What we are building
 
@@ -11,7 +11,8 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 - S0 foundations committed on branch `claude/clever-goldberg-wlurty`: Orcasus adopted, brand guide + logo v0.1, feasibility, readiness, ADR-0001…0003, monorepo scaffold, JD-M13 tokens (29 tests), minimal JD-APP page, CI (GitHub Actions green), vendored skills, Guru agent.
 - G0 done: 4 generalized skills in `guru/skills/` (medium confidence); see `guru/WISDOM_LOG.md`.
-- S1a done: five-space shell with honest states (JD-APP), JD-M13 components, JD-M04 draft project schema; 62 tests green.
+- S1a done: five-space shell with honest states (JD-APP), JD-M13 components, JD-M04 draft project schema.
+- S1b done: JGR v0.1 draft (JD-M01) — spec `docs/jgr/spec/v0.1.md`, ADR-0004, 20 conformance vectors, primary-source research; 89 tests green workspace-wide.
 - Nothing is deployed (B2 blocked: Vercel MCP 403). No database, auth or ingest exists yet. The web app shows a disclosure banner.
 
 ## Decisions in force
