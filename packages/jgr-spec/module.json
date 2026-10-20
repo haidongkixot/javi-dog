@@ -1,0 +1,16 @@
+{
+  "id": "JD-M01",
+  "name": "@javis-dog/jgr-spec",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Javi Grande Rules v0.1 draft: event envelope and batch schemas, privacy-class validator, limits and conformance vectors (docs/jgr).",
+  "owner": "platform",
+  "provides": [
+    "JgrEvent / JgrBatch schemas",
+    "validateEvent()",
+    "validateBatch()",
+    "JGR_LIMITS",
+    "event type and status enums"
+  ],
+  "consumes": []
+}

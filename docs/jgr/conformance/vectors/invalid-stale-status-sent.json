@@ -1,0 +1,18 @@
+{
+  "description": "stale is derived by the platform, never sent",
+  "receivedAt": "2026-10-20T19:00:00Z",
+  "event": {
+    "jgr": "0.1",
+    "event_id": "01JBZ4XQ80000000000000001A",
+    "producer_id": "prod_claude-code_7f3a",
+    "project_ref": "javis-dog-web-app",
+    "thread_ref": "sess_2b9c",
+    "sequence": 42,
+    "type": "heartbeat",
+    "status": "stale",
+    "occurred_at": "2026-10-20T18:59:30Z"
+  },
+  "expect": {
+    "codes": ["schema"]
+  }
+}

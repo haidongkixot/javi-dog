@@ -6,7 +6,7 @@
 | ID | Package | Path | Status | Version | Description | Consumes |
 |---|---|---|---|---|---|---|
 | JD-APP | `@javis-dog/web` | `apps/web` | in-progress | 0.1.0 | Next.js App Router application that composes all modules. S1a: five-space shell (Overview, Projects, Live agents, Token network concept, JGR & Integrations) with honest empty and not-connected states. | JD-M13 |
-| JD-M01 | `@javis-dog/jgr-spec` | `packages/jgr-spec` | planned | — | Javi Grande Rules: Zod schemas, OpenAPI, conformance test vectors | — |
+| JD-M01 | `@javis-dog/jgr-spec` | `packages/jgr-spec` | in-progress | 0.1.0 | Javi Grande Rules v0.1 draft: event envelope and batch schemas, privacy-class validator, limits and conformance vectors (docs/jgr). | — |
 | JD-M02 | `@javis-dog/jgr-sdk` | `packages/jgr-sdk` | planned | — | Client SDK: batching, spool, retry, signing, encryption | — |
 | JD-M03 | `@javis-dog/identity` | `packages/identity` | planned | — | Authentication (GitHub, Google), users, workspaces | — |
 | JD-M04 | `@javis-dog/projects` | `packages/projects` | in-progress | 0.1.0 | Project registry. S1a: draft project schema (Zod) and slug rules; persistence and ingest tokens arrive in S2. | — |

@@ -1,0 +1,24 @@
+{
+  "description": "Subagent lifecycle with agent_ref and L0 attributes",
+  "receivedAt": "2026-10-20T19:00:00Z",
+  "event": {
+    "jgr": "0.1",
+    "event_id": "0190f3c2-7b1a-7c3e-9a2b-1d4e5f6a7b8c",
+    "producer_id": "prod_claude-code_7f3a",
+    "project_ref": "javis-dog-web-app",
+    "thread_ref": "sess_2b9c",
+    "sequence": 42,
+    "type": "agent.started",
+    "status": "working",
+    "occurred_at": "2026-10-20T18:59:30Z",
+    "agent_ref": "agent_architect",
+    "attributes": {
+      "platform": "claude-code",
+      "collector_version": "0.1.0",
+      "tool_name": "Task"
+    }
+  },
+  "expect": {
+    "ok": true
+  }
+}

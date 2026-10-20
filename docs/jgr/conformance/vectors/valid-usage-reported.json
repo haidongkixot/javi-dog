@@ -1,0 +1,24 @@
+{
+  "description": "Token delta with model and estimate flag",
+  "receivedAt": "2026-10-20T19:00:00Z",
+  "event": {
+    "jgr": "0.1",
+    "event_id": "01JBZ4XQ80000000000000002B",
+    "producer_id": "prod_claude-code_7f3a",
+    "project_ref": "javis-dog-web-app",
+    "thread_ref": "sess_2b9c",
+    "sequence": 43,
+    "type": "usage.reported",
+    "occurred_at": "2026-10-20T18:59:30Z",
+    "usage_delta": {
+      "input_tokens": 1280,
+      "output_tokens": 462,
+      "cache_read_tokens": 9000,
+      "model": "claude-opus-5-5",
+      "estimated": false
+    }
+  },
+  "expect": {
+    "ok": true
+  }
+}

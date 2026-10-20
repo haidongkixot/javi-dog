@@ -1,13 +1,5 @@
 [
   {
-    "id": "JD-M01",
-    "name": "@javis-dog/jgr-spec",
-    "path": "packages/jgr-spec",
-    "status": "planned",
-    "sprint": "S1",
-    "description": "Javi Grande Rules: Zod schemas, OpenAPI, conformance test vectors"
-  },
-  {
     "id": "JD-M02",
     "name": "@javis-dog/jgr-sdk",
     "path": "packages/jgr-sdk",
