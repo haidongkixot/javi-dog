@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-20 · Current sprint: **S2 — Identity & projects** (waiting on B1, B3, B4, B5). Last closed: S1b (`docs/sprints/SPRINT-01b.md`)
+> Last updated: 2026-10-20 · Current sprint: **S2a — Data layer & health** (PLANNED, waiting on owner Q1–Q4); S2b = sign-in. Last closed: S1b (`docs/sprints/SPRINT-01b.md`)
 
 ## What we are building
 
@@ -13,7 +13,9 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - G0 done: 4 generalized skills in `guru/skills/` (medium confidence); see `guru/WISDOM_LOG.md`.
 - S1a done: five-space shell with honest states (JD-APP), JD-M13 components, JD-M04 draft project schema.
 - S1b done: JGR v0.1 draft (JD-M01) — spec `docs/jgr/spec/v0.1.md`, ADR-0004, 20 conformance vectors, primary-source research; 89 tests green workspace-wide.
-- Deployed: Vercel project `javisdog` (owner-created), auto-deploys every push; `https://javisdog.vercel.app` is public (5 routes verified HTTP 200). Neon `dev-agent` reachable (PostgreSQL 18.6, empty schema). No auth or ingest yet.
+- Deployed: Vercel project `javisdog` (owner-created), auto-deploys every push; `https://javisdog.vercel.app` is public (5 routes verified HTTP 200). Neon `dev-agent` reachable over HTTPS only (PostgreSQL 18.6, empty schema; psql/TCP times out in the sandbox). No auth or ingest yet.
+- Credentials (2026-10-20 re-check, shape only): all 10 S2 env vars present and well-formed in the cloud env; Google OAuth client authenticates; GitHub secret unverifiable from the sandbox; Vercel env still unreadable (403).
+- S2 split: **S2a** JD-M06 + JD-M04 persistence + `/api/health` (`docs/sprints/SPRINT-02a.md`, ADR-0005 Proposed); **S2b** Better Auth GitHub/Google (JD-M03), project UI, welcome email.
 
 ## Decisions in force
 
@@ -30,20 +32,21 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0002 | Next.js 16 / React 19 / TS 5.9 / Tailwind 4 / Neon + Drizzle / **Better Auth** / Resend / Vitest |
 | ADR-0003 | Brand → theme-scoped tokens; AA text tokens with unchanged hues (D1 accepted 2026-10-20) |
 | ADR-0004 | JGR v0.1: own strict envelope over HTTPS batches; OTLP/HTTP accepted and stripped at the edge (owner review pending) |
-| Owner | Sprint timebox ≤ 30 minutes; oversized sprints are split (S1a/S1b) |
+| Owner | Sprint timebox ≤ 30 minutes; oversized sprints are split (S1a/S1b, S2a/S2b) |
+| ADR-0005 | Proposed: module-owned Drizzle tables composed by JD-M06; offline `generate` + neon-http migrator on `dev-agent` only; ingest tokens `jd_it_…` stored as SHA-256; workspace-scoped repository |
 
 ## Open questions / blockers (owner)
 
-- **B3/B4** `GITHUB_CLIENT_SECRET` and `GOOGLE_CLIENT_SECRET` contain the callback URLs instead of the secrets. IDs are fine.
-- **B5** Resend ready (`EMAIL_FROM` on `eagodi.com`); confirm the domain is Verified.
-- **B1-rotate** Neon `neondb_owner` password still equals the one pasted in chat.
-- **Vercel env** unverifiable by the agent (403) — health route planned in S2.
-- **ADR-0004** owner review pending.
+- **Q1–Q4** for S2a (`docs/sprints/SPRINT-02a.md`): PGlite test dependency; public `/api/health`; Neon branch per Vercel environment; `events` table now or S3.
+- **B1-rotate** confirm the `neondb_owner` password was rotated (not verifiable by the agent this session).
+- **B5** confirm `eagodi.com` is Verified in Resend.
+- **ADR-0004** owner review pending; **ADR-0005** owner review pending.
 
 ## Next actions
 
-1. Owner: provision B1–B5 and B2, add values to Vercel + the cloud environment, reply "done", start a new session.
-2. S2 (Identity & projects): Better Auth with GitHub/Google (JD-M03), JD-M06 schema + migrations on the `dev-agent` Neon branch, JD-M04 persistence + ingest tokens, JD-M09 welcome email.
+1. Owner: answer Q1–Q4; set Vercel `DATABASE_URL` per Q3.
+2. S2a: JD-M06 package, JD-M04 tables/tokens/repository, migration `0000` on `dev-agent`, `/api/health`, verify on Vercel.
+3. S2b: Better Auth GitHub/Google (JD-M03) mapped onto `workspaces`, project CRUD UI, JD-M09 welcome email.
 
 ## Key paths
 

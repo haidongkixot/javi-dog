@@ -1,0 +1,84 @@
+# Sprint 02a — Data layer & health
+
+- Dates: planned 2026-10-20 (timebox 30 min) · Status: **PLANNED** (waiting on owner decisions Q1–Q4 below)
+- Goal: persist workspaces, projects and hashed ingest tokens in Neon through Drizzle, and expose an honest `/api/health` that shows which env vars are present (booleans only) and whether the database answers.
+- Modules touched: JD-M06 (new package), JD-M04, JD-APP
+- Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows **Database** (AVAILABLE) and **Data** (planned here). Sign-in (Better Auth, JD-M03) is **Sprint 2b** and is not a gate for 2a.
+- Test plan: `docs/agent-ops/TEST_PLAN.md` (refreshed for S2a)
+- Decisions: ADR-0005 (Proposed) — `docs/adr/0005-data-layer-and-ingest-tokens.md`
+
+## Global constraints
+
+- Stack pins per ADR-0002: `drizzle-orm` 0.45.x, `drizzle-kit` 0.31.x, `@neondatabase/serverless` 1.2.x (latest on npm 2026-10-20: 0.45.4 / 0.31.11 / 1.2.0).
+- Migrations run **only** against the Neon `dev-agent` branch in this sprint, by an explicit command — never at build or deploy time.
+- No plaintext ingest token is ever stored, logged or returned after creation.
+- Every repository read/write is scoped by `workspaceId`; no unscoped list or get exists.
+- `/api/health` returns booleans and status words only — never values, hosts, error messages or stack traces.
+- Product rule 2: health shows its own `checkedAt`; nothing it reports is labelled "live".
+- Sandbox only: Node network calls need `NODE_USE_ENV_PROXY=1`; raw TCP to Postgres (psql, port 5432) times out, so use the Neon HTTP driver.
+
+## Backlog
+
+| # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
+|---|---|---|---|---|---|
+| 1 | Scaffold `packages/event-store` | JD-M06 | — → `createDb(url)`, `pingDb(db)`, `schema`, `migrate` script | `module.json` (status in-progress, consumes JD-M04); public `src/index.ts`; `drizzle.config.ts`; registry regenerated | Planned |
+| 2 | JD-M04 tables | JD-M04 | `drizzle-orm/pg-core` → `workspaces`, `projects`, `ingestTokens` tables exported from the public index | Columns per ADR-0005 §Data model; FKs `ON DELETE CASCADE`; unique `(workspace_id, slug)`; unique `token_hash`; `privacy_class` default `L0`; `last_signal_at` nullable and never written by the repository | Planned |
+| 3 | Ingest token primitives | JD-M04 | WebCrypto → `generateIngestToken()`, `hashIngestToken()`, `parseIngestToken()` | Format `jd_it_` + 43 base64url chars (32 random bytes); SHA-256 hex stored; display prefix = first 8 chars of the secret part; malformed input rejected before any DB call | Planned |
+| 4 | Project repository | JD-M04 | `db` handle (injected) → `createProjectRepository(db)` with `createWorkspace`, `createProject`, `listProjects(workspaceId)`, `getProject(workspaceId, id)`, `issueToken`, `revokeToken`, `verifyToken` | Input validated with existing `normalizeProjectInput`; slug collision → typed `slug_taken` error; `issueToken` returns plaintext once; `verifyToken` returns `{ workspaceId, projectId, tokenId }` or `null` for unknown/revoked/malformed; max 5 active tokens per project | Planned |
+| 5 | Generate and apply migration `0000` | JD-M06 | Task 2 tables → `packages/event-store/migrations/0000_*.sql` | `drizzle-kit generate` output committed; applied to `dev-agent` with `pnpm --filter @javis-dog/event-store db:migrate` (neon-http migrator); verified by listing tables + `__drizzle_migrations` row; down SQL committed for manual rollback | Planned |
+| 6 | `/api/health` route | JD-APP | JD-M06 `pingDb` → `GET /api/health` | `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `Cache-Control: no-store`; body `{ status, checkedAt, deployment: { env, commit }, env: { NAME: boolean… }, db: { status: 'ok' \| 'error' \| 'not_configured', latencyMs, migration } }`; DB ping times out after 3 s; HTTP 200 when DB ok, 503 otherwise | Planned |
+| 7 | Docs + contract | all | — | ADR-0005 accepted or amended; JD-M04 README + `module.json` updated; changeset for JD-M04 public contract; `docs/how-to/run-database-migrations.md`; `pnpm docs:check` green | Planned |
+| 8 | Verify on Vercel | JD-APP | deployed preview/production | After push, `GET https://javisdog.vercel.app/api/health` reports which env vars exist on Vercel — closes the "Vercel env unverifiable" gap | Planned |
+
+### Order and dependencies
+
+1 → 2 → 3 → 4 (tests on PGlite) → 5 (dev-agent) → 6 → 7 → push → 8. Tasks 3 and 6 can start in parallel with 2.
+
+### Out of scope (moved on purpose)
+
+- Users, sessions, memberships, sign-in → **S2b** (Better Auth GitHub/Google, JD-M03). `workspaces` is shaped so Better Auth's organization plugin can map onto it (ADR-0005; to be verified in S2b).
+- JGR `events` table, rollups, retention → **S3** with JD-M05 (needs a partition/retention decision).
+- Project CRUD UI → S2b (needs an authenticated user). The Projects space keeps its honest "not connected" state.
+- JD-M09 welcome email → S2b.
+
+## Owner decisions needed before start
+
+| ID | Question | Options | Recommendation |
+|---|---|---|---|
+| Q1 | How do repository tests get a real Postgres? | **A)** `@electric-sql/pglite` dev dependency: in-process Postgres 17, runs the real migration SQL, offline, CI-friendly · **B)** throwaway Neon branch per run (needs a `NEON_API_KEY` — MISSING) · **C)** run against `dev-agent` with per-run cleanup (slow, needs network in CI, risks shared state) | **A**, plus one manual smoke script against `dev-agent` (not part of `pnpm test`) |
+| Q2 | Should `/api/health` be public? | **A)** public, booleans only · **B)** require a `HEALTH_TOKEN` header (new secret) · **C)** public minimal `{status}` + detailed view after sign-in in S2b | **A** — env-name booleans reveal little, and the agent needs it to see Vercel config (env listing is 403) |
+| Q3 | Which Neon branch does Vercel use? | **A)** Preview → `dev-agent`, Production → not set until S5 (health shows `not_configured`) · **B)** both on `dev-agent` for now · **C)** create a `main`/production branch now and migrate it too (production change) | **A** — no production data before the release gate |
+| Q4 | JGR `events` table now or in S3? | **A)** S3 with JD-M05 · **B)** now, from the v0.1 envelope | **A** — retention/partitioning is a separate decision |
+
+## Review focus
+
+- A token string from another product (or a JGR token pasted with whitespace) reaches `verifyToken` → rejected by `parseIngestToken` without a DB query; test in task 3.
+- Two projects with the same slug in different workspaces → both allowed; same workspace → `slug_taken`; test in task 4.
+- Workspace B asks for workspace A's project id → `null`, not the project; test in task 4.
+- A revoked token is presented → `null`; revoking twice is idempotent; test in task 4.
+- `DATABASE_URL` absent on Vercel → health returns 503 with `db.status = "not_configured"`, never a crash or a leaked message; test in task 6.
+- DB hangs → health answers within ~3 s with `db.status = "error"`; test in task 6 (fake ping).
+
+## Log
+
+- 2026-10-20 — Sprint planned after env/Neon/OAuth re-check (see `READINESS_MATRIX.md`).
+
+## Test evidence
+
+| Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| — | — | — | — | — | — | — | all | Sprint not started |
+
+## Decisions and deviations
+
+- `workspaces` is owned by JD-M04 in 2a (owner brief for S2a); the registry lists workspaces under JD-M03. JD-M03 will consume the JD-M04 table in S2b instead of defining its own. Recorded in ADR-0005.
+
+## Retro
+
+- Went well:
+- Hurt:
+- Change next sprint:
+
+## Guru checkpoint
+
+Not due at planning; G-checkpoint after S2b (feature completion).
