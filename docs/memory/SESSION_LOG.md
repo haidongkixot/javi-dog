@@ -5,7 +5,8 @@ Append-only handoff log, newest first. Each entry: date · session · what happe
 ## 2026-10-22 · Session 2, continued — Sprint 2c (projects, tokens, welcome email)
 
 - Built project UI, token issue/revoke, workspace resolution with membership check, JD-M09 welcome email (Resend REST), redacted auth logs, `/sign-in?error=`. ADR-0007. 203 tests green; welcome email accepted by Resend sink.
-- Next: owner tries the signed-in flow on production; agent verifies rows; close S2c; Guru checkpoint.
+- Owner ran create project / issue / revoke on production; DB check passed; CI green; S2c closed. Guru checkpoint G2-prep run (see `guru/WISDOM_LOG.md`).
+- Next: S3 (JGR ingress).
 
 ## 2026-10-22 · Session 2, continued — Sprint 2b (sign-in)
 

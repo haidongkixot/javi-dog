@@ -1,6 +1,6 @@
 # Sprint 02c — Projects, ingest tokens, welcome email
 
-- Dates: 2026-10-22 (timebox 30 min) · Status: **ACTIVE** (tasks 1–5 done; owner check on production pending)
+- Dates: 2026-10-22 (timebox 30 min) · Status: **CLOSED** 2026-10-22
 - Goal: a signed-in user can create projects in their workspace, issue and revoke ingest tokens, gets a welcome email on first sign-in, and failed sign-ins leave evidence.
 - Modules touched: JD-APP, JD-M03, JD-M04, JD-M09 (new package)
 - Readiness gate: S2b closed; Resend AVAILABLE (B5)
@@ -24,7 +24,7 @@
 | 3 | Project detail + tokens | JD-APP | `/projects/[id]` only for projects in the viewer's workspace (else 404); issue token (shown once, copy hint), list by display prefix, revoke | Done |
 | 4 | Auth failure evidence | JD-M03, JD-APP | Better Auth logger → structured JSON with emails/tokens redacted; `errorURL` → `/sign-in?error=…` with a readable message | Done |
 | 5 | Welcome email | JD-M09, JD-M03 | `sendWelcomeEmail()` via Resend REST (no new dependency); sent once from the user-created hook; failures logged without PII; smoke send to `delivered@resend.dev` | Done |
-| 6 | Docs + checkpoint | all | ADR-0007, READMEs, registry, changeset, memory; Guru checkpoint G2-prep | Planned |
+| 6 | Docs + checkpoint | all | ADR-0007, READMEs, registry, changeset, memory; Guru checkpoint G2-prep | Done |
 
 ## Review focus
 
@@ -34,6 +34,7 @@
 
 ## Log
 
+- 2026-10-22 — Owner ran the signed-in flow on production; DB check passed (hash-only token storage, revoke, workspace consistency). CI green. Sprint closed.
 - 2026-10-22 — Built: `resolveWorkspace`, redacted auth logger + `errorURL`, `onUserCreated` → JD-M09 welcome email (Resend REST), project list/create, project detail with token issue/revoke. 203 tests green; welcome email accepted by Resend sink; signed-out pages verified locally.
 - 2026-10-22 — Sprint start; Better Auth `onAPIError.errorURL` and `logger.log` confirmed in 1.7.7 source.
 
@@ -45,7 +46,9 @@
 | `pnpm test` (workspace) | 0 | — | 203 | 0 | 0 | 0 | 0 | web 77, event-store 26, identity 7, notify 4, projects 27, ui 33, jgr-spec 29 |
 | `email:smoke` → `delivered@resend.dev` | 0 | — | 1 | 0 | — | — | — | accepted by Resend |
 | local `next start` (dev-agent): signed-out `/projects`, `/projects/[id]`, `/sign-in?error=…`, `/api/health` | 0 | — | 4 | 0 | — | — | — | prompts and message rendered |
-| Signed-in flow on production | — | — | — | — | — | — | 1 | owner check |
+| GitHub Actions CI (`93cc254`) | 0 | — | success | 0 | — | — | — | — |
+| Owner signed-in flow on production: create project, issue token, revoke | 0 | — | 3 | 0 | — | — | — | — |
+| Agent DB check on `dev-agent` | 0 | — | 6 | 0 | — | — | — | project L0 + no signal; token hash 64 hex, prefix 8, revoked, same workspace; 0 plaintext `jd_it_` in any token row |
 
 Screenshots: 0.
 
@@ -56,9 +59,9 @@ Screenshots: 0.
 
 ## Retro
 
-- Went well:
-- Hurt:
-- Change next sprint:
+- Went well: the authorization rule lived in one function (`resolveWorkspace`) with a forged-id test, so pages and actions stayed thin; no new dependencies for email.
+- Hurt: signed-in UI can only be exercised end to end by the owner (OAuth from the sandbox is impossible); component tests mock the viewer.
+- Change next sprint: S3 needs a non-OAuth test path for authenticated flows (e.g. ingest with a real token against a preview), and a retention ADR before the `events` table.
 
 ## Guru checkpoint
 

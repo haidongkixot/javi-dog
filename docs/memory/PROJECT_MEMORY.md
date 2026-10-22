@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-20 · Current sprint: **S2c — Projects & tokens UI, welcome email** (built; owner check on production pending). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
+> Last updated: 2026-10-20 · Current sprint: **S3 — JGR ingress** (not started). Last closed: S2c (`docs/sprints/SPRINT-02c.md`). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
 
 ## What we are building
 
@@ -50,8 +50,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Next actions
 
-1. Owner: on production create a project, issue a token, revoke it; agent checks rows; then close S2c + Guru checkpoint.
-2. S3 — JGR ingress (JD-M05 `POST /api/v1/events`, JD-M02 SDK, JD-C01 Claude Code collector), `events` table with retention ADR.
+1. S3 — JGR ingress (JD-M05 `POST /api/v1/events`, JD-M02 SDK, JD-C01 Claude Code collector), `events` table with retention ADR.
 
 ## Key paths
 
