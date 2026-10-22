@@ -30,8 +30,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <Topbar />
             <main className="mx-auto flex max-w-[1600px] flex-col gap-6 px-8 pt-7 pb-10 max-[1150px]:px-6 max-[850px]:px-4">
               <DemoBanner title="Preview build.">
-                You can sign in; projects, agents and providers are not connected yet. Values appear
-                only after a verified JGR signal arrives.
+                You can sign in and create projects; agents and providers are not connected yet.
+                Values appear only after a verified JGR signal arrives.
               </DemoBanner>
               {children}
             </main>

@@ -79,7 +79,11 @@ describe('ingest tokens', () => {
     const { token, record } = await repo.issueToken(ws.id, p.id, 'laptop');
     const rows = await ctx.client.query<Record<string, unknown>>('select * from ingest_tokens');
     const stored = rows.rows[0]!;
-    expect(Object.values(stored)).not.toContain(token);
+    // No column may contain the token or its secret part, even embedded in a longer value.
+    const secret = token.slice('jd_it_'.length);
+    const serialized = JSON.stringify(rows.rows);
+    expect(serialized).not.toContain(token);
+    expect(serialized).not.toContain(secret);
     expect(stored.token_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(await repo.listTokens(ws.id, p.id))).not.toContain(token.slice(6));
     expect(record.displayPrefix).toBe(token.slice(6, 14));

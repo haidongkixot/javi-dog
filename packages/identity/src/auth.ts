@@ -20,7 +20,8 @@ export type SocialProvider = 'github' | 'google';
 export type OnUserCreated = (user: { id: string; email: string; name: string }) => Promise<void>;
 
 const EMAIL = /[^\s@"'<>]+@[^\s@"'<>]+\.[^\s@"'<>]+/g;
-const SECRETISH = /\b(gh[opsu]_[A-Za-z0-9]+|ya29\.[\w.-]+|eyJ[\w-]+\.[\w-]+\.[\w-]+|jd_it_[\w-]+)/g;
+const SECRETISH =
+  /\b(gh[opsur]_[A-Za-z0-9]+|github_pat_\w+|ya29\.[\w.-]+|eyJ[\w-]+\.[\w-]+\.[\w-]+|jd_it_[\w-]+|sk[-_][\w-]{8,}|re_\w{8,}|GOCSPX-[\w-]+)/g;
 
 /** Removes emails and token-like strings before anything reaches the logs. */
 export const redact = (text: string) =>

@@ -2,8 +2,8 @@
 name: privacy-first-agent-telemetry-protocol
 description: Design a small, strict, privacy-first event protocol for telemetry from AI coding agents, CLIs, hooks, SDKs or any producer you do not fully control — a minimal envelope with unknown fields rejected, privacy classes enforced at the envelope by allowlist (reject, do not strip), token/cost usage as deltas, per-event IDs for deduplication, per-thread sequence numbers for gap detection, receiver-derived "stale" status, stable error codes, partial batch acceptance, normative rule IDs, shared JSON conformance vectors, and an edge translator that strips identity and content from tool-native OpenTelemetry (OTLP). Use when defining an ingest API or webhook contract, an observability or analytics event schema, an agent heartbeat/status protocol, a telemetry SDK, when deciding between OTLP, CloudEvents or a custom envelope, or when payloads might carry prompts, code, paths, emails or secrets.
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G1"
+  version: "0.1.1"
+  origin: "javis-dog G1; updated G2-prep"
   confidence: medium
 ---
 
@@ -90,7 +90,7 @@ Define classes as allowlists, lowest by default:
 
 Low confidence: these are origin design decisions backed by RFCs and vendor docs, not runtime results.
 
-- HTTPS `POST` of `{ "events": [...] }`, optional gzip, explicit batch/event limits, bearer token scoped to one project and hashed at rest.
+- HTTPS `POST` of `{ "events": [...] }`, optional gzip, explicit batch/event limits, bearer token scoped to one project and hashed at rest. The token *storage* side is now implemented and verified in the origin (prefixed 256-bit tokens, SHA-256 at rest, display prefix, shown once, revocable, scoped to a project inside its tenant by a composite foreign key); design and proof steps are in the `prove-secrets-and-pii-minimization` and `tenant-isolation-by-construction` skills. Verifying a token on the ingest path is not yet exercised.
 - Status codes: `202` with a per-event report; `400`, `401/403`, `413` are not retried unchanged; `429` (with `Retry-After`) and `5xx` are retried with exponential backoff and full jitter.
 - Producers spool unsent events locally (bounded, oldest-first eviction).
 - Request signing: HMAC-SHA256 over `timestamp.body` with a `t=…,v1=…` header and a replay window (Stripe-style), RFC 9421 as the long-term path. GitHub-style body-only signatures have no replay window.
@@ -128,3 +128,4 @@ Javi's Dog, Sprint 1b (2026-10-20). Confidence **medium** for sections 1–6, **
 - Research-driven changes (`a789674`): `reasoning_tokens` added; dedupe aligned with CloudEvents; identity and content drop at the OTLP edge; Idempotency-Key informative only; signing design for v0.2.
 - G1 probes (read-only, 2026-10-20): `validateEvent` accepted `thread_ref` set to a file path and `agent_ref` set to an email address. The spec's §3/R11 versus §11 contradiction and the "spec §7" comment in `validate.ts` (codes are in §13) were found by reading.
 - Not verified: deduplication, gap detection, stale derivation, retry/backoff, spooling, OTLP translation and stripping — the gateway and collectors do not exist yet (tests owed in S3, `docs/sprints/SPRINT-01b.md` Review focus). The claim that shared vectors keep *several* implementations consistent is a hypothesis: one implementation exists.
+- G2-prep update (2026-10-22): ingest-token storage implemented in Sprint 2a (`packages/projects/src/tokens.ts`, `packages/projects/src/repository.ts`, ADR-0005, `dc6ef61`) and checked on the development database after the owner issued and revoked a token in production (`docs/sprints/SPRINT-02c.md`, `2d6b87d`). The ingest gateway, deduplication, gap detection and OTLP edge are still unbuilt (planned for Sprint 3), so sections 7–8 stay **low**.

@@ -34,3 +34,16 @@ describe('redact', () => {
     expect(out).toBe('user [email] token [secret] google [secret] jwt [secret] ingest [secret]');
   });
 });
+
+describe('redact (more token families)', () => {
+  it.each([
+    'ghr_abcdef123456',
+    'github_pat_11ABCDEFG_abcdef',
+    'sk-ant-api03-abcdefgh',
+    'sk_live_abcdefghijk',
+    're_AbCdEfGh_12345',
+    'GOCSPX-abcdefg',
+  ])('masks %s', (token) => {
+    expect(redact(`value ${token} end`)).toBe('value [secret] end');
+  });
+});

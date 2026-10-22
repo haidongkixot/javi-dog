@@ -2,6 +2,83 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-10-22 · G2-prep — feature completion: data layer, identity, projects (Sprints 2a, 2b, 2c)
+
+Not the G2 Orcasus-PR checkpoint (that is at S3, `docs/explanation/roadmap.md`). No PR opened or drafted; Orcasus candidates are listed as proposals only.
+
+- **Window:** `a49af5e` (S2a plan) → `2d6b87d` (HEAD), 11 commits: `a49af5e`, `332e4fb`, `dc6ef61` (S2a data layer, tokens, `/api/health`), `ce143d0`, `9b6ea0b`, `9cdc766`, `26db144` (Vercel env and rebuild), `a55b415` (S2b sign-in), `24231a5` (`id_token` fix), `93cc254` (S2c projects, tokens, email), `2d6b87d` (S2c close).
+- **Records read:** `docs/sprints/SPRINT-02a.md`, `SPRINT-02b.md`, `SPRINT-02c.md`; ADR-0005, 0006, 0007; `docs/agent-ops/READINESS_MATRIX.md`, `TEST_PLAN.md` (S2a–S2c sections); `docs/memory/PROJECT_MEMORY.md`, `SESSION_LOG.md` (2026-10-20/22 entries); `docs/how-to/run-database-migrations.md`; code in `packages/event-store`, `packages/projects`, `packages/identity`, `packages/notify`, `apps/web/src/lib`, `apps/web/src/app/api`, `apps/web/src/app/projects`, `apps/web/src/app/sign-in`; tests in `packages/event-store/test`, `packages/identity/test`, `apps/web/test/health.test.ts`; `.github/workflows/ci.yml` diff in `dc6ef61`.
+- **Re-runs by Guru:** none of the project suites. Read-only probes: `gh run list` (CI succeeded on `26db144`, `a55b415`, `24231a5`, `93cc254`, `2d6b87d`); PGlite 0.5.8 `CASE` guard vs. `to_regclass`; Node 22.22.0 type stripping on a parameter property and an `enum`, and `tsc` 5.9.3 with and without `erasableSyntaxOnly`; the origin's redaction pattern (copied verbatim) against sample token formats; `npm view better-auth time` and `npm view @electric-sql/pglite time`; a grep of the installed pnpm 10.28 bundle for `minimumReleaseAge`; the new templates (below). A GitHub Advisory Database API query returned 403 in this sandbox and was not used.
+
+### Verified lessons
+
+1. **A presence-only health route became the agent's only view of the deployed configuration.** Env listing and env creation were 403 for the agent; `/api/health` (booleans for nine names, deployed commit and environment, DB state) showed three variables missing (`dc6ef61`), then — after the owner's change — the *old* build still reporting them missing because env changes had not reached a new build (`9b6ea0b`), then 200 with all nine set after a rebuild (`9cdc766`), then 2 migrations at S2b (`a55b415`). The platform's deployment list showed the branch builds as Production, so the plan's "Preview → dev database" assumption had no environment to apply to (Q5). Evidence: `SPRINT-02a.md` Log and Q5, `SESSION_LOG.md`, `READINESS_MATRIX.md` (`ce143d0`, `9b6ea0b`, `26db144`).
+2. **Postgres resolves relation names before execution**, so a `CASE` guard around a possibly-missing migrations table still failed; split into an existence check and a count; caught by a PGlite test (`packages/event-store/src/client.ts`, `migrations.test.ts`, ADR-0005 *Changes*, `dc6ef61`). Reproduced at G2-prep on PGlite.
+3. **Node's type stripping rejects non-erasable TypeScript** (a constructor parameter property broke the first smoke run) → `erasableSyntaxOnly` in `tsconfig.base.json` (`dc6ef61`, `SPRINT-02a.md` Log). Reproduced at G2-prep: runtime rejects the parameter property and an `enum`; `tsc` exits 0 without the flag, 2 with it (TS1294).
+4. **Reviewing generated SQL found a tenancy hole**: a token could reference a project in another workspace (two independent FKs) → composite FK `(project_id, workspace_id) → projects(id, workspace_id)`, raw-SQL test expecting the constraint name (`packages/projects/src/db/tables.ts`, `repository.test.ts`, `dc6ef61`). Template reproduced at G2-prep on PGlite.
+5. **The migration generator discovered tables only from named exports**; the identity tables, reachable only through an exported object, were silently skipped → named exports; the migration test asserts all nine tables (`SPRINT-02b.md` Log, `packages/event-store/src/schema.ts`, `a55b415`).
+6. **A new workspace package with no tests made Vitest exit 1, and Turbo stopped every other package's tests** → real unit tests added, `passWithNoTests` deliberately not used (`SPRINT-02b.md` Log, `a55b415`).
+7. **Reading the installed library first made the auth integration work on the first try**: Better Auth 1.7.7's installed source answered id generation, organization-to-`workspaces` mapping, the adapter's `transaction` switch, `encryptOAuthTokens`, IP tracking and telemetry (S2b), and `onAPIError.errorURL` / `logger.log` (S2c) (`SPRINT-02b.md` Log and Retro, `SPRINT-02c.md` Log). Version rule: newest 1.7.x older than two weeks, advisory DB checked (ADR-0006); the same rule picked PGlite 0.5.8. Publish dates re-checked at G2-prep match both pins.
+8. **Row shapes after the first real sign-ins exposed a plain-text provider `id_token`** that the encryption flag does not cover; access/refresh tokens were hex ciphertext → hooks drop `id_token`, test red (exit 1) → green, existing value cleared (`SPRINT-02b.md`, `24231a5`, ADR-0006).
+9. **The first real sign-in failed with zero evidence** (no rows; platform runtime logs returned nothing; cause never captured) → redacted structured auth logging and `errorURL` to `/sign-in?error=` (ADR-0007, `93cc254`). The change is verified by unit tests; its value on a real failure is a hypothesis (none since).
+10. **A secret pasted in chat was handled without persisting it**: compared to the stored value by hash only, never written to the repository, recorded as exposed with rotation tied to B1; the agent's attempt to set it on the platform was 403 and the owner set it (`SESSION_LOG.md`, `9b6ea0b`; `PROJECT_MEMORY.md`).
+11. **The authorization rule lives in one function** (`resolveWorkspace`: the session's active workspace only with a membership row; never from input) with a forged-id test; pages and actions use `getViewer()`; malformed or foreign ids are "not found" (`packages/identity/src/workspace.ts`, `apps/web/src/lib/viewer.ts`, `actions.ts`, `identity.test.ts`, `projects.test.tsx`, `93cc254`; `SPRINT-02c.md` Retro).
+12. **Hash-only token storage was checked on the real database** after the owner issued and revoked a token in production: hash 64 hex, prefix 8, revoked, same workspace, 0 token rows containing the plaintext prefix (`SPRINT-02c.md` Test evidence, `2d6b87d`). The query itself is not recorded; it searched for the prefix only.
+13. **Timebox splits held a second time**: S2 → S2a/S2b/S2c, each closed with its own evidence and retro (CI green on every code commit in the window).
+
+### Findings by Guru at G2-prep (verified by probe or reading)
+
+- **F1 — Redaction denylist gaps.** The auth log redactor (`packages/identity/src/auth.ts`) does not redact `ghr_…` (GitHub refresh tokens), `github_pat_…` or generic `sk_…` keys (probe). No such string is known to have reached a log.
+- **F2 — Weaker-than-named hash-only test.** `repository.test.ts` asserts `Object.values(row)` does not contain the token — per-column equality; a token embedded in a longer value, or the secret without its prefix, would pass. The production check searched for the prefix only.
+- **F3 — Disclosure copy behind the product.** After S2c shipped project creation, the global banner still says "projects, agents and providers are not connected yet" (`apps/web/src/app/layout.tsx` at `2d6b87d`).
+- **F4 — Memory and readiness drift (recurrence of G1 lesson 9).** `PROJECT_MEMORY.md` header "Last updated: 2026-10-20"; "S2 split" line outdated; the GitHub OAuth callback open question already resolved. `READINESS_MATRIX.md` header dated 2026-10-20; Secrets row action already done; readiness-decision paragraph still about unblocking S2b; Observability row "AVAILABLE once deployed" contradicted by the S2b retro (runtime logs returned nothing).
+
+### Hypotheses (unverified)
+
+- The redacted auth logger will capture the next real sign-in failure — no failure observed since `93cc254`.
+- The release-age cooldown prevents bad releases — applied twice, no incident to compare.
+- Running the personal-workspace hook on every session "self-heals" a failed first attempt (ADR-0006) — no failed first attempt observed; simultaneous first sessions creating two workspaces was accepted, not tested.
+- "Offline tests of the provider redirect caught config issues before any real sign-in" (S2b retro) — which issues is not recorded.
+- Env changes reach only new builds on *other* platforms — observed once, on one platform.
+- The single-resolver pattern keeps isolation as handlers multiply — few handlers exist.
+- PGlite (Postgres 17) is close enough to Neon (Postgres 18) — only `uuidv7()` is known to be avoided.
+- Carried from G1, still untested: dedupe, gaps, stale derivation, OTLP edge (S3); delivery and size targets (S5); user-trust effects of honest empty states; cross-session resumption benefit.
+
+### Rejected or not packaged
+
+- **Lesson 6 (no-test package aborts the workspace run)**: verified once, tool-specific (Vitest + Turborepo defaults), and no current skill fits; kept here. Revisit if more monorepo-hygiene lessons accumulate.
+- **"Welcome email via REST, no SDK"**: a reasonable decision (ADR-0007) with no evidence of benefit beyond "no new dependency"; only its logging rule (status codes, never addresses; never blocks sign-in) is packaged.
+- **"Env changes apply only to new builds" as a general rule**: packaged only as a check to perform (compare `deployment.commit`), not as a platform fact.
+- **Claim that encrypted OAuth tokens are safe at rest**: not claimed; only their shape was checked (hex, no provider prefix), not the key management.
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`presence-only-health-endpoint`](skills/presence-only-health-endpoint/SKILL.md) | 0.1.0 | new (+ `templates/health-core.mjs` with `--self-test`, `references/db-ping.sql`) | high (observing deployed config); medium (DB ping) | Lessons 1–2 |
+| [`tenant-isolation-by-construction`](skills/tenant-isolation-by-construction/SKILL.md) | 0.1.0 | new (+ `templates/composite-tenant-fk.sql`) | medium | Lessons 4, 11 |
+| [`prove-secrets-and-pii-minimization`](skills/prove-secrets-and-pii-minimization/SKILL.md) | 0.1.0 | new (+ `templates/at-rest-checks.sql`) | medium | Lessons 8–10, 12; F1, F2 |
+| [`reviewed-schema-migrations`](skills/reviewed-schema-migrations/SKILL.md) | 0.1.0 | new | medium | Lessons 4 (detection), 5; ADR-0005 workflow |
+| [`verify-dependencies-against-registry`](skills/verify-dependencies-against-registry/SKILL.md) | 0.1.1 → 0.2.0 | steps 5 (release-age cooldown + advisories) and 8 (read installed types/source before designing), `erasableSyntaxOnly` in step 3, three pitfalls, G2-prep evidence | medium | Lessons 3, 7 |
+| [`honest-empty-states`](skills/honest-empty-states/SKILL.md) | 0.1.0 → 0.2.0 | section 7 (per-deployment "not configured", real rows with missing signals, shown-once secrets, narrowing disclosure), pitfall "copy behind the product" | medium | S2b/S2c UI; F3 |
+| [`agent-second-memory`](skills/agent-second-memory/SKILL.md) | 0.2.0 → 0.2.1 | step 9 extended to the readiness matrix; pitfall "AVAILABLE because a tool exists"; G2-prep evidence | medium | Lesson 13; F4 |
+| [`privacy-first-agent-telemetry-protocol`](skills/privacy-first-agent-telemetry-protocol/SKILL.md) | 0.1.0 → 0.1.1 | section 7 notes token storage now implemented, links the new skills; sections 7–8 stay low | medium / low | Lesson 12 |
+
+Template verification at G2-prep: `health-core.mjs --self-test` → 6 PASS, exit 0; a scratch variant that echoes values instead of booleans → `FAIL: no value is echoed`, exit 1. `composite-tenant-fk.sql` on PGlite: same-tenant insert OK, cross-tenant insert rejected with `api_tokens_project_tenant_fk`, tenant delete cascades to 0 tokens. `at-rest-checks.sql` on PGlite with fake rows: the plaintext scan finds a token embedded in a name column by prefix and by secret part; hash, prefix and dropped-field counts as expected; `LIKE '%tok_%'` false-positive on "my tokens" where `strpos` returns 0. `pnpm docs:lint` and `pnpm docs:links` results are in the report to the orchestrator.
+
+### Proposals for the owner
+
+Project fixes (Guru does not edit project code; each is small and reversible):
+
+1. F1 — `packages/identity/src/auth.ts`: extend the redactor to `ghr_` and `github_pat_` (and any other provider prefixes in use), and add those formats to the redaction unit test.
+2. F2 — `packages/event-store/test/repository.test.ts`: assert that no column *contains* the token or its 43-character secret part (substring), and record the production check query (prefix **and** secret slice, `strpos` over `row::text`) in `docs/how-to/`.
+3. F3 — `apps/web/src/app/layout.tsx`: banner copy such as "You can sign in and create projects; agents and providers are not connected yet."
+4. F4 — `PROJECT_MEMORY.md`: header date, outdated S2 split line, remove the resolved OAuth-callback question, condense "Current state". `READINESS_MATRIX.md`: header date, Secrets row action, readiness-decision paragraph, and Observability row → UNKNOWN or PARTIAL with the S2b evidence (runtime logs returned nothing).
+5. Decide whether the "newest release older than two weeks" rule becomes policy (an ADR-0002 amendment, optionally enforced with pnpm `minimumReleaseAge`). It changes install behavior, so it needs the owner.
+6. Reminder (already recorded): the GitHub client secret pasted in chat and the database password remain exposed until rotated (B1-rotate).
+
+Orcasus (proposal only — G2 PR checkpoint is at S3): candidates to assess with the owner are `agent-second-memory`, `vendoring-agent-skills`, `verify-dependencies-against-registry`, `primary-source-research-with-agents`, `honest-empty-states` (carried from G1), plus `presence-only-health-endpoint` (runtime verification of deployed resources by name and presence only — operationalizes "verify resources at runtime" and "names, never values") and sections 3 and 7 of `prove-secrets-and-pii-minimization` (proof by shape; pasted secrets). Not candidates: `tenant-isolation-by-construction`, `reviewed-schema-migrations` (product engineering, not agent operations), `privacy-first-agent-telemetry-protocol` (domain), `accessible-brand-tokens`. No change to `CLAUDE.md` or the Orcasus skills is proposed.
+
 ## 2026-10-20 · G1 — protocol decision, end of Sprints 1a and 1b
 
 - **Window:** `6cfe703` (G0) → `a789674` (HEAD), 4 commits: `57890b3` (owner decisions, provisioning guide), `0235df1` (S1a shell, components, project schema), `77579d9` (JGR v0.1 schemas, validator, vectors, spec, ADR-0004), `a789674` (research notes, spec mappings and edge rules).

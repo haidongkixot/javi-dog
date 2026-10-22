@@ -2,8 +2,8 @@
 name: agent-second-memory
 description: Bootstrap and maintain a repository's "second memory" so coding agents (and humans) can resume work across sessions without re-deriving context — project memory, append-only session log, sprint records, ADRs, a readiness matrix, a generated module registry, CI checks for markdown lint, broken links, stale generated docs and doc drift, and short timeboxed iterations that are split and rolled over truthfully. Use when starting a new repository or project with AI agents, when agents keep losing context between sessions, when asked to set up docs-as-code, ADRs, handoff notes, a project log or "memory", when docs drift from code, when an owner sets a short timebox per sprint or iteration, or before a long multi-session build.
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G0; updated G1"
+  version: "0.2.1"
+  origin: "javis-dog G0; updated G1, G2-prep"
   confidence: medium
 ---
 
@@ -86,9 +86,12 @@ When the owner sets a short timebox per iteration (the origin used at most 30 mi
 
 At session or iteration end, walk the whole project-memory file: header, current state, decisions, **open questions** and **next actions**. Remove questions the owner has answered and replace finished next actions. A memory whose "current state" is fresh but whose "next actions" are two iterations old sends the next session to work that is already done.
 
+Walk the readiness matrix the same way: its header date, every row whose "recommended action" has happened, and every AVAILABLE whose evidence is only "the tool exists". When a runtime observation contradicts a row (a log tool that returns nothing, a deployment target that differs from the plan), change the row in the same commit as the observation.
+
 ## Pitfalls
 
 - **Partial memory update.** Appending the latest result to "current state" and leaving open questions and next actions untouched. No check catches this today; review those sections explicitly (step 9).
+- **AVAILABLE because a tool exists.** A capability listed as available because an integration offers it ("runtime logs") is UNKNOWN until a call returns real data.
 - **Memory file as diary.** If the project memory grows past a screen or two, move history to the session log.
 - **Hand-edited generated docs.** Mark them "GENERATED — do not edit" and let `--check` catch edits.
 - **Linting vendored docs.** Third-party files will fail your style rules; exclude them rather than reformatting them (which breaks upstream diffs).
@@ -113,3 +116,11 @@ Javi's Dog, Sprint 0 (2026-10-20), single cloud session. Confidence **medium**: 
 - Partial memory update (verified by reading `docs/memory/PROJECT_MEMORY.md` at `a789674`): "Current state" lists S1a and S1b as done, but "Next actions" still reads "Close S0 … S1: build …", and "Open questions" still asks the owner to confirm D1, which the owner accepted in `57890b3` (`docs/agent-ops/READINESS_MATRIX.md`, D1 row).
 - G0 hypotheses still open: no cross-session handoff has happened yet (S0, S1a and S1b ran in one session; `SESSION_LOG.md` has one entry); doc drift is still SKIPPED because no `main` branch exists (`SPRINT-01a.md` Test evidence).
 - Hypothesis: that a 30-minute timebox improves quality or throughput. Two short iterations closed with green checks (GitHub Actions CI succeeded on all four window commits); there is no comparison with longer iterations.
+
+### Update at G2-prep (Sprints 2a–2c, 2026-10-22)
+
+- Partial memory update **recurred** (now observed at two checkpoints, so the pitfall is verified repeatedly). At `2d6b87d`, `docs/memory/PROJECT_MEMORY.md` says "Last updated: 2026-10-20" although its content is from 2026-10-22; "Current state" still says S2b would include "project UI, welcome email" (moved to S2c); "Open questions" still lists the GitHub OAuth callback registration, which real production sign-ins resolved (`docs/agent-ops/READINESS_MATRIX.md`, GitHub SSO row). "Current state" has grown into a per-sprint diary.
+- Readiness matrix drift: header "Last updated: 2026-10-20" while rows carry 2026-10-22 evidence; the Secrets row still recommends "prove with the first production sign-in (S2b)" after it happened; the Observability row says runtime logs are "AVAILABLE once deployed" because the platform integration has log tools, while the S2b retro records that those logs returned nothing for the failed sign-in (`docs/sprints/SPRINT-02b.md`, Retro).
+- Cross-session handoff (open since G0): a second session continued the plan after Session 1, and a worker restart mid-S2a lost no work on disk (`docs/memory/SESSION_LOG.md`). The log does not record how the new session resumed or whether it had to re-derive anything, so the benefit is still a hypothesis.
+- Timebox split applied a second time: S2 → S2a, S2b, S2c, each with its own record, evidence and retro; S2b split again when sign-in filled the box (`docs/sprints/SPRINT-02b.md`, Decisions).
+- Possible check (proposal, untested): fail `docs:check` when the project-memory "Last updated" date is older than the newest session-log entry date.

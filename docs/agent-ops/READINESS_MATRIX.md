@@ -1,6 +1,6 @@
 # Project Readiness Matrix — Javi's Dog
 
-> Orcasus template v1.2.1. Evidence, not assumptions. Last updated: 2026-10-20 (S2a planning re-check).
+> Orcasus template v1.2.1. Evidence, not assumptions. Last updated: 2026-10-22 (S2c close, Guru G2-prep).
 > Status vocabulary: AVAILABLE / MISSING / UNKNOWN / BLOCKED / NOT NEEDED. Secret values are never recorded.
 
 | Area | Requirement / capability | Resource / permission required | Status | Evidence / path / source | Impact if missing | Options and trade-offs | Recommended action | Owner decision? |
@@ -22,7 +22,7 @@
 | Data | Schema, migrations, seed, rollback | Drizzle migrations on Neon branches | AVAILABLE (dev-agent) | 2026-10-22: migration `0000_jd_m04_workspaces_projects_tokens` applied to `dev-agent` (neon-http migrator, exit 0); `db:smoke` 7/7 PASS; rollback SQL committed and exercised on PGlite; CI fails on schema/SQL drift. How-to: `docs/how-to/run-database-migrations.md` | — | — | Production branch only at S5 (Q3) | No |
 | Testing | Runner, scripts, CI | Vitest, GitHub Actions | AVAILABLE (S0) | Added in S0 (`vitest`, `.github/workflows/ci.yml`) | — | — | — | No |
 | Browser/mobile | Browsers for E2E | Chromium | AVAILABLE | `/opt/pw-browsers/chromium` in session | — | — | Playwright from S2; desktop Chromium first | No |
-| Observability | Logs/errors of the platform itself | Vercel runtime logs | AVAILABLE once deployed | Vercel MCP has runtime log tools | — | — | — | No |
+| Observability | Logs/errors of the platform itself | Vercel runtime logs | PARTIAL | 2026-10-22: Vercel MCP runtime-log and runtime-error queries returned nothing for this project (even for known requests); `/api/health` is the working observation path; auth now writes redacted JSON log lines (ADR-0007) — their arrival in Vercel logs is unverified | A failure may leave no trace | A) Owner checks the Vercel dashboard log view once · B) add a log drain later | A | Yes |
 | Security | Roles, authz boundaries, sensitive data | Requirements + tests | PARTIAL | ADR-0006 (2026-10-22): Better Auth roles owner/admin/member on workspaces; personal workspace per user; open sign-up; telemetry off; OAuth tokens encrypted at rest (confirmed on real rows 2026-10-22), provider `id_token` not stored. Real GitHub and Google sign-in verified on production. Tests: redirect URLs, workspace creation/isolation/cascade, id_token dropped, not-configured 503. S2c: every page/action resolves the workspace via session + membership (tested incl. forged ids); auth logs redacted (ADR-0007) | Data leaks across workspaces | — | S2c: derive `workspaceId` from session + membership only | Yes (S2c) |
 | Performance | Ingest latency/payload targets | Load test + approval | UNKNOWN | Targets p95 < 2s, < 4 KB are hypotheses (brand slide 10) | Unproven SLA | Measure in S5 | Load test with approval | Yes (S5) |
 | Budget | Paid plans (Vercel Pro, Neon, Resend) | Owner approval | UNKNOWN | — | Commercial beta blocked on Hobby terms | Free tiers for dev; paid before beta | Decide before S5 release gate | Yes |
@@ -31,7 +31,7 @@
 
 ## Readiness decision
 
-**S2a closed** 2026-10-22. **S2b** unblocked: production env complete and DB `ok` (2026-10-22). **S2b** (sign-in) has its credentials in shape; GitHub can only be proven by a real sign-in. Remaining owner items: ADR-0004 review; confirm GitHub OAuth App callback for production; B1-rotate deferred (before real user data / S5).
+**S2 complete** (2026-10-22): data layer, sign-in and project/token UI verified on production. **S3 (JGR ingress)** can start; it needs a retention/partitioning ADR for `events`. Open owner items: secret rotation (B1-rotate + GitHub client secret pasted in chat), release-cooldown policy, ADR-0004 review, B6 GitHub App (S5), B7 legal (S6).
 
 ### Blockers and decisions
 
