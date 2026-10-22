@@ -38,7 +38,7 @@
    ```
 
 2. Vercel → `javisdog` → Settings → Environment Variables → add `CRON_SECRET` (Production), paste, save, then redeploy the latest deployment.
-3. Check: `https://javisdog.vercel.app/api/health` shows `"CRON_SECRET": true`. The first scheduled run is at 20:00 UTC (03:00 GMT+7).
+3. Check: `https://javisdog.vercel.app/api/health` shows `"CRON_SECRET": true`, and Settings → Cron Jobs lists `/api/cron/purge-events` daily at 20:00 UTC (03:00 GMT+7). If no cron is listed, the project's Root Directory is not `apps/web` — tell the agent.
 
 ## Test evidence
 
@@ -47,6 +47,8 @@
 | `pnpm format:check` / `lint` / `typecheck` / `docs:check` / `build` (Windows) | 0 | — | all | 0 | 0 | 0 | 0 | `/api/cron/purge-events` and `/api/v1/events` dynamic |
 | `pnpm test` (workspace) | 0 | — | 280 | 0 | 0 | 0 | 0 | web 90, jgr-sdk 29, ingest 19, event-store 36, projects 27, identity 13, jgr-spec 29, ui 33, notify 4 |
 | SDK → real ingest handler on PGlite (`e2e.test.ts`) | 0 | — | 1 | 0 | — | — | — | 120 events, one network failure retried, resend deduplicated |
+| Production after deploy of `07dfa99`: `GET /api/health`; `GET /api/cron/purge-events` without secret | 0 | — | 2 | 0 | — | — | — | health 200, 3 migrations, `CRON_SECRET: false`; purge 503 `not_configured` (deletes nothing) |
+| Cron registered on Vercel | — | — | — | — | — | — | 1 | UNKNOWN: Vercel MCP `get_deployment` does not expose crons; check Settings → Cron Jobs |
 | Purge with the real `CRON_SECRET` on production | — | — | — | — | — | — | 1 | owner step |
 
 Screenshots: 0.
