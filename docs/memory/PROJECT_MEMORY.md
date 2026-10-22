@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-20 · Current sprint: **S2b — Sign-in** (not started; needs Q5). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
+> Last updated: 2026-10-20 · Current sprint: **S2b — Sign-in** (not started; unblocked). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
 
 ## What we are building
 
@@ -38,7 +38,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Open questions / blockers (owner)
 
-- **Vercel env (owner action; agent gets 403 on production env writes):** Production `DATABASE_URL` → `dev-agent` (Q5 = A, until S5); `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`. The owner pasted a new GitHub client secret in chat on 2026-10-22 — it differs from the cloud-env one; which OAuth App it belongs to is unconfirmed; treat it as exposed (rotate with B1).
+- **Vercel env** done 2026-10-22: production `/api/health` → 200, all 9 vars set, DB `ok` (Q5 = A: Production → `dev-agent` until S5). The GitHub client secret pasted in chat on 2026-10-22 is exposed → rotate with B1.
 - **GitHub OAuth App callback:** an OAuth App has one callback URL; production sign-in needs `https://javisdog.vercel.app/api/auth/callback/github` registered (separate production app or changed callback).
 - **B1-rotate** deferred by owner ("use first, rotate later"): rotate `neondb_owner` before real user data or the S5 release gate.
 - **B3** GitHub OAuth proven only by the first real sign-in (S2b).
@@ -46,7 +46,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Next actions
 
-1. Owner: in Vercel → Production set `DATABASE_URL` (dev-agent), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`; register the production GitHub callback URL; check `BETTER_AUTH_URL` = `https://javisdog.vercel.app`. Then `/api/health` should turn 200.
+1. Owner: confirm the GitHub OAuth App used on Vercel has callback `https://javisdog.vercel.app/api/auth/callback/github`.
 2. S2b: Better Auth GitHub/Google (JD-M03) mapped onto `workspaces`, project CRUD UI, JD-M09 welcome email.
 
 ## Key paths
