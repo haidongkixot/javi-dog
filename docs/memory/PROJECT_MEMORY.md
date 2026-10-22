@@ -20,6 +20,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - S2 delivered as S2a (data layer), S2b (sign-in), S2c (projects, tokens, welcome email) — all closed 2026-10-22.
 
 - S2c built (2026-10-22): project list/create, project detail with ingest-token issue (shown once) / revoke, workspace from session + membership only; JD-M09 `@javis-dog/notify` welcome email via Resend REST; redacted auth logs; failed sign-ins return to `/sign-in?error=`. 203 tests. ADR-0007.
+- Local Windows dev machine ready (2026-10-23): Node 22.23.4, pnpm 10.28.0, Git 2.55.0; all checks green (209 tests). Repo now forces LF (`.gitattributes`) and resolves file URLs with `fileURLToPath` — required for Windows paths with spaces. Owner prefers local runs in GMT+7 windows: weekdays 23:00–17:00, weekends 22:00–08:00.
 
 ## Decisions in force
 

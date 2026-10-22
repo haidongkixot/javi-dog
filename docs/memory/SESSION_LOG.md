@@ -2,6 +2,14 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-23 · Session 3 (Claude Code desktop, owner's Windows machine) — local toolchain
+
+- Owner: run token-saving work on the local machine inside GMT+7 windows (weekdays 23:00–17:00, weekends 22:00–08:00).
+- Installed with owner approval: Node 22.23.4 + Git 2.55.0 (winget), pnpm 10.28.0 (npm -g). `pnpm install --frozen-lockfile` exit 0.
+- First local run: lint/typecheck/build PASS; test FAIL (event-store 3 failed) and docs:check FAIL. Root causes: (1) `new URL(...).pathname` yields `/D:/Claude%20Projects/…` on Windows → `fileURLToPath` in event-store test helper, `db:migrate`, `check-links`, `modules-registry`; (2) `core.autocrlf=true` checkout → migration file hashes differ from the LF hashes in rollback SQL, registry check sees CRLF → added `.gitattributes` (`* text=auto eol=lf`).
+- After fixes: lint, typecheck, test (209 passed), docs:check exit 0 (doc-drift SKIPPED: no `origin/main`), build exit 0 earlier in the session.
+- Next: S3 (JGR ingress).
+
 ## 2026-10-22 · Session 2, continued — Sprint 2c (projects, tokens, welcome email)
 
 - Built project UI, token issue/revoke, workspace resolution with membership check, JD-M09 welcome email (Resend REST), redacted auth logs, `/sign-in?error=`. ADR-0007. 203 tests green; welcome email accepted by Resend sink.

@@ -2,8 +2,9 @@
 // Usage: node scripts/modules-registry.mjs [--check]
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 const target = join(root, 'docs/modules/REGISTRY.md');
 const ID = /^JD-(APP|M\d{2}|C\d{2})$/;
 const REQUIRED = ['id', 'name', 'version', 'status', 'description', 'provides', 'consumes'];

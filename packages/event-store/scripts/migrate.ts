@@ -3,6 +3,7 @@
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { migrate } from 'drizzle-orm/neon-http/migrator';
+import { fileURLToPath } from 'node:url';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -11,6 +12,6 @@ if (!url) {
 }
 
 console.log('Applying migrations …');
-const migrationsFolder = new URL('../migrations', import.meta.url).pathname;
+const migrationsFolder = fileURLToPath(new URL('../migrations', import.meta.url));
 await migrate(drizzle(neon(url)), { migrationsFolder });
 console.log('Migrations applied.');

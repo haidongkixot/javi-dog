@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { schema } from '../src/index.ts';
 
-export const migrationsFolder = new URL('../migrations', import.meta.url).pathname;
+// fileURLToPath, not URL.pathname: pathname keeps %20 and a leading "/D:" on Windows.
+export const migrationsFolder = fileURLToPath(new URL('../migrations', import.meta.url));
 
 /** A fresh in-process Postgres with the committed migrations applied (TEST_PLAN S2a, Q1 = PGlite). */
 export const freshDb = async () => {

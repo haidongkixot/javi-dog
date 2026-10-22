@@ -3,8 +3,9 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+const root = fileURLToPath(new URL('..', import.meta.url));
 const IGNORE = [/^docs\/brand\/source\//, /^\.claude\/skills\/(?!javis-dog-brand|guru-checkpoint)/];
 
 const files = execFileSync(

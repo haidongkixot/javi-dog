@@ -1,0 +1,2 @@
+# LF everywhere: migration hashes (ADR-0005) and generated docs are byte-compared.
+* text=auto eol=lf
