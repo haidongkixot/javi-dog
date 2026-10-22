@@ -1,0 +1,30 @@
+{
+  "name": "@javis-dog/event-store",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-M06 — Neon client, composed Drizzle schema, migrations and DB health",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.ts",
+    "db:smoke": "node scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@javis-dog/projects": "workspace:*",
+    "@neondatabase/serverless": "1.2.0",
+    "drizzle-orm": "0.45.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/node": "22.20.5",
+    "drizzle-kit": "0.31.11",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

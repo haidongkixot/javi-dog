@@ -2,6 +2,13 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-22 · Session 2, continued — Sprint 2a build
+
+- Owner: "go with the recommendations" (Q1 PGlite, Q2 public health, Q3 Preview → dev-agent / Production unset, Q4 events in S3). Session worker restarted mid-sprint; work on disk survived.
+- Built JD-M06 package, JD-M04 tables/repository/tokens, `/api/health`; migration `0000` applied to `dev-agent`; smoke 7/7; 145 tests, lint, typecheck, build green; CI gains a migration drift step.
+- Defects caught before push: tokens could cross workspaces (composite FK added), `pingDb` crashed on an unmigrated DB, Node type stripping rejected parameter properties (`erasableSyntaxOnly` on).
+- Next: verify `/api/health` on Vercel, close S2a, then S2b (Better Auth).
+
 ## 2026-10-20 · Session 2 (Claude Code, cloud) — credential re-check + S2a plan
 
 - Re-checked env vars (presence/shape only): all 10 S2 vars present and well-formed; OAuth secrets no longer hold callback URLs. Neon `dev-agent` OK over HTTPS (PG 18.6, 0 tables); psql/TCP times out. Google client authenticates (`invalid_grant` probe). GitHub token endpoint blocked by the sandbox proxy (403); Vercel env listing still 403. Rotation of `neondb_owner` not verifiable.

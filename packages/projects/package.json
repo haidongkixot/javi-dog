@@ -2,7 +2,7 @@
   "name": "@javis-dog/projects",
   "version": "0.1.0",
   "private": true,
-  "description": "JD-M04 — project registry: project model, privacy settings and (from S2) ingest tokens",
+  "description": "JD-M04 — project registry: workspaces, projects, privacy settings and hashed ingest tokens",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "drizzle-orm": "0.45.4",
     "zod": "4.6.7"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 # ADR-0005: Data layer — Drizzle over Neon HTTP, module-owned tables, hashed ingest tokens
 
-- Status: **Proposed** (owner decisions Q1–Q4 in `docs/sprints/SPRINT-02a.md` pending)
+- Status: **Accepted** 2026-10-22 (owner took the recommendations for Q1–Q4 in `docs/sprints/SPRINT-02a.md`); see *Changes*
 - Date: 2026-10-20
 - Deciders: Project owner (Hai), Claude (implementer)
 - Modules: JD-M06, JD-M04, JD-APP; JD-M03 (consumer from S2b), JD-M05 (consumer from S3)
@@ -55,3 +55,12 @@ Facts (2026-10-20): Neon `dev-agent` answers over HTTPS (PostgreSQL 18.6, 0 publ
 - Positive: boundaries stay lint-enforceable; migration SQL is reviewable; tokens are useless if the DB leaks; tests use real SQL without network.
 - Negative: one extra composition step in JD-M06 for each new module; PGlite (PG 17) differs slightly from Neon (PG 18) — avoid PG 18-only features or add a dev-agent check for them; manual rollback scripts must be kept in sync.
 - Follow-up: S2b verifies the Better Auth mapping; S3 adds `events` (with retention ADR) and `last_used_at` updates; S5 decides per-environment Neon branches for previews and production.
+
+## Changes
+
+- 2026-10-22 (implementation, S2a):
+  - `ingest_tokens` references `projects(id, workspace_id)` with a **composite foreign key** (plus a unique constraint on `projects(id, workspace_id)`), so Postgres itself refuses a token whose project lives in another workspace. The separate `workspace_id → workspaces` FK was dropped; cascade still flows through `projects`.
+  - `token_hash`/`display_prefix` are `text` with a `CHECK` on 64 lowercase hex chars instead of `char(n)`.
+  - Repository integration tests live in **JD-M06** (`packages/event-store/test/`), which owns the migrations; JD-M04 keeps pure unit tests. This avoids a JD-M04 → JD-M06 dependency cycle.
+  - `pingDb` checks for `drizzle.__drizzle_migrations` with a separate statement: Postgres resolves relation names at plan time, so a `CASE` guard failed on an unmigrated database (caught by a test).
+  - `tsconfig.base.json` sets `erasableSyntaxOnly` so code stays runnable by Node's built-in type stripping (used by `db:migrate` / `db:smoke`).

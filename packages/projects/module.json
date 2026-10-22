@@ -3,8 +3,15 @@
   "name": "@javis-dog/projects",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Project registry. S1a: draft project schema (Zod) and slug rules; persistence and ingest tokens arrive in S2.",
+  "description": "Project registry: workspaces, projects and hashed ingest tokens. S2a: Drizzle tables, workspace-scoped repository, token primitives (ADR-0005).",
   "owner": "platform",
-  "provides": ["ProjectInput / Project schemas", "toSlug()", "privacy class and platform enums"],
+  "provides": [
+    "ProjectInput / Project / WorkspaceInput schemas",
+    "toSlug()",
+    "privacy class and platform enums",
+    "Drizzle tables (workspaces, projects, ingest_tokens)",
+    "createProjectRepository()",
+    "ingest token primitives"
+  ],
   "consumes": []
 }

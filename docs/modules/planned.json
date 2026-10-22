@@ -24,14 +24,6 @@
     "description": "JGR + OTLP/HTTP ingress: scoped auth, validation, dedupe, rate limits"
   },
   {
-    "id": "JD-M06",
-    "name": "@javis-dog/event-store",
-    "path": "packages/event-store",
-    "status": "planned",
-    "sprint": "S2",
-    "description": "Neon schema, rollups, retention"
-  },
-  {
     "id": "JD-M07",
     "name": "@javis-dog/realtime",
     "path": "packages/realtime",

@@ -3,8 +3,8 @@
   "name": "@javis-dog/web",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Next.js App Router application that composes all modules. S1a: five-space shell (Overview, Projects, Live agents, Token network concept, JGR & Integrations) with honest empty and not-connected states.",
+  "description": "Next.js App Router application that composes all modules. S1a: five-space shell (Overview, Projects, Live agents, Token network concept, JGR & Integrations) with honest empty and not-connected states. S2a: GET /api/health (env presence booleans + DB status).",
   "owner": "platform",
   "provides": ["web UI", "route handlers (from S2)"],
-  "consumes": ["JD-M13"]
+  "consumes": ["JD-M06", "JD-M13"]
 }

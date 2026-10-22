@@ -1,0 +1,10 @@
+{
+  "id": "JD-M06",
+  "name": "@javis-dog/event-store",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Neon client (neon-http), composed Drizzle schema, migrations and DB health. S2a: JD-M04 tables; JGR events, rollups and retention arrive in S3.",
+  "owner": "platform",
+  "provides": ["createDb()", "pingDb()", "schema", "migrations/ (db:generate, db:migrate)"],
+  "consumes": ["JD-M04"]
+}

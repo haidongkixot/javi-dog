@@ -83,3 +83,35 @@ export const normalizeProjectInput = (raw: unknown) => {
   }
   return { ...parsed, slug };
 };
+
+/** What a user submits when creating a workspace (members arrive with JD-M03 in S2b). */
+export const WorkspaceInput = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Use at least 2 characters.')
+    .max(80, 'Use at most 80 characters.'),
+  slug: z
+    .string()
+    .regex(SLUG, 'Use lowercase letters, numbers and single hyphens.')
+    .max(48)
+    .optional(),
+});
+export type WorkspaceInput = z.input<typeof WorkspaceInput>;
+
+/** Validate input and derive the slug from the name when none is given. */
+export const normalizeWorkspaceInput = (raw: unknown) => {
+  const parsed = WorkspaceInput.parse(raw);
+  const slug = parsed.slug ?? toSlug(parsed.name);
+  if (!SLUG.test(slug)) {
+    throw new z.ZodError([
+      {
+        code: 'custom',
+        path: ['name'],
+        message: 'Name must contain letters or numbers.',
+        input: parsed.name,
+      },
+    ]);
+  }
+  return { name: parsed.name, slug };
+};

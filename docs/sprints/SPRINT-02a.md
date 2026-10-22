@@ -1,11 +1,11 @@
 # Sprint 02a — Data layer & health
 
-- Dates: planned 2026-10-20 (timebox 30 min) · Status: **PLANNED** (waiting on owner decisions Q1–Q4 below)
+- Dates: planned 2026-10-20; run 2026-10-22 (timebox 30 min) · Status: **ACTIVE** (tasks 1–7 done; task 8 pending deploy)
 - Goal: persist workspaces, projects and hashed ingest tokens in Neon through Drizzle, and expose an honest `/api/health` that shows which env vars are present (booleans only) and whether the database answers.
 - Modules touched: JD-M06 (new package), JD-M04, JD-APP
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows **Database** (AVAILABLE) and **Data** (planned here). Sign-in (Better Auth, JD-M03) is **Sprint 2b** and is not a gate for 2a.
 - Test plan: `docs/agent-ops/TEST_PLAN.md` (refreshed for S2a)
-- Decisions: ADR-0005 (Proposed) — `docs/adr/0005-data-layer-and-ingest-tokens.md`
+- Decisions: ADR-0005 (Accepted 2026-10-22) — `docs/adr/0005-data-layer-and-ingest-tokens.md`
 
 ## Global constraints
 
@@ -21,13 +21,13 @@
 
 | # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| 1 | Scaffold `packages/event-store` | JD-M06 | — → `createDb(url)`, `pingDb(db)`, `schema`, `migrate` script | `module.json` (status in-progress, consumes JD-M04); public `src/index.ts`; `drizzle.config.ts`; registry regenerated | Planned |
-| 2 | JD-M04 tables | JD-M04 | `drizzle-orm/pg-core` → `workspaces`, `projects`, `ingestTokens` tables exported from the public index | Columns per ADR-0005 §Data model; FKs `ON DELETE CASCADE`; unique `(workspace_id, slug)`; unique `token_hash`; `privacy_class` default `L0`; `last_signal_at` nullable and never written by the repository | Planned |
-| 3 | Ingest token primitives | JD-M04 | WebCrypto → `generateIngestToken()`, `hashIngestToken()`, `parseIngestToken()` | Format `jd_it_` + 43 base64url chars (32 random bytes); SHA-256 hex stored; display prefix = first 8 chars of the secret part; malformed input rejected before any DB call | Planned |
-| 4 | Project repository | JD-M04 | `db` handle (injected) → `createProjectRepository(db)` with `createWorkspace`, `createProject`, `listProjects(workspaceId)`, `getProject(workspaceId, id)`, `issueToken`, `revokeToken`, `verifyToken` | Input validated with existing `normalizeProjectInput`; slug collision → typed `slug_taken` error; `issueToken` returns plaintext once; `verifyToken` returns `{ workspaceId, projectId, tokenId }` or `null` for unknown/revoked/malformed; max 5 active tokens per project | Planned |
-| 5 | Generate and apply migration `0000` | JD-M06 | Task 2 tables → `packages/event-store/migrations/0000_*.sql` | `drizzle-kit generate` output committed; applied to `dev-agent` with `pnpm --filter @javis-dog/event-store db:migrate` (neon-http migrator); verified by listing tables + `__drizzle_migrations` row; down SQL committed for manual rollback | Planned |
-| 6 | `/api/health` route | JD-APP | JD-M06 `pingDb` → `GET /api/health` | `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `Cache-Control: no-store`; body `{ status, checkedAt, deployment: { env, commit }, env: { NAME: boolean… }, db: { status: 'ok' \| 'error' \| 'not_configured', latencyMs, migration } }`; DB ping times out after 3 s; HTTP 200 when DB ok, 503 otherwise | Planned |
-| 7 | Docs + contract | all | — | ADR-0005 accepted or amended; JD-M04 README + `module.json` updated; changeset for JD-M04 public contract; `docs/how-to/run-database-migrations.md`; `pnpm docs:check` green | Planned |
+| 1 | Scaffold `packages/event-store` | JD-M06 | — → `createDb(url)`, `pingDb(db)`, `schema`, `migrate` script | `module.json` (status in-progress, consumes JD-M04); public `src/index.ts`; `drizzle.config.ts`; registry regenerated | Done |
+| 2 | JD-M04 tables | JD-M04 | `drizzle-orm/pg-core` → `workspaces`, `projects`, `ingestTokens` tables exported from the public index | Columns per ADR-0005 §Data model; FKs `ON DELETE CASCADE`; unique `(workspace_id, slug)`; unique `token_hash`; `privacy_class` default `L0`; `last_signal_at` nullable and never written by the repository | Done |
+| 3 | Ingest token primitives | JD-M04 | WebCrypto → `generateIngestToken()`, `hashIngestToken()`, `parseIngestToken()` | Format `jd_it_` + 43 base64url chars (32 random bytes); SHA-256 hex stored; display prefix = first 8 chars of the secret part; malformed input rejected before any DB call | Done |
+| 4 | Project repository | JD-M04 | `db` handle (injected) → `createProjectRepository(db)` with `createWorkspace`, `createProject`, `listProjects(workspaceId)`, `getProject(workspaceId, id)`, `issueToken`, `revokeToken`, `verifyToken` | Input validated with existing `normalizeProjectInput`; slug collision → typed `slug_taken` error; `issueToken` returns plaintext once; `verifyToken` returns `{ workspaceId, projectId, tokenId }` or `null` for unknown/revoked/malformed; max 5 active tokens per project | Done |
+| 5 | Generate and apply migration `0000` | JD-M06 | Task 2 tables → `packages/event-store/migrations/0000_*.sql` | `drizzle-kit generate` output committed; applied to `dev-agent` with `pnpm --filter @javis-dog/event-store db:migrate` (neon-http migrator); verified by listing tables + `__drizzle_migrations` row; down SQL committed for manual rollback | Done |
+| 6 | `/api/health` route | JD-APP | JD-M06 `pingDb` → `GET /api/health` | `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `Cache-Control: no-store`; body `{ status, checkedAt, deployment: { env, commit }, env: { NAME: boolean… }, db: { status: 'ok' \| 'error' \| 'not_configured', latencyMs, migration } }`; DB ping times out after 3 s; HTTP 200 when DB ok, 503 otherwise | Done |
+| 7 | Docs + contract | all | — | ADR-0005 accepted or amended; JD-M04 README + `module.json` updated; changeset for JD-M04 public contract; `docs/how-to/run-database-migrations.md`; `pnpm docs:check` green | Done |
 | 8 | Verify on Vercel | JD-APP | deployed preview/production | After push, `GET https://javisdog.vercel.app/api/health` reports which env vars exist on Vercel — closes the "Vercel env unverifiable" gap | Planned |
 
 ### Order and dependencies
@@ -41,7 +41,7 @@
 - Project CRUD UI → S2b (needs an authenticated user). The Projects space keeps its honest "not connected" state.
 - JD-M09 welcome email → S2b.
 
-## Owner decisions needed before start
+## Owner decisions (answered 2026-10-20: "go with the recommendations" → Q1 A, Q2 A, Q3 A, Q4 A)
 
 | ID | Question | Options | Recommendation |
 |---|---|---|---|
@@ -61,16 +61,35 @@
 
 ## Log
 
-- 2026-10-20 — Sprint planned after env/Neon/OAuth re-check (see `READINESS_MATRIX.md`).
+- 2026-10-22 — Workspace gate green; local `next start` + `GET /api/health` against `dev-agent` → 200, all 9 env booleans true, `db.status = ok`, 1 migration.
+- 2026-10-22 — Migration `0000` applied to `dev-agent` via the neon-http migrator; `db:smoke` 7/7 PASS (round trip cleaned up).
+- 2026-10-22 — Smoke run 1 failed: Node type stripping rejects constructor parameter properties → rewrote `ProjectRepositoryError`, enabled `erasableSyntaxOnly` workspace-wide.
+- 2026-10-22 — PGlite tests found `pingDb` failing on an unmigrated DB (relation resolved at plan time inside `CASE`) → split into two statements. First PGlite cold start > 5 s → package timeout 30 s (not a retry).
+- 2026-10-22 — Review of generated SQL: tokens could reference a project in another workspace → composite FK `ingest_tokens(project_id, workspace_id) → projects(id, workspace_id)`.
+- 2026-10-20 — Owner: Q1–Q4 as recommended. Sprint planned after env/Neon/OAuth re-check (see `READINESS_MATRIX.md`).
 
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
-| — | — | — | — | — | — | — | all | Sprint not started |
+| `pnpm --filter @javis-dog/projects test` | 0 | < 1 s | 27 | 0 | 0 | 0 | 0 | — |
+| `pnpm --filter @javis-dog/event-store test` (PGlite) | 0 | 8 s | 14 | 0 | 0 | 0 | 0 | — |
+| `pnpm --filter @javis-dog/web test` | 0 | — | 42 | 0 | 0 | 0 | 0 | — |
+| `pnpm format:check` / `lint` / `typecheck` | 0 | 1 / 6 / 6 s | all | 0 | 0 | 0 | 0 | — |
+| `pnpm test` (workspace) | 0 | 11 s | 145 | 0 | 0 | 0 | 0 | — |
+| `pnpm build` | 0 | 22 s | — | — | — | — | — | `/api/health` dynamic (ƒ) |
+| `db:generate` drift check | 0 | — | no changes | — | — | — | — | — |
+| `db:migrate` on `dev-agent` | 0 | — | applied | — | — | — | — | — |
+| `db:smoke` on `dev-agent` | 0 | — | 7 | 0 | 0 | 0 | 0 | first run exit 1 (syntax, fixed) |
+| local `next start` + `curl /api/health` (dev-agent) | 0 | — | 200, `no-store` | — | — | — | — | — |
+| `GET https://javisdog.vercel.app/api/health` | — | — | — | — | — | — | 1 | after push (task 8) |
+
+Screenshots: 0.
 
 ## Decisions and deviations
 
+- ADR-0005 accepted with implementation changes (composite tenancy FK, integration tests in JD-M06, `erasableSyntaxOnly`); see its *Changes* section.
+- New dev dependency `@electric-sql/pglite` 0.5.8 (Q1; newest release older than two weeks).
 - `workspaces` is owned by JD-M04 in 2a (owner brief for S2a); the registry lists workspaces under JD-M03. JD-M03 will consume the JD-M04 table in S2b instead of defining its own. Recorded in ADR-0005.
 
 ## Retro
