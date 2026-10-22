@@ -6,7 +6,19 @@ import { signInProviders } from '@/lib/auth';
 export const metadata: Metadata = { title: 'Sign in' };
 export const dynamic = 'force-dynamic';
 
-export default function SignInPage() {
+// Better Auth sends failed OAuth callbacks here with `?error=<code>` (S2c).
+const errorText = (code: string) =>
+  code === 'access_denied'
+    ? 'Sign-in was cancelled at the provider. You can try again.'
+    : `Sign-in didn’t finish (${code.slice(0, 60)}). Please try again.`;
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  const { error } = await searchParams;
+  const code = typeof error === 'string' ? error.replace(/[^\w.-]/g, '') : '';
   const providers = signInProviders();
   return (
     <>
@@ -20,6 +32,11 @@ export default function SignInPage() {
           <h2 id="sign-in-title" className="text-lg font-bold tracking-tight text-ink">
             Choose an account
           </h2>
+          {code ? (
+            <p role="alert" className="text-sm text-danger">
+              {errorText(code)}
+            </p>
+          ) : null}
           {providers.length > 0 ? (
             <SignInButtons providers={providers} />
           ) : (

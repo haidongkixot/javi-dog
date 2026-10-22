@@ -36,4 +36,6 @@ export const allNav = [...workspaceNav, ...controlPlaneNav];
 const otherTitles: Record<string, string> = { '/sign-in': 'Sign in' };
 
 export const titleFor = (pathname: string): string =>
-  allNav.find((item) => item.href === pathname)?.label ?? otherTitles[pathname] ?? 'Overview';
+  allNav.find((item) => item.href === pathname)?.label ??
+  otherTitles[pathname] ??
+  (pathname.startsWith('/projects/') ? 'Projects' : 'Overview');

@@ -77,3 +77,21 @@ Risk: **HIGH** (authentication, first personal data). Screenshot budget: **0**.
 | Migrations 0000–0001 up / down / re-apply | Integration (PGlite) | `migrations.test.ts` | see SPRINT-02b |
 | UI: checking / signed-out / signed-in / sign-out; sign-in errors explained; not-configured state + 503 | Component (jsdom) + route | `apps/web/test/auth.test.tsx` | see SPRINT-02b |
 | Real provider round trip, account row (encrypted token), workspace + owner row | Manual E2E on production by the owner + agent DB check | SPRINT-02b task 7 | pending |
+
+## S2c — Projects, tokens, welcome email (2026-10-22)
+
+Risk: **HIGH** (authorization boundary, secret display, outbound email). Screenshot budget: **0**.
+
+| Requirement | Layer | Test | Result |
+|---|---|---|---|
+| Workspace = session's active one only with membership; forged id falls back to own | Integration (PGlite) | `identity.test.ts` | see SPRINT-02c |
+| Actions use the viewer's workspace, ignore form workspace fields, reject malformed ids | Unit (mocked viewer) | `apps/web/test/projects.test.tsx` | see SPRINT-02c |
+| Foreign / malformed project id → 404 without querying | Unit | `projects.test.tsx` | see SPRINT-02c |
+| Validation and slug clash → field messages | Unit | `projects.test.tsx` | see SPRINT-02c |
+| Token shown once; limit and not-found messages | Unit | `projects.test.tsx` | see SPRINT-02c |
+| Welcome email content, HTML escaping, Resend request, error without PII | Unit | `packages/notify/test/welcome.test.ts` | see SPRINT-02c |
+| `onUserCreated` once per user; failure logged without PII and sign-in continues | Integration (PGlite) | `identity.test.ts` | see SPRINT-02c |
+| Redaction of emails and token-like strings | Unit | `packages/identity/test/auth.test.ts` | see SPRINT-02c |
+| Sign-in error codes → readable, sanitized message | Component | `apps/web/test/auth.test.tsx` | see SPRINT-02c |
+| Real welcome email accepted by Resend | Smoke (sink) | `email:smoke` | see SPRINT-02c |
+| Signed-in create project / issue / revoke on production | Manual (owner) + DB check | SPRINT-02c | pending |

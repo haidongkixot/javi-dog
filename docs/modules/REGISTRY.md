@@ -5,7 +5,7 @@
 
 | ID | Package | Path | Status | Version | Description | Consumes |
 |---|---|---|---|---|---|---|
-| JD-APP | `@javis-dog/web` | `apps/web` | in-progress | 0.1.0 | Next.js App Router application that composes all modules. S1a: five-space shell (Overview, Projects, Live agents, Token network concept, JGR & Integrations) with honest empty and not-connected states. S2a: GET /api/health (env presence booleans + DB status). S2b: GitHub/Google sign-in (/sign-in, /api/auth) and account menu. | JD-M03, JD-M06, JD-M13 |
+| JD-APP | `@javis-dog/web` | `apps/web` | in-progress | 0.1.0 | Next.js App Router application that composes all modules. S1a: five-space shell (Overview, Projects, Live agents, Token network concept, JGR & Integrations) with honest empty and not-connected states. S2a: GET /api/health (env presence booleans + DB status). S2b: GitHub/Google sign-in (/sign-in, /api/auth) and account menu. S2c: project and ingest-token UI, welcome email hook. | JD-M03, JD-M04, JD-M06, JD-M09, JD-M13 |
 | JD-M01 | `@javis-dog/jgr-spec` | `packages/jgr-spec` | in-progress | 0.1.0 | Javi Grande Rules v0.1 draft: event envelope and batch schemas, privacy-class validator, limits and conformance vectors (docs/jgr). | — |
 | JD-M02 | `@javis-dog/jgr-sdk` | `packages/jgr-sdk` | planned | — | Client SDK: batching, spool, retry, signing, encryption | — |
 | JD-M03 | `@javis-dog/identity` | `packages/identity` | in-progress | 0.1.0 | Authentication with GitHub and Google (Better Auth), users, sessions and workspace membership mapped onto JD-M04 workspaces (ADR-0006). | JD-M04 |
@@ -14,7 +14,7 @@
 | JD-M06 | `@javis-dog/event-store` | `packages/event-store` | in-progress | 0.1.0 | Neon client (neon-http), composed Drizzle schema, migrations and DB health. S2a: JD-M04 tables; S2b: JD-M03 identity tables; JGR events, rollups and retention arrive in S3. | JD-M03, JD-M04 |
 | JD-M07 | `@javis-dog/realtime` | `packages/realtime` | planned | — | SSE streams, freshness and stale state | — |
 | JD-M08 | `@javis-dog/analytics` | `packages/analytics` | planned | — | Effectiveness metrics and model comparison | — |
-| JD-M09 | `@javis-dog/notify` | `packages/notify` | planned | — | Email (Resend + React Email) and alerts | — |
+| JD-M09 | `@javis-dog/notify` | `packages/notify` | in-progress | 0.1.0 | Transactional email via the Resend REST API. S2c: welcome email on first sign-in; alerts arrive with JD-M12. | — |
 | JD-M10 | `@javis-dog/github-bridge` | `packages/github-bridge` | planned | — | GitHub App webhooks, opt-in archive | — |
 | JD-M11 | `@javis-dog/crypto` | `packages/crypto` | planned | — | Envelope and end-to-end encryption (WebCrypto) | — |
 | JD-M12 | `@javis-dog/resilience` | `packages/resilience` | planned | — | Budget forecast, exhaustion alerts, BYOK failover | — |

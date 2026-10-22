@@ -102,3 +102,16 @@ describe('server auth configuration', () => {
     expect(signInProviders(env)).toEqual(['google']);
   });
 });
+
+describe('/sign-in error codes', () => {
+  it.each([
+    ['access_denied', 'Sign-in was cancelled at the provider. You can try again.'],
+    ['state_mismatch', 'Sign-in didn’t finish (state_mismatch). Please try again.'],
+    ['<b>x</b>', 'Sign-in didn’t finish (bxb). Please try again.'],
+  ])('shows a readable message for %s', async (error, message) => {
+    vi.stubEnv('DATABASE_URL', '');
+    const { default: SignInPage } = await import('@/app/sign-in/page');
+    render(await SignInPage({ searchParams: Promise.resolve({ error }) }));
+    expect(screen.getByRole('alert').textContent).toBe(message);
+  });
+});

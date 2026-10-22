@@ -1,0 +1,10 @@
+{
+  "id": "JD-M09",
+  "name": "@javis-dog/notify",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Transactional email via the Resend REST API. S2c: welcome email on first sign-in; alerts arrive with JD-M12.",
+  "owner": "platform",
+  "provides": ["sendWelcomeEmail()", "welcomeEmail()", "NotifyError"],
+  "consumes": []
+}

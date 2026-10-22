@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { configuredProviders, personalWorkspaceName } from '../src/index.ts';
+import { configuredProviders, personalWorkspaceName, redact } from '../src/index.ts';
 
 describe('personalWorkspaceName', () => {
   it.each([
@@ -23,5 +23,14 @@ describe('configuredProviders', () => {
       'github',
     ]);
     expect(configuredProviders({ GOOGLE_CLIENT_ID: 'a', GOOGLE_CLIENT_SECRET: '  ' })).toEqual([]);
+  });
+});
+
+describe('redact', () => {
+  it('removes emails and token-like strings', () => {
+    const out = redact(
+      'user ada@example.com token gho_abc123 google ya29.a0Af jwt eyJa.eyJb.sig ingest jd_it_AAAA',
+    );
+    expect(out).toBe('user [email] token [secret] google [secret] jwt [secret] ingest [secret]');
   });
 });

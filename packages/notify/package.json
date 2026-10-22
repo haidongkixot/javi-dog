@@ -1,0 +1,21 @@
+{
+  "name": "@javis-dog/notify",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-M09 — transactional email via Resend (welcome email); alerts later",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "email:smoke": "node scripts/smoke.ts"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

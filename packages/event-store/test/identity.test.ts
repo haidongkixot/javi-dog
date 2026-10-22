@@ -1,5 +1,10 @@
-import { configuredProviders, createAuth, AuthConfigError } from '@javis-dog/identity';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  AuthConfigError,
+  configuredProviders,
+  createAuth,
+  resolveWorkspace,
+} from '@javis-dog/identity';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { freshDb } from './helpers.ts';
 
 const env = {
@@ -123,5 +128,49 @@ describe('stored provider data', () => {
       [user.id],
     );
     expect(row.rows[0]!.id_token).toBeNull();
+  });
+});
+
+describe('resolveWorkspace (authorization rule, ADR-0006)', () => {
+  it('accepts the active workspace only when the user is a member', async () => {
+    const a = await signUpAndSignIn('Alice A', 'alice@example.com');
+    const b = await signUpAndSignIn('Bob B', 'bob@example.com');
+    const own = await resolveWorkspace(ctx.db, a.user.id, a.session.activeOrganizationId);
+    expect(own).toEqual({ workspaceId: a.session.activeOrganizationId, role: 'owner' });
+    // Alice's session claims Bob's workspace → falls back to Alice's own.
+    const forged = await resolveWorkspace(ctx.db, a.user.id, b.session.activeOrganizationId);
+    expect(forged.workspaceId).toBe(a.session.activeOrganizationId);
+  });
+
+  it('falls back to (and creates) the personal workspace when none is active', async () => {
+    const { user, session } = await signUpAndSignIn('Carol C', 'carol@example.com');
+    expect((await resolveWorkspace(ctx.db, user.id, null)).workspaceId).toBe(
+      session.activeOrganizationId,
+    );
+  });
+});
+
+describe('onUserCreated', () => {
+  it('runs once per new user and never blocks sign-in when it fails', async () => {
+    const onUserCreated = vi.fn().mockRejectedValueOnce(new Error('resend down'));
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const authWithHook = createAuth({ db: ctx.db, env, onUserCreated });
+    const { internalAdapter } = await authWithHook.$context;
+    const { user } = await internalAdapter.createOAuthUser(
+      { name: 'Dana D', email: 'dana@example.com', emailVerified: true },
+      { providerId: 'github', accountId: 'gh-dana' },
+    );
+    await internalAdapter.createSession(user.id);
+    await internalAdapter.createSession(user.id);
+    expect(onUserCreated).toHaveBeenCalledTimes(1);
+    expect(onUserCreated).toHaveBeenCalledWith({
+      id: user.id,
+      email: 'dana@example.com',
+      name: 'Dana D',
+    });
+    const logged = quiet.mock.calls.flat().join(' ');
+    expect(logged).toContain('onUserCreated failed');
+    expect(logged).not.toContain('dana@example.com');
+    quiet.mockRestore();
   });
 });

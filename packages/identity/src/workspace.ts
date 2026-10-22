@@ -1,5 +1,5 @@
 import { createProjectRepository, toSlug, type ProjectsDb } from '@javis-dog/projects';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { users, workspaceMembers } from './db/tables.ts';
 
 /** Role names of Better Auth's organization plugin, used as workspace roles (ADR-0006). */
@@ -39,4 +39,35 @@ export const ensurePersonalWorkspace = async (db: ProjectsDb, userId: string) =>
     role: 'owner' satisfies WorkspaceRole,
   });
   return workspace.id;
+};
+
+/**
+ * The workspace a request may act on (ADR-0006): the session's active workspace if the user
+ * is a member of it, otherwise the user's first workspace. Never trust a workspace id from input.
+ */
+export const resolveWorkspace = async (
+  db: ProjectsDb,
+  userId: string,
+  activeWorkspaceId: string | null | undefined,
+) => {
+  if (activeWorkspaceId) {
+    const [member] = await db
+      .select({ workspaceId: workspaceMembers.organizationId, role: workspaceMembers.role })
+      .from(workspaceMembers)
+      .where(
+        and(
+          eq(workspaceMembers.userId, userId),
+          eq(workspaceMembers.organizationId, activeWorkspaceId),
+        ),
+      );
+    if (member) return { workspaceId: member.workspaceId, role: member.role as WorkspaceRole };
+  }
+  const workspaceId = await ensurePersonalWorkspace(db, userId);
+  const [member] = await db
+    .select({ role: workspaceMembers.role })
+    .from(workspaceMembers)
+    .where(
+      and(eq(workspaceMembers.userId, userId), eq(workspaceMembers.organizationId, workspaceId)),
+    );
+  return { workspaceId, role: (member?.role ?? 'member') as WorkspaceRole };
 };

@@ -16,6 +16,23 @@ export interface AuthEnv {
 
 export type SocialProvider = 'github' | 'google';
 
+/** Called once after a new user row exists. Failures are logged and never block sign-in. */
+export type OnUserCreated = (user: { id: string; email: string; name: string }) => Promise<void>;
+
+const EMAIL = /[^\s@"'<>]+@[^\s@"'<>]+\.[^\s@"'<>]+/g;
+const SECRETISH = /\b(gh[opsu]_[A-Za-z0-9]+|ya29\.[\w.-]+|eyJ[\w-]+\.[\w-]+\.[\w-]+|jd_it_[\w-]+)/g;
+
+/** Removes emails and token-like strings before anything reaches the logs. */
+export const redact = (text: string) =>
+  text.replace(EMAIL, '[email]').replace(SECRETISH, '[secret]');
+
+/** One JSON line per auth event; extra arguments are dropped because they may hold PII. */
+export const authLog = (level: string, message: string) => {
+  const line = JSON.stringify({ event: 'auth', level, message: redact(message).slice(0, 300) });
+  if (level === 'error') console.error(line);
+  else console.warn(line);
+};
+
 export class AuthConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -43,7 +60,15 @@ const authSchema = {
 };
 
 /** Server-side auth for JD-APP. `db` is any Drizzle Postgres handle with the composed schema. */
-export const createAuth = ({ db, env }: { db: ProjectsDb; env: AuthEnv }) => {
+export const createAuth = ({
+  db,
+  env,
+  onUserCreated,
+}: {
+  db: ProjectsDb;
+  env: AuthEnv;
+  onUserCreated?: OnUserCreated;
+}) => {
   if (!has(env.BETTER_AUTH_SECRET) || env.BETTER_AUTH_SECRET.length < 32) {
     throw new AuthConfigError('BETTER_AUTH_SECRET must be set (at least 32 characters).');
   }
@@ -57,6 +82,9 @@ export const createAuth = ({ db, env }: { db: ProjectsDb; env: AuthEnv }) => {
     database: drizzleAdapter(db, { provider: 'pg', schema: authSchema, transaction: false }),
     advanced: { database: { generateId: 'uuid' } },
     telemetry: { enabled: false },
+    logger: { level: 'warn', log: (level, message) => authLog(level, message) },
+    // Failed OAuth callbacks land on our sign-in page with `?error=<code>` (S2c).
+    onAPIError: { errorURL: '/sign-in' },
     account: { encryptOAuthTokens: true },
     socialProviders: {
       ...(providers.includes('github') && {
@@ -73,6 +101,18 @@ export const createAuth = ({ db, env }: { db: ProjectsDb; env: AuthEnv }) => {
       account: {
         create: { before: async (account) => ({ data: { ...account, idToken: null } }) },
         update: { before: async (account) => ({ data: { ...account, idToken: null } }) },
+      },
+      user: {
+        create: {
+          after: async (user) => {
+            if (!onUserCreated) return;
+            try {
+              await onUserCreated({ id: user.id, email: user.email, name: user.name });
+            } catch (error) {
+              authLog('error', `onUserCreated failed: ${(error as Error).name}`);
+            }
+          },
+        },
       },
       session: {
         create: {

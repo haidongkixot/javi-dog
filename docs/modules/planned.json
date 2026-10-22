@@ -32,14 +32,6 @@
     "description": "Effectiveness metrics and model comparison"
   },
   {
-    "id": "JD-M09",
-    "name": "@javis-dog/notify",
-    "path": "packages/notify",
-    "status": "planned",
-    "sprint": "S2",
-    "description": "Email (Resend + React Email) and alerts"
-  },
-  {
     "id": "JD-M10",
     "name": "@javis-dog/github-bridge",
     "path": "packages/github-bridge",
