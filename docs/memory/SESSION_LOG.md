@@ -7,7 +7,8 @@ Append-only handoff log, newest first. Each entry: date · session · what happe
 - Owner: Vercel Production env completed (GitHub pair, `DATABASE_URL`); production `/api/health` 200. "start 2b".
 - S2b split (timebox): sign-in now; project/token UI + welcome email → S2c.
 - Built JD-M03 (Better Auth 1.7.7, GitHub/Google, org plugin on `workspaces`, personal workspace hook), migration `0001` on `dev-agent`, `/sign-in`, `/api/auth/*`, account menu; ADR-0006; 173 tests green; local build serves both provider URLs.
-- Next: owner signs in on production with each provider; agent verifies DB rows; then S2c.
+- Owner signed in with GitHub and Google on production (second attempt). Rows verified; Google `id_token` was stored in plain text → account hooks now drop it (test red → green), existing value cleared. S2b closed.
+- Next: S2c.
 
 ## 2026-10-22 · Session 2, continued — Q5 and Vercel env
 

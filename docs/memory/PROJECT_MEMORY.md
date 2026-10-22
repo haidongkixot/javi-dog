@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-20 · Current sprint: **S2b — Sign-in** (code done and deployed; waiting on the first real sign-in). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
+> Last updated: 2026-10-20 · Current sprint: **S2c — Projects & tokens UI, welcome email** (not started). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
 
 ## What we are building
 
@@ -16,7 +16,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - Deployed: Vercel project `javisdog` (owner-created), auto-deploys every push; `https://javisdog.vercel.app` is public (5 routes verified HTTP 200). Neon `dev-agent` reachable over HTTPS only (PostgreSQL 18.6, empty schema; psql/TCP times out in the sandbox). No auth or ingest yet.
 - Credentials (2026-10-20 re-check, shape only): all 10 S2 env vars present and well-formed in the cloud env; Google OAuth client authenticates; Resend accepts sends from `eagodi.com` (B5 done); GitHub secret unverifiable from the sandbox; Vercel env still unreadable (403).
 - S2a built (2026-10-22): JD-M06 `@javis-dog/event-store` (Neon HTTP client, migrations, `pingDb`), JD-M04 tables + workspace-scoped repository + `jd_it_` tokens stored as SHA-256, `GET /api/health`. Migration `0000` applied on `dev-agent` (3 tables). 145 tests + CI green. Production `/api/health` → 503 `not_configured`: Vercel Production lacks `DATABASE_URL` (intended) and the GitHub OAuth pair. Vercel builds this branch as **Production** (no Preview env).
-- S2b built (2026-10-22): JD-M03 `@javis-dog/identity` (Better Auth 1.7.7, GitHub + Google, org plugin mapped onto `workspaces`, personal workspace on first sign-in), migration `0001` on `dev-agent` (9 tables), `/sign-in`, `/api/auth/*`, topbar account menu. 173 tests green. ADR-0006.
+- S2b built (2026-10-22): JD-M03 `@javis-dog/identity` (Better Auth 1.7.7, GitHub + Google, org plugin mapped onto `workspaces`, personal workspace on first sign-in), migration `0001` on `dev-agent` (9 tables), `/sign-in`, `/api/auth/*`, topbar account menu. Real GitHub + Google sign-in verified on production; tokens encrypted, `id_token` not stored. 174 tests green. ADR-0006.
 - S2 split: **S2a** (`docs/sprints/SPRINT-02a.md`, ADR-0005 Accepted); **S2b** Better Auth GitHub/Google (JD-M03), project UI, welcome email.
 
 ## Decisions in force
@@ -43,13 +43,11 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - **Vercel env** done 2026-10-22: production `/api/health` → 200, all 9 vars set, DB `ok` (Q5 = A: Production → `dev-agent` until S5). The GitHub client secret pasted in chat on 2026-10-22 is exposed → rotate with B1.
 - **GitHub OAuth App callback:** an OAuth App has one callback URL; production sign-in needs `https://javisdog.vercel.app/api/auth/callback/github` registered (separate production app or changed callback).
 - **B1-rotate** deferred by owner ("use first, rotate later"): rotate `neondb_owner` before real user data or the S5 release gate.
-- **B3** GitHub OAuth proven only by the first real sign-in (S2b).
 - **ADR-0004** owner review pending.
 
 ## Next actions
 
-1. Owner: sign in once with GitHub and once with Google on `https://javisdog.vercel.app/sign-in`; agent then checks the rows on `dev-agent` (S2b task 7).
-2. S2c: project CRUD + ingest-token UI on the active workspace, JD-M09 welcome email; Guru checkpoint at S2c close.
+1. S2c: project CRUD + ingest-token UI on the active workspace (membership-checked), JD-M09 welcome email, PII-free logging of auth failures; Guru checkpoint at S2c close.
 
 ## Key paths
 

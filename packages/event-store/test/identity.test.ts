@@ -110,3 +110,18 @@ describe('personal workspace on first sign-in', () => {
     expect(left.rows[0]).toEqual({ m: 0, s: 0 });
   });
 });
+
+describe('stored provider data', () => {
+  it('never stores the provider id_token (minimization)', async () => {
+    const { internalAdapter } = await auth.$context;
+    const { user } = await internalAdapter.createOAuthUser(
+      { name: 'Id Token', email: 'idtoken@example.com', emailVerified: true },
+      { providerId: 'google', accountId: 'g-1', idToken: 'eyJhbGciOiJSUzI1NiJ9.payload.sig' },
+    );
+    const row = await ctx.client.query<{ id_token: string | null }>(
+      'select id_token from accounts where user_id = $1',
+      [user.id],
+    );
+    expect(row.rows[0]!.id_token).toBeNull();
+  });
+});

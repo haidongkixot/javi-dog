@@ -1,6 +1,6 @@
 # Sprint 02b — Sign-in
 
-- Dates: 2026-10-22 (timebox 30 min) · Status: **ACTIVE** (tasks 1–6 done; task 7 needs a real sign-in)
+- Dates: 2026-10-22 (timebox 30 min) · Status: **CLOSED** 2026-10-22 (all 7 tasks done)
 - Goal: people can sign in with GitHub or Google on `javisdog.vercel.app`, get a personal workspace on first sign-in, and see their signed-in state in the shell.
 - Modules touched: JD-M03 (new package), JD-M04, JD-M06, JD-APP
 - Readiness gate: `READINESS_MATRIX.md` rows **Secrets** and **Environments** (AVAILABLE 2026-10-22, production `/api/health` 200)
@@ -26,7 +26,7 @@
 | 4 | Migration `0001` | JD-M06 | Generated, reviewed, rollback SQL, applied to `dev-agent` | Done |
 | 5 | Auth routes + sign-in UI | JD-APP | `/api/auth/[...all]`; `/sign-in` with GitHub and Google buttons (brand voice); topbar shows the signed-in user and sign-out; honest "sign-in not configured" state | Done |
 | 6 | Docs | all | ADR-0006, module.json/README, registry, changeset, memory | Done |
-| 7 | Verify on production | JD-APP | Social sign-in redirect URLs point to `https://javisdog.vercel.app/api/auth/callback/{github,google}`; owner signs in once with each provider; agent checks the rows on `dev-agent` (user, account with encrypted token, workspace, owner membership) | Planned |
+| 7 | Verify on production | JD-APP | Social sign-in redirect URLs point to `https://javisdog.vercel.app/api/auth/callback/{github,google}`; owner signs in once with each provider; agent checks the rows on `dev-agent` (user, account with encrypted token, workspace, owner membership) | Done |
 
 ## Review focus
 
@@ -36,6 +36,8 @@
 
 ## Log
 
+- 2026-10-22 — Owner signed in with GitHub and Google on production (second attempt; the first left no rows and Vercel logs showed nothing). DB check: users, accounts, personal workspaces (owner) as designed; OAuth access/refresh tokens encrypted; Google `id_token` stored in plain text (not covered by `encryptOAuthTokens`) → account hooks now drop it; test red → green; existing value cleared on `dev-agent`.
+- 2026-10-22 — Production verified: `/api/health` ok (2 migrations, 9/9 env), sign-in URLs use the production callback (confirms `BETTER_AUTH_URL`), CI green. Google authorize URL accepted (no `redirect_uri_mismatch`).
 - 2026-10-22 — Local production build: sign-in page lists both providers; `sign-in/social` returns provider URLs with our callback and minimal scopes.
 - 2026-10-22 — Migration `0001_jd_m03_identity` applied to `dev-agent`; smoke 7/7.
 - 2026-10-22 — First workspace test run failed: the new `identity` package had no tests, so Vitest exited 1 and Turbo stopped the rest → added unit tests (no `passWithNoTests`). Test helper switched to `createOAuthUser`, the call the OAuth callback makes.
@@ -52,7 +54,12 @@
 | `db:migrate` on `dev-agent` (0001) | 0 | — | applied | — | — | — | — | — |
 | `db:smoke` on `dev-agent` | 0 | — | 7 | 0 | 0 | 0 | 0 | 2 migrations, 9 tables |
 | local `next start`: `/sign-in`, `POST /api/auth/sign-in/social` ×2, `get-session` | 0 | — | 4 | 0 | — | — | — | GitHub/Google URLs with localhost callback; scopes `read:user user:email` / `openid email profile` |
-| Real sign-in on production | — | — | — | — | — | — | 1 | owner action (task 7) |
+| Production `/api/health` + `sign-in/social` ×2 (`a55b415`) | 0 | — | 3 | 0 | — | — | — | DB ok, 2 migrations, 9/9 env; callbacks on `javisdog.vercel.app` |
+| GitHub Actions CI (`a55b415`) | 0 | — | success | 0 | — | — | — | — |
+| Owner sign-in on production: GitHub, Google | 0 | — | 2 | 0 | — | — | — | first attempt left no rows (cause not captured); retry in a private window succeeded |
+| Agent DB check on `dev-agent` after sign-in | 0 | — | 2 users, 2 accounts, 2 owner workspaces | 0 | — | — | — | access/refresh tokens hex-encrypted; Google `id_token` stored **plain** → fixed below |
+| `identity.test.ts` id_token test, red → green | 1 → 0 | — | 23 | 0 | — | — | — | fails without the hook, passes with it |
+| `pnpm test` (workspace, after fix) | 0 | — | 174 | 0 | 0 | 0 | 0 | — |
 
 Screenshots: 0.
 
@@ -62,9 +69,9 @@ Screenshots: 0.
 
 ## Retro
 
-- Went well:
-- Hurt:
-- Change next sprint:
+- Went well: reading the installed Better Auth source first made the workspace mapping work on the first try; offline tests of the provider redirect caught config issues before any real sign-in.
+- Hurt: the first real sign-in failed without any trace (Vercel runtime logs return nothing for this project), so the cause is unknown; the retry worked.
+- Change next sprint: log sign-in failures ourselves (Better Auth `onAPIError` / logger → structured, PII-free) so failures leave evidence; S2c builds on the active workspace.
 
 ## Guru checkpoint
 

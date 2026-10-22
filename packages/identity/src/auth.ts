@@ -68,6 +68,12 @@ export const createAuth = ({ db, env }: { db: ProjectsDb; env: AuthEnv }) => {
     },
     plugins: [organization()],
     databaseHooks: {
+      // Minimization (ADR-0006): the provider id_token carries name/email/avatar in plain
+      // text and is never used; encryptOAuthTokens does not cover it, so it is not stored.
+      account: {
+        create: { before: async (account) => ({ data: { ...account, idToken: null } }) },
+        update: { before: async (account) => ({ data: { ...account, idToken: null } }) },
+      },
       session: {
         create: {
           before: async (session) => ({
