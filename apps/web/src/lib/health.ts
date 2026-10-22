@@ -11,6 +11,7 @@ export const HEALTH_ENV_NAMES = [
   'GOOGLE_CLIENT_SECRET',
   'RESEND_API_KEY',
   'EMAIL_FROM',
+  'CRON_SECRET',
 ] as const;
 
 export const DB_TIMEOUT_MS = 3_000;

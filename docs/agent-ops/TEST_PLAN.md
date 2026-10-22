@@ -117,3 +117,21 @@ Risk: **HIGH** (public write endpoint, secret-bearing requests, tenant boundary,
 | Route: Node runtime, `no-store`, 503 `not_configured` without DB | Low | Unit | `apps/web/test/ingest-route.test.ts` | see SPRINT-03a |
 | Migration 0002 on Neon PG 18 | Medium | Manual (owner runs `db:migrate`; agent cannot — no `DATABASE_URL` locally) | SPRINT-03a | pending owner |
 | Live POST with a real token on production | High | Manual smoke after migration | SPRINT-03a | pending owner |
+
+## S3b — JGR SDK and retention purge (2026-10-23)
+
+Risk: **MEDIUM-HIGH** (data loss on the producer side, secret handling, destructive scheduled job). Screenshot budget: **0**. No new dependency.
+
+| Requirement | Risk | Layer | Test | Result |
+|---|---|---|---|---|
+| ULIDs monotonic and valid for JD-M01; sequence per thread | Medium | Unit | `jgr-sdk/test/ulid.test.ts`, `client.test.ts` | see SPRINT-03b |
+| `record` validates; invalid input never spooled | High | Unit | `client.test.ts` | see SPRINT-03b |
+| Spools FIFO, bounded, oldest-first eviction; file writes atomic; corrupt file skipped | High | Unit (temp dir) | `spool.test.ts` | see SPRINT-03b |
+| Batching ≤ 100 events and ≤ 256 KB; gzip above threshold | Medium | Unit (fake fetch) | `client.test.ts` | see SPRINT-03b |
+| Retry 429/5xx/network with full jitter, `Retry-After`, attempt cap; keep spool after exhaustion | High | Unit (fake fetch, fake sleep, seeded random) | `client.test.ts` | see SPRINT-03b |
+| 401/403 stop and keep; 413 halves then drops a lone event; 400 drops and reports; rejected events reported | High | Unit | `client.test.ts` | see SPRINT-03b |
+| Token never in spool files or errors | High | Unit | `client.test.ts`, `spool.test.ts` | see SPRINT-03b |
+| SDK against the real handler (PGlite) | High | Integration | `client.test.ts` (fetch → `createIngestHandler`) | see SPRINT-03b |
+| Purge: 503 without secret, 401 wrong secret, 200 deletes only expired rows | High | Unit + integration (PGlite) | `apps/web/test/purge.test.ts` | see SPRINT-03b |
+| Cron registered on Vercel | Low | Manual (deployment config) | SPRINT-03b | pending |
+| Purge on production with the real secret | Medium | Manual (owner sets `CRON_SECRET`) | SPRINT-03b | pending owner |

@@ -2,6 +2,12 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-23 · Session 3, continued — Sprint 3b (SDK + retention purge)
+
+- Discovery: Vercel root `apps/web`, Hobby cron daily, `CRON_SECRET` only settable by the owner; hook collectors are short-lived → file spool (ADR-0009).
+- Built JD-M02 `@javis-dog/jgr-sdk` and the daily purge route + `apps/web/vercel.json`; health now reports `CRON_SECRET`. 280 tests, all checks green.
+- State: purge answers 503 `not_configured` until the owner adds `CRON_SECRET` (steps in `SPRINT-03b.md`). Next: owner step, then S3c (Claude Code collector).
+
 ## 2026-10-23 · Session 3, continued — Sprint 3a (ingress endpoint)
 
 - Discovery delta: no `DATABASE_URL` on this machine; spec lacked codes for wrong project / privacy above opt-in; dedupe key must be project-scoped; S3 split into S3a/S3b/S3c. Owner: Q1 30-day retention, Q2 Postgres rate limit, Q3 owner runs the migration. ADR-0008.

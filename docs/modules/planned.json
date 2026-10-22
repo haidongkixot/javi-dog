@@ -1,13 +1,5 @@
 [
   {
-    "id": "JD-M02",
-    "name": "@javis-dog/jgr-sdk",
-    "path": "packages/jgr-sdk",
-    "status": "planned",
-    "sprint": "S3",
-    "description": "Client SDK: batching, spool, retry, signing, encryption"
-  },
-  {
     "id": "JD-M07",
     "name": "@javis-dog/realtime",
     "path": "packages/realtime",

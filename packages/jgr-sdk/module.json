@@ -1,0 +1,16 @@
+{
+  "id": "JD-M02",
+  "name": "@javis-dog/jgr-sdk",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "JGR client SDK. S3b: event builder (monotonic ULIDs, per-thread sequence, JD-M01 validation), memory and file spools with oldest-first eviction, batching with gzip, retry with full jitter and Retry-After (ADR-0009). Signing and encryption arrive with JGR v0.2 / JD-M11.",
+  "owner": "platform",
+  "provides": [
+    "createJgrClient()",
+    "createMemorySpool()",
+    "createFileSpool()",
+    "createUlid()",
+    "Spool / FlushResult types"
+  ],
+  "consumes": ["JD-M01"]
+}

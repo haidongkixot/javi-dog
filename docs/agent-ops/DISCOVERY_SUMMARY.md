@@ -43,6 +43,12 @@ See ADR-0001 (modular monolith vs. microservices vs. folders) and ADR-0002 (stac
 
 Grouped in the readiness matrix: B1–B5 are needed before Sprint 2; B2 can be done now with confirmation; D1 confirmation needed during Sprint 1.
 
+## Delta — S3b planning (2026-10-23)
+
+- **Hosting:** Vercel project `javisdog` builds from Root Directory `apps/web` (provisioning how-to; deployments READY) → `vercel.json` with `crons` lives in `apps/web`. Hobby crons run at most daily; Vercel sends `Authorization: Bearer $CRON_SECRET` (Vercel docs, 2026-10-23). `CRON_SECRET` is MISSING and only the owner can add it (agent: 403 on env writes).
+- **Collectors run as short-lived hook processes** (S3c) → delivery state must survive the process: file spool, receiver-side dedupe makes concurrent flushers safe (ADR-0009).
+- **No new dependency needed:** Node 22 ships `fetch`, `node:zlib`, `node:fs`; ULIDs are generated in-house (26 Crockford chars, matches JD-M01's regex).
+
 ## Delta — S3 planning (2026-10-23)
 
 - **Environment:** work now also runs on the owner's Windows machine (Node 22.23.4, pnpm 10.28.0, Git 2.55.0). It has **no `DATABASE_URL`** and no Vercel/GitHub tokens → migrations on `dev-agent` are run by the owner (Q3 below).

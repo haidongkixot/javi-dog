@@ -70,6 +70,13 @@ export type NewEvent = typeof events.$inferInsert;
 
 const RATE_WINDOW_MS = 60_000;
 
+/** Raw events are kept this long after receipt (ADR-0008, owner Q1). */
+export const EVENT_RETENTION_DAYS = 30;
+
+/** Receipt-time cutoff for the retention purge. */
+export const retentionCutoff = (now: Date) =>
+  new Date(now.getTime() - EVENT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+
 type EventsDb = PgDatabase<PgQueryResultHKT, typeof eventTables & { projects: typeof projects }>;
 
 /**

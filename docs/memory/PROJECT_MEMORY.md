@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-23 · Current sprint: **S3b — JD-M02 SDK + retention purge** (not started). Last closed: S3a (`docs/sprints/SPRINT-03a.md`). Last closed: S2c (`docs/sprints/SPRINT-02c.md`). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
+> Last updated: 2026-10-23 · Current sprint: **S3b — JD-M02 SDK + retention purge** (built; waiting on owner `CRON_SECRET`, `docs/sprints/SPRINT-03b.md`). Last closed: S3a (`docs/sprints/SPRINT-03a.md`). Last closed: S2c (`docs/sprints/SPRINT-02c.md`). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
 
 ## What we are building
 
@@ -21,6 +21,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 - S2c built (2026-10-22): project list/create, project detail with ingest-token issue (shown once) / revoke, workspace from session + membership only; JD-M09 `@javis-dog/notify` welcome email via Resend REST; redacted auth logs; failed sign-ins return to `/sign-in?error=`. 203 tests. ADR-0007.
 - S3a built (2026-10-23): JD-M05 `@javis-dog/ingest` + `POST /api/v1/events` (bearer ingest token, 256 KB after gzip, JD-M01 validation, `project_mismatch` / `privacy_class_not_allowed`, per-project dedupe, 60 batches/min/token, verified `last_signal_at`); JD-M06 `events` + `ingest_rate_windows` (migration 0002 applied on `dev-agent`: 3 migrations). 243 tests; `db:smoke` 10/10 and `smoke:live` 7/7 against production. S3a closed. ADR-0008: 30-day retention (purge job in S3b), Postgres rate limit.
+- S3b built (2026-10-23): JD-M02 `@javis-dog/jgr-sdk` (`record`/`flush`, monotonic ULIDs, file + memory spool, batches ≤ 100/256 KB with gzip, full-jitter retry + `Retry-After`, 401/403 keep spool, 413 halves, 400 drops); daily `GET /api/cron/purge-events` (Vercel Cron 20:00 UTC, `CRON_SECRET`, 30 days). 280 tests. ADR-0009. Purge inactive until the owner sets `CRON_SECRET`.
 - Local Windows dev machine ready (2026-10-23): Node 22.23.4, pnpm 10.28.0, Git 2.55.0; all checks green (209 tests). Repo now forces LF (`.gitattributes`) and resolves file URLs with `fileURLToPath` — required for Windows paths with spaces. Owner prefers local runs in GMT+7 windows: weekdays 23:00–17:00, weekends 22:00–08:00.
 
 ## Decisions in force
@@ -39,6 +40,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0003 | Brand → theme-scoped tokens; AA text tokens with unchanged hues (D1 accepted 2026-10-20) |
 | ADR-0004 | JGR v0.1: own strict envelope over HTTPS batches; OTLP/HTTP accepted and stripped at the edge (owner review pending) |
 | Owner | Sprint timebox ≤ 30 minutes; oversized sprints are split (S1a/S1b, S2a/S2b) |
+| ADR-0009 | Accepted 2026-10-23: SDK delivery rules (full jitter, `Retry-After`, 401/403 keep, 413 halve, 400 drop), one-file-per-event spool, daily Vercel Cron purge with `CRON_SECRET` |
 | ADR-0008 | Accepted 2026-10-23: `events` in JD-M06 (dedupe per project), 30-day raw retention, Postgres per-token rate limit (60/min), receiver codes `project_mismatch` / `privacy_class_not_allowed`, 256 KB after gzip |
 | ADR-0007 | Accepted 2026-10-22: welcome email via Resend REST from `onUserCreated`; PII-free auth logging; `errorURL` → `/sign-in` |
 | ADR-0006 | Accepted 2026-10-22: Better Auth organization plugin mapped onto `workspaces`; personal workspace (owner) on first sign-in; open sign-up; telemetry off; OAuth tokens encrypted |
@@ -54,7 +56,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 ## Next actions
 
 1. Owner: rotate `neondb_owner` — the `dev-agent` connection string was pasted in chat on 2026-10-23 (in addition to B1-rotate); update Vercel `DATABASE_URL` afterwards.
-2. S3b — JD-M02 SDK (batching, retry with jitter, spool) + daily retention purge via Vercel Cron (`CRON_SECRET`, owner adds it).
+2. Owner: add `CRON_SECRET` on Vercel Production (steps in `SPRINT-03b.md`) → closes S3b.
 3. S3c — JD-C01 Claude Code collector (`javi init`, hooks → JGR), OTLP/HTTP receiver; then Guru G2.
 
 ## Key paths
