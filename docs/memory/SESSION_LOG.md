@@ -6,6 +6,7 @@ Append-only handoff log, newest first. Each entry: date · session · what happe
 
 - Owner: Q5 = A (Production → `dev-agent` until S5); pasted a GitHub client secret in chat (40 hex, differs from the cloud-env secret by hash; never written to the repo).
 - Agent tried to set it on Vercel Production → 403 "Additional permissions are required to create production environment variables". Owner must set the Vercel vars.
+- 19:20 UTC: owner updated project env (project `updatedAt`); live build `9b6ea0b` (19:11) still reports `DATABASE_URL`/GitHub pair = false and no redeploy had run → this docs commit triggers the rebuild.
 - Next: owner sets Vercel Production vars; agent re-reads `/api/health`; then S2b.
 
 ## 2026-10-22 · Session 2, continued — Sprint 2a build
