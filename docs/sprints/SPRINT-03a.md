@@ -59,7 +59,8 @@ Until this runs, production `POST /api/v1/events` answers `503` for valid tokens
 | `db:generate` drift check | 0 | — | 1 | 0 | — | — | — | "No schema changes" |
 | Mutation check on `project_mismatch` | — | — | — | — | — | 1 | — | blocked by permission classifier |
 | `db:migrate` + `db:smoke` on `dev-agent` | — | — | — | — | — | — | 1 | owner step (no `DATABASE_URL` locally) |
-| Live `POST /api/v1/events` on production | — | — | — | — | — | — | 1 | after migration |
+| Production after deploy of `8fd567c`: unauthenticated `POST /api/v1/events`; `GET /api/health` | 0 | — | 2 | 0 | — | — | — | 401 + `WWW-Authenticate: Bearer`; health 200, `db ok`, 2 migrations (0002 pending) |
+| Live `POST /api/v1/events` with a real token | — | — | — | — | — | — | 1 | after migration |
 
 Screenshots: 0.
 
