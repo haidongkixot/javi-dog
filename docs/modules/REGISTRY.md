@@ -10,7 +10,7 @@
 | JD-M02 | `@javis-dog/jgr-sdk` | `packages/jgr-sdk` | planned | — | Client SDK: batching, spool, retry, signing, encryption | — |
 | JD-M03 | `@javis-dog/identity` | `packages/identity` | in-progress | 0.1.0 | Authentication with GitHub and Google (Better Auth), users, sessions and workspace membership mapped onto JD-M04 workspaces (ADR-0006). | JD-M04 |
 | JD-M04 | `@javis-dog/projects` | `packages/projects` | in-progress | 0.1.0 | Project registry: workspaces, projects and hashed ingest tokens. S2a: Drizzle tables, workspace-scoped repository, token primitives (ADR-0005). | — |
-| JD-M05 | `@javis-dog/ingest` | `packages/ingest` | planned | — | JGR + OTLP/HTTP ingress: scoped auth, validation, dedupe, rate limits | — |
+| JD-M05 | `@javis-dog/ingest` | `packages/ingest` | in-progress | 0.1.0 | JGR ingress for POST /api/v1/events. S3a: bearer ingest-token auth, bounded (gzip-aware) body, JD-M01 validation, project scope and privacy ceiling, per-project dedupe, per-token rate limit, verified last signal (ADR-0008). OTLP/HTTP arrives in S3c. | JD-M01, JD-M04, JD-M06 |
 | JD-M06 | `@javis-dog/event-store` | `packages/event-store` | in-progress | 0.1.0 | Neon client (neon-http), composed Drizzle schema, migrations and DB health. S2a: JD-M04 tables; S2b: JD-M03 identity tables; JGR events, rollups and retention arrive in S3. | JD-M03, JD-M04 |
 | JD-M07 | `@javis-dog/realtime` | `packages/realtime` | planned | — | SSE streams, freshness and stale state | — |
 | JD-M08 | `@javis-dog/analytics` | `packages/analytics` | planned | — | Effectiveness metrics and model comparison | — |

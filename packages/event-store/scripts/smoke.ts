@@ -3,7 +3,7 @@
 // Usage: NODE_USE_ENV_PROXY=1 pnpm --filter @javis-dog/event-store db:smoke
 import { createProjectRepository } from '@javis-dog/projects';
 import { eq, sql } from 'drizzle-orm';
-import { createDb, pingDb, workspaces } from '../src/index.ts';
+import { createDb, createEventRepository, pingDb, workspaces } from '../src/index.ts';
 
 const url = process.env.DATABASE_URL;
 if (!url) {
@@ -28,7 +28,7 @@ const tables = await db.execute<{ table_name: string }>(
 );
 const names = tables.rows.map((r) => r.table_name).join(', ');
 const expected =
-  'accounts, ingest_tokens, invitations, projects, sessions, users, verifications, workspace_members, workspaces';
+  'accounts, events, ingest_rate_windows, ingest_tokens, invitations, projects, sessions, users, verifications, workspace_members, workspaces';
 check(`tables: ${names}`, names === expected);
 
 const repo = createProjectRepository(db);
@@ -56,12 +56,31 @@ try {
   );
   await repo.revokeToken(ws.id, record.id);
   check('revoked token no longer verifies', (await repo.verifyToken(token)) === null);
+
+  const events = createEventRepository(db);
+  const row = {
+    projectId: project.id,
+    workspaceId: ws.id,
+    producerId: 'prod_smoke',
+    eventId: '01JBZ4XQ800000000000000001',
+    threadRef: 'sess_smoke',
+    sequence: 1,
+    type: 'heartbeat',
+    status: 'working',
+    privacyClass: 'L0',
+    occurredAt: new Date(),
+  };
+  check('event stored once', (await events.insertEvents([row])) === 1);
+  check('retry is deduplicated', (await events.insertEvents([row])) === 0);
+  const hit = await events.hitRateWindow(record.id, new Date());
+  check('rate window counts', hit.count >= 1);
 } finally {
   await db.delete(workspaces).where(eq(workspaces.id, ws.id));
   const [left] = await db
-    .execute<{ n: number }>(
-      sql`select count(*)::int as n from projects where workspace_id = ${ws.id}`,
+    .execute<{ n: number; e: number }>(
+      sql`select (select count(*)::int from projects where workspace_id = ${ws.id}) as n,
+                 (select count(*)::int from events where workspace_id = ${ws.id}) as e`,
     )
     .then((r) => r.rows);
-  check('cleanup cascaded', left?.n === 0);
+  check('cleanup cascaded to projects and events', left?.n === 0 && left?.e === 0);
 }

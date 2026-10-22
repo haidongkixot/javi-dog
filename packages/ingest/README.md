@@ -1,0 +1,25 @@
+# JD-M05 · `@javis-dog/ingest` — JGR ingress
+
+Status: **in-progress**. S3a: `POST /api/v1/events` logic (JGR v0.1 §8, ADR-0008). OTLP/HTTP receiver: S3c.
+
+## Public contract
+
+| Export | Description |
+|---|---|
+| `createIngestHandler(deps)` | `(Request) => Promise<Response>`: bearer token → rate limit → bounded body → JD-M01 validation → project scope + privacy ceiling → idempotent insert → verified signal |
+| `createIngestDeps(db)` | Wires JD-M04 `verifyToken` / `markTokenUsed` and JD-M06 event repository onto a Drizzle handle |
+| `readBoundedBody(request, maxBytes)` | Streams the body, inflating gzip, and stops as soon as `maxBytes` is passed |
+| `INGEST_RATE_LIMIT_PER_MINUTE` | 60 batches per token per UTC minute |
+
+## Responses
+
+| Status | When |
+|---|---|
+| `202` | `{ accepted, duplicates, rejected: [{ index, event_id, issues }] }` — partial acceptance |
+| `400` | Bad JSON, content type, encoding or batch shape |
+| `401` | Missing, malformed, unknown or revoked token (`WWW-Authenticate: Bearer`) |
+| `413` | Over 256 KB after decompression |
+| `429` | Over the rate limit (`Retry-After`) |
+| `503` | Database failure (logged as error class only) or no database (`not_configured`, from the route) |
+
+Receiver-side issue codes: `project_mismatch`, `privacy_class_not_allowed` (spec §13). Tests run on PGlite with JD-M06's committed migrations.

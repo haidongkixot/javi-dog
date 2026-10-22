@@ -1,0 +1,270 @@
+import { gzipSync } from 'node:zlib';
+import { PGlite } from '@electric-sql/pglite';
+import { schema } from '@javis-dog/event-store';
+import { getMigrationsFolder } from '@javis-dog/event-store/migrations';
+import { createProjectRepository } from '@javis-dog/projects';
+import { drizzle } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createIngestDeps, createIngestHandler, type IngestDeps } from '../src/index.ts';
+
+const NOW = new Date('2026-10-23T10:00:00Z');
+
+let client: PGlite;
+let db: ReturnType<typeof drizzle<typeof schema>>;
+let projects: ReturnType<typeof createProjectRepository>;
+
+// One in-process Postgres with the committed migrations (TEST_PLAN S3a).
+beforeAll(async () => {
+  client = new PGlite();
+  db = drizzle(client, { schema });
+  await migrate(db, { migrationsFolder: getMigrationsFolder() });
+  projects = createProjectRepository(db);
+});
+beforeEach(async () => {
+  await client.exec('truncate workspaces, ingest_rate_windows cascade');
+});
+afterEach(() => vi.restoreAllMocks());
+
+const setup = async (privacyClass: 'L0' | 'L1' | 'L2' = 'L0', name = 'Signal team') => {
+  const ws = await projects.createWorkspace({ name });
+  const p = await projects.createProject(ws.id, {
+    name: 'Web App',
+    platforms: ['claude-code'],
+    privacyClass,
+  });
+  const { token, record } = await projects.issueToken(ws.id, p.id, 'laptop');
+  return { ws, p, token, tokenId: record.id };
+};
+
+const ulid = (n: number) => `01JBZ4XQ80${String(n).padStart(16, '0')}`;
+const event = (n: number, extra: Record<string, unknown> = {}) => ({
+  jgr: '0.1',
+  event_id: ulid(n),
+  producer_id: 'prod_claude-code_7f3a',
+  project_ref: 'web-app',
+  thread_ref: 'sess_2b9c',
+  sequence: n,
+  type: 'heartbeat',
+  status: 'working',
+  occurred_at: '2026-10-23T09:59:00Z',
+  ...extra,
+});
+
+const post = (token: string | null, body: unknown, headers: Record<string, string> = {}): Request =>
+  new Request('https://javisdog.test/api/v1/events', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: (typeof body === 'string' || body instanceof Uint8Array
+      ? body
+      : JSON.stringify(body)) as BodyInit,
+  });
+
+const handler = (overrides: Partial<IngestDeps> = {}) =>
+  createIngestHandler({ ...createIngestDeps(db), now: () => NOW, ...overrides });
+
+const count = async (table: string) =>
+  (await client.query<{ n: number }>(`select count(*)::int as n from ${table}`)).rows[0]!.n;
+
+describe('authentication', () => {
+  it('answers 401 with WWW-Authenticate for missing, malformed, unknown and revoked tokens', async () => {
+    const { ws, token, tokenId } = await setup();
+    const h = handler();
+    const unknown = `jd_it_${'A'.repeat(43)}`;
+    for (const t of [null, 'nope', unknown]) {
+      const res = await h(post(t, { events: [event(1)] }));
+      expect(res.status).toBe(401);
+      expect(res.headers.get('www-authenticate')).toBe('Bearer');
+    }
+    await projects.revokeToken(ws.id, tokenId);
+    expect((await h(post(token, { events: [event(1)] }))).status).toBe(401);
+    expect(await count('events')).toBe(0);
+    expect(await count('ingest_rate_windows')).toBe(0);
+  });
+});
+
+describe('accepting events', () => {
+  it('stores valid events, returns 202 counts and marks a verified signal', async () => {
+    const { ws, p, token } = await setup();
+    const res = await handler()(post(token, { events: [event(1), event(2)] }));
+    expect(res.status).toBe(202);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.json()).toEqual({ accepted: 2, duplicates: 0, rejected: [] });
+    const row = (
+      await client.query<Record<string, unknown>>(
+        'select project_id, workspace_id, producer_id, type, status, privacy_class, received_at from events order by sequence limit 1',
+      )
+    ).rows[0]!;
+    expect(row).toMatchObject({
+      project_id: p.id,
+      workspace_id: ws.id,
+      producer_id: 'prod_claude-code_7f3a',
+      type: 'heartbeat',
+      status: 'working',
+      privacy_class: 'L0',
+    });
+    expect(row.received_at).toEqual(NOW);
+    expect((await projects.getProject(ws.id, p.id))?.lastSignalAt).toEqual(NOW);
+    expect((await projects.listTokens(ws.id, p.id))[0]?.lastUsedAt).toEqual(NOW);
+  });
+
+  it('accepts project_ref as the project id too', async () => {
+    const { p, token } = await setup();
+    const res = await handler()(post(token, { events: [event(1, { project_ref: p.id })] }));
+    expect(await res.json()).toMatchObject({ accepted: 1 });
+  });
+
+  it('accepts gzip bodies', async () => {
+    const { token } = await setup();
+    const body = gzipSync(JSON.stringify({ events: [event(1)] }));
+    const res = await handler()(post(token, new Uint8Array(body), { 'content-encoding': 'gzip' }));
+    expect(await res.json()).toMatchObject({ accepted: 1 });
+  });
+
+  it('reports a retried batch as duplicates and does not refresh the signal', async () => {
+    const { ws, p, token } = await setup();
+    const batch = { events: [event(1), event(2)] };
+    await handler()(post(token, batch));
+    const later = new Date(NOW.getTime() + 30_000);
+    const res = await handler({ now: () => later })(post(token, batch));
+    expect(await res.json()).toEqual({ accepted: 0, duplicates: 2, rejected: [] });
+    expect(await count('events')).toBe(2);
+    expect((await projects.getProject(ws.id, p.id))?.lastSignalAt).toEqual(NOW);
+  });
+
+  it('collapses a duplicate inside one batch', async () => {
+    const { token } = await setup();
+    const res = await handler()(post(token, { events: [event(1), event(1)] }));
+    expect(await res.json()).toEqual({ accepted: 1, duplicates: 1, rejected: [] });
+  });
+});
+
+describe('partial acceptance and tenant rules', () => {
+  it('stores valid events and rejects others by index with stable codes', async () => {
+    const { token } = await setup();
+    const res = await handler()(
+      post(token, {
+        events: [
+          event(1),
+          event(2, { project_ref: 'someone-elses-project' }),
+          event(3, { attributes: { prompt: 'secret plan' } }),
+          event(4, { status: undefined }),
+          event(5),
+        ],
+      }),
+    );
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as {
+      accepted: number;
+      rejected: Array<{ index: number; event_id: string; issues: Array<{ code: string }> }>;
+    };
+    expect(body.accepted).toBe(2);
+    expect(body.rejected.map((r) => [r.index, r.event_id, r.issues.map((i) => i.code)])).toEqual([
+      [1, ulid(2), ['project_mismatch']],
+      [2, ulid(3), ['privacy_forbidden_attribute']],
+      [3, ulid(4), ['status_required']],
+    ]);
+    expect(JSON.stringify(body)).not.toContain('secret plan');
+    expect(await count('events')).toBe(2);
+  });
+
+  it('never stores an event in another tenant’s project, even with its slug', async () => {
+    const mine = await setup('L0', 'Mine');
+    await setup('L0', 'Theirs'); // same slug "web-app" in another workspace
+    const res = await handler()(post(mine.token, { events: [event(1)] }));
+    expect(await res.json()).toMatchObject({ accepted: 1 });
+    const owners = await client.query<{ workspace_id: string }>('select workspace_id from events');
+    expect(owners.rows).toEqual([{ workspace_id: mine.ws.id }]);
+  });
+
+  it('enforces the project privacy class as a ceiling', async () => {
+    const { token } = await setup('L0');
+    const l1 = event(1, {
+      privacy_class: 'L1',
+      attributes: { repo_hash: `sha256:${'a'.repeat(64)}` },
+    });
+    const res = await handler()(post(token, { events: [l1] }));
+    expect(await res.json()).toMatchObject({
+      accepted: 0,
+      rejected: [{ index: 0, issues: [{ code: 'privacy_class_not_allowed' }] }],
+    });
+    const ok = await setup('L1', 'L1 team');
+    const res2 = await handler()(post(ok.token, { events: [l1] }));
+    expect(await res2.json()).toMatchObject({ accepted: 1, rejected: [] });
+  });
+
+  it('rejects clock skew beyond 5 minutes', async () => {
+    const { token } = await setup();
+    const res = await handler()(
+      post(token, { events: [event(1, { occurred_at: '2026-10-23T10:06:00Z' })] }),
+    );
+    expect(await res.json()).toMatchObject({
+      accepted: 0,
+      rejected: [{ index: 0, issues: [{ code: 'clock_skew' }] }],
+    });
+  });
+});
+
+describe('malformed and oversized requests', () => {
+  it('answers 400 for bad JSON, wrong content type, bad batch shape and unknown encodings', async () => {
+    const { token } = await setup();
+    const h = handler();
+    expect((await h(post(token, '{not json'))).status).toBe(400);
+    expect((await h(post(token, { events: [] }))).status).toBe(400);
+    expect((await h(post(token, { events: [event(1)], extra: 1 }))).status).toBe(400);
+    expect(
+      (await h(post(token, { events: [event(1)] }, { 'content-type': 'text/plain' }))).status,
+    ).toBe(400);
+    expect(
+      (await h(post(token, { events: [event(1)] }, { 'content-encoding': 'br' }))).status,
+    ).toBe(400);
+    expect(await count('events')).toBe(0);
+  });
+
+  it('answers 413 for more than 256 KB, also when it arrives gzip-compressed', async () => {
+    const { token } = await setup();
+    const big = JSON.stringify({ events: [event(1)], pad: 'x'.repeat(300 * 1024) });
+    expect((await handler()(post(token, big))).status).toBe(413);
+    const res = await handler()(
+      post(token, new Uint8Array(gzipSync(big)), { 'content-encoding': 'gzip' }),
+    );
+    expect(res.status).toBe(413);
+    expect(await res.json()).toMatchObject({ error: 'too_large' });
+  });
+});
+
+describe('rate limiting', () => {
+  it('answers 429 with Retry-After once a token exceeds its batches per minute', async () => {
+    const { token } = await setup();
+    const at = new Date('2026-10-23T10:00:45Z');
+    const h = handler({ now: () => at, rateLimitPerMinute: 2 });
+    expect((await h(post(token, { events: [event(1)] }))).status).toBe(202);
+    expect((await h(post(token, { events: [event(2)] }))).status).toBe(202);
+    const res = await h(post(token, { events: [event(3)] }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('15');
+    expect(await count('events')).toBe(2);
+    const next = handler({ now: () => new Date('2026-10-23T10:01:00Z'), rateLimitPerMinute: 2 });
+    expect((await next(post(token, { events: [event(3)] }))).status).toBe(202);
+  });
+});
+
+describe('failures', () => {
+  it('answers 503 without driver details when the database fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await createIngestHandler({
+      ...createIngestDeps(db),
+      verifyToken: async () => {
+        throw new Error('connect ECONNREFUSED postgresql://user:hunter2@host/db');
+      },
+    })(post(`jd_it_${'A'.repeat(43)}`, { events: [event(1)] }));
+    expect(res.status).toBe(503);
+    const text = await res.text();
+    expect(text).not.toContain('hunter2');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('hunter2');
+  });
+});

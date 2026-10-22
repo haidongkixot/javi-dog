@@ -2,6 +2,13 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-23 · Session 3, continued — Sprint 3a (ingress endpoint)
+
+- Discovery delta: no `DATABASE_URL` on this machine; spec lacked codes for wrong project / privacy above opt-in; dedupe key must be project-scoped; S3 split into S3a/S3b/S3c. Owner: Q1 30-day retention, Q2 Postgres rate limit, Q3 owner runs the migration. ADR-0008.
+- Built JD-M05 `@javis-dog/ingest`, JD-M06 `events` + `ingest_rate_windows` (migration 0002 + rollback), JD-M04 `verifyToken` scope + `markTokenUsed`, JD-M01 codes, `POST /api/v1/events`. 243 tests, all checks green, no migration drift.
+- Defect caught by the build: Turbopack resolves `new URL('../migrations', import.meta.url)` → separate entry `@javis-dog/event-store/migrations`.
+- State: migration 0002 NOT applied on `dev-agent`; production ingest returns 503 for valid tokens until it is. Next: owner runs the commands in `SPRINT-03a.md`, then S3b.
+
 ## 2026-10-23 · Session 3 (Claude Code desktop, owner's Windows machine) — local toolchain
 
 - Owner: run token-saving work on the local machine inside GMT+7 windows (weekdays 23:00–17:00, weekends 22:00–08:00).

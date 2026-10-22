@@ -1,6 +1,6 @@
 # JD-M06 · `@javis-dog/event-store` — Database client, schema composition and migrations
 
-Status: **in-progress**. S2a: Neon client over HTTP, composed schema (JD-M04 tables), migration `0000`, DB ping for `/api/health`. S3: JGR events, rollups and retention.
+Status: **in-progress**. S2a: Neon client over HTTP, composed schema (JD-M04 tables), migration `0000`, DB ping for `/api/health`. S3a: `events` and `ingest_rate_windows` (migration `0002`, ADR-0008). Later: rollups (S4) and the scheduled retention purge (S3b).
 
 ## Public contract
 
@@ -8,8 +8,10 @@ Status: **in-progress**. S2a: Neon client over HTTP, composed schema (JD-M04 tab
 |---|---|
 | `createDb(databaseUrl)` | Drizzle over `@neondatabase/serverless` HTTP (one HTTPS request per query; no interactive transactions) |
 | `pingDb(db)` | `{ latencyMs, migrationsApplied }`; throws on failure |
-| `schema`, `workspaces`, `projects`, `ingestTokens` | Composed schema (each module owns its tables, ADR-0005) |
-| `Db`, `AnyDb`, `DbPing` | Types |
+| `createEventRepository(db)` | `insertEvents` (dedupe per project, returns stored count), `hitRateWindow` (atomic per-token minute counter), `purgeEventsBefore` (30-day retention, ADR-0008), `touchSignal` (`projects.last_signal_at`) |
+| `getMigrationsFolder()` from **`@javis-dog/event-store/migrations`** | Absolute path of the committed migrations, for scripts and other modules' PGlite tests. Separate entry point because bundlers resolve its `import.meta.url` asset; app code never imports it |
+| `schema`, `workspaces`, `projects`, `ingestTokens`, `events`, `ingestRateWindows` | Composed schema (each module owns its tables, ADR-0005) |
+| `Db`, `AnyDb`, `DbPing`, `EventRepository`, `NewEvent` | Types |
 
 ## Scripts
 

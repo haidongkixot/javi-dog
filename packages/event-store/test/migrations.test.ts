@@ -12,6 +12,8 @@ const publicTables = async (client: Awaited<ReturnType<typeof freshDb>>['client'
 
 const ALL_TABLES = [
   'accounts',
+  'events',
+  'ingest_rate_windows',
   'ingest_tokens',
   'invitations',
   'projects',
@@ -22,15 +24,18 @@ const ALL_TABLES = [
   'workspaces',
 ];
 
-describe('migrations 0000–0001', () => {
-  it('creates the JD-M04 and JD-M03 tables and records both migrations', async () => {
+describe('migrations 0000–0002', () => {
+  it('creates the JD-M04, JD-M03 and JD-M06 tables and records every migration', async () => {
     const { client, db } = await freshDb();
     expect(await publicTables(client)).toEqual(ALL_TABLES);
-    expect((await pingDb(db)).migrationsApplied).toBe(2);
+    expect((await pingDb(db)).migrationsApplied).toBe(3);
   });
 
   it('rolls back with the committed down SQL (newest first) and re-applies cleanly', async () => {
     const { client, db } = await freshDb();
+    await client.exec(rollbackSql('0002'));
+    expect(await publicTables(client)).not.toContain('events');
+    expect((await pingDb(db)).migrationsApplied).toBe(2);
     await client.exec(rollbackSql('0001'));
     expect(await publicTables(client)).toEqual(['ingest_tokens', 'projects', 'workspaces']);
     expect((await pingDb(db)).migrationsApplied).toBe(1);

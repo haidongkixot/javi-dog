@@ -95,3 +95,25 @@ Risk: **HIGH** (authorization boundary, secret display, outbound email). Screens
 | Sign-in error codes → readable, sanitized message | Component | `apps/web/test/auth.test.tsx` | see SPRINT-02c |
 | Real welcome email accepted by Resend | Smoke (sink) | `email:smoke` | see SPRINT-02c |
 | Signed-in create project / issue / revoke on production | Manual (owner) + DB check | SPRINT-02c | pending |
+
+## S3a — JGR ingress endpoint (2026-10-23)
+
+Risk: **HIGH** (public write endpoint, secret-bearing requests, tenant boundary, data integrity). Screenshot budget: **0** (no UI). Stack reused: Vitest + PGlite; no new dependency (PGlite added as a dev dependency of JD-M05 at the existing pinned version).
+
+| Requirement | Risk | Layer | Test | Result |
+|---|---|---|---|---|
+| Migration 0002 up / down (newest first) / re-apply | Medium | Integration (PGlite) | `event-store/test/migrations.test.ts` | see SPRINT-03a |
+| Insert stores once: retry and in-batch duplicates skipped; scoped by project | High | Integration (PGlite) | `event-store/test/events.test.ts` | see SPRINT-03a |
+| Event row cannot point at a project of another workspace (composite FK) | High | Integration (PGlite) | `events.test.ts` | see SPRINT-03a |
+| Rate window counts atomically per token and minute | Medium | Integration (PGlite) | `events.test.ts` | see SPRINT-03a |
+| Purge deletes only rows before the cutoff | Medium | Integration (PGlite) | `events.test.ts` | see SPRINT-03a |
+| `verifyToken` returns project slug + privacy class; revoked → null | High | Integration (PGlite) | `event-store/test/repository.test.ts` | see SPRINT-03a |
+| Auth: missing / malformed / unknown / revoked → 401, no DB write | High | Integration (PGlite) through the handler | `ingest/test/handler.test.ts` | see SPRINT-03a |
+| Body > 256 KB, gzip bomb, bad gzip, bad JSON, bad batch shape → 413 / 400 | High | Unit (handler with fake deps) | `ingest/test/body.test.ts`, `handler.test.ts` | see SPRINT-03a |
+| Partial acceptance; `project_mismatch`; `privacy_class_not_allowed`; JD-M01 codes passed through | High | Integration (PGlite) | `handler.test.ts` | see SPRINT-03a |
+| Duplicate batch → `accepted 0, duplicates n`; `last_signal_at` / `last_used_at` set only after a stored event | High | Integration (PGlite) | `handler.test.ts` | see SPRINT-03a |
+| 61st batch in a minute → 429 + `Retry-After` | Medium | Integration (PGlite, injected clock) | `handler.test.ts` | see SPRINT-03a |
+| DB failure → 503 without driver text | Medium | Unit (fake deps) | `handler.test.ts` | see SPRINT-03a |
+| Route: Node runtime, `no-store`, 503 `not_configured` without DB | Low | Unit | `apps/web/test/ingest-route.test.ts` | see SPRINT-03a |
+| Migration 0002 on Neon PG 18 | Medium | Manual (owner runs `db:migrate`; agent cannot — no `DATABASE_URL` locally) | SPRINT-03a | pending owner |
+| Live POST with a real token on production | High | Manual smoke after migration | SPRINT-03a | pending owner |

@@ -10,7 +10,11 @@ export type IssueCode =
   | 'privacy_l2_requires_encrypted'
   | 'status_required'
   | 'usage_required'
-  | 'clock_skew';
+  | 'clock_skew'
+  /** Receiver-side (ADR-0008): `project_ref` is not the ingest token's project. */
+  | 'project_mismatch'
+  /** Receiver-side (ADR-0008): event privacy class is above the project's opt-in class. */
+  | 'privacy_class_not_allowed';
 
 export type Issue = { code: IssueCode; path: string; message: string };
 export type EventResult = { ok: true; event: Event } | { ok: false; issues: Issue[] };

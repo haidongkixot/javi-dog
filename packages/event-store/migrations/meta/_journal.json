@@ -15,6 +15,13 @@
       "when": 1792697165980,
       "tag": "0001_jd_m03_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792704870684,
+      "tag": "0002_jd_m06_events",
+      "breakpoints": true
     }
   ]
 }

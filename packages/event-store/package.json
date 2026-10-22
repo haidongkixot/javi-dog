@@ -5,7 +5,8 @@
   "description": "JD-M06 \u2014 Neon client, composed Drizzle schema, migrations and DB health",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./migrations": "./src/migrations.ts"
   },
   "scripts": {
     "lint": "eslint .",

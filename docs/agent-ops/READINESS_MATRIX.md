@@ -30,6 +30,9 @@
 | Legal | Pack Pool feasibility | Legal / ToS review | MISSING | Feasibility #14 | Pack Pool cannot proceed | Research only | Engage reviewer before S6 | **Yes (B7)** |
 | Delivery | Release target, approvals, rollback | Owner approval | UNKNOWN | — | — | Release gate defined in plan S5 | — | Yes (S5) |
 
+| Data | `events` / `ingest_rate_windows` on Neon | Migration 0002 applied by owner (Q3) | MISSING (pending owner) | 2026-10-23: applies cleanly on PGlite (up/down/re-apply); no `DATABASE_URL` on the local machine | Production ingest answers 503 for valid tokens | A) Owner runs `db:migrate` locally (chosen) · B) cloud session with env | A | Yes (pending) |
+| Ops | Retention purge schedule | Vercel Cron + `CRON_SECRET` on Vercel | MISSING (S3b) | ADR-0008: 30 days; `purgeEventsBefore` implemented and tested; agent cannot write Vercel env (403) | Events accumulate until S3b | Owner adds `CRON_SECRET` in the dashboard | Do in S3b | Yes (S3b) |
+
 ## Readiness decision
 
 **S2 complete** (2026-10-22): data layer, sign-in and project/token UI verified on production. **S3 (JGR ingress)** can start; it needs a retention/partitioning ADR for `events`. Open owner items: secret rotation (B1-rotate + GitHub client secret pasted in chat), release-cooldown policy, ADR-0004 review, B6 GitHub App (S5), B7 legal (S6).

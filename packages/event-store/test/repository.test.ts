@@ -96,6 +96,8 @@ describe('ingest tokens', () => {
       tokenId: record.id,
       projectId: p.id,
       workspaceId: ws.id,
+      projectSlug: 'javis-dog-web',
+      privacyClass: 'L0',
     });
     expect(await repo.revokeToken(ws.id, record.id)).toBe(true);
     expect(await repo.revokeToken(ws.id, record.id)).toBe(true);

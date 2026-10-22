@@ -8,14 +8,6 @@
     "description": "Client SDK: batching, spool, retry, signing, encryption"
   },
   {
-    "id": "JD-M05",
-    "name": "@javis-dog/ingest",
-    "path": "packages/ingest",
-    "status": "planned",
-    "sprint": "S3",
-    "description": "JGR + OTLP/HTTP ingress: scoped auth, validation, dedupe, rate limits"
-  },
-  {
     "id": "JD-M07",
     "name": "@javis-dog/realtime",
     "path": "packages/realtime",

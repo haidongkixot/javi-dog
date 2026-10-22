@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     '@javis-dog/ui',
     '@javis-dog/event-store',
     '@javis-dog/identity',
+    '@javis-dog/ingest',
+    '@javis-dog/jgr-spec',
     '@javis-dog/notify',
     '@javis-dog/projects',
   ],

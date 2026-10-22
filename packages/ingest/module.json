@@ -1,0 +1,15 @@
+{
+  "id": "JD-M05",
+  "name": "@javis-dog/ingest",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "JGR ingress for POST /api/v1/events. S3a: bearer ingest-token auth, bounded (gzip-aware) body, JD-M01 validation, project scope and privacy ceiling, per-project dedupe, per-token rate limit, verified last signal (ADR-0008). OTLP/HTTP arrives in S3c.",
+  "owner": "platform",
+  "provides": [
+    "createIngestHandler()",
+    "createIngestDeps()",
+    "readBoundedBody()",
+    "INGEST_RATE_LIMIT_PER_MINUTE"
+  ],
+  "consumes": ["JD-M01", "JD-M04", "JD-M06"]
+}

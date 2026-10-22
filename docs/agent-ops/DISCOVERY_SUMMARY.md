@@ -43,6 +43,15 @@ See ADR-0001 (modular monolith vs. microservices vs. folders) and ADR-0002 (stac
 
 Grouped in the readiness matrix: B1–B5 are needed before Sprint 2; B2 can be done now with confirmation; D1 confirmation needed during Sprint 1.
 
+## Delta — S3 planning (2026-10-23)
+
+- **Environment:** work now also runs on the owner's Windows machine (Node 22.23.4, pnpm 10.28.0, Git 2.55.0). It has **no `DATABASE_URL`** and no Vercel/GitHub tokens → migrations on `dev-agent` are run by the owner (Q3 below).
+- **Reusable pieces:** JD-M01 `validateBatch` (partial acceptance, error codes), JD-M04 `verifyToken` (hash lookup, revoked → `null`), `projects.last_signal_at` / `ingest_tokens.last_used_at` reserved for the ingest path (ADR-0005), PGlite test layer, `/api/health` pattern (no secrets in responses).
+- **Gaps found:** the spec has no error code for an event whose `project_ref` is not the token's project, nor for a privacy class above the project's opt-in → two new codes (ADR-0008). Dedupe on (`producer_id`, `event_id`) alone would let one tenant block another's event ids → key is scoped by project. Vercel does not decompress gzip request bodies for us → bounded streaming decompression.
+- **Platform limits:** no Redis/KV in the stack; Vercel Hobby cron is daily at most (enough for a retention purge); Neon plan size UNKNOWN (free tier 0.5 GB assumed).
+- **Scope split (timebox ≤ 30 min):** S3a ingest endpoint + `events`; S3b JD-M02 SDK + retention purge job; S3c JD-C01 Claude Code collector (`javi init`). The OTLP/HTTP receiver moves to S3c (needs a protobuf decision).
+- **Owner answers (2026-10-23):** Q1 retention **30 days**; Q2 rate limit **Postgres fixed window per token**; Q3 migration **run by the owner** with one command. Recorded in ADR-0008.
+
 ## Delta — S2a planning (2026-10-20)
 
 - **Resources:** all S2a resources AVAILABLE — Neon `dev-agent` over HTTPS (PG 18.6, empty), npm packages at ADR-0002 pins (`drizzle-orm` 0.45.4, `drizzle-kit` 0.31.11, `@neondatabase/serverless` 1.2.0). B3/B4 now hold well-formed secrets (Google proven by an `invalid_grant` probe; GitHub not checkable from the sandbox).

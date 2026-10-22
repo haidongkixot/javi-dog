@@ -147,7 +147,11 @@ export const createProjectRepository = (db: ProjectsDb) => {
       return true;
     },
 
-    /** Resolves a presented token to its scope, or `null` for malformed, unknown or revoked tokens. */
+    /**
+     * Resolves a presented token to its scope, or `null` for malformed, unknown or revoked tokens.
+     * The project's slug and privacy class let the ingest path check `project_ref` and the
+     * opt-in privacy ceiling (ADR-0008).
+     */
     async verifyToken(raw: unknown) {
       if (!parseIngestToken(raw)) return null;
       const [row] = await db
@@ -155,8 +159,17 @@ export const createProjectRepository = (db: ProjectsDb) => {
           tokenId: ingestTokens.id,
           projectId: ingestTokens.projectId,
           workspaceId: ingestTokens.workspaceId,
+          projectSlug: projects.slug,
+          privacyClass: projects.privacyClass,
         })
         .from(ingestTokens)
+        .innerJoin(
+          projects,
+          and(
+            eq(projects.id, ingestTokens.projectId),
+            eq(projects.workspaceId, ingestTokens.workspaceId),
+          ),
+        )
         .where(
           and(
             eq(ingestTokens.tokenHash, await hashIngestToken(raw as string)),
@@ -164,6 +177,11 @@ export const createProjectRepository = (db: ProjectsDb) => {
           ),
         );
       return row ?? null;
+    },
+
+    /** Written only by the verified ingest path after a stored event (ADR-0005, ADR-0008). */
+    async markTokenUsed(tokenId: string, at: Date) {
+      await db.update(ingestTokens).set({ lastUsedAt: at }).where(eq(ingestTokens.id, tokenId));
     },
   };
 };

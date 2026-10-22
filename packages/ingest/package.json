@@ -1,0 +1,27 @@
+{
+  "name": "@javis-dog/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-M05 — JGR ingress: token auth, bounded body, validation, project scope, dedupe, rate limit",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@javis-dog/event-store": "workspace:*",
+    "@javis-dog/jgr-spec": "workspace:*",
+    "@javis-dog/projects": "workspace:*"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/node": "22.20.5",
+    "drizzle-orm": "0.45.4",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
