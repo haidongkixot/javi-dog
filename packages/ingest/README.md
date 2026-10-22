@@ -22,4 +22,6 @@ Status: **in-progress**. S3a: `POST /api/v1/events` logic (JGR v0.1 §8, ADR-000
 | `429` | Over the rate limit (`Retry-After`) |
 | `503` | Database failure (logged as error class only) or no database (`not_configured`, from the route) |
 
+Live check of a deployment: `pnpm --filter @javis-dog/ingest smoke:live` with `DATABASE_URL` set to that deployment's database (optional `INGEST_URL`, default production). It creates a throwaway workspace, posts real batches, checks the rows and deletes everything.
+
 Receiver-side issue codes: `project_mismatch`, `privacy_class_not_allowed` (spec §13). Tests run on PGlite with JD-M06's committed migrations.

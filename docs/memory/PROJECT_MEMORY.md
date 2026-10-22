@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-23 · Current sprint: **S3a — JGR ingress endpoint** (built; waiting on owner to apply migration 0002, `docs/sprints/SPRINT-03a.md`). Last closed: S2c (`docs/sprints/SPRINT-02c.md`). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
+> Last updated: 2026-10-23 · Current sprint: **S3b — JD-M02 SDK + retention purge** (not started). Last closed: S3a (`docs/sprints/SPRINT-03a.md`). Last closed: S2c (`docs/sprints/SPRINT-02c.md`). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
 
 ## What we are building
 
@@ -20,7 +20,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - S2 delivered as S2a (data layer), S2b (sign-in), S2c (projects, tokens, welcome email) — all closed 2026-10-22.
 
 - S2c built (2026-10-22): project list/create, project detail with ingest-token issue (shown once) / revoke, workspace from session + membership only; JD-M09 `@javis-dog/notify` welcome email via Resend REST; redacted auth logs; failed sign-ins return to `/sign-in?error=`. 203 tests. ADR-0007.
-- S3a built (2026-10-23): JD-M05 `@javis-dog/ingest` + `POST /api/v1/events` (bearer ingest token, 256 KB after gzip, JD-M01 validation, `project_mismatch` / `privacy_class_not_allowed`, per-project dedupe, 60 batches/min/token, verified `last_signal_at`); JD-M06 `events` + `ingest_rate_windows` (migration 0002, **not yet applied on `dev-agent`**). 243 tests. ADR-0008: 30-day retention (purge job in S3b), Postgres rate limit.
+- S3a built (2026-10-23): JD-M05 `@javis-dog/ingest` + `POST /api/v1/events` (bearer ingest token, 256 KB after gzip, JD-M01 validation, `project_mismatch` / `privacy_class_not_allowed`, per-project dedupe, 60 batches/min/token, verified `last_signal_at`); JD-M06 `events` + `ingest_rate_windows` (migration 0002 applied on `dev-agent`: 3 migrations). 243 tests; `db:smoke` 10/10 and `smoke:live` 7/7 against production. S3a closed. ADR-0008: 30-day retention (purge job in S3b), Postgres rate limit.
 - Local Windows dev machine ready (2026-10-23): Node 22.23.4, pnpm 10.28.0, Git 2.55.0; all checks green (209 tests). Repo now forces LF (`.gitattributes`) and resolves file URLs with `fileURLToPath` — required for Windows paths with spaces. Owner prefers local runs in GMT+7 windows: weekdays 23:00–17:00, weekends 22:00–08:00.
 
 ## Decisions in force
@@ -48,12 +48,12 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 - **Guru G2-prep findings** (2026-10-22): F1–F4 fixed in the same session; owner decisions open: two-week release cooldown as policy (ADR-0002 amendment), rotation of exposed secrets (B1-rotate + GitHub secret).
 - **Vercel env** done 2026-10-22: production `/api/health` → 200, all 9 vars set, DB `ok` (Q5 = A: Production → `dev-agent` until S5). The GitHub client secret pasted in chat on 2026-10-22 is exposed → rotate with B1.
-- **B1-rotate** deferred by owner ("use first, rotate later"): rotate `neondb_owner` before real user data or the S5 release gate.
+- **B1-rotate** deferred by owner ("use first, rotate later"): rotate `neondb_owner` before real user data or the S5 release gate. **2026-10-23: the connection string was pasted in chat again → rotation now strongly recommended.**
 - **ADR-0004** owner review pending.
 
 ## Next actions
 
-1. Owner: apply migration 0002 on `dev-agent` (commands in `SPRINT-03a.md` §Owner steps); then a live POST closes S3a.
+1. Owner: rotate `neondb_owner` — the `dev-agent` connection string was pasted in chat on 2026-10-23 (in addition to B1-rotate); update Vercel `DATABASE_URL` afterwards.
 2. S3b — JD-M02 SDK (batching, retry with jitter, spool) + daily retention purge via Vercel Cron (`CRON_SECRET`, owner adds it).
 3. S3c — JD-C01 Claude Code collector (`javi init`, hooks → JGR), OTLP/HTTP receiver; then Guru G2.
 

@@ -30,7 +30,7 @@
 | Legal | Pack Pool feasibility | Legal / ToS review | MISSING | Feasibility #14 | Pack Pool cannot proceed | Research only | Engage reviewer before S6 | **Yes (B7)** |
 | Delivery | Release target, approvals, rollback | Owner approval | UNKNOWN | — | — | Release gate defined in plan S5 | — | Yes (S5) |
 
-| Data | `events` / `ingest_rate_windows` on Neon | Migration 0002 applied by owner (Q3) | MISSING (pending owner) | 2026-10-23: applies cleanly on PGlite (up/down/re-apply); no `DATABASE_URL` on the local machine | Production ingest answers 503 for valid tokens | A) Owner runs `db:migrate` locally (chosen) · B) cloud session with env | A | Yes (pending) |
+| Data | `events` / `ingest_rate_windows` on Neon | Migration 0002 on `dev-agent` | AVAILABLE | 2026-10-23: applied (3 migrations); `db:smoke` 10/10; `smoke:live` 7/7 against `https://javisdog.vercel.app/api/v1/events` | — | — | — | No |
 | Ops | Retention purge schedule | Vercel Cron + `CRON_SECRET` on Vercel | MISSING (S3b) | ADR-0008: 30 days; `purgeEventsBefore` implemented and tested; agent cannot write Vercel env (403) | Events accumulate until S3b | Owner adds `CRON_SECRET` in the dashboard | Do in S3b | Yes (S3b) |
 
 ## Readiness decision

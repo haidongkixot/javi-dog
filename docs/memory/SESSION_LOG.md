@@ -7,7 +7,8 @@ Append-only handoff log, newest first. Each entry: date · session · what happe
 - Discovery delta: no `DATABASE_URL` on this machine; spec lacked codes for wrong project / privacy above opt-in; dedupe key must be project-scoped; S3 split into S3a/S3b/S3c. Owner: Q1 30-day retention, Q2 Postgres rate limit, Q3 owner runs the migration. ADR-0008.
 - Built JD-M05 `@javis-dog/ingest`, JD-M06 `events` + `ingest_rate_windows` (migration 0002 + rollback), JD-M04 `verifyToken` scope + `markTokenUsed`, JD-M01 codes, `POST /api/v1/events`. 243 tests, all checks green, no migration drift.
 - Defect caught by the build: Turbopack resolves `new URL('../migrations', import.meta.url)` → separate entry `@javis-dog/event-store/migrations`.
-- State: migration 0002 NOT applied on `dev-agent`; production ingest returns 503 for valid tokens until it is. Next: owner runs the commands in `SPRINT-03a.md`, then S3b.
+- Owner then pasted the `dev-agent` connection string in chat; agent verified the DB matched production (2 migrations, owner rows), applied 0002, `db:smoke` 10/10, new `smoke:live` 7/7 against production; temp secret file deleted. S3a closed.
+- State: production ingest live and verified. Owner action: rotate `neondb_owner` (exposed in chat). Next: S3b.
 
 ## 2026-10-23 · Session 3 (Claude Code desktop, owner's Windows machine) — local toolchain
 
