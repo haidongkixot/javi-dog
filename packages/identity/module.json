@@ -1,0 +1,15 @@
+{
+  "id": "JD-M03",
+  "name": "@javis-dog/identity",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Authentication with GitHub and Google (Better Auth), users, sessions and workspace membership mapped onto JD-M04 workspaces (ADR-0006).",
+  "owner": "platform",
+  "provides": [
+    "createAuth()",
+    "identity tables",
+    "ensurePersonalWorkspace()",
+    "configuredProviders()"
+  ],
+  "consumes": ["JD-M04"]
+}

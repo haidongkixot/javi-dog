@@ -80,7 +80,7 @@ export function Sidebar() {
           <span className="ml-auto text-sidebar-text">Not connected</span>
         </p>
         <p className="mt-2 text-[11px] leading-relaxed text-sidebar-text">
-          No coding tool is sending signals yet. Sign-in arrives in Sprint 2.
+          No coding tool is sending signals yet.
         </p>
       </div>
     </aside>

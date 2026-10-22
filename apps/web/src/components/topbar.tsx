@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { AccountMenu } from './account-menu';
 import { titleFor } from './nav';
 
 export function Topbar() {
@@ -14,10 +15,7 @@ export function Topbar() {
           {titleFor(pathname)}
         </strong>
       </nav>
-      <p className="flex items-center gap-2 text-xs text-muted">
-        <span aria-hidden className="size-2 rounded-full bg-decorative" />
-        Preview build · no backend
-      </p>
+      <AccountMenu />
     </header>
   );
 }

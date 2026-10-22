@@ -2,6 +2,13 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-22 · Session 2, continued — Sprint 2b (sign-in)
+
+- Owner: Vercel Production env completed (GitHub pair, `DATABASE_URL`); production `/api/health` 200. "start 2b".
+- S2b split (timebox): sign-in now; project/token UI + welcome email → S2c.
+- Built JD-M03 (Better Auth 1.7.7, GitHub/Google, org plugin on `workspaces`, personal workspace hook), migration `0001` on `dev-agent`, `/sign-in`, `/api/auth/*`, account menu; ADR-0006; 173 tests green; local build serves both provider URLs.
+- Next: owner signs in on production with each provider; agent verifies DB rows; then S2c.
+
 ## 2026-10-22 · Session 2, continued — Q5 and Vercel env
 
 - Owner: Q5 = A (Production → `dev-agent` until S5); pasted a GitHub client secret in chat (40 hex, differs from the cloud-env secret by hash; never written to the repo).

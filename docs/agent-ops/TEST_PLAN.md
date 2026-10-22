@@ -63,3 +63,17 @@ Preserve the first failure output, diagnose before retrying, never weaken assert
 ## 7. Results and evidence
 
 Recorded in `docs/sprints/SPRINT-02a.md` §Test evidence.
+
+## S2b — Sign-in (2026-10-22)
+
+Risk: **HIGH** (authentication, first personal data). Screenshot budget: **0**.
+
+| Requirement | Layer | Test | Result |
+|---|---|---|---|
+| Auth refuses weak/missing secret or base URL | Integration (PGlite) + unit | `identity.test.ts`, `apps/web/test/auth.test.tsx` | see SPRINT-02b |
+| Providers enabled only with id + secret | Unit | `packages/identity/test/auth.test.ts`, web `auth.test.tsx` | see SPRINT-02b |
+| GitHub/Google redirect to the provider with our callback URL and client id | Integration (Better Auth API, offline) | `identity.test.ts` | see SPRINT-02b |
+| First sign-in → one owned personal workspace, active on the session; idempotent; per-user isolation; cascades | Integration (PGlite, OAuth-callback internals) | `identity.test.ts` | see SPRINT-02b |
+| Migrations 0000–0001 up / down / re-apply | Integration (PGlite) | `migrations.test.ts` | see SPRINT-02b |
+| UI: checking / signed-out / signed-in / sign-out; sign-in errors explained; not-configured state + 503 | Component (jsdom) + route | `apps/web/test/auth.test.tsx` | see SPRINT-02b |
+| Real provider round trip, account row (encrypted token), workspace + owner row | Manual E2E on production by the owner + agent DB check | SPRINT-02b task 7 | pending |

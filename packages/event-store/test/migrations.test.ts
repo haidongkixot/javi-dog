@@ -10,20 +10,35 @@ const publicTables = async (client: Awaited<ReturnType<typeof freshDb>>['client'
     )
   ).rows.map((r) => r.table_name);
 
-describe('migration 0000', () => {
-  it('creates the three JD-M04 tables and records itself', async () => {
+const ALL_TABLES = [
+  'accounts',
+  'ingest_tokens',
+  'invitations',
+  'projects',
+  'sessions',
+  'users',
+  'verifications',
+  'workspace_members',
+  'workspaces',
+];
+
+describe('migrations 0000–0001', () => {
+  it('creates the JD-M04 and JD-M03 tables and records both migrations', async () => {
     const { client, db } = await freshDb();
-    expect(await publicTables(client)).toEqual(['ingest_tokens', 'projects', 'workspaces']);
-    expect((await pingDb(db)).migrationsApplied).toBe(1);
+    expect(await publicTables(client)).toEqual(ALL_TABLES);
+    expect((await pingDb(db)).migrationsApplied).toBe(2);
   });
 
-  it('rolls back with the committed down SQL and re-applies cleanly', async () => {
+  it('rolls back with the committed down SQL (newest first) and re-applies cleanly', async () => {
     const { client, db } = await freshDb();
-    await client.exec(rollbackSql());
+    await client.exec(rollbackSql('0001'));
+    expect(await publicTables(client)).toEqual(['ingest_tokens', 'projects', 'workspaces']);
+    expect((await pingDb(db)).migrationsApplied).toBe(1);
+    await client.exec(rollbackSql('0000'));
     expect(await publicTables(client)).toEqual([]);
     expect((await pingDb(db)).migrationsApplied).toBe(0);
     await migrate(db, { migrationsFolder });
-    expect(await publicTables(client)).toEqual(['ingest_tokens', 'projects', 'workspaces']);
+    expect(await publicTables(client)).toEqual(ALL_TABLES);
   });
 
   it('reports 0 applied migrations on an empty database', async () => {

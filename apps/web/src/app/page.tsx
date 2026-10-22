@@ -79,7 +79,7 @@ export default function OverviewPage() {
               </Link>
             }
           >
-            Project registration opens with sign-in in Sprint 2.
+            Project registration opens in the next sprint.
           </EmptyState>
         </Card>
         <Card labelledBy="squad-title">

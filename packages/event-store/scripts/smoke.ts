@@ -27,7 +27,9 @@ const tables = await db.execute<{ table_name: string }>(
   sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
 );
 const names = tables.rows.map((r) => r.table_name).join(', ');
-check(`tables: ${names}`, names === 'ingest_tokens, projects, workspaces');
+const expected =
+  'accounts, ingest_tokens, invitations, projects, sessions, users, verifications, workspace_members, workspaces';
+check(`tables: ${names}`, names === expected);
 
 const repo = createProjectRepository(db);
 const ws = await repo.createWorkspace({ name: 'Smoke', slug: `smoke-${Date.now()}` });

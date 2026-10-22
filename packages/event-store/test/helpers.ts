@@ -14,5 +14,5 @@ export const freshDb = async () => {
   return { client, db };
 };
 
-export const rollbackSql = () =>
-  readFileSync(new URL('../migrations/rollback/0000_down.sql', import.meta.url), 'utf8');
+export const rollbackSql = (n: '0000' | '0001') =>
+  readFileSync(new URL(`../migrations/rollback/${n}_down.sql`, import.meta.url), 'utf8');

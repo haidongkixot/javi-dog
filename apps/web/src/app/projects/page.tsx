@@ -25,7 +25,7 @@ export default function ProjectsPage() {
         }
       />
       <p id="create-project-note" className="-mt-3 text-xs text-muted">
-        Creating projects needs sign-in, which arrives in Sprint 2.
+        Project creation arrives in the next sprint. Sign in now to set up your workspace.
       </p>
 
       <Card labelledBy="all-projects-title">

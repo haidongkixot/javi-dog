@@ -22,6 +22,8 @@ export const workspaces = pgTable('workspaces', {
   logo: text('logo'),
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Written by Better Auth's organization plugin (S2b). */
+  updatedAt: timestamp('updated_at', { withTimezone: true }),
 });
 
 export const projects = pgTable(

@@ -8,14 +8,6 @@
     "description": "Client SDK: batching, spool, retry, signing, encryption"
   },
   {
-    "id": "JD-M03",
-    "name": "@javis-dog/identity",
-    "path": "packages/identity",
-    "status": "planned",
-    "sprint": "S2",
-    "description": "Authentication (GitHub, Google), users, workspaces"
-  },
-  {
     "id": "JD-M05",
     "name": "@javis-dog/ingest",
     "path": "packages/ingest",

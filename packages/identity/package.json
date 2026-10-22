@@ -1,0 +1,26 @@
+{
+  "name": "@javis-dog/identity",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-M03 — authentication (GitHub, Google via Better Auth), users, sessions and workspace membership",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@javis-dog/projects": "workspace:*",
+    "better-auth": "1.7.7",
+    "drizzle-orm": "0.45.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

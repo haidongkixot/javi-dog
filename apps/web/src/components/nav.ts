@@ -33,5 +33,7 @@ export const controlPlaneNav: readonly NavItem[] = [
 
 export const allNav = [...workspaceNav, ...controlPlaneNav];
 
+const otherTitles: Record<string, string> = { '/sign-in': 'Sign in' };
+
 export const titleFor = (pathname: string): string =>
-  allNav.find((item) => item.href === pathname)?.label ?? 'Overview';
+  allNav.find((item) => item.href === pathname)?.label ?? otherTitles[pathname] ?? 'Overview';
