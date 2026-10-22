@@ -7,7 +7,8 @@ Append-only handoff log, newest first. Each entry: date · session · what happe
 - Owner: "go with the recommendations" (Q1 PGlite, Q2 public health, Q3 Preview → dev-agent / Production unset, Q4 events in S3). Session worker restarted mid-sprint; work on disk survived.
 - Built JD-M06 package, JD-M04 tables/repository/tokens, `/api/health`; migration `0000` applied to `dev-agent`; smoke 7/7; 145 tests, lint, typecheck, build green; CI gains a migration drift step.
 - Defects caught before push: tokens could cross workspaces (composite FK added), `pingDb` crashed on an unmigrated DB, Node type stripping rejected parameter properties (`erasableSyntaxOnly` on).
-- Next: verify `/api/health` on Vercel, close S2a, then S2b (Better Auth).
+- Pushed `dc6ef61`; CI run 18 green; production `/api/health` → 503 `not_configured` (no `DATABASE_URL`, no GitHub OAuth pair on Vercel Production). Vercel builds this branch as Production → new owner question Q5. S2a closed.
+- Next: owner answers Q5 and adds GitHub vars on Vercel; then S2b (Better Auth).
 
 ## 2026-10-20 · Session 2 (Claude Code, cloud) — credential re-check + S2a plan
 

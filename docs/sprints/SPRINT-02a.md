@@ -1,6 +1,6 @@
 # Sprint 02a — Data layer & health
 
-- Dates: planned 2026-10-20; run 2026-10-22 (timebox 30 min) · Status: **ACTIVE** (tasks 1–7 done; task 8 pending deploy)
+- Dates: planned 2026-10-20; run 2026-10-22 (timebox 30 min) · Status: **CLOSED** 2026-10-22 (all 8 tasks done; follow-up Q5 for the owner)
 - Goal: persist workspaces, projects and hashed ingest tokens in Neon through Drizzle, and expose an honest `/api/health` that shows which env vars are present (booleans only) and whether the database answers.
 - Modules touched: JD-M06 (new package), JD-M04, JD-APP
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows **Database** (AVAILABLE) and **Data** (planned here). Sign-in (Better Auth, JD-M03) is **Sprint 2b** and is not a gate for 2a.
@@ -28,7 +28,7 @@
 | 5 | Generate and apply migration `0000` | JD-M06 | Task 2 tables → `packages/event-store/migrations/0000_*.sql` | `drizzle-kit generate` output committed; applied to `dev-agent` with `pnpm --filter @javis-dog/event-store db:migrate` (neon-http migrator); verified by listing tables + `__drizzle_migrations` row; down SQL committed for manual rollback | Done |
 | 6 | `/api/health` route | JD-APP | JD-M06 `pingDb` → `GET /api/health` | `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `Cache-Control: no-store`; body `{ status, checkedAt, deployment: { env, commit }, env: { NAME: boolean… }, db: { status: 'ok' \| 'error' \| 'not_configured', latencyMs, migration } }`; DB ping times out after 3 s; HTTP 200 when DB ok, 503 otherwise | Done |
 | 7 | Docs + contract | all | — | ADR-0005 accepted or amended; JD-M04 README + `module.json` updated; changeset for JD-M04 public contract; `docs/how-to/run-database-migrations.md`; `pnpm docs:check` green | Done |
-| 8 | Verify on Vercel | JD-APP | deployed preview/production | After push, `GET https://javisdog.vercel.app/api/health` reports which env vars exist on Vercel — closes the "Vercel env unverifiable" gap | Planned |
+| 8 | Verify on Vercel | JD-APP | deployed preview/production | After push, `GET https://javisdog.vercel.app/api/health` reports which env vars exist on Vercel — closes the "Vercel env unverifiable" gap | Done |
 
 ### Order and dependencies
 
@@ -61,6 +61,7 @@
 
 ## Log
 
+- 2026-10-22 — Production `/api/health` (Vercel deploy of `dc6ef61`): HTTP 503, `db.status = not_configured`; on Vercel Production `DATABASE_URL`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` are **not set**; the other 6 are set. CI run 18 green. Finding: Vercel deploys this branch as **Production** (no Preview deployments exist), so Q3's "Preview → dev-agent" has no environment to apply to → Q5.
 - 2026-10-22 — Workspace gate green; local `next start` + `GET /api/health` against `dev-agent` → 200, all 9 env booleans true, `db.status = ok`, 1 migration.
 - 2026-10-22 — Migration `0000` applied to `dev-agent` via the neon-http migrator; `db:smoke` 7/7 PASS (round trip cleaned up).
 - 2026-10-22 — Smoke run 1 failed: Node type stripping rejects constructor parameter properties → rewrote `ProjectRepositoryError`, enabled `erasableSyntaxOnly` workspace-wide.
@@ -82,7 +83,8 @@
 | `db:migrate` on `dev-agent` | 0 | — | applied | — | — | — | — | — |
 | `db:smoke` on `dev-agent` | 0 | — | 7 | 0 | 0 | 0 | 0 | first run exit 1 (syntax, fixed) |
 | local `next start` + `curl /api/health` (dev-agent) | 0 | — | 200, `no-store` | — | — | — | — | — |
-| `GET https://javisdog.vercel.app/api/health` | — | — | — | — | — | — | 1 | after push (task 8) |
+| `GET https://javisdog.vercel.app/api/health` (production, `dc6ef61`) | 0 | — | 503 `degraded`, `no-store` — as designed | — | — | — | — | `DATABASE_URL`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` = false; other 6 = true |
+| GitHub Actions CI run 18 (`dc6ef61`, incl. migration drift step) | 0 | — | success | 0 | — | — | — | — |
 
 Screenshots: 0.
 
@@ -92,11 +94,15 @@ Screenshots: 0.
 - New dev dependency `@electric-sql/pglite` 0.5.8 (Q1; newest release older than two weeks).
 - `workspaces` is owned by JD-M04 in 2a (owner brief for S2a); the registry lists workspaces under JD-M03. JD-M03 will consume the JD-M04 table in S2b instead of defining its own. Recorded in ADR-0005.
 
+## Owner follow-up (Q5)
+
+Vercel builds `claude/clever-goldberg-wlurty` as **Production**, so there is no Preview environment for `dev-agent`. Options: **A)** set Production `DATABASE_URL` → `dev-agent` until S5 (fastest; the public site then reads dev data — still only test rows); **B)** keep Production without a DB (503) until S5 and test the DB only locally; **C)** make `main` the Vercel production branch so this branch builds as Preview → `dev-agent` per Q3 (cleanest; needs a `main` branch and a dashboard change). Recommendation: **C**, or A as a stop-gap. S2b sign-in also needs `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` on whichever Vercel environment is used, and OAuth callback URLs for its domain.
+
 ## Retro
 
-- Went well:
-- Hurt:
-- Change next sprint:
+- Went well: tests caught three real defects before push (cross-workspace token FK, `pingDb` on an unmigrated DB, non-erasable TS syntax); the health route immediately answered the long-standing "what is set on Vercel" question.
+- Hurt: the session worker restarted mid-sprint (work on disk survived); PGlite's cold start needed a longer timeout.
+- Change next sprint: settle Q5 before S2b so sign-in can be tested on a real deployment.
 
 ## Guru checkpoint
 
