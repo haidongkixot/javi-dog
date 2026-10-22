@@ -2,6 +2,12 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-22 · Session 2, continued — Q5 and Vercel env
+
+- Owner: Q5 = A (Production → `dev-agent` until S5); pasted a GitHub client secret in chat (40 hex, differs from the cloud-env secret by hash; never written to the repo).
+- Agent tried to set it on Vercel Production → 403 "Additional permissions are required to create production environment variables". Owner must set the Vercel vars.
+- Next: owner sets Vercel Production vars; agent re-reads `/api/health`; then S2b.
+
 ## 2026-10-22 · Session 2, continued — Sprint 2a build
 
 - Owner: "go with the recommendations" (Q1 PGlite, Q2 public health, Q3 Preview → dev-agent / Production unset, Q4 events in S3). Session worker restarted mid-sprint; work on disk survived.

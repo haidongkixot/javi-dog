@@ -94,7 +94,7 @@ Screenshots: 0.
 - New dev dependency `@electric-sql/pglite` 0.5.8 (Q1; newest release older than two weeks).
 - `workspaces` is owned by JD-M04 in 2a (owner brief for S2a); the registry lists workspaces under JD-M03. JD-M03 will consume the JD-M04 table in S2b instead of defining its own. Recorded in ADR-0005.
 
-## Owner follow-up (Q5)
+## Owner follow-up (Q5) — answered 2026-10-22: **A** (Production → `dev-agent` until S5)
 
 Vercel builds `claude/clever-goldberg-wlurty` as **Production**, so there is no Preview environment for `dev-agent`. Options: **A)** set Production `DATABASE_URL` → `dev-agent` until S5 (fastest; the public site then reads dev data — still only test rows); **B)** keep Production without a DB (503) until S5 and test the DB only locally; **C)** make `main` the Vercel production branch so this branch builds as Preview → `dev-agent` per Q3 (cleanest; needs a `main` branch and a dashboard change). Recommendation: **C**, or A as a stop-gap. S2b sign-in also needs `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` on whichever Vercel environment is used, and OAuth callback URLs for its domain.
 

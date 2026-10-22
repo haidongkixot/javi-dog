@@ -38,15 +38,15 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Open questions / blockers (owner)
 
-- **Q5** Vercel builds this branch as Production, so "Preview → dev-agent" has nowhere to apply: A) Production → dev-agent until S5, B) no DB on Vercel until S5, C) `main` as production branch (recommended).
-- **GitHub OAuth vars** missing on Vercel Production (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`); callback URLs for the deployed domain needed in S2b.
+- **Vercel env (owner action; agent gets 403 on production env writes):** Production `DATABASE_URL` → `dev-agent` (Q5 = A, until S5); `GITHUB_CLIENT_ID` + `GITHUB_CLIENT_SECRET`. The owner pasted a new GitHub client secret in chat on 2026-10-22 — it differs from the cloud-env one; which OAuth App it belongs to is unconfirmed; treat it as exposed (rotate with B1).
+- **GitHub OAuth App callback:** an OAuth App has one callback URL; production sign-in needs `https://javisdog.vercel.app/api/auth/callback/github` registered (separate production app or changed callback).
 - **B1-rotate** deferred by owner ("use first, rotate later"): rotate `neondb_owner` before real user data or the S5 release gate.
 - **B3** GitHub OAuth proven only by the first real sign-in (S2b).
 - **ADR-0004** owner review pending.
 
 ## Next actions
 
-1. Owner: answer Q5; add the GitHub OAuth pair to Vercel.
+1. Owner: in Vercel → Production set `DATABASE_URL` (dev-agent), `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`; register the production GitHub callback URL; check `BETTER_AUTH_URL` = `https://javisdog.vercel.app`. Then `/api/health` should turn 200.
 2. S2b: Better Auth GitHub/Google (JD-M03) mapped onto `workspaces`, project CRUD UI, JD-M09 welcome email.
 
 ## Key paths
