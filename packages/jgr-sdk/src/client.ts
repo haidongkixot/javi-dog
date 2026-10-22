@@ -55,6 +55,8 @@ export interface JgrClientOptions {
   baseDelayMs?: number;
   maxDelayMs?: number;
   gzipThresholdBytes?: number;
+  /** Per-request timeout; a timed-out request counts as a retryable network error. */
+  requestTimeoutMs?: number;
   onRejected?: (rejected: RejectedEvent[]) => void;
 }
 
@@ -89,6 +91,7 @@ export const createJgrClient = (options: JgrClientOptions) => {
     baseDelayMs = 1_000,
     maxDelayMs = 60_000,
     gzipThresholdBytes = 1_024,
+    requestTimeoutMs = 10_000,
     onRejected,
   } = options;
   const ulid = createUlid();
@@ -114,7 +117,12 @@ export const createJgrClient = (options: JgrClientOptions) => {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       let retryAfterMs: number | null = null;
       try {
-        const res = await doFetch(endpoint, { method: 'POST', headers, body });
+        const res = await doFetch(endpoint, {
+          method: 'POST',
+          headers,
+          body,
+          signal: AbortSignal.timeout(requestTimeoutMs),
+        });
         lastStatus = res.status;
         if (res.status === 202) {
           const parsed = (await res.json()) as {

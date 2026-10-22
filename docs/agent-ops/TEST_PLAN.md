@@ -135,3 +135,17 @@ Risk: **MEDIUM-HIGH** (data loss on the producer side, secret handling, destruct
 | Purge: 503 without secret, 401 wrong secret, 200 deletes only expired rows | High | Unit + integration (PGlite) | `apps/web/test/purge.test.ts` | see SPRINT-03b |
 | Cron registered on Vercel | Low | Manual (deployment config) | SPRINT-03b | pending |
 | Purge on production with the real secret | Medium | Manual (owner sets `CRON_SECRET`) | SPRINT-03b | pending owner |
+
+## S3c — Claude Code collector (2026-10-23)
+
+Risk: **HIGH** (runs inside the developer's agent loop; handles prompts/tool data on stdin; stores a secret locally). Screenshot budget: **0**. No new dependency.
+
+| Requirement | Risk | Layer | Test | Result |
+|---|---|---|---|---|
+| Each hook maps to a valid JGR L0 event; content fields never in the output; salted refs | High | Unit | `collectors/claude-code/test/mapping.test.ts` | see SPRINT-03c |
+| Settings merge keeps foreign hooks/keys, idempotent, never overwrites unparsable files; uninstall removes only ours | High | Unit (temp dir) | `settings.test.ts` | see SPRINT-03c |
+| Sequence unique under concurrency; installation stable; one flusher per project | Medium | Unit (temp dir) | `state.test.ts` | see SPRINT-03c |
+| init/hook/flush/status/uninstall against the real handler; token never printed or in the repo; revoked token keeps the spool | High | Integration (PGlite) | `cli.test.ts` | see SPRINT-03c |
+| Real hook process: exit 0, empty stdout/stderr, detached flush delivers | High | Process (local HTTP receiver) | `process.test.ts` | see SPRINT-03c |
+| Hung network request aborted and retried | Medium | Unit | `jgr-sdk/test/client.test.ts` | see SPRINT-03c |
+| Real Claude Code session → production | High | Manual (owner, own token) | SPRINT-03c | pending owner |

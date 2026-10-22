@@ -1,0 +1,18 @@
+{
+  "id": "JD-C01",
+  "name": "@javis-dog/collector-claude-code",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Claude Code collector. S3c: `javi` CLI (init, hook, flush, status, uninstall), exec-form async command hooks, allowlist mapping to JGR L0 with salted session/agent refs, persistent per-thread sequences, file spool with detached delivery (ADR-0010). Token usage via OpenTelemetry follows in S3d.",
+  "owner": "platform",
+  "provides": [
+    "javi CLI",
+    "main()",
+    "mapHook()",
+    "runHook()",
+    "runFlush()",
+    "installHooks() / uninstallHooks()",
+    "createState()"
+  ],
+  "consumes": ["JD-M01", "JD-M02"]
+}

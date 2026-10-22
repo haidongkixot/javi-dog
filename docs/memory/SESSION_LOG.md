@@ -2,6 +2,12 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-23 · Session 3, continued — Sprint 3c (Claude Code collector)
+
+- Owner deferred `CRON_SECRET`; asked for S3c. A docs agent + direct fetch verified the Claude Code hook contract (events, fields, `async`, exec form, stdout/exit semantics, settings files).
+- Built JD-C01 `collectors/claude-code` (`javi` CLI) and a JD-M02 request timeout. 31 collector tests incl. real Windows hook processes with detached delivery. ADR-0010.
+- State: not yet run inside a real Claude Code session (needs the owner's ingest token). Next: owner runs `javi init` (SPRINT-03c §Owner steps); then S3d (token usage via OTel).
+
 ## 2026-10-23 · Session 3, continued — Sprint 3b (SDK + retention purge)
 
 - Discovery: Vercel root `apps/web`, Hobby cron daily, `CRON_SECRET` only settable by the owner; hook collectors are short-lived → file spool (ADR-0009).

@@ -1,0 +1,33 @@
+{
+  "name": "@javis-dog/collector-claude-code",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-C01 — Claude Code collector: `javi` CLI and command hooks mapped to JGR (operational metadata only)",
+  "type": "module",
+  "bin": {
+    "javi": "./src/cli.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "javi": "node src/cli.ts"
+  },
+  "dependencies": {
+    "@javis-dog/jgr-sdk": "workspace:*",
+    "@javis-dog/jgr-spec": "workspace:*"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@javis-dog/event-store": "workspace:*",
+    "@javis-dog/ingest": "workspace:*",
+    "@javis-dog/projects": "workspace:*",
+    "@types/node": "22.20.5",
+    "drizzle-orm": "0.45.4",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

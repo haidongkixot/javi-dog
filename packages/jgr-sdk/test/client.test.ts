@@ -230,6 +230,19 @@ describe('flush', () => {
     expect(onRejected).toHaveBeenCalledWith(rejected);
   });
 
+  it('times out a hung request and treats it as retryable', async () => {
+    const hung = vi.fn(
+      (_url: string | URL | Request, init?: RequestInit) =>
+        new Promise<Response>((_, reject) => {
+          init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason));
+        }),
+    );
+    const { c } = client({ fetch: hung, requestTimeoutMs: 20, maxAttempts: 2 });
+    await c.record(input());
+    expect(await c.flush()).toMatchObject({ status: 'retry_later', remaining: 1 });
+    expect(hung).toHaveBeenCalledTimes(2);
+  });
+
   it('stops on unexpected statuses (e.g. 404) and keeps the spool', async () => {
     const f = fakeFetch([new Response(null, { status: 404 })]);
     const { c } = client({ fetch: f.fn });

@@ -43,6 +43,12 @@ See ADR-0001 (modular monolith vs. microservices vs. folders) and ADR-0002 (stac
 
 Grouped in the readiness matrix: B1–B5 are needed before Sprint 2; B2 can be done now with confirmation; D1 confirmation needed during Sprint 1.
 
+## Delta — S3c planning (2026-10-23)
+
+- **Hook contract verified** (code.claude.com/docs/en/hooks and /settings, via a docs agent and a direct fetch; some tables only partially extracted — re-check on Claude Code upgrades): 33 events; common fields `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `agent_id`/`agent_type` inside subagents; `async: true` non-blocking; exec form (`command` + `args`) has no shell; Windows shell form = Git Bash or PowerShell; plain stdout of SessionStart/UserPromptSubmit enters Claude's context; exit 2 blocks some events; `.claude/settings.local.json` only auto-ignored when Claude Code created it.
+- **Privacy finding:** prompt, tool input/response, error, assistant message and transcript path arrive on stdin → allowlist mapping (ADR-0010); HTTP hooks rejected.
+- **Gap:** no ingest token on this machine → the first real Claude Code run is an owner step.
+
 ## Delta — S3b planning (2026-10-23)
 
 - **Hosting:** Vercel project `javisdog` builds from Root Directory `apps/web` (provisioning how-to; deployments READY) → `vercel.json` with `crons` lives in `apps/web`. Hobby crons run at most daily; Vercel sends `Authorization: Bearer $CRON_SECRET` (Vercel docs, 2026-10-23). `CRON_SECRET` is MISSING and only the owner can add it (agent: 403 on env writes).

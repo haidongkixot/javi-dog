@@ -40,14 +40,6 @@
     "description": "Budget forecast, exhaustion alerts, BYOK failover"
   },
   {
-    "id": "JD-C01",
-    "name": "@javis-dog/collector-claude-code",
-    "path": "collectors/claude-code",
-    "status": "planned",
-    "sprint": "S3",
-    "description": "Claude Code hooks + OpenTelemetry + javi CLI"
-  },
-  {
     "id": "JD-C02",
     "name": "@javis-dog/collector-otel-bridge",
     "path": "collectors/otel-bridge",
