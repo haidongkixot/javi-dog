@@ -36,7 +36,14 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 
 Expect "Connection verified". Then use Claude Code in that directory and check `node …/cli.ts status --project <project-slug>` (spooled 0, last flush ok).
 
+### Checking a real run (either one is enough)
+
+- **On the machine where `javi init` ran:** `node "<repo>/collectors/claude-code/src/cli.ts" status --project <slug>` → "Spooled events: 0" and a last flush with `"status":"ok"` and `accepted` > 0.
+- **Where the database URL is available (in a local shell, never in chat):** `pnpm --filter @javis-dog/event-store db:events -- --project <slug>` → counts per event type (`session.started`, `task.started`, …), sessions, first/last receipt, `last_signal_at`.
+
 ## Log
+
+- 2026-10-23 08:01 — Owner reported running `javi init` and using Claude Code. Agent check on this machine (`C:\Users\ADMIN`): no `~/.javi` for any user, no `JAVI_HOME`, no project under `D:\Claude Projects` with our hooks → the run happened elsewhere (likely another computer). No database access here (connection string deleted after S3a), so server-side storage is **NOT VERIFIED**. Added read-only `db:events` (counts only, tested on PGlite). Sprint stays open.
 
 - 2026-10-23 — Built tasks 1–5. A docs agent and a direct fetch verified the hook contract (events, fields, `async`, exec form, stdout/exit semantics, settings precedence, gitignore behaviour). Design changes from that: exec form instead of shell form (Windows Git Bash vs PowerShell), async hooks, Notification matcher, `duration_ms`, `agent_needs_input`. First collector run: 10 red in the mapping test — a clock-dependent fixture (`occurred_at` 00:00Z while the real clock was 23:54Z → correct `clock_skew`); clock pinned in the test, code unchanged.
 - 2026-10-23 — Sprint start (S3 split: OTLP / token usage → S3d).
@@ -47,7 +54,8 @@ Expect "Connection verified". Then use Claude Code in that directory and check `
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | `pnpm --filter @javis-dog/collector-claude-code test` | 0 | ~4 s | 31 | 0 | 0 | 0 | 0 | mapping 14, settings 4, state 4, CLI e2e on PGlite 7, real processes 2 |
 | Real `node cli.ts hook` process on Windows → detached flush → local HTTP receiver | 0 | — | 2 | 0 | — | — | — | exit 0, empty stdout/stderr, event delivered with bearer token |
-| First real Claude Code session against production | — | — | — | — | — | — | 1 | owner step |
+| Agent check of local collector state (2026-10-23 08:01) | 0 | — | — | — | — | 1 | — | no `~/.javi` / hooks on this machine; run happened elsewhere |
+| First real Claude Code session against production | — | — | — | — | — | — | 1 | owner reports done; not verified (needs `javi status` there or `db:events`) |
 
 Screenshots: 0.
 

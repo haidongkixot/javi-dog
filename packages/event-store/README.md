@@ -21,5 +21,6 @@ Status: **in-progress**. S2a: Neon client over HTTP, composed schema (JD-M04 tab
 | `pnpm --filter @javis-dog/event-store db:generate` | Generate SQL from the schema (offline). CI fails if this produces a change |
 | `pnpm --filter @javis-dog/event-store db:migrate` | Apply committed migrations to `DATABASE_URL` over HTTP |
 | `pnpm --filter @javis-dog/event-store db:smoke` | Manual round trip on a real branch; cleans up after itself |
+| `pnpm --filter @javis-dog/event-store db:events -- --project <slug>` | Read-only: events per type, sessions, first/last receipt and `last_signal_at` for a project slug (counts only) |
 
 See `docs/how-to/run-database-migrations.md`. Tests run on PGlite (in-process Postgres 17) with the committed migration SQL.
