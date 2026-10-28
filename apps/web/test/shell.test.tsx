@@ -9,7 +9,10 @@ const { Sidebar } = await import('@/components/sidebar');
 const { allNav } = await import('@/components/nav');
 const { default: OverviewPage } = await import('@/app/page');
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllEnvs();
+});
 
 // Matches sample-looking metrics such as "67%", "67% capacity", "4.8K/s" or "5.3M".
 const SAMPLE_NUMBER = /\d+(\.\d+)?\s?(K\/s|%|M(?![a-z]))/;
@@ -46,8 +49,10 @@ describe('navigation (BRAND_GUIDE §8)', () => {
 });
 
 describe('Overview (product rule 4: no mock masquerading as product)', () => {
-  it('renders every KPI as "No signal yet" without sample numbers', () => {
-    render(<OverviewPage />);
+  it('renders every KPI as "No signal yet" without sample numbers', async () => {
+    // Without a database the page renders its honest empty state (the session's env may have one).
+    vi.stubEnv('DATABASE_URL', '');
+    render(await OverviewPage());
     expect(screen.getAllByText('No signal yet')).toHaveLength(4);
     expect(screen.queryByText(SAMPLE_NUMBER)).toBeNull();
   });
