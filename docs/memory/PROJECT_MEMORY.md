@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-28 · Current sprint: none active — **S3f** (`npx` packaging + Guru G2) built 2026-10-28; next is S4 planning. S3e — token usage via a local OTLP receiver — built, CI green on `a3e4ce8` (`docs/sprints/SPRINT-03e.md`). Last closed: S3d. Waiting on owner: S3b (`CRON_SECRET`), S3c + S3e (first real `javi init` + `javi usage on` + a Claude Code session).
+> Last updated: 2026-10-28 · Current sprint: **S4a — live state** built 2026-10-28 (`docs/sprints/SPRINT-04a.md`); next S4b analytics, S4c budgets/alerts, then G3. S3 built (S3f closed). S3e — token usage via a local OTLP receiver — built, CI green on `a3e4ce8` (`docs/sprints/SPRINT-03e.md`). Last closed: S3d. Waiting on owner: S3b (`CRON_SECRET`), S3c + S3e (first real `javi init` + `javi usage on` + a Claude Code session).
 
 ## What we are building
 
@@ -65,7 +65,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 2. Owner: add `CRON_SECRET` on Vercel Production (steps in `SPRINT-03b.md`) → closes S3b.
 3. Owner: first real `javi init --usage` + a Claude Code session (steps in `SPRINT-03c.md` + `javi usage on`), then `javi status` → closes S3c (exec-form hook `args`) and S3e (usage forwarded, not dropped = session ids match).
 4. Owner: review the G2 Orcasus PR proposal (`guru/WISDOM_LOG.md`, nothing opened) and the policy proposal to add "fetch before planning and before every push; one pusher per branch" to `CLAUDE.md`.
-5. S4 (live dashboard; cost labelled as estimated; usage shown as attributed only after the session-id runtime check).
+5. S4b — JD-M08 analytics (usage per day/model/project, cost labelled estimated; decide the `(workspace_id, received_at)` index); S4c — JD-M12 budgets, forecast, exhaustion + email alerts; then Guru G3.
 
 ## Process (owner decisions 2026-10-28)
 

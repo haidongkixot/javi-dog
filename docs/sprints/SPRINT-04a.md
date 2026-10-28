@@ -1,6 +1,6 @@
 # Sprint 04a — Live state: read model, freshness and the real dashboard
 
-- Dates: 2026-10-28 (timebox 30 min) · Status: **ACTIVE**
+- Dates: 2026-10-28 (timebox 30 min) · Status: **BUILT** — closes with CI green on the push; real data waits on the owner's first run
 - Goal: Overview, Projects and Live agents show real, workspace-scoped JGR state with honest freshness, refreshed every 10 s.
 - Modules touched: JD-M07 (new), JD-APP, docs
 - Readiness gate: owner decision "Polling, 10 s" (ADR-0012); production has no real events until the owner's first run, so pages must render correct empty states
@@ -45,6 +45,8 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Orchestrator — Merged review fixes (`1c099ce`, declared paths only); changeset for the JD-M07 contract (`needsAttention`); ADR-0012 Changes marked merged.
+- 2026-10-28 — Developer — Review fixes 1–9 with tests written first: red 27 web + 3 realtime FAIL for the expected reasons, then green (realtime 60 ×2, web 160 ×2). Timeout uses its own timer + abort (works even when fetch ignores abort).
 - 2026-10-28 — Reviewer — no blockers; 3 major (ended threads counted as attention in the UI; values stay "fresh" while refreshes fail; a hung request stops polling silently), 6 minor, nits; reproduced 1–3 in a scratch jsdom test; isolation, caching, window edges verified. Push held until fixed.
 - 2026-10-28 — Orchestrator — Runner `packages/realtime/test/state-conformance.test.ts` from the QA README: first run 4 FAIL — runner bug (`atOffsetMs` mapped to `atAt` instead of `at`), vectors correct; fixed → 27/27. Mutations: exclusive 180 s boundary → only 01 FAIL; workspace filters removed → only 17, 20, 21 FAIL; restored. Merged W1+W2 (`64af586`); its async Overview broke `shell.test.tsx` only because this session has `DATABASE_URL` set → test pins it empty. Full gate 759 tests.
 - 2026-10-28 — QA — 27 vectors, 14 ambiguities (A7: attention on ended threads untested).
@@ -67,13 +69,21 @@ Team log, newest first:
 | Mutation: workspace filters removed | 1 | — | 25 | 3 | 0 | 0 | 0 | vectors 17, 20, 21 only |
 | `pnpm --filter @javis-dog/web test` after merge + shell fix | 0 | — | 143 | 0 | 0 | 0 | 0 | dashboard 42 |
 | Full gate (`format`/`lint`/`typecheck`/`test`/`build`/`docs`) | 0 | — | 759 | 0 | 0 | 0 | 0 | before review fixes |
+| Review fixes: new tests against the old code (red first) | 1 | — | — | 30 | 0 | 0 | 0 | 27 web + 3 realtime |
 | Real data on production | — | — | — | — | — | — | 1 | owner's first real run |
 
 ## Decisions and deviations
 
+- Owner: 10 s polling (ADR-0012) instead of the roadmap's SSE.
+- `(workspace_id, received_at)` index deferred to S4b (measured: sequential scan, ~80 ms at 10 000 events/workspace on PGlite).
+
 - Roadmap says "JD-M07 SSE"; owner chose polling (ADR-0012). The snapshot API can be wrapped in SSE later.
 
 ## Retro
+
+- Went well: QA vectors + mutation checks gave the read model an independent oracle; the Reviewer's scratch jsdom tests turned three UI truthfulness bugs into reproducible failures.
+- Hurt: the read model and the UI disagreed on "attention" because the contract had no field for it; my runner had a field-mapping bug; the empty-`## Log` blank-line slip recurred (third time).
+- Change next sprint: put every derived flag the UI needs into the contract type up front; insert sprint log entries with a blank line before the next heading (or start the Log section with a placeholder line).
 
 ## Guru checkpoint
 
