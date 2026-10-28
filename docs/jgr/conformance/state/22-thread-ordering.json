@@ -1,0 +1,121 @@
+{
+  "$schema": "./schema.json",
+  "description": "Threads are ordered attention first, then fresh, then stale, then ended. Received times and array order are chosen so that ordering by recency or by insertion gives a different answer (AMBIGUOUS A12).",
+  "contract": "SPRINT-04a W2 (attention visible within a 3-second scan); CLAUDE.md §3 rule 1; QA brief",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22_ended",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -40000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22_ended",
+      "type": "session.ended",
+      "sequence": 2,
+      "receivedOffsetMs": -10000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22_stale",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -600000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22_fresh",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -60000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22_attn",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -420000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22_attn",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 2,
+      "receivedOffsetMs": -360000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "threadCount": 4,
+    "threadOrder": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_attn"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_fresh"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_stale"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_ended"
+      }
+    ],
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_attn",
+        "freshness": "stale",
+        "attention": true
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_fresh",
+        "freshness": "fresh",
+        "attention": false
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_stale",
+        "freshness": "stale",
+        "attention": false
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t22_ended",
+        "freshness": "ended",
+        "attention": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,594 @@
+{
+  "$schema": "./schema.json",
+  "description": "Thirty events in the window: the activity feed holds exactly the 25 most recent, newest first; the 5 oldest are not shown anywhere.",
+  "contract": "ADR-0012 Decision outcome: Activity feed; Privacy (25 most recent events in the window)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 1,
+      "receivedOffsetMs": -300000,
+      "attributes": {
+        "tool_name": "ToolN01"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 1,
+      "receivedOffsetMs": -290000,
+      "attributes": {
+        "tool_name": "ToolN02"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -280000,
+      "attributes": {
+        "tool_name": "ToolN03"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 2,
+      "receivedOffsetMs": -270000,
+      "attributes": {
+        "tool_name": "ToolN04"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 3,
+      "receivedOffsetMs": -260000,
+      "attributes": {
+        "tool_name": "ToolN05"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.completed",
+      "sequence": 3,
+      "receivedOffsetMs": -250000,
+      "attributes": {
+        "tool_name": "ToolN06"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 4,
+      "receivedOffsetMs": -240000,
+      "attributes": {
+        "tool_name": "ToolN07"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 4,
+      "receivedOffsetMs": -230000,
+      "attributes": {
+        "tool_name": "ToolN08"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.completed",
+      "sequence": 5,
+      "receivedOffsetMs": -220000,
+      "attributes": {
+        "tool_name": "ToolN09"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 5,
+      "receivedOffsetMs": -210000,
+      "attributes": {
+        "tool_name": "ToolN10"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 6,
+      "receivedOffsetMs": -200000,
+      "attributes": {
+        "tool_name": "ToolN11"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.completed",
+      "sequence": 6,
+      "receivedOffsetMs": -190000,
+      "attributes": {
+        "tool_name": "ToolN12"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 7,
+      "receivedOffsetMs": -180000,
+      "attributes": {
+        "tool_name": "ToolN13"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 7,
+      "receivedOffsetMs": -170000,
+      "attributes": {
+        "tool_name": "ToolN14"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.completed",
+      "sequence": 8,
+      "receivedOffsetMs": -160000,
+      "attributes": {
+        "tool_name": "ToolN15"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 8,
+      "receivedOffsetMs": -150000,
+      "attributes": {
+        "tool_name": "ToolN16"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 9,
+      "receivedOffsetMs": -140000,
+      "attributes": {
+        "tool_name": "ToolN17"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.completed",
+      "sequence": 9,
+      "receivedOffsetMs": -130000,
+      "attributes": {
+        "tool_name": "ToolN18"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 10,
+      "receivedOffsetMs": -120000,
+      "attributes": {
+        "tool_name": "ToolN19"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 10,
+      "receivedOffsetMs": -110000,
+      "attributes": {
+        "tool_name": "ToolN20"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.completed",
+      "sequence": 11,
+      "receivedOffsetMs": -100000,
+      "attributes": {
+        "tool_name": "ToolN21"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 11,
+      "receivedOffsetMs": -90000,
+      "attributes": {
+        "tool_name": "ToolN22"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 12,
+      "receivedOffsetMs": -80000,
+      "attributes": {
+        "tool_name": "ToolN23"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.completed",
+      "sequence": 12,
+      "receivedOffsetMs": -70000,
+      "attributes": {
+        "tool_name": "ToolN24"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 13,
+      "receivedOffsetMs": -60000,
+      "attributes": {
+        "tool_name": "ToolN25"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 13,
+      "receivedOffsetMs": -50000,
+      "attributes": {
+        "tool_name": "ToolN26"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.completed",
+      "sequence": 14,
+      "receivedOffsetMs": -40000,
+      "attributes": {
+        "tool_name": "ToolN27"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.started",
+      "sequence": 14,
+      "receivedOffsetMs": -30000,
+      "attributes": {
+        "tool_name": "ToolN28"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18w",
+      "type": "task.started",
+      "sequence": 15,
+      "receivedOffsetMs": -20000,
+      "attributes": {
+        "tool_name": "ToolN29"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18a",
+      "type": "task.completed",
+      "sequence": 15,
+      "receivedOffsetMs": -10000,
+      "attributes": {
+        "tool_name": "ToolN30"
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": ["ToolN01", "ToolN02", "ToolN03", "ToolN04", "ToolN05"],
+    "overview": {
+      "tasksCompleted24h": {
+        "value": 10,
+        "lastSignalOffsetMs": -10000
+      }
+    },
+    "threadCount": 2,
+    "activity": {
+      "length": 25,
+      "items": [
+        {
+          "index": 0,
+          "atOffsetMs": -10000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN30"
+        },
+        {
+          "index": 1,
+          "atOffsetMs": -20000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN29"
+        },
+        {
+          "index": 2,
+          "atOffsetMs": -30000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN28"
+        },
+        {
+          "index": 3,
+          "atOffsetMs": -40000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN27"
+        },
+        {
+          "index": 4,
+          "atOffsetMs": -50000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN26"
+        },
+        {
+          "index": 5,
+          "atOffsetMs": -60000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN25"
+        },
+        {
+          "index": 6,
+          "atOffsetMs": -70000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN24"
+        },
+        {
+          "index": 7,
+          "atOffsetMs": -80000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN23"
+        },
+        {
+          "index": 8,
+          "atOffsetMs": -90000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN22"
+        },
+        {
+          "index": 9,
+          "atOffsetMs": -100000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN21"
+        },
+        {
+          "index": 10,
+          "atOffsetMs": -110000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN20"
+        },
+        {
+          "index": 11,
+          "atOffsetMs": -120000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN19"
+        },
+        {
+          "index": 12,
+          "atOffsetMs": -130000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN18"
+        },
+        {
+          "index": 13,
+          "atOffsetMs": -140000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN17"
+        },
+        {
+          "index": 14,
+          "atOffsetMs": -150000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN16"
+        },
+        {
+          "index": 15,
+          "atOffsetMs": -160000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN15"
+        },
+        {
+          "index": 16,
+          "atOffsetMs": -170000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN14"
+        },
+        {
+          "index": 17,
+          "atOffsetMs": -180000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN13"
+        },
+        {
+          "index": 18,
+          "atOffsetMs": -190000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN12"
+        },
+        {
+          "index": 19,
+          "atOffsetMs": -200000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN11"
+        },
+        {
+          "index": 20,
+          "atOffsetMs": -210000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN10"
+        },
+        {
+          "index": 21,
+          "atOffsetMs": -220000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN09"
+        },
+        {
+          "index": 22,
+          "atOffsetMs": -230000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN08"
+        },
+        {
+          "index": 23,
+          "atOffsetMs": -240000,
+          "projectSlug": "web",
+          "threadRef": "cc_t18w",
+          "type": "task.started",
+          "status": null,
+          "toolName": "ToolN07"
+        },
+        {
+          "index": 24,
+          "atOffsetMs": -250000,
+          "projectSlug": "api",
+          "threadRef": "cc_t18a",
+          "type": "task.completed",
+          "status": null,
+          "toolName": "ToolN06"
+        }
+      ]
+    }
+  }
+}

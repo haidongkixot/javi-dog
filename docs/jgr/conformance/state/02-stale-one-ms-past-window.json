@@ -1,0 +1,69 @@
+{
+  "$schema": "./schema.json",
+  "description": "A thread whose last signal is 180 001 ms old is stale; its last status stays visible.",
+  "contract": "ADR-0012 Decision outcome: Thread state (else stale); spec §5",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t02",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -600000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t02",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -180001
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "agentsWorking": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t02",
+        "status": "working",
+        "freshness": "stale",
+        "attention": false,
+        "lastSignalOffsetMs": -180001
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshness": "stale",
+        "freshThreads": 0,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "./schema.json",
+  "description": "A session that ended an hour ago is ended, not stale (SPRINT-04a review focus).",
+  "contract": "ADR-0012 Decision outcome: Thread state; SPRINT-04a Review focus",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -7200000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -5400000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 3,
+      "receivedOffsetMs": -3660000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "session.ended",
+      "sequence": 4,
+      "receivedOffsetMs": -3600000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t04",
+        "status": "idle",
+        "freshness": "ended",
+        "attention": false,
+        "lastType": "session.ended",
+        "firstSignalOffsetMs": -7200000,
+        "lastSignalOffsetMs": -3600000
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshThreads": 0,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

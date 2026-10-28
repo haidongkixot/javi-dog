@@ -1,0 +1,80 @@
+{
+  "$schema": "./schema.json",
+  "description": "A thread asks for permission, then goes quiet for 5 min: status still waiting, freshness stale, attention true, counted in the project attentionThreads (SPRINT-04a review focus).",
+  "contract": "ADR-0012 Decision outcome: Thread state (attention; status and freshness shown together); ADR-0012 Decision outcome: Projects; SPRINT-04a Review focus",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -720000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -600000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 3,
+      "receivedOffsetMs": -300000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "agentsWorking": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t06",
+        "status": "waiting",
+        "freshness": "stale",
+        "attention": true,
+        "lastType": "attention.requested",
+        "lastSignalOffsetMs": -300000
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshness": "stale",
+        "lastSignalOffsetMs": -300000,
+        "freshThreads": 0,
+        "attentionThreads": 1
+      }
+    ]
+  }
+}

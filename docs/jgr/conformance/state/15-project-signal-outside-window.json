@@ -1,0 +1,88 @@
+{
+  "$schema": "./schema.json",
+  "description": "A project whose last_signal_at is older than the window (with or without stored events) is stale, keeps its lastSignalAt, and has no threads or activity.",
+  "contract": "ADR-0012 Decision outcome: Projects; ADR-0012 Decision outcome: Read model (24 h window)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "old-proj",
+          "name": "Old project"
+        },
+        {
+          "slug": "signal-only",
+          "name": "Signal only",
+          "lastSignalOffsetMs": -108000000
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "old-proj",
+      "thread_ref": "cc_t15",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -93660000
+    },
+    {
+      "workspace": "A",
+      "project": "old-proj",
+      "thread_ref": "cc_t15",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -93600000,
+      "attributes": {
+        "tool_name": "OLD_PROJ_TOOL_q15"
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": ["cc_t15", "OLD_PROJ_TOOL_q15"],
+    "overview": {
+      "activeProjects": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "agentsWorking": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "tokensLastHour": {
+        "value": 0,
+        "reports": 0,
+        "lastSignalOffsetMs": null
+      },
+      "tasksCompleted24h": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 0,
+    "activity": {
+      "length": 0
+    },
+    "projectCount": 2,
+    "projects": [
+      {
+        "slug": "old-proj",
+        "freshness": "stale",
+        "lastSignalOffsetMs": -93600000,
+        "freshThreads": 0,
+        "attentionThreads": 0
+      },
+      {
+        "slug": "signal-only",
+        "freshness": "stale",
+        "lastSignalOffsetMs": -108000000,
+        "freshThreads": 0,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

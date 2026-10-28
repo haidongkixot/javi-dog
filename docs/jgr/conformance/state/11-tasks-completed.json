@@ -1,0 +1,136 @@
+{
+  "$schema": "./schema.json",
+  "description": "tasksCompleted counts task.completed only (not task.started or task.failed), per thread and workspace-wide in the 24 h window.",
+  "contract": "ADR-0012 Decision outcome: Thread state (completed tasks); ADR-0012 Decision outcome: Overview counters (task.completed events in 24 h); spec §4",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11a",
+      "type": "task.started",
+      "sequence": 1,
+      "receivedOffsetMs": -3000000,
+      "attributes": {
+        "tool_name": "Edit"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11a",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -2940000,
+      "attributes": {
+        "tool_name": "Edit"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11a",
+      "type": "task.started",
+      "sequence": 3,
+      "receivedOffsetMs": -2880000,
+      "attributes": {
+        "tool_name": "Bash"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11a",
+      "type": "task.failed",
+      "sequence": 4,
+      "receivedOffsetMs": -2820000,
+      "attributes": {
+        "tool_name": "Bash"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11a",
+      "type": "task.started",
+      "sequence": 5,
+      "receivedOffsetMs": -2760000,
+      "attributes": {
+        "tool_name": "Read"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11a",
+      "type": "task.completed",
+      "sequence": 6,
+      "receivedOffsetMs": -2700000,
+      "attributes": {
+        "tool_name": "Read"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t11b",
+      "type": "task.completed",
+      "sequence": 1,
+      "receivedOffsetMs": -10800000,
+      "attributes": {
+        "tool_name": "Write"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t11b",
+      "type": "task.started",
+      "sequence": 2,
+      "receivedOffsetMs": -7200000,
+      "attributes": {
+        "tool_name": "Write"
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "tasksCompleted24h": {
+        "value": 3,
+        "lastSignalOffsetMs": -2700000
+      }
+    },
+    "threadCount": 2,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t11a",
+        "tasksCompleted": 2,
+        "lastType": "task.completed"
+      },
+      {
+        "projectSlug": "api",
+        "threadRef": "cc_t11b",
+        "tasksCompleted": 1,
+        "lastType": "task.started"
+      }
+    ]
+  }
+}

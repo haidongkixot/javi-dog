@@ -1,0 +1,99 @@
+{
+  "$schema": "./schema.json",
+  "description": "Per project, freshThreads counts fresh threads and attentionThreads counts threads needing attention whether fresh or stale; another project is unaffected.",
+  "contract": "ADR-0012 Decision outcome: Projects (fresh threads and threads needing attention)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t27_wf",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -30000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t27_ws",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -1200000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t27_work",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -45000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t27_old",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 1,
+      "receivedOffsetMs": -7200000
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t27_api",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -15000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 2,
+        "lastSignalOffsetMs": -15000
+      },
+      "agentsWorking": {
+        "value": 2,
+        "lastSignalOffsetMs": -15000
+      }
+    },
+    "threadCount": 5,
+    "projects": [
+      {
+        "slug": "web",
+        "freshness": "fresh",
+        "lastSignalOffsetMs": -30000,
+        "freshThreads": 2,
+        "attentionThreads": 2
+      },
+      {
+        "slug": "api",
+        "freshness": "fresh",
+        "lastSignalOffsetMs": -15000,
+        "freshThreads": 1,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

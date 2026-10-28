@@ -1,0 +1,91 @@
+{
+  "$schema": "./schema.json",
+  "description": "A later status-bearing event clears attention: waiting then working (thread a), waiting then idle (thread b). Events are listed out of received order on purpose; order is by received time.",
+  "contract": "ADR-0012 Decision outcome: Thread state (attention = the LATEST status-bearing event is waiting)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t07a",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -30000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t07a",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -90000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t07b",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 2,
+      "receivedOffsetMs": -20000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t07b",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -60000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "agentsWorking": {
+        "value": 1,
+        "lastSignalOffsetMs": -30000
+      }
+    },
+    "threadCount": 2,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t07a",
+        "status": "working",
+        "freshness": "fresh",
+        "attention": false,
+        "lastType": "heartbeat"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t07b",
+        "status": "idle",
+        "freshness": "fresh",
+        "attention": false,
+        "lastType": "heartbeat"
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshThreads": 2,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

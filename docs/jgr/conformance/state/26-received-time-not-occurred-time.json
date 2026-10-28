@@ -1,0 +1,79 @@
+{
+  "$schema": "./schema.json",
+  "description": "Freshness, lastSignalAt and activity time use the receipt time, not the producer clock: a spooled event (occurred 10 min ago, received 10 s ago) is fresh; an event from a producer clock 4 min ahead, received 200 s ago, is stale (AMBIGUOUS A5).",
+  "contract": "ADR-0012 Decision outcome: Thread state (last received time); spec §10 (record receipt time for ordering)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t26_spool",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -10000,
+      "occurredOffsetMs": -600000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t26_skew",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -200000,
+      "occurredOffsetMs": 40000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "agentsWorking": {
+        "value": 1,
+        "lastSignalOffsetMs": -10000
+      }
+    },
+    "threadCount": 2,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t26_spool",
+        "freshness": "fresh",
+        "lastSignalOffsetMs": -10000
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t26_skew",
+        "freshness": "stale",
+        "lastSignalOffsetMs": -200000
+      }
+    ],
+    "activity": {
+      "length": 2,
+      "items": [
+        {
+          "index": 0,
+          "threadRef": "cc_t26_spool",
+          "atOffsetMs": -10000
+        },
+        {
+          "index": 1,
+          "threadRef": "cc_t26_skew",
+          "atOffsetMs": -200000
+        }
+      ]
+    }
+  }
+}

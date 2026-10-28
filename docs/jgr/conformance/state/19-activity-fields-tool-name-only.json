@@ -1,0 +1,128 @@
+{
+  "$schema": "./schema.json",
+  "description": "Activity items carry time, project slug, thread ref, type, status and tool_name only; other attribute values (allowlisted or not) never appear in the snapshot.",
+  "contract": "ADR-0012 Decision outcome: Activity feed; Privacy; ADR-0012 Privacy (no attribute other than tool_name is read); spec §7",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t19",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -50000,
+      "attributes": {
+        "platform": "PLATFORM_MARKER_q19",
+        "platform_version": "PLATVER_MARKER_q19",
+        "collector_version": "COLLECTOR_MARKER_q19"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t19",
+      "type": "task.started",
+      "sequence": 2,
+      "receivedOffsetMs": -40000,
+      "attributes": {
+        "model": "MODEL_MARKER_q19",
+        "prompt": "PROMPT_MARKER_q19 please refactor everything",
+        "file_path": "/home/dev/SECRET_PATH_MARKER_q19.ts",
+        "command": "CMD_MARKER_q19",
+        "tool_name": "Edit"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t19",
+      "type": "error",
+      "sequence": 3,
+      "receivedOffsetMs": -30000,
+      "attributes": {
+        "error_code": "ERRCODE_MARKER_q19",
+        "exit_code": 3,
+        "retry_count": 2
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t19",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 4,
+      "receivedOffsetMs": -20000,
+      "attributes": {
+        "task_kind": "TASKKIND_MARKER_q19"
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [
+      "PLATFORM_MARKER_q19",
+      "PLATVER_MARKER_q19",
+      "COLLECTOR_MARKER_q19",
+      "MODEL_MARKER_q19",
+      "PROMPT_MARKER_q19",
+      "SECRET_PATH_MARKER_q19",
+      "CMD_MARKER_q19",
+      "ERRCODE_MARKER_q19",
+      "TASKKIND_MARKER_q19",
+      "file_path"
+    ],
+    "activity": {
+      "length": 4,
+      "items": [
+        {
+          "index": 0,
+          "atOffsetMs": -20000,
+          "projectSlug": "web",
+          "threadRef": "cc_t19",
+          "type": "attention.requested",
+          "status": "waiting",
+          "toolName": null
+        },
+        {
+          "index": 1,
+          "atOffsetMs": -30000,
+          "projectSlug": "web",
+          "threadRef": "cc_t19",
+          "type": "error",
+          "status": null,
+          "toolName": null
+        },
+        {
+          "index": 2,
+          "atOffsetMs": -40000,
+          "projectSlug": "web",
+          "threadRef": "cc_t19",
+          "type": "task.started",
+          "status": null,
+          "toolName": "Edit"
+        },
+        {
+          "index": 3,
+          "atOffsetMs": -50000,
+          "projectSlug": "web",
+          "threadRef": "cc_t19",
+          "type": "session.started",
+          "status": null,
+          "toolName": null
+        }
+      ]
+    }
+  }
+}

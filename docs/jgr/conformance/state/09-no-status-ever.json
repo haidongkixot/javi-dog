@@ -1,0 +1,79 @@
+{
+  "$schema": "./schema.json",
+  "description": "A thread that never sent a status has status null and no attention; it is still fresh, so its project is active, but it is not working.",
+  "contract": "ADR-0012 Decision outcome: Thread state; ADR-0012 Decision outcome: Overview counters; types.ts ThreadState.status",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t09",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -100000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t09",
+      "type": "task.started",
+      "sequence": 2,
+      "receivedOffsetMs": -60000,
+      "attributes": {
+        "tool_name": "Grep"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t09",
+      "type": "task.completed",
+      "sequence": 3,
+      "receivedOffsetMs": -40000,
+      "attributes": {
+        "tool_name": "Grep"
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 1,
+        "lastSignalOffsetMs": -40000
+      },
+      "agentsWorking": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "tasksCompleted24h": {
+        "value": 1,
+        "lastSignalOffsetMs": -40000
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t09",
+        "status": null,
+        "freshness": "fresh",
+        "attention": false,
+        "tasksCompleted": 1,
+        "lastType": "task.completed"
+      }
+    ]
+  }
+}
