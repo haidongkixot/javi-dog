@@ -203,4 +203,4 @@ Written before implementation. Risk: **MEDIUM** — a broken install path silent
 | Repo-checkout `init` unchanged | Medium | Existing `cli.test.ts` | unchanged assertions | No |
 | CI builds the bundle | Low | `pnpm build` in CI | exit 0 | No |
 
-Tests: `collectors/claude-code/test/pack.test.ts` (build scan, offline tarball install via the `.bin` symlink, stable `~/.javi/bin` copy surviving removal of the install prefix).
+Tests: `collectors/claude-code/test/pack.test.ts`, `install-self.test.ts`, `pack-scripts.test.ts` (build scan, offline tarball install via the `.bin` symlink, stable `~/.javi/bin` copy surviving removal of the install prefix).
