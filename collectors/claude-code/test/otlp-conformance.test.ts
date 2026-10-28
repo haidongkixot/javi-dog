@@ -187,6 +187,8 @@ describe('OTLP receiver conformance vectors (docs/jgr/conformance/otlp)', () => 
       endpoint: 'http://127.0.0.1:9/api/v1/events',
       token: TOKEN,
     });
+    // Hooks attribute sessions only while usage is on (`javi usage on` writes usage.json).
+    await state.saveUsageConfig({ port: 4319, secret: SECRET, written: {} });
     const hook = await runHook({
       state,
       projectRef: PROJECT,

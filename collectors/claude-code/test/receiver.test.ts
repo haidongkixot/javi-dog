@@ -1,18 +1,22 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
-import { request } from 'node:http';
+import { mkdir, mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { createServer, request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createState, opaqueRef, runHook, type CollectorState } from '../src/index.ts';
+import { parseOtlpMetrics } from '../src/otlp.ts';
 import {
   MAX_BODY_BYTES,
   RECEIVER_FLUSH_GAP_MS,
+  RECEIVER_PORT_CONFLICT_BACKOFF_MS,
   createUsageReceiver,
   ensureReceiver,
+  probeReceiver,
   type UsageReceiver,
 } from '../src/receiver.ts';
+import { toUsageGroups, usageEventId } from '../src/usage.ts';
 import { SESSION_TTL_MS } from '../src/state.ts';
 
 // U3 (TEST_PLAN §S3e): the local OTLP receiver over real HTTP on an ephemeral port, with the
@@ -23,7 +27,15 @@ const IDENTITY = ['dev@example.com', 'user-abc-123', 'org-xyz-789', 'acct-uuid-4
 
 const otlpExport = (
   sessionId: string,
-  opts: { startMs?: number; endMs?: number; input?: number; output?: number; cost?: number } = {},
+  opts: {
+    startMs?: number;
+    endMs?: number;
+    input?: number;
+    output?: number;
+    cost?: number;
+    /** OTLP AggregationTemporality: 1 delta (Claude Code's default), 2 cumulative. */
+    temporality?: 1 | 2;
+  } = {},
 ) => {
   const endMs = opts.endMs ?? Date.now();
   const startMs = opts.startMs ?? endMs - 60_000;
@@ -59,7 +71,7 @@ const otlpExport = (
               {
                 name: 'claude_code.token.usage',
                 sum: {
-                  aggregationTemporality: 1,
+                  aggregationTemporality: opts.temporality ?? 1,
                   isMonotonic: true,
                   dataPoints: [
                     point('input', { asInt: String(opts.input ?? 100) }),
@@ -70,7 +82,7 @@ const otlpExport = (
               {
                 name: 'claude_code.cost.usage',
                 sum: {
-                  aggregationTemporality: 1,
+                  aggregationTemporality: opts.temporality ?? 1,
                   dataPoints: [point(null, { asDouble: opts.cost ?? 0.01 })],
                 },
               },
@@ -188,6 +200,7 @@ describe('usage receiver over real HTTP', () => {
     home = await mkdtemp(join(tmpdir(), 'javi-recv-'));
     state = createState(home);
     await state.saveCredentials('web-app', { endpoint: 'http://127.0.0.1:9/never', token: TOKEN });
+    await state.saveUsageConfig({ port: 4319, secret: SECRET, written: {} });
     expect(await hook(state, 'sess-known')).toBe('recorded');
     const { salt } = await state.installation();
     receiver = createUsageReceiver({
@@ -386,11 +399,43 @@ describe('usage receiver over real HTTP', () => {
     expect((await state.receiverInfo())!.lastRequestAt).not.toBeNull();
   });
 
+  // S3e review #2: the receiver identifies itself, but only to callers that know the secret.
+  it('authenticated replies carry x-javi-receiver-pid; unauthenticated ones do not', async () => {
+    const ok = await post(port, { body: '{"resourceMetrics":[]}' });
+    expect(ok.status).toBe(200);
+    expect(ok.headers['x-javi-receiver-pid']).toBe(String(process.pid));
+    const foreignHost = await post(port, { headers: { host: `evil.example:${port}` }, body: '{}' });
+    expect(foreignHost.status).toBe(403);
+    expect(foreignHost.headers['x-javi-receiver-pid']).toBe(String(process.pid));
+    const malformed = await post(port, { body: '{' });
+    expect(malformed.status).toBe(400);
+    expect(malformed.headers['x-javi-receiver-pid']).toBe(String(process.pid));
+    for (const reply of [
+      await post(port, { headers: { authorization: '' }, body: '{}' }),
+      await post(port, { headers: { authorization: 'Bearer nope-nope-nope-nope' }, body: '{}' }),
+      await post(port, { path: '/v1/traces', body: '{}' }),
+      await post(port, { method: 'GET' }),
+    ]) {
+      expect(reply.status).toBeGreaterThanOrEqual(400);
+      expect(reply.headers['x-javi-receiver-pid']).toBeUndefined();
+    }
+  });
+
+  it('probeReceiver confirms this receiver by pid, and a probe is not an export', async () => {
+    const info = await state.receiverInfo();
+    expect(await probeReceiver(port, SECRET)).toBe(process.pid);
+    expect(await probeReceiver(port, 'wrong-secret-0123456789')).toBeNull();
+    // An empty request records nothing: no event, no counter, no "last export" change.
+    expect(await state.receiverInfo()).toEqual(info);
+  });
+
   it('never writes identity attributes, raw session ids or the secret under JAVI_HOME', async () => {
     const files = await allFiles(home);
     expect(files.length).toBeGreaterThan(3);
     for (const { path, text } of files) {
-      for (const needle of [...IDENTITY, 'sess-known', 'sess-unknown', SECRET]) {
+      // usage.json is where `javi usage on` keeps the secret (by design); nothing else may.
+      const secret = path === join(home, 'usage.json') ? [] : [SECRET];
+      for (const needle of [...IDENTITY, 'sess-known', 'sess-unknown', ...secret]) {
         expect(text, path).not.toContain(needle);
         expect(path).not.toContain(needle);
       }
@@ -405,6 +450,7 @@ describe('usage receiver lifecycle', () => {
     home = await mkdtemp(join(tmpdir(), 'javi-recv-life-'));
     state = createState(home);
     await state.saveCredentials('web-app', { endpoint: 'http://127.0.0.1:9/never', token: TOKEN });
+    await state.saveUsageConfig({ port: 4319, secret: SECRET, written: {} });
   });
   afterEach(async () => {
     await rm(home, { recursive: true, force: true });
@@ -492,6 +538,159 @@ describe('usage receiver lifecycle', () => {
     await expect(post(port, { body: '{}' })).rejects.toThrow();
   });
 
+  it('probeReceiver: a closed port or a server that never answers gives null', async () => {
+    const foreign = createServer((req, res) => {
+      req.resume();
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{}');
+    });
+    await new Promise<void>((r) => foreign.listen(0, '127.0.0.1', r));
+    const foreignPort = (foreign.address() as { port: number }).port;
+    expect(await probeReceiver(foreignPort, SECRET)).toBeNull(); // answers 200, no pid header
+    await new Promise((r) => foreign.close(r));
+    expect(await probeReceiver(foreignPort, SECRET)).toBeNull(); // closed
+
+    const silent = createServer(() => {}); // accepts, never answers
+    await new Promise<void>((r) => silent.listen(0, '127.0.0.1', r));
+    try {
+      const silentPort = (silent.address() as { port: number }).port;
+      expect(await probeReceiver(silentPort, SECRET, 200)).toBeNull();
+    } finally {
+      silent.closeAllConnections();
+      await new Promise((r) => silent.close(r));
+    }
+  });
+
+  // S3e review #6: only authenticated requests keep the receiver alive.
+  it('unauthenticated requests do not keep the receiver alive', async () => {
+    const receiver = createUsageReceiver({
+      state,
+      port: 0,
+      secret: SECRET,
+      salt: 's',
+      idleMs: 300,
+    });
+    const port = await receiver.listen();
+    let idled = false;
+    void receiver.idle.then(() => (idled = true));
+    const until = Date.now() + 5_000;
+    while (!idled && Date.now() < until) {
+      // A stranger keeps knocking: no bearer, a wrong bearer, an unknown path.
+      await Promise.all([
+        post(port, { headers: { authorization: '' }, body: '{}' }),
+        post(port, { headers: { authorization: 'Bearer wrong-wrong-wrong' }, body: '{}' }),
+        post(port, { path: '/nope', headers: { authorization: '' }, body: '{}' }),
+      ]).catch(() => []);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(idled).toBe(true);
+    expect(await state.receiverInfo()).toMatchObject({ pid: 0, port });
+  });
+
+  // S3e review #7: an internal error answers 503 and leaves the cumulative baselines unchanged,
+  // so the exporter's retry (same deterministic ids) is counted exactly once.
+  it('an internal error answers 503 and the retry is counted once', async () => {
+    await hook(state, 'sess-known');
+    let failNext = false;
+    const failing: CollectorState = {
+      ...state,
+      nextSequence: async (threadRef: string) => {
+        if (failNext) {
+          failNext = false;
+          throw new Error('Lock busy: seq');
+        }
+        return state.nextSequence(threadRef);
+      },
+    };
+    const receiver = createUsageReceiver({
+      state: failing,
+      port: 0,
+      secret: SECRET,
+      salt: (await state.installation()).salt,
+      flush: async () => {},
+    });
+    const port = await receiver.listen();
+    try {
+      const startMs = Date.now() - 120_000;
+      const cumulative = (endMs: number, input: number, output: number, cost: number) =>
+        json(otlpExport('sess-known', { startMs, endMs, input, output, cost, temporality: 2 }));
+      // The first cumulative point of a series only sets its baseline.
+      const first = await post(port, { body: cumulative(startMs + 60_000, 100, 20, 0.01) });
+      expect(first.status).toBe(200);
+      expect(await usageEvents(state, 'web-app')).toEqual([]);
+
+      const second = cumulative(startMs + 120_000, 150, 30, 0.015);
+      failNext = true;
+      const failed = await post(port, { body: second });
+      expect(failed.status).toBe(503);
+      expect(failed.body).not.toContain('Lock busy');
+      expect(await usageEvents(state, 'web-app')).toEqual([]);
+
+      // The exporter retries the identical request.
+      expect((await post(port, { body: second })).status).toBe(200);
+      const usage = await usageEvents(state, 'web-app');
+      expect(usage).toHaveLength(1);
+      expect(usage[0]!.usage_delta).toMatchObject({ input_tokens: 50, output_tokens: 10 });
+    } finally {
+      await receiver.close();
+    }
+  });
+
+  it('a failing spool write answers 503; the retry is spooled once', async () => {
+    await hook(state, 'sess-known');
+    const { salt } = await state.installation();
+    const receiver = createUsageReceiver({
+      state,
+      port: 0,
+      secret: SECRET,
+      salt,
+      flush: async () => {},
+    });
+    const port = await receiver.listen();
+    try {
+      const body = otlpExport('sess-known', { endMs: Date.now() - 1_000 });
+      const parsed = parseOtlpMetrics(body);
+      if (!parsed.ok) throw new Error('fixture does not parse');
+      const [group] = toUsageGroups(parsed.points, new Map());
+      // A non-empty directory where the event file must go: the spool's rename fails.
+      const blocker = join(state.spoolDir('web-app'), `${usageEventId(group!, salt)}.json`);
+      await mkdir(join(blocker, 'x'), { recursive: true });
+      const failed = await post(port, { body: json(body) });
+      expect(failed.status).toBe(503);
+      expect((await state.receiverInfo())!.forwarded).toBe(0);
+      expect(await usageEvents(state, 'web-app')).toEqual([]);
+
+      await rm(blocker, { recursive: true, force: true });
+      expect((await post(port, { body: json(body) })).status).toBe(200);
+      expect(await usageEvents(state, 'web-app')).toHaveLength(1);
+      expect((await state.receiverInfo())!.forwarded).toBe(1);
+    } finally {
+      await receiver.close();
+    }
+  });
+
+  // S3e review #3: a successful listen clears a recorded port conflict.
+  it('a successful listen clears a recorded port conflict', async () => {
+    await state.saveReceiverInfo({
+      pid: 0,
+      port: 1,
+      startedAt: '',
+      forwarded: 2,
+      dropped: 1,
+      lastRequestAt: null,
+      portConflict: { at: new Date().toISOString() },
+    });
+    const receiver = createUsageReceiver({ state, port: 0, secret: SECRET, salt: 's' });
+    await receiver.listen();
+    try {
+      const info = (await state.receiverInfo())!;
+      expect(info).toMatchObject({ pid: process.pid, forwarded: 2, dropped: 1 });
+      expect(info.portConflict).toBeUndefined();
+    } finally {
+      await receiver.close();
+    }
+  });
+
   it('a second receiver on the same port fails with EADDRINUSE', async () => {
     const first = createUsageReceiver({ state, port: 0, secret: SECRET, salt: 's' });
     const port = await first.listen();
@@ -552,6 +751,15 @@ describe('usage state and hook wiring', () => {
     expect(await state.usageConfig()).toBeNull();
   });
 
+  // S3e review #8: no session files at all while usage is off.
+  it('a hook records no session attribution while usage is off', async () => {
+    await state.saveCredentials('web-app', { endpoint: 'http://127.0.0.1:9/never', token: TOKEN });
+    expect(await hook(state, 'sess-off')).toBe('recorded');
+    await expect(readdir(join(home, 'sessions'))).rejects.toMatchObject({ code: 'ENOENT' });
+    const salt = (await state.installation()).salt;
+    expect(await state.sessionProject(opaqueRef('cc', 'sess-off', salt))).toBeNull();
+  });
+
   it('a hook asks for the receiver only when usage is on', async () => {
     await state.saveCredentials('web-app', { endpoint: 'http://127.0.0.1:9/never', token: TOKEN });
     let asked = 0;
@@ -586,20 +794,19 @@ describe('usage state and hook wiring', () => {
     expect(await state.sessionProject(opaqueRef('cc', 'sess-h', salt))).toBe('web-app');
   });
 
-  it('ensureReceiver: running pid → nothing; dead pid → one spawn per 5 s', async () => {
+  it('ensureReceiver: a confirmed receiver → nothing; dead pid → one spawn per 5 s', async () => {
     let spawned = 0;
     const spawnReceiver = () => {
       spawned += 1;
     };
-    await state.saveReceiverInfo({
-      pid: process.pid,
-      port: 1,
-      startedAt: 'x',
-      forwarded: 0,
-      dropped: 0,
-      lastRequestAt: null,
-    });
-    expect(await ensureReceiver({ state, spawnReceiver })).toBe('running');
+    await state.saveUsageConfig({ port: 4319, secret: SECRET, written: {} });
+    const receiver = createUsageReceiver({ state, port: 0, secret: SECRET, salt: 's' });
+    await receiver.listen();
+    try {
+      expect(await ensureReceiver({ state, spawnReceiver })).toBe('running');
+    } finally {
+      await receiver.close();
+    }
 
     const dead = spawn(process.execPath, ['-e', '']);
     await new Promise((r) => dead.once('exit', r));
@@ -624,5 +831,59 @@ describe('usage state and hook wiring', () => {
     });
     expect(await ensureReceiver({ state, spawnReceiver, now: () => 30_000 })).toBe('spawned');
     expect(spawned).toBe(3);
+  });
+
+  // S3e review #2: a live pid alone (e.g. a recycled pid) is not our receiver.
+  it('ensureReceiver does not trust a live pid that the probe does not confirm', async () => {
+    let spawned = 0;
+    await state.saveUsageConfig({ port: 4319, secret: SECRET, written: {} });
+    const closed = createServer();
+    await new Promise<void>((r) => closed.listen(0, '127.0.0.1', r));
+    const closedPort = (closed.address() as { port: number }).port;
+    await new Promise((r) => closed.close(r));
+    await state.saveReceiverInfo({
+      pid: process.pid, // alive, but nothing of ours listens on the recorded port
+      port: closedPort,
+      startedAt: 'x',
+      forwarded: 0,
+      dropped: 0,
+      lastRequestAt: null,
+    });
+    const result = await ensureReceiver({
+      state,
+      spawnReceiver: () => {
+        spawned += 1;
+      },
+    });
+    expect(result).toBe('spawned');
+    expect(spawned).toBe(1);
+  });
+
+  // S3e review #3: while another program holds the port, hooks stop spawning for 10 minutes.
+  it('ensureReceiver backs off for 10 min after a recorded port conflict', async () => {
+    let spawned = 0;
+    const spawnReceiver = () => {
+      spawned += 1;
+    };
+    await state.saveUsageConfig({ port: 4319, secret: SECRET, written: {} });
+    const at = Date.UTC(2026, 9, 28, 12);
+    await state.saveReceiverInfo({
+      pid: 0,
+      port: 4319,
+      startedAt: '',
+      forwarded: 0,
+      dropped: 0,
+      lastRequestAt: null,
+      portConflict: { at: new Date(at).toISOString() },
+    });
+    const backoff = 10 * 60 * 1000;
+    expect(RECEIVER_PORT_CONFLICT_BACKOFF_MS).toBe(backoff);
+    expect(await ensureReceiver({ state, spawnReceiver, now: () => at + 60_000 })).toBe('backoff');
+    expect(await ensureReceiver({ state, spawnReceiver, now: () => at + backoff - 1 })).toBe(
+      'backoff',
+    );
+    expect(spawned).toBe(0);
+    expect(await ensureReceiver({ state, spawnReceiver, now: () => at + backoff })).toBe('spawned');
+    expect(spawned).toBe(1);
   });
 });

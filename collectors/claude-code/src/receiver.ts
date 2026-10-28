@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { connect } from 'node:net';
 import { gunzip } from 'node:zlib';
 import { createFileSpool, createJgrClient, type JgrClient } from '@javis-dog/jgr-sdk';
@@ -21,6 +21,10 @@ export const RECEIVER_IDLE_MS = 30 * 60 * 1000;
 export const RECEIVER_FLUSH_GAP_MS = 3_000;
 /** Minimum gap between two receiver spawn attempts from hooks. */
 export const RECEIVER_SPAWN_DEBOUNCE_MS = 5_000;
+/** Hooks do not spawn a receiver for this long after another program was found on the port. */
+export const RECEIVER_PORT_CONFLICT_BACKOFF_MS = 10 * 60 * 1000;
+/** On every reply to an authenticated request: the receiver's pid (its identity for the CLI). */
+export const RECEIVER_PID_HEADER = 'x-javi-receiver-pid';
 const PATHS = new Set(['/v1/metrics', '/']);
 
 export interface UsageReceiverOptions {
@@ -70,24 +74,90 @@ export const isPortInUse = (port: number, timeoutMs = 1_000): Promise<boolean> =
     socket.once('error', () => done(false));
   });
 
-/** The receiver recorded in receiver.json, when its process is still alive. */
+/**
+ * Asks whatever listens on 127.0.0.1:port whether it is a javi receiver holding `secret`:
+ * an authenticated empty OTLP request (`{}`: 200, no events). Resolves the pid the receiver
+ * reports, or null (nothing listening, wrong secret, another program, no answer in time).
+ */
+export const probeReceiver = (
+  port: number,
+  secret: string,
+  timeoutMs = 1_000,
+): Promise<number | null> =>
+  new Promise((resolve) => {
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+      resolve(null);
+      return;
+    }
+    const body = '{}';
+    let settled = false;
+    const done = (pid: number | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      req.destroy();
+      resolve(pid);
+    };
+    const req = request(
+      {
+        host: '127.0.0.1',
+        port,
+        path: '/v1/metrics',
+        method: 'POST',
+        agent: false, // one-shot connection: nothing lingers in a hook process
+        headers: {
+          host: `127.0.0.1:${port}`,
+          authorization: `Bearer ${secret}`,
+          'content-type': 'application/json',
+          'content-length': Buffer.byteLength(body),
+          connection: 'close',
+        },
+      },
+      (res) => {
+        const raw = res.headers[RECEIVER_PID_HEADER];
+        const pid = typeof raw === 'string' && /^[1-9][0-9]{0,9}$/.test(raw) ? Number(raw) : null;
+        res.resume();
+        done(res.statusCode === 200 ? pid : null);
+      },
+    );
+    const timer = setTimeout(() => done(null), timeoutMs);
+    req.on('error', () => done(null));
+    req.end(body);
+  });
+
+/**
+ * The receiver recorded in receiver.json, only when its process is alive AND a probe with the
+ * usage secret confirms that this very pid answers on the recorded port. A live pid alone may
+ * be a recycled pid of an unrelated program: never signal or trust it without the probe.
+ */
 export const liveReceiver = async (state: CollectorState): Promise<ReceiverInfo | null> => {
   const info = await state.receiverInfo();
-  return info && isPidAlive(info.pid) ? info : null;
+  if (!info || !isPidAlive(info.pid)) return null;
+  const config = await state.usageConfig();
+  if (!config) return null;
+  return (await probeReceiver(info.port, config.secret)) === info.pid ? info : null;
+};
+
+/** True while a port conflict younger than the back-off is recorded in receiver.json. */
+export const portConflictActive = (info: ReceiverInfo | null, nowMs: number): boolean => {
+  const at = info?.portConflict ? Date.parse(info.portConflict.at) : NaN;
+  return Number.isFinite(at) && nowMs - at < RECEIVER_PORT_CONFLICT_BACKOFF_MS;
 };
 
 /**
- * Called by hooks when usage is on: starts the receiver unless it runs, at most one spawn
- * attempt per 5 s. A second receiver racing for the port exits by itself. Never throws.
+ * Called by hooks when usage is on: starts the receiver unless a confirmed one runs, at most
+ * one spawn attempt per 5 s, none for 10 min after another program was found on the port.
+ * A second receiver racing for the port exits by itself. Never throws.
  */
 export const ensureReceiver = async (opts: {
   state: CollectorState;
   spawnReceiver: () => void;
   now?: () => number;
-}): Promise<'running' | 'debounced' | 'spawned' | 'error'> => {
+}): Promise<'running' | 'backoff' | 'debounced' | 'spawned' | 'error'> => {
   try {
     if (await liveReceiver(opts.state)) return 'running';
     const now = opts.now?.() ?? Date.now();
+    if (portConflictActive(await opts.state.receiverInfo(), now)) return 'backoff';
     if (now - (await opts.state.receiverRequestedAt()) < RECEIVER_SPAWN_DEBOUNCE_MS) {
       return 'debounced';
     }
@@ -236,7 +306,12 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
   const accept = async (body: unknown) => {
     const parsed = parseOtlpMetrics(body);
     if (!parsed.ok) throw new HttpError(400, 'Not an OTLP metrics request.');
-    const groups = toUsageGroups(parsed.points, baselines);
+    // An empty request (e.g. the CLI's probe) carries no export: nothing to count or record.
+    if (!parsed.points.length) return;
+    // Baselines move on a copy, committed only once every record of this request is spooled:
+    // after an internal error (503) the exporter's retry is computed against the same baselines.
+    const working: CumulativeBaselines = new Map(baselines);
+    const groups = toUsageGroups(parsed.points, working);
     const { producer_id } = await state.installation();
     const clients = new Map<string, JgrClient | null>();
     const touched = new Set<string>();
@@ -278,6 +353,7 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
         touched.add(projectRef);
       } else dropped += 1;
     }
+    for (const [key, value] of working) baselines.set(key, value);
     if (info) {
       info.forwarded += forwarded;
       info.dropped += dropped;
@@ -288,7 +364,6 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
   };
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
-    armIdle();
     const path = (req.url ?? '').split('?')[0];
     if (!PATHS.has(path!)) return send(res, 404, { message: 'Not found.' });
     if (req.method !== 'POST') {
@@ -298,6 +373,9 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
     if (typeof auth !== 'string' || !timingSafeEqual(digest(auth), expectedAuth)) {
       return send(res, 401, { message: 'Unauthorized.' }, { 'www-authenticate': 'Bearer' });
     }
+    // Only an authenticated caller keeps the receiver alive and learns who answers.
+    armIdle();
+    res.setHeader(RECEIVER_PID_HEADER, String(process.pid));
     // DNS-rebinding guard: a browser page on another name can reach 127.0.0.1 but not fake Host.
     const host = (req.headers.host ?? '').toLowerCase();
     if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) {
@@ -330,8 +408,11 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
 
   const server = createServer((req, res) => {
     const work = handle(req, res).catch((error: unknown) => {
-      const status = error instanceof HttpError ? error.status : 500;
-      const message = error instanceof HttpError ? error.message : 'Internal error.';
+      // Internal errors (lock busy, spool write failed) are retryable for OTLP clients (503);
+      // event ids are deterministic and baselines unchanged, so a retry is counted once.
+      const status = error instanceof HttpError ? error.status : 503;
+      const message =
+        error instanceof HttpError ? error.message : 'Temporarily unavailable, please retry.';
       if (!res.headersSent) {
         // The rest of an oversized body is drained (not buffered) so the client reads the answer.
         send(res, status, { message }, status === 413 ? { connection: 'close' } : {});

@@ -1,4 +1,14 @@
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -239,11 +249,19 @@ describe('disableUsageEnv', () => {
     expect(await exists(path)).toBe(false);
   });
 
-  it('unparsable file: left untouched', async () => {
-    await seed('{ nope');
-    expect(await disableUsageEnv({ path, written: ours })).toEqual({ path, removed: [] });
-    expect(await readFile(path, 'utf8')).toBe('{ nope');
-  });
+  // S3e review #1: an unreadable file must be signalled, so `usage off` does not claim success.
+  it.each(['{ nope', '[]', '"text"', '{"env":[]}', '{"env":null}', '{"env":"x"}'])(
+    'unreadable file %s: left untouched and reported as unreadable',
+    async (text) => {
+      await seed(text);
+      expect(await disableUsageEnv({ path, written: ours })).toEqual({
+        path,
+        removed: [],
+        unreadable: true,
+      });
+      expect(await readFile(path, 'utf8')).toBe(text);
+    },
+  );
 
   it('removes only unchanged own keys and keeps everything else', async () => {
     await seed('{"model":"opus","env":{"FOO":"bar"},"theme":"dark"}');
@@ -285,5 +303,31 @@ describe('disableUsageEnv', () => {
     await enable();
     await disableUsageEnv({ path, written: ours });
     expect(await load()).toEqual({});
+  });
+});
+
+// S3e review #4: a dotfiles symlink stays a symlink; javi writes the file it points to.
+describe('symlinked settings', () => {
+  it('enable and disable write the target and keep the link; the backup sits next to the link', async () => {
+    const dotfile = join(home, 'dotfiles', 'claude-settings.json');
+    await mkdir(join(home, 'dotfiles'), { recursive: true });
+    await writeFile(dotfile, '{"model":"opus"}\n');
+    await mkdir(join(home, '.claude'), { recursive: true });
+    await symlink(dotfile, path);
+
+    const r = await enable();
+    expect(r).toMatchObject({ ok: true, path, backup: backupPath() });
+    expect((await lstat(path)).isSymbolicLink()).toBe(true);
+    expect(JSON.parse(await readFile(dotfile, 'utf8'))).toEqual({ model: 'opus', env: ours });
+    expect(await readFile(backupPath(), 'utf8')).toBe('{"model":"opus"}\n');
+    expect((await lstat(backupPath())).isSymbolicLink()).toBe(false);
+
+    const off = await disableUsageEnv({ path, written: ours });
+    expect(off.removed.sort()).toEqual([...USAGE_ENV_KEYS].sort());
+    expect((await lstat(path)).isSymbolicLink()).toBe(true);
+    expect(JSON.parse(await readFile(dotfile, 'utf8'))).toEqual({ model: 'opus' });
+    // No temp file is left in either directory.
+    expect((await readdir(join(home, 'dotfiles'))).filter((f) => f.endsWith('.tmp'))).toEqual([]);
+    expect((await readdir(join(home, '.claude'))).filter((f) => f.endsWith('.tmp'))).toEqual([]);
   });
 });

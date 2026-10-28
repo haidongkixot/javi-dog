@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { mkdir, readFile, readlink, realpath, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { writeJsonPrivate } from './state.ts';
 
 // Opt-in edit of Claude Code's user settings `env` (`~/.claude/settings.json`) to export
@@ -88,6 +88,27 @@ const load = async (path: string): Promise<Loaded> => {
 };
 
 /**
+ * The file a write must replace: a symlinked settings file (dotfiles) is written through, so the
+ * link stays a link. A dangling link resolves to where it points.
+ */
+const writeTarget = async (path: string): Promise<string> => {
+  try {
+    return await realpath(path);
+  } catch (e) {
+    if ((e as { code?: string }).code !== 'ENOENT') throw e;
+  }
+  try {
+    return resolve(dirname(path), await readlink(path));
+  } catch {
+    return path; // no file and no link: create it at path
+  }
+};
+
+/** Atomic write (temp file in the target's directory + rename onto the target). */
+const writeSettings = async (path: string, value: unknown) =>
+  writeJsonPrivate(await writeTarget(path), value);
+
+/**
  * Backs the file up once (`settings.json.javi-backup`), then merges `usageEnv` into `env`.
  * Refuses, changing nothing, when the file cannot be parsed, is not an object, or when any
  * `CLAUDE_CODE_ENABLE_TELEMETRY` / `OTEL_*` key is already set — in the file with a value
@@ -134,19 +155,30 @@ export const enableUsageEnv = async (opts: {
     await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   }
 
-  await writeJsonPrivate(path, { ...settings, env: { ...env, ...next } });
+  await writeSettings(path, { ...settings, env: { ...env, ...next } });
   return { ok: true, path, backup, written: next };
 };
+
+export interface DisableResult {
+  path: string;
+  removed: string[];
+  /**
+   * The file exists but is unparsable, not an object, or its `env` is not an object: nothing
+   * was removed, and the keys javi wrote may still be there until the user fixes the file.
+   */
+  unreadable?: true;
+}
 
 /** Removes the keys in `written` whose value is unchanged; returns the removed keys. */
 export const disableUsageEnv = async (opts: {
   path: string;
   written: Record<string, string>;
-}): Promise<{ path: string; removed: string[] }> => {
+}): Promise<DisableResult> => {
   const { path, written } = opts;
   const loaded = await load(path);
   // Missing, unparsable or foreign-shaped files are left exactly as they are.
-  if (loaded.kind !== 'ok') return { path, removed: [] };
+  if (loaded.kind === 'missing') return { path, removed: [] };
+  if (loaded.kind !== 'ok') return { path, removed: [], unreadable: true };
 
   const env = { ...loaded.env };
   const removed: string[] = [];
@@ -161,6 +193,6 @@ export const disableUsageEnv = async (opts: {
   const settings = { ...loaded.settings };
   if (Object.keys(env).length) settings.env = env;
   else delete settings.env;
-  await writeJsonPrivate(path, settings);
+  await writeSettings(path, settings);
   return { path, removed };
 };
