@@ -53,3 +53,4 @@ S3 proves the signal path: collectors send JGR batches (spec v0.1 §8) to `POST 
   - **Rate window (H6):** the window start comes from the database clock (`date_trunc('minute', now())`), so instances with skewed clocks share one window.
   - **Insert order (H5):** rows are sorted by (`producer_id`, `event_id`) before the insert so concurrent overlapping batches take locks in one order.
   - **Purge (H3, ADR-0009):** bounded batches of 5 000 within a ~20 s budget; the response reports `{ deleted, batches, complete }`.
+- 2026-10-28 (S4c, ADR-0014): the retention cutoff keeps the whole current UTC month — `min(now − 30 days, start of the current UTC month)`, at most 31 days — so budget month-to-date spend is never undercounted on day 31.

@@ -2,7 +2,7 @@
   "name": "@javis-dog/notify",
   "version": "0.1.0",
   "private": true,
-  "description": "JD-M09 — transactional email via Resend (welcome email); alerts later",
+  "description": "JD-M09 — transactional email via Resend: welcome email and budget alerts",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

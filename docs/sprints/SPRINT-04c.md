@@ -18,11 +18,11 @@
 
 | # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| M2 | Tables + migration 0005 | JD-M12, JD-M06 | `project_budgets`, `budget_alerts` | Composite FK (project, workspace); limit check; unique alert key; up/down tested | Done (code) |
-| B1 | Budget logic + repository; retention keeps the current month | JD-M12, JD-M06 | `forecastSpend`, `crossedThreshold`, `utcMonth`, `createBudgetRepository`; `retentionCutoff` | ADR-0014 rules; claim exactly once (concurrency test); retry failed/stale pending ≤ 5; covered lower threshold | Planned |
-| B2 | Alert email + ingest hook + route wiring | JD-M09, JD-M05, JD-APP | `budgetAlertEmail`, `sendBudgetAlertEmail`; handler `onStored`; route `after()` | Email L0 + "estimated"; hook only when usage stored for the project; send → markAlert; errors logged by name | Planned |
-| B3 | Budget UI | JD-APP | repository → Project detail budget card + server actions; Projects list column | Owners/admins edit (validated), members read-only; percent with text; forecast or "too early"; alerts this month | Planned |
-| Q3 | Budget vectors (QA, independent) | docs | `docs/jgr/conformance/budgets/*.json` | From ADR-0014 only | Planned |
+| M2 | Tables + migration 0005 | JD-M12, JD-M06 | `project_budgets`, `budget_alerts` | Composite FK (project, workspace); limit check; unique alert key; up/down tested | Done |
+| B1 | Budget logic + repository; retention keeps the current month | JD-M12, JD-M06 | `forecastSpend`, `crossedThreshold`, `utcMonth`, `createBudgetRepository`; `retentionCutoff` | ADR-0014 rules; claim exactly once (concurrency test); retry failed/stale pending ≤ 5; covered lower threshold | Done |
+| B2 | Alert email + ingest hook + route wiring | JD-M09, JD-M05, JD-APP | `budgetAlertEmail`, `sendBudgetAlertEmail`; handler `onStored`; route `after()` | Email L0 + "estimated"; hook only when usage stored for the project; send → markAlert; errors logged by name | Done |
+| B3 | Budget UI | JD-APP | repository → Project detail budget card + server actions; Projects list column | Owners/admins edit (validated), members read-only; percent with text; forecast or "too early"; alerts this month | Done |
+| Q3 | Budget vectors (QA, independent) | docs | `docs/jgr/conformance/budgets/*.json` | From ADR-0014 only | Done |
 
 ## Review focus
 
@@ -46,11 +46,18 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Orchestrator — Merged B2 (`bfddbfa`), B3 (`972965c`; one file outside its declared paths, `components/dashboard/projects-table.tsx` +7 lines, the only place the Budget column could go — accepted, logged), Q3 (`419139f`). Gate: docs:check caught a stale module registry (notify provides) — regenerated. Runner for the budget vectors delegated to a fresh lane (independent of B1).
+- 2026-10-28 — Orchestrator — Real-Postgres concurrency check on `dev-agent` (throwaway script, ephemeral workspace, cascade cleanup, no email): 5 parallel claims → 1 job at 100 %, 80 % covered. Closes B1's caveat that PGlite serializes queries.
+- 2026-10-28 — QA — 25 vectors, A1–A16.
+- 2026-10-28 — Developer C — B3: budget card, form (owners/admins), Budget column; 65 tests; percent rounds down (79.99 % → "79 %").
+- 2026-10-28 — Developer B — B2: `sendEmail`, budget template, one email per recipient, `onStored` hook, `after()` wiring; notify 14, ingest 78 (conformance 43/43), web 223.
+- 2026-10-28 — Developer A — B1: budget arithmetic (exact micro-dollars), repository, retention cutoff; resilience 26, event-store 76; mutation (no ON CONFLICT) → 6 FAIL.
+- 2026-10-28 — Orchestrator — Migration 0005 applied to `dev-agent` after deploy `025e35d` READY (smoke 10/10, 6 migrations). Production `/api/health` checks from this sandbox failed intermittently with TLS `SSL_ERROR_SYSCALL` (sandbox egress); successful checks showed health ok, Vercel runtime errors (6 h): none.
 - 2026-10-28 — Orchestrator — Owner decisions (monthly USD per project; on ingest; owners at 80 %/100 %). ADR-0014. Found: 30-day retention would undercount month-to-date spend on day 31 → cutoff keeps the current UTC month (ADR-0008 change, flagged to owner). Tables with a composite FK (project, workspace) after catching that a plain FK allowed a cross-workspace budget row; migration 0005 + rollback + tests (event-store 48). Screenshot budget 0.
 
 ## Log
 
-- 2026-10-28 — Sprint start (plan, scaffold, migration 0005 code).
+- 2026-10-28 — Sprint start (plan, scaffold, migration 0005 code); pushed `025e35d` (CI 40680524099 PASS), `fd61ca5` (CI 40681669775 PASS).
 
 ## Test evidence
 
@@ -58,6 +65,11 @@ Team log, newest first:
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | `vitest run` (event-store, after 0005) | 0 | — | 48 | 0 | 0 | 0 | 0 | incl. cross-workspace refusal |
 | `db:generate` drift after 0005 | 0 | — | no changes | — | — | — | — | — |
+| `db:migrate` 0005 + `db:smoke` (dev-agent) | 0 | — | 10 | 0 | 0 | 0 | 0 | 6 migrations |
+| Real-Postgres parallel claims (dev-agent, throwaway) | 0 | — | 1 job of 5 | 0 | 0 | 0 | 0 | cleaned up |
+| Lanes (resilience 26, event-store 76, notify 14, ingest 78, web 284) | 0 | — | all | 0 | 0 | 0 | 0 | 2 runs each |
+| Full gate after merges (`format`/`lint`/`typecheck`/`test`/`build`) | 0 | — | 1037 | 0 | 0 | 0 | 0 | docs:check failed first (stale registry) → fixed |
+| Real alert email to the owner | — | — | — | — | — | — | 1 | owner's first real run with a budget |
 
 ## Decisions and deviations
 

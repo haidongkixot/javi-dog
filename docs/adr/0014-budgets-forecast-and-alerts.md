@@ -24,3 +24,9 @@ Roadmap S4 "Resilience v1": budgets, a forecast and exhaustion alerts. Usage arr
 
 - Positive: alerts within seconds of crossing, no scheduler or secret; idempotent across concurrent ingests and retries.
 - Negative: no alert when no usage arrives (by design — spend cannot grow without reports); spend lags the export interval (~60 s); an email failure is retried only on the next usage report; one extra query on ingest batches with usage for budgeted projects.
+
+## Changes
+
+- 2026-10-28 (S4c implementation): thresholds compare exact integer micro-dollars; no verified owner → nothing is claimed (the next usage report claims once an owner is verified); `markAlert('failed')` only changes a `pending` row; 100 % covers a `pending`/`failed` 80 % row but never a `sent` one; `setBudget` on another workspace's project throws `not_found`, `clearBudget` there is a no-op; `onStored` fires for any batch with ≥ 1 valid `usage.reported` (also duplicates — claims are idempotent); without `RESEND_API_KEY`/`EMAIL_FROM`/`BETTER_AUTH_URL` no hook is wired and nothing is claimed; one email per recipient (owners never see each other's address).
+- Known limitation: when one owner's email fails, the alert is `failed` and its retry re-sends to owners who already received it (duplicate emails possible, at most 5 attempts). Per-recipient delivery state is a follow-up. Resend rate limits are UNVERIFIED for workspaces with many owners.
+- Verified on real Postgres (`dev-agent`, ephemeral workspace, cleaned up): 5 parallel `claimAlert` over separate connections → exactly 1 job (100 %), 80 % recorded `covered`.
