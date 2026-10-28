@@ -110,29 +110,43 @@ describe('parseOtlpMetrics — privacy allowlist', () => {
     }
   });
 
-  it('does not read session.id or model from resource attributes', () => {
-    const body = {
-      resourceMetrics: [
-        {
-          resource: { attributes: [str('session.id', 'sess-1'), str('model', 'm')] },
-          scopeMetrics: [
-            {
-              metrics: [
-                metric(TOKEN_METRIC, [
-                  {
-                    attributes: [str('type', 'input')],
-                    startTimeUnixNano: START,
-                    timeUnixNano: END,
-                    asInt: 1,
-                  },
-                ]),
-              ],
-            },
-          ],
-        },
-      ],
-    };
+  const withResource = (resourceAttrs: unknown[], pointAttrs: unknown[]) => ({
+    resourceMetrics: [
+      {
+        resource: { attributes: resourceAttrs },
+        scopeMetrics: [
+          {
+            metrics: [
+              metric(TOKEN_METRIC, [
+                { attributes: pointAttrs, startTimeUnixNano: START, timeUnixNano: END, asInt: 1 },
+              ]),
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  it('never reads model or type from resource attributes', () => {
+    const body = withResource(
+      [str('session.id', 'sess-1'), str('model', 'm'), str('type', 'input')],
+      [],
+    );
     expect(parse(body)).toEqual({ ok: true, points: [], ignored: 1 });
+  });
+
+  it('falls back to the resource session.id only when the data point has none', () => {
+    const fromResource = parse(
+      withResource([str('session.id', 'sess-r')], [str('type', 'input'), str('model', 'm')]),
+    );
+    expect(fromResource.points.map((p) => p.sessionId)).toEqual(['sess-r']);
+    const pointWins = parse(
+      withResource(
+        [str('session.id', 'sess-r')],
+        [str('session.id', 'sess-p'), str('type', 'input'), str('model', 'm')],
+      ),
+    );
+    expect(pointWins.points.map((p) => p.sessionId)).toEqual(['sess-p']);
   });
 });
 

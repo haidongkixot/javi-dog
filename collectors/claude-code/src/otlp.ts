@@ -99,9 +99,14 @@ const toPoint = (
   metricName: string,
   point: unknown,
   temporality: UsagePoint['temporality'],
+  resourceSessionId: string | undefined,
 ): UsagePoint | null => {
   if (!isObj(point)) return null;
-  const { sessionId, model, type } = pickAttributes(point.attributes);
+  const picked = pickAttributes(point.attributes);
+  const { model, type } = picked;
+  // The docs do not say whether standard attributes sit on the data point or the resource
+  // block, so `session.id` falls back to the resource (S3e merge; `model`/`type` do not).
+  const sessionId = picked.sessionId ?? resourceSessionId;
   if (!sessionId || !model || model.length > MAX_MODEL_LENGTH) return null;
 
   const counter: UsageCounter | undefined =
@@ -153,6 +158,8 @@ export const parseOtlpMetrics = (body: unknown): ParseResult => {
 
   for (const resourceMetrics of body.resourceMetrics) {
     if (!isObj(resourceMetrics)) continue;
+    const resource = isObj(resourceMetrics.resource) ? resourceMetrics.resource : {};
+    const resourceSessionId = pickAttributes(resource.attributes).sessionId;
     for (const scopeMetrics of list(resourceMetrics.scopeMetrics)) {
       if (!isObj(scopeMetrics)) continue;
       for (const metric of list(scopeMetrics.metrics)) {
@@ -170,7 +177,7 @@ export const parseOtlpMetrics = (body: unknown): ParseResult => {
           continue;
         }
         for (const dataPoint of dataPoints) {
-          const point = toPoint(name, dataPoint, temporality);
+          const point = toPoint(name, dataPoint, temporality, resourceSessionId);
           if (point) points.push(point);
           else ignored += 1;
         }
