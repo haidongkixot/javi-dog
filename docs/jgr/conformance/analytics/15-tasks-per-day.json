@@ -1,0 +1,205 @@
+{
+  "$schema": "./schema.json",
+  "description": "tasksCompleted / tasksFailed count task.completed / task.failed per UTC day; task.started, error and agent.stopped with status failed are not task outcomes; a task outside the range is excluded; without usage reports all usage fields stay 0 and lastReportAt is null.",
+  "contract": "ADR-0013 Decision outcome: Read model (\"task.completed / task.failed counts per day\"); spec \u00a74",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15a",
+      "type": "task.completed",
+      "sequence": 1,
+      "receivedOffsetMs": -187200000,
+      "receivedAtUtc": "2026-10-26T08:00:00.000Z",
+      "attributes": {
+        "tool_name": "Edit"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15a",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -183600000,
+      "receivedAtUtc": "2026-10-26T09:00:00.000Z",
+      "attributes": {
+        "tool_name": "Edit"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t15b",
+      "type": "task.failed",
+      "sequence": 1,
+      "receivedOffsetMs": -180000000,
+      "receivedAtUtc": "2026-10-26T10:00:00.000Z",
+      "attributes": {
+        "tool_name": "Bash",
+        "exit_code": 1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15c",
+      "type": "task.started",
+      "sequence": 1,
+      "receivedOffsetMs": -190800000,
+      "receivedAtUtc": "2026-10-26T07:00:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15c",
+      "type": "task.started",
+      "sequence": 2,
+      "receivedOffsetMs": -185400000,
+      "receivedAtUtc": "2026-10-26T08:30:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15c",
+      "type": "task.started",
+      "sequence": 3,
+      "receivedOffsetMs": -181800000,
+      "receivedAtUtc": "2026-10-26T09:30:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t15b",
+      "type": "task.failed",
+      "sequence": 2,
+      "receivedOffsetMs": -43200001,
+      "receivedAtUtc": "2026-10-27T23:59:59.999Z"
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t15b",
+      "type": "task.completed",
+      "sequence": 3,
+      "receivedOffsetMs": -43200000,
+      "receivedAtUtc": "2026-10-28T00:00:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15a",
+      "type": "task.completed",
+      "sequence": 3,
+      "receivedOffsetMs": -14400000,
+      "receivedAtUtc": "2026-10-28T08:00:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15a",
+      "type": "error",
+      "sequence": 4,
+      "receivedOffsetMs": -12600000,
+      "receivedAtUtc": "2026-10-28T08:30:00.000Z",
+      "attributes": {
+        "error_code": "E_TOOL"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15d",
+      "agent_ref": "ag_q15",
+      "type": "agent.stopped",
+      "status": "failed",
+      "sequence": 1,
+      "receivedOffsetMs": -10800000,
+      "receivedAtUtc": "2026-10-28T09:00:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t15e",
+      "type": "task.completed",
+      "sequence": 1,
+      "receivedOffsetMs": -1166400001,
+      "receivedAtUtc": "2026-10-14T23:59:59.999Z"
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "days": [
+      {
+        "date": "2026-10-26",
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 0,
+        "tasksCompleted": 2,
+        "tasksFailed": 1
+      },
+      {
+        "date": "2026-10-27",
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 0,
+        "tasksCompleted": 0,
+        "tasksFailed": 1
+      },
+      {
+        "date": "2026-10-28",
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 0,
+        "tasksCompleted": 2,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 0,
+      "tasksCompleted": 4,
+      "tasksFailed": 2
+    },
+    "byModelLength": 0,
+    "byModel": [],
+    "lastReportOffsetMs": null,
+    "absentStrings": []
+  }
+}

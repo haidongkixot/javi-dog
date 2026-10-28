@@ -1,0 +1,156 @@
+{
+  "$schema": "./schema.json",
+  "description": "Days and lastReportAt use received_at, not the producer clock: a spooled report (occurred yesterday 23:50, received 00:10) is today; a clock-ahead report (occurred 00:02, received 23:59 the day before) is yesterday; a report that occurred before the range but was received inside it counts; lastReportAt is the newest received, not the newest occurred (AMBIGUOUS A2).",
+  "contract": "ADR-0013 Decision outcome: Read model (per UTC day, lastReportAt); types.ts lastReportAt \"Newest usage.reported received in the range\"; spec \u00a710",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -42600000,
+      "receivedAtUtc": "2026-10-28T00:10:00.000Z",
+      "occurredOffsetMs": -43800000,
+      "usage_delta": {
+        "input_tokens": 1,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -43260000,
+      "receivedAtUtc": "2026-10-27T23:59:00.000Z",
+      "occurredOffsetMs": -43080000,
+      "usage_delta": {
+        "input_tokens": 10,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10c",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -172800000,
+      "receivedAtUtc": "2026-10-26T12:00:00.000Z",
+      "occurredOffsetMs": -1728000000,
+      "usage_delta": {
+        "input_tokens": 100,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10d",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -600000,
+      "receivedAtUtc": "2026-10-28T11:50:00.000Z",
+      "occurredOffsetMs": -3660000,
+      "usage_delta": {
+        "input_tokens": 1000,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10d",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1800000,
+      "receivedAtUtc": "2026-10-28T11:30:00.000Z",
+      "occurredOffsetMs": -1680000,
+      "usage_delta": {
+        "input_tokens": 10000,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10e",
+      "type": "task.completed",
+      "sequence": 1,
+      "receivedOffsetMs": -43320000,
+      "receivedAtUtc": "2026-10-27T23:58:00.000Z",
+      "occurredOffsetMs": -43140000
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "days": [
+      {
+        "date": "2026-10-26",
+        "inputTokens": 100,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-10-27",
+        "inputTokens": 10,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 1,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-10-28",
+        "inputTokens": 11001,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 3,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 11111,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 5,
+      "tasksCompleted": 1,
+      "tasksFailed": 0
+    },
+    "lastReportOffsetMs": -600000,
+    "absentStrings": []
+  }
+}

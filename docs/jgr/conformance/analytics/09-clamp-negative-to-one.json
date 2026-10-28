@@ -1,0 +1,79 @@
+{
+  "$schema": "./schema.json",
+  "description": "days = -3 is clamped to 1 (lower bound of the 1-30 clamp), never an empty or reversed range.",
+  "contract": "ADR-0013 Decision outcome: Read model (\"days is clamped to 1-30\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t09",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 3,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t09",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -180000000,
+      "receivedAtUtc": "2026-10-26T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 30,
+        "model": "claude-opus-5-5"
+      }
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": -3
+  },
+  "expect": {
+    "from": "2026-10-28",
+    "to": "2026-10-28",
+    "daysLength": 1,
+    "days": [
+      {
+        "date": "2026-10-28",
+        "inputTokens": 3,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      }
+    ],
+    "totals": {
+      "inputTokens": 3,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 1,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "lastReportOffsetMs": -7200000,
+    "absentStrings": []
+  }
+}

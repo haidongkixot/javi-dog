@@ -1,0 +1,122 @@
+{
+  "$schema": "./schema.json",
+  "description": "projectId of a project in another workspace (same slug web as a project of the queried workspace) yields nothing: zero-filled days, zero totals and tasks, empty byModel and byProject, lastReportAt null; neither workspace's data appears (AMBIGUOUS A10).",
+  "contract": "ADR-0013 Decision outcome: Read model (\"a project of another workspace yields nothing\"); SPRINT-04b Review focus (\"projectId of another workspace -> empty result\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app A19"
+        }
+      ]
+    },
+    "B": {
+      "name": "Workspace B",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "B19 web marker"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_a19",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -93600000,
+      "receivedAtUtc": "2026-10-27T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 111,
+        "output_tokens": 11,
+        "cost_usd": 0.11,
+        "model": "x-a19-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_a19",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -91800000,
+      "receivedAtUtc": "2026-10-27T10:30:00.000Z"
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b19",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 999,
+        "output_tokens": 99,
+        "cost_usd": 0.99,
+        "model": "x-b19-model"
+      }
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b19",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -5400000,
+      "receivedAtUtc": "2026-10-28T10:30:00.000Z"
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b19",
+      "type": "task.failed",
+      "sequence": 3,
+      "receivedOffsetMs": -4800000,
+      "receivedAtUtc": "2026-10-28T10:40:00.000Z"
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14,
+    "foreignProject": {
+      "workspace": "B",
+      "slug": "web"
+    }
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 0,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "byModelLength": 0,
+    "byModel": [],
+    "byProjectLength": 0,
+    "byProject": [],
+    "lastReportOffsetMs": null,
+    "absentStrings": [
+      "x-a19-model",
+      "x-b19-model",
+      "B19 web marker",
+      "Web app A19",
+      "$PROJECT_ID:A:web",
+      "$PROJECT_ID:B:web"
+    ]
+  }
+}

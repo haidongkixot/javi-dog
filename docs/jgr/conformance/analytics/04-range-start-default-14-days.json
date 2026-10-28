@@ -1,0 +1,125 @@
+{
+  "$schema": "./schema.json",
+  "description": "days omitted defaults to 14 whole UTC days (2026-10-15..2026-10-28): 00:00:00.000 of the first day is included; 23:59:59.999 of the day before, exactly now - 14 x 24 h, and later on that day are excluded (AMBIGUOUS A3).",
+  "contract": "ADR-0013 Decision outcome: Read model (days = 14 default, per UTC day, zero-filled)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "usage.reported",
+      "sequence": 4,
+      "receivedOffsetMs": -1166400000,
+      "receivedAtUtc": "2026-10-15T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1000,
+        "output_tokens": 100,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -1166400001,
+      "receivedAtUtc": "2026-10-14T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 2000,
+        "output_tokens": 200,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1209600000,
+      "receivedAtUtc": "2026-10-14T12:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 4000,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -1206000000,
+      "receivedAtUtc": "2026-10-14T13:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 8000,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04b",
+      "type": "task.failed",
+      "sequence": 1,
+      "receivedOffsetMs": -1166400001,
+      "receivedAtUtc": "2026-10-14T23:59:59.999Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t04b",
+      "type": "task.failed",
+      "sequence": 2,
+      "receivedOffsetMs": -1166400000,
+      "receivedAtUtc": "2026-10-15T00:00:00.000Z"
+    }
+  ],
+  "query": {
+    "workspace": "A"
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "days": [
+      {
+        "date": "2026-10-15",
+        "inputTokens": 1000,
+        "outputTokens": 100,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 1
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 1000,
+      "outputTokens": 100,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 1,
+      "tasksCompleted": 0,
+      "tasksFailed": 1
+    },
+    "lastReportOffsetMs": -1166400000,
+    "absentStrings": []
+  }
+}

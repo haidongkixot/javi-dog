@@ -1,0 +1,195 @@
+{
+  "$schema": "./schema.json",
+  "description": "Reports and tokens add up across threads and projects of the workspace per day; reports is the number of usage.reported events.",
+  "contract": "ADR-0013 Decision outcome: Read model (report count, totals by project)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -187200000,
+      "receivedAtUtc": "2026-10-26T08:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 10,
+        "output_tokens": 1,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -183600000,
+      "receivedAtUtc": "2026-10-26T09:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 20,
+        "output_tokens": 2,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -180000000,
+      "receivedAtUtc": "2026-10-26T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 30,
+        "output_tokens": 3,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t14c",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -176400000,
+      "receivedAtUtc": "2026-10-26T11:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 40,
+        "output_tokens": 4,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t14c",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -126000000,
+      "receivedAtUtc": "2026-10-27T01:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 50,
+        "output_tokens": 5,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t14d",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -36000000,
+      "receivedAtUtc": "2026-10-28T02:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 60,
+        "output_tokens": 6,
+        "model": "claude-opus-5-5"
+      }
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "days": [
+      {
+        "date": "2026-10-26",
+        "inputTokens": 100,
+        "outputTokens": 10,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 4,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-10-27",
+        "inputTokens": 50,
+        "outputTokens": 5,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-10-28",
+        "inputTokens": 60,
+        "outputTokens": 6,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 210,
+      "outputTokens": 21,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 6,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "byModelLength": 1,
+    "byModel": [
+      {
+        "model": "claude-opus-5-5",
+        "inputTokens": 210,
+        "outputTokens": 21,
+        "reports": 6
+      }
+    ],
+    "byProjectLength": 2,
+    "byProjectOrder": ["api", "web"],
+    "byProject": [
+      {
+        "slug": "api",
+        "inputTokens": 150,
+        "outputTokens": 15,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 3
+      },
+      {
+        "slug": "web",
+        "inputTokens": 60,
+        "outputTokens": 6,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 3
+      }
+    ],
+    "lastReportOffsetMs": -36000000,
+    "absentStrings": []
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "./schema.json",
+  "description": "A workspace without projects returns 14 zero-filled days and empty breakdowns while workspace B has usage and tasks today; nothing of B appears.",
+  "contract": "ADR-0013 Decision outcome: Read model (workspaceId, zero-filled); SPRINT-04b Global constraints (Workspace isolation)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": []
+    },
+    "B": {
+      "name": "Workspace B",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "B23 web marker"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b23",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 321,
+        "output_tokens": 12,
+        "cost_usd": 0.5,
+        "model": "x-b23-model"
+      }
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b23",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -6900000,
+      "receivedAtUtc": "2026-10-28T10:05:00.000Z"
+    }
+  ],
+  "query": {
+    "workspace": "A"
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 0,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "byModelLength": 0,
+    "byModel": [],
+    "byProjectLength": 0,
+    "byProject": [],
+    "lastReportOffsetMs": null,
+    "absentStrings": ["x-b23-model", "B23 web marker", "$PROJECT_ID:B:web"]
+  }
+}
