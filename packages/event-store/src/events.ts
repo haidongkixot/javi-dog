@@ -55,6 +55,8 @@ export const events = pgTable(
     ),
     index('events_project_thread_received_idx').on(t.projectId, t.threadRef, t.receivedAt),
     index('events_received_idx').on(t.receivedAt),
+    // Workspace-wide reads over a time window: dashboard snapshot and analytics (ADR-0013).
+    index('events_workspace_received_idx').on(t.workspaceId, t.receivedAt),
     check('events_privacy_class_check', sql`${t.privacyClass} in ('L0', 'L1', 'L2')`),
   ],
 );

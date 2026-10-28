@@ -1,0 +1,10 @@
+{
+  "id": "JD-M08",
+  "name": "@javis-dog/analytics",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Usage analytics (ADR-0013): per-UTC-day tokens, estimated cost and task outcomes, by model and by project, workspace-scoped from stored JGR events.",
+  "owner": "platform",
+  "provides": ["createAnalyticsReader()", "UsageAnalytics", "ANALYTICS_DEFAULT_DAYS"],
+  "consumes": ["JD-M06", "JD-M04"]
+}

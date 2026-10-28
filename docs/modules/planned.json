@@ -1,13 +1,5 @@
 [
   {
-    "id": "JD-M08",
-    "name": "@javis-dog/analytics",
-    "path": "packages/analytics",
-    "status": "planned",
-    "sprint": "S4",
-    "description": "Effectiveness metrics and model comparison"
-  },
-  {
     "id": "JD-M10",
     "name": "@javis-dog/github-bridge",
     "path": "packages/github-bridge",

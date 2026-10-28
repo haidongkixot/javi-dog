@@ -29,6 +29,13 @@
       "when": 1793148277236,
       "tag": "0003_jd_m06_canonical_event_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793171199403,
+      "tag": "0004_jd_m06_workspace_received_idx",
+      "breakpoints": true
     }
   ]
 }

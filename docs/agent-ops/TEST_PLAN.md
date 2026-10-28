@@ -220,3 +220,17 @@ Written before the lanes start. Risk: **HIGH** — tenant isolation on a new rea
 | Hook: 10 s while visible, paused when hidden, failure keeps data + notice | Medium | Component (jsdom, fake timers) | fetch call count; visibilitychange; notice text | No |
 | Pages: values with last-signal time and stale/ended labels; empty states; attention visible; no "live" wording | High | Component (jsdom) | role/name queries; `not.toMatch(/\blive\b/i)` on values | No |
 | Real data on production | — | Runtime (owner's first real run) | dashboard shows the session | NOT RUN until then |
+
+## S4b — Usage analytics (2026-10-28)
+
+Written before the lanes start. Risk: **MEDIUM-HIGH** — money-like numbers (estimated cost), tenant isolation on a new read path, a production index migration. Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| UTC day bucketing incl. 23:59:59.999 / 00:00:00.000, zero-filled range, clamp 1–30 | High | Integration (PGlite) | seeded events, pinned `now` | QA vectors |
+| Sums: tokens exact, cost summed (float tolerance), reports count, only `usage.reported`; tasks completed/failed per day | High | Integration (PGlite) | seeded events | QA vectors |
+| By model (null model bucket) / by project; sort | Medium | Integration (PGlite) | seeded events | QA vectors |
+| Isolation incl. foreign `projectId` | High | Integration (PGlite) | two workspaces; JSON has nothing of B | QA vectors |
+| Migration 0004 up/down + drift | Medium | Integration (PGlite) + static | `migrations.test.ts`, `db:generate` | `dev-agent` apply + `db:smoke` |
+| Chart + table equivalent, estimated label, empty state, UTC label | High | Component (jsdom) | role/name queries; every cost text has "estimated" | No |
+| Project page shows only its project's usage | Medium | Component + lib unit (injected reader) | projectId passed from the scoped project | No |

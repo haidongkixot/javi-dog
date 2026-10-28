@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   // Workspace modules ship TypeScript source (ADR-0001).
   transpilePackages: [
     '@javis-dog/ui',
+    '@javis-dog/analytics',
     '@javis-dog/event-store',
     '@javis-dog/identity',
     '@javis-dog/ingest',

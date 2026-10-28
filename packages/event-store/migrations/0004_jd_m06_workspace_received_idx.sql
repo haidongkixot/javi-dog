@@ -1,0 +1,1 @@
+CREATE INDEX "events_workspace_received_idx" ON "events" USING btree ("workspace_id","received_at");

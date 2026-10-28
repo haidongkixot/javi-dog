@@ -24,15 +24,20 @@ const ALL_TABLES = [
   'workspaces',
 ];
 
-describe('migrations 0000–0003', () => {
+describe('migrations 0000–0004', () => {
   it('creates the JD-M04, JD-M03 and JD-M06 tables and records every migration', async () => {
     const { client, db } = await freshDb();
     expect(await publicTables(client)).toEqual(ALL_TABLES);
-    expect((await pingDb(db)).migrationsApplied).toBe(4);
+    expect((await pingDb(db)).migrationsApplied).toBe(5);
   });
 
   it('rolls back with the committed down SQL (newest first) and re-applies cleanly', async () => {
     const { client, db } = await freshDb();
+    const index = `select 1 from pg_indexes where indexname = 'events_workspace_received_idx'`;
+    expect((await client.query(index)).rows).toHaveLength(1);
+    await client.exec(rollbackSql('0004'));
+    expect((await client.query(index)).rows).toHaveLength(0);
+    expect((await pingDb(db)).migrationsApplied).toBe(4);
     await client.exec(rollbackSql('0003'));
     expect((await pingDb(db)).migrationsApplied).toBe(3);
     const check = await client.query(
@@ -50,6 +55,7 @@ describe('migrations 0000–0003', () => {
     expect((await pingDb(db)).migrationsApplied).toBe(0);
     await migrate(db, { migrationsFolder });
     expect(await publicTables(client)).toEqual(ALL_TABLES);
+    expect((await client.query(index)).rows).toHaveLength(1);
   });
 
   it('reports 0 applied migrations on an empty database', async () => {
@@ -60,6 +66,7 @@ describe('migrations 0000–0003', () => {
 
   it('0003 refuses to apply while non-canonical ids exist (why the pre-check matters)', async () => {
     const { client, db } = await freshDb();
+    await client.exec(rollbackSql('0004'));
     await client.exec(rollbackSql('0003'));
     await client.exec(`insert into workspaces (name, slug) values ('W', 'w')`);
     await client.exec(
