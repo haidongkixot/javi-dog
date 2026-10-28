@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "smoke:live": "node scripts/live-smoke.ts"
+    "smoke:live": "node scripts/live-smoke.ts",
+    "load:test": "node scripts/load-test.ts"
   },
   "dependencies": {
     "@javis-dog/event-store": "workspace:*",

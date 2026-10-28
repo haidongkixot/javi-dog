@@ -16,7 +16,8 @@
     "test": "vitest run",
     "javi": "node src/cli.ts",
     "build": "node scripts/build.mjs",
-    "pack:cli": "node scripts/pack.mjs"
+    "pack:cli": "node scripts/pack.mjs",
+    "e2e:smoke": "node scripts/e2e-smoke.mjs"
   },
   "dependencies": {
     "@javis-dog/jgr-sdk": "workspace:*",
