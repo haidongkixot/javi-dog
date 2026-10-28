@@ -133,12 +133,12 @@ export default function IntegrationsPage() {
           <CardHead
             id="envelope-title"
             title="JGR event envelope"
-            subtitle="v0.1 draft · not a production API yet"
+            subtitle="JGR v0.1 · draft spec, accepted by the endpoint below"
           />
           <EndpointBlock
             method="POST"
             path="/api/v1/events"
-            note="Not live. Scoped integration token required once ingestion ships (Sprint 3)."
+            note="Accepts project ingest tokens (Bearer). Issue one on a project page, then run javi init in your repo. Your agents show up on the dashboards once their first signal arrives."
           />
           <RuleList items={envelope} />
         </Card>

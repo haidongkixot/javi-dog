@@ -50,3 +50,36 @@ export const readBoundedBody = async (request: Request, maxBytes: number): Promi
     return { ok: false, reason: 'bad_encoding' };
   }
 };
+
+/**
+ * Deepest container nesting a JGR batch body may use. A valid batch needs about 4
+ * (`{"events":[{"usage_delta":{…}}]}`); 32 leaves room without letting a producer send ~120 000
+ * levels inside the 256 KB limit, which parses but overflows the stack of anything that walks
+ * it afterwards (S5a review L3).
+ */
+export const MAX_JSON_DEPTH = 32;
+
+/**
+ * True when JSON text nests arrays/objects deeper than `maxDepth`. One linear pass over the
+ * text before `JSON.parse`; brackets inside strings (including escaped quotes) are ignored.
+ * Invalid JSON is left for `JSON.parse` to refuse.
+ */
+export const exceedsJsonDepth = (text: string, maxDepth: number = MAX_JSON_DEPTH): boolean => {
+  let depth = 0;
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (inString) {
+      // A backslash skips the escaped character; an unescaped quote ends the string.
+      if (c === 0x5c) i++;
+      else if (c === 0x22) inString = false;
+    } else if (c === 0x22) {
+      inString = true;
+    } else if (c === 0x5b || c === 0x7b) {
+      if (++depth > maxDepth) return true;
+    } else if (c === 0x5d || c === 0x7d) {
+      depth--;
+    }
+  }
+  return false;
+};

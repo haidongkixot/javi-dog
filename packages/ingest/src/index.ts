@@ -1,5 +1,5 @@
 // JD-M05 public contract. Import from '@javis-dog/ingest' only (ADR-0001).
-export { readBoundedBody, type BodyResult } from './body.ts';
+export { exceedsJsonDepth, MAX_JSON_DEPTH, readBoundedBody, type BodyResult } from './body.ts';
 export {
   createIngestDeps,
   createIngestHandler,

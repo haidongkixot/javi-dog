@@ -1,6 +1,28 @@
 import { gzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { readBoundedBody } from '../src/index.ts';
+import { exceedsJsonDepth, MAX_JSON_DEPTH, readBoundedBody } from '../src/index.ts';
+
+describe('exceedsJsonDepth (S5a review L3)', () => {
+  const nested = (n: number) => `${'['.repeat(n)}${']'.repeat(n)}`;
+
+  it('allows exactly MAX_JSON_DEPTH levels and refuses one more', () => {
+    expect(MAX_JSON_DEPTH).toBe(32);
+    expect(exceedsJsonDepth(nested(32))).toBe(false);
+    expect(exceedsJsonDepth(nested(33))).toBe(true);
+    expect(exceedsJsonDepth(`${'{"a":'.repeat(33)}1${'}'.repeat(33)}`)).toBe(true);
+  });
+
+  it('counts depth, not the number of containers', () => {
+    expect(exceedsJsonDepth(`[${'[],'.repeat(10_000)}[]]`, 2)).toBe(false);
+  });
+
+  it('ignores brackets inside strings, including after escaped quotes and backslashes', () => {
+    expect(exceedsJsonDepth(JSON.stringify({ s: '['.repeat(100) }), 2)).toBe(false);
+    expect(exceedsJsonDepth(JSON.stringify({ s: `\\"${'{'.repeat(100)}\\` }), 2)).toBe(false);
+    // An escaped backslash right before the closing quote really closes the string.
+    expect(exceedsJsonDepth(`{"s":"\\\\"}${'['.repeat(3)}`, 2)).toBe(true);
+  });
+});
 
 const req = (body: BodyInit | null, headers: Record<string, string> = {}) =>
   new Request('https://example.test/api/v1/events', { method: 'POST', body, headers });

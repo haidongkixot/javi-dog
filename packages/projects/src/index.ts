@@ -21,6 +21,8 @@ export {
 export {
   createProjectRepository,
   MAX_ACTIVE_TOKENS_PER_PROJECT,
+  MAX_PROJECTS_PER_WORKSPACE,
+  MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY,
   ProjectRepositoryError,
   type ProjectRepository,
   type ProjectRepositoryErrorCode,

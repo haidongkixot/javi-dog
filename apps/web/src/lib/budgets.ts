@@ -6,6 +6,7 @@ import {
 } from '@javis-dog/resilience';
 import { z } from 'zod';
 import { getDb } from './auth';
+import { canManageProject } from './permissions';
 import { getViewer } from './viewer';
 
 /** The part of the JD-M12 repository the web app uses (ADR-0014). */
@@ -56,9 +57,8 @@ export const budgetLimitSchema = z
       .lte(MAX_MONTHLY_LIMIT_USD, 'The limit can be at most 1,000,000.'),
   );
 
-/** Workspace roles that may set or clear a budget (ADR-0014); members read only. */
-export const canManageBudget = (role: string | null | undefined): boolean =>
-  role === 'owner' || role === 'admin';
+/** Workspace roles that may set or clear a budget (ADR-0014); same rule as projects. */
+export const canManageBudget = canManageProject;
 
 export type BudgetLoad =
   | { kind: 'not_configured' }

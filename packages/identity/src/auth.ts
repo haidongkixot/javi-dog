@@ -60,6 +60,26 @@ const authSchema = {
   invitation: identityTables.invitations,
 };
 
+/**
+ * Organization plugin = workspace membership (ADR-0006). Every user owns exactly one personal
+ * workspace, created by `ensurePersonalWorkspace` (direct DB, session hook) — not by the plugin.
+ * Invitations and role management are later work, so the plugin's own limits are closed and,
+ * below, every one of its HTTP endpoints is disabled (S5a review M2). Server-side calls
+ * (`auth.api.*`) and the plugin's schema/session field keep working.
+ */
+const workspacePlugin = () =>
+  organization({
+    allowUserToCreateOrganization: false,
+    organizationLimit: 1,
+    membershipLimit: 1,
+    invitationLimit: 0,
+    disableOrganizationDeletion: true,
+  });
+
+/** Every HTTP path the organization plugin mounts (`/organization/*`); all answer 404. */
+const disabledOrganizationPaths = (): string[] =>
+  Object.values(workspacePlugin().endpoints).map((endpoint) => endpoint.path);
+
 /** Server-side auth for JD-APP. `db` is any Drizzle Postgres handle with the composed schema. */
 export const createAuth = ({
   db,
@@ -95,7 +115,8 @@ export const createAuth = ({
         google: { clientId: env.GOOGLE_CLIENT_ID!, clientSecret: env.GOOGLE_CLIENT_SECRET! },
       }),
     },
-    plugins: [organization()],
+    plugins: [workspacePlugin()],
+    disabledPaths: disabledOrganizationPaths(),
     databaseHooks: {
       // Minimization (ADR-0006): the provider id_token carries name/email/avatar in plain
       // text and is never used; encryptOAuthTokens does not cover it, so it is not stored.

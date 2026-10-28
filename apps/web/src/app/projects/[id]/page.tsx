@@ -1,6 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import {
+  MAX_ACTIVE_TOKENS_PER_PROJECT,
+  MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY,
+} from '@javis-dog/projects';
 import { Card, CardHead, EmptyState, PageHead, StatusPill } from '@javis-dog/ui/components';
 import { revokeTokenAction } from '@/app/projects/actions';
 import { ProjectUsage } from '@/components/analytics/usage-panels';
@@ -9,6 +13,7 @@ import { SignInPrompt } from '@/components/sign-in-prompt';
 import { IssueTokenForm } from '@/components/token-panel';
 import { analyticsDeps, loadUsage } from '@/lib/analytics';
 import { budgetDeps, canManageBudget, loadBudget } from '@/lib/budgets';
+import { canManageProject } from '@/lib/permissions';
 import { getViewer, isUuid } from '@/lib/viewer';
 
 export const metadata: Metadata = { title: 'Project' };
@@ -36,6 +41,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     loadBudget({ ...budgetDeps, getViewer: async () => viewer }, project.id),
   ]);
 
+  // Owners and admins issue and revoke tokens; members read the list (S5a review L1).
+  const canManage = canManageProject(viewer.role);
+
   return (
     <>
       <PageHead
@@ -53,7 +61,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         <CardHead
           id="tokens-title"
           title="Ingest tokens"
-          subtitle="Collectors use a token to send JGR signals for this project. Up to 5 active."
+          subtitle={`Collectors use a token to send JGR signals for this project. Up to ${MAX_ACTIVE_TOKENS_PER_PROJECT} active, ${MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY} issued per day.`}
         />
         <div className="mt-4 overflow-x-auto">
           <table className="w-full border-collapse text-left text-sm whitespace-nowrap">
@@ -75,7 +83,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                 <tr>
                   <td colSpan={6}>
                     <EmptyState title="No tokens yet">
-                      Issue a token below. It is shown once, so keep it somewhere safe.
+                      {canManage
+                        ? 'Issue a token below. It is shown once, so keep it somewhere safe.'
+                        : 'A workspace owner or admin can issue one for this project.'}
                     </EmptyState>
                   </td>
                 </tr>
@@ -98,7 +108,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {t.revokedAt ? null : (
+                      {t.revokedAt || !canManage ? null : (
                         <form action={revokeTokenAction.bind(null, project.id)}>
                           <input type="hidden" name="tokenId" value={t.id} />
                           <button
@@ -116,7 +126,14 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             </tbody>
           </table>
         </div>
-        <IssueTokenForm projectId={project.id} />
+        {canManage ? (
+          <IssueTokenForm projectId={project.id} />
+        ) : (
+          <p className="px-5 pt-4 pb-5 text-xs text-muted">
+            Only workspace owners and admins can issue or revoke tokens. Ask one of them if a
+            collector needs a new token.
+          </p>
+        )}
       </Card>
       <Card labelledBy="project-usage-title">
         <CardHead

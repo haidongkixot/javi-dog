@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { MAX_PROJECTS_PER_WORKSPACE } from '@javis-dog/projects';
 import { Card, CardHead, PageHead } from '@javis-dog/ui/components';
 import { toBudgetCell } from '@/components/budget/budget-cell';
 import { CreateProjectForm } from '@/components/create-project-form';
@@ -6,6 +7,7 @@ import { ProjectsDashboard } from '@/components/dashboard/dashboards';
 import { SignInPrompt } from '@/components/sign-in-prompt';
 import { budgetDeps, loadBudgets } from '@/lib/budgets';
 import { dashboardDeps, loadDashboard } from '@/lib/dashboard';
+import { canManageProject } from '@/lib/permissions';
 import { getViewer } from '@/lib/viewer';
 
 export const metadata: Metadata = { title: 'Projects' };
@@ -51,9 +53,16 @@ export default async function ProjectsPage() {
             <CardHead
               id="create-project-title"
               title="Create a project"
-              subtitle="Projects belong to your workspace"
+              subtitle={`Projects belong to your workspace · up to ${MAX_PROJECTS_PER_WORKSPACE}`}
             />
-            <CreateProjectForm />
+            {canManageProject(viewer.role) ? (
+              <CreateProjectForm />
+            ) : (
+              <p className="px-5 pt-4 pb-5 text-xs text-muted">
+                Only workspace owners and admins can create projects. Ask one of them to add the
+                project you need.
+              </p>
+            )}
           </Card>
         </>
       )}
