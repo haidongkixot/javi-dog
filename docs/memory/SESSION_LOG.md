@@ -2,6 +2,14 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-27/28 · Session 2 (cloud), continued — S3 planning, parallel-work incident, S3d hardening
+
+- 2026-10-27: planned S3 with the Orcasus agent team (owner: roles, seeded smoke, 30-day cron retention, per-project HMAC refs) and built a parallel S3a locally — then found the owner's local session had already pushed S3a–S3c to the same branch (`8fd567c`…`5cc8ac0`, migration 0002 on dev-agent). Nothing of the parallel line was pushed or applied (its migration failed on the first statement); work kept on local `backup/s3a-parallel`.
+- Owner chose reconciliation **A** (owner line = baseline), named this cloud session the only pusher, asked to fix the audit's majors first, and chose a local OTLP receiver for S3e.
+- S3d: Developer, QA and Reviewer lanes per `TEAM.md`; H1–H6 + ports (TEAM.md, template Team section, worktree ignores, migration-recovery how-to); 43 HTTP conformance vectors + runner; reviewer findings fixed. Migration 0003 applied to dev-agent after a re-run pre-check (0 rows); production `98c7974` healthy (4 migrations), `smoke:live` 7/7.
+- CI on `98c7974` failed in `collectors/claude-code/test/process.test.ts` (read the state file before the flusher wrote it). Pre-existing: also red on `fe604d1`. Reproduced with a late-answering receiver, fixed the test (no product change), full gate 383 green locally; S3d closes when CI is green on the fix.
+- Next: owner items (`CRON_SECRET`, first real `javi init`, secret rotation), then S3e.
+
 ## 2026-10-23 · Session 3, continued — Sprint 3c (Claude Code collector)
 
 - Owner deferred `CRON_SECRET`; asked for S3c. A docs agent + direct fetch verified the Claude Code hook contract (events, fields, `async`, exec form, stdout/exit semantics, settings files).

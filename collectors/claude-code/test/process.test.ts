@@ -28,8 +28,12 @@ beforeAll(async () => {
         req.headers['content-encoding'] === 'gzip' ? gunzipSync(raw).toString() : raw.toString();
       const events = (JSON.parse(text) as { events: Array<{ type: string }> }).events;
       received.push({ auth: req.headers.authorization, types: events.map((e) => e.type) });
-      res.writeHead(202, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ accepted: events.length, duplicates: 0, rejected: [] }));
+      // Answer late on purpose: the batch is recorded before the flusher sees the 202, which
+      // keeps the ordering race below deterministic.
+      setTimeout(() => {
+        res.writeHead(202, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ accepted: events.length, duplicates: 0, rejected: [] }));
+      }, 200);
     });
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -61,9 +65,9 @@ const runHook = (stdin: string) =>
     child.stdin.end(stdin);
   });
 
-const waitFor = async (check: () => boolean, ms = 15_000) => {
+const waitFor = async (check: () => boolean | Promise<boolean>, ms = 15_000) => {
   const until = Date.now() + ms;
-  while (!check()) {
+  while (!(await check())) {
     if (Date.now() > until) throw new Error('timed out waiting for delivery');
     await new Promise((r) => setTimeout(r, 100));
   }
@@ -82,6 +86,9 @@ describe('javi hook as a real process', () => {
     expect(result).toMatchObject({ code: 0, stdout: '', stderr: '' });
     await waitFor(() => received.some((r) => r.types.includes('attention.requested')));
     expect(received[0]!.auth).toBe(`Bearer ${TOKEN}`);
+    // The receiver records the batch before it answers; the flusher writes its result only after
+    // reading that answer, so wait for the result instead of racing it (red CI on 98c7974).
+    await waitFor(async () => (await createState(home).lastFlush('web-app')) !== null);
     expect(await createState(home).lastFlush('web-app')).toMatchObject({ status: 'ok' });
   });
 

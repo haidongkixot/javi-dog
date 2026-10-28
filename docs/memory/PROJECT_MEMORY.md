@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-23 · Current sprint: **S3c — Claude Code collector** (built; waiting on the owner's first real `javi init`, `docs/sprints/SPRINT-03c.md`). S3b built, waiting on `CRON_SECRET`. Last closed: S3a. Last closed: S2c (`docs/sprints/SPRINT-02c.md`). Last closed: S2b (`docs/sprints/SPRINT-02b.md`). Last closed: S2a (`docs/sprints/SPRINT-02a.md`).
+> Last updated: 2026-10-28 · Current sprint: **S3e — OTLP usage (local receiver in the collector), `npx` packaging, G2** (not started). S3d — ingest hardening (`docs/sprints/SPRINT-03d.md`) is closing: CI was red on `98c7974` from a pre-existing collector test race, fix pushed, closes when CI is green. Waiting on owner: S3b (`CRON_SECRET`), S3c (first real `javi init`).
 
 ## What we are building
 
@@ -24,6 +24,8 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - S3b built (2026-10-23): JD-M02 `@javis-dog/jgr-sdk` (`record`/`flush`, monotonic ULIDs, file + memory spool, batches ≤ 100/256 KB with gzip, full-jitter retry + `Retry-After`, 401/403 keep spool, 413 halves, 400 drops); daily `GET /api/cron/purge-events` (Vercel Cron 20:00 UTC, `CRON_SECRET`, 30 days). 280 tests. ADR-0009. Purge inactive until the owner sets `CRON_SECRET`.
 - S3c built (2026-10-23): JD-C01 `collectors/claude-code` — `javi` CLI (`init`/`hook`/`flush`/`status`/`uninstall`), exec-form `async` hooks in `.claude/settings.local.json`, allowlist mapping (no prompts/tool I/O/paths), salted `cc_`/`ag_` refs, token in `~/.javi`, detached flush. Hook contract verified against code.claude.com docs. 31 collector tests incl. real Windows processes. ADR-0010. Token usage (OTel) → S3d.
 - Local Windows dev machine ready (2026-10-23): Node 22.23.4, pnpm 10.28.0, Git 2.55.0; all checks green (209 tests). Repo now forces LF (`.gitattributes`) and resolves file URLs with `fileURLToPath` — required for Windows paths with spaces. Owner prefers local runs in GMT+7 windows: weekdays 23:00–17:00, weekends 22:00–08:00.
+
+- S3d (2026-10-28): ingest hardening H1–H6 (canonical event ids + migration 0003 check, signal on duplicate retries with DB-clock cap, bounded purge, 415 for media type/encoding with SDK keeping the spool, >100 events → 413, sorted inserts, DB-clock rate window); 43 QA conformance vectors + runner (mutation-checked); 383 tests; production smoke 7/7; dev-agent at 4 migrations. CI on `98c7974` FAIL (collector `process.test.ts` ordering race, pre-existing since `fe604d1`); test fixed, product code unchanged.
 
 ## Decisions in force
 
@@ -57,10 +59,15 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Next actions
 
-1. Owner: rotate `neondb_owner` — the `dev-agent` connection string was pasted in chat on 2026-10-23 (in addition to B1-rotate); update Vercel `DATABASE_URL` afterwards.
+1. Owner: rotate `neondb_owner` (pasted in chat on 2026-10-20 and 2026-10-23) and the GitHub client secret (pasted 2026-10-22); update Vercel afterwards.
 2. Owner: add `CRON_SECRET` on Vercel Production (steps in `SPRINT-03b.md`) → closes S3b.
-3. Owner: first real `javi init` in a project (steps in `SPRINT-03c.md`) → closes S3c.
-4. S3d — token usage: Claude Code OTel metrics → `usage.reported` (OTLP), `npx` packaging; then Guru G2. S4 (live dashboard) after.
+3. Owner: first real `javi init` + Claude Code session (steps in `SPRINT-03c.md`) → closes S3c and confirms the exec-form hook `args`.
+4. S3e — Claude Code OTel token/cost metrics → `usage.reported` via a **local OTLP receiver in the collector** (owner decision 2026-10-28), `npx` packaging; then Guru **G2** + Orcasus PR proposal. S4 (live dashboard) after.
+
+## Process (owner decisions 2026-10-28)
+
+- Agent team per `docs/agent-ops/TEAM.md`; **this cloud session is the only pusher** to `claude/clever-goldberg-wlurty`; `git fetch` before planning and before every push.
+- Reconciliation A (2026-10-27/28): the owner's S3a–S3c line is the baseline; the superseded parallel S3a work stays on the local branch `backup/s3a-parallel` (not pushed).
 
 ## Key paths
 
