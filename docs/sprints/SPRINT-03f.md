@@ -47,6 +47,7 @@ Team log, newest first:
 ## Log
 
 - 2026-10-28 — P1–P3 merged; gate 631 tests; pushing for CI.
+
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
