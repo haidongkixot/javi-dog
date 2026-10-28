@@ -47,6 +47,9 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Orchestrator — Merged review fixes (`bff04fe`, declared paths only). Read the SIGTERM path: the only signal follows an authenticated probe that returned the recorded pid. Exports, changeset, QA README setup row (usage on before the registration hook) and ADR Changes updated. Full gate 628 tests; no receiver process left.
+- 2026-10-28 — Developer — Review fixes 1–9 + README caveats; 24 new tests written first and run red against the old code (24 FAIL / 251 PASS), then green (275, two runs).
+- 2026-10-28 — Reviewer — no blockers; 3 major (usage off silent success on an unreadable settings file; pid-only liveness → lost usage or SIGTERM to a reused pid; a foreign program on the port receives identity data), 7 minor, nits; reproduced #1, #4, #6 with probes. Managed-settings check (#9) not built: server-managed settings are invisible locally (docs re-fetched) — documented instead.
 - 2026-10-28 — Reviewer — launched on `4386501..HEAD` (security focus: listener, settings edit, privacy).
 - 2026-10-28 — Orchestrator — Runner `test/otlp-conformance.test.ts` from the QA README: 40/40 PASS. Mutation checks: Host check disabled → exactly vector 09 FAIL; random event ids → exactly 39 and 40 FAIL; code restored. Full gate: 604 tests.
 - 2026-10-28 — Orchestrator — Merged U3 (`5e3730a`, declared paths only; 208 collector tests, 3 runs). Exported the receiver API; changeset notes `Io.spawnReceiver`.
@@ -60,6 +63,7 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-28 — Review fixes merged; gate 628 green; pushing for CI.
 - 2026-10-28 — U0–U3 + Q1 merged locally; runner 40/40; Reviewer running. Pushed so far: `1e10741`, `222f654`, `774549e`, `ecc2c2c` (library code only; nothing calls it in production).
 
 ## Test evidence
@@ -72,9 +76,15 @@ Team log, newest first:
 | Mutation: Host check off | 1 | — | 40 | 1 | 0 | 0 | 0 | vector 09 only; restored |
 | Mutation: random event ids | 1 | — | 39 | 2 | 0 | 0 | 0 | vectors 39, 40 only; restored |
 | Full gate `format:check` / `lint` / `typecheck` / `test` / `build` / `docs:check` | 0 | — | 604 tests | 0 | 0 | 0 | 0 | collector 251, sdk 32 |
+| Review fixes: new tests against the old code (red first) | 1 | — | 251 | 24 | 0 | 0 | 0 | each failed for the expected reason |
+| Full gate after review fixes | 0 | — | 628 tests | 0 | 0 | 0 | 0 | collector 275 |
 | OTel `session.id` = hook `session_id` (runtime) | — | — | — | — | — | — | 1 | owner's first real run |
 
 ## Decisions and deviations
+
+- Owner: opt-in global OTel; bundle + tarball packaging (S3f), no npm publish.
+- QA A3 accepted (empty/unknown-field request → 200); `session.id` resource fallback (docs silent).
+- Not fixed, documented (ADR-0011 Changes, README): settings `env` may reach programs Claude Code runs; managed settings can override or disable the export unseen; caller UUIDs make spool order approximate; 404/405 answered before auth.
 
 ## Retro
 

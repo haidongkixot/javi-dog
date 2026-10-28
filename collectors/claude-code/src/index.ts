@@ -21,6 +21,11 @@ export {
   createUsageReceiver,
   ensureReceiver,
   isPidAlive,
+  liveReceiver,
+  portConflictActive,
+  probeReceiver,
+  RECEIVER_PID_HEADER,
+  RECEIVER_PORT_CONFLICT_BACKOFF_MS,
   MAX_BODY_BYTES,
   RECEIVER_IDLE_MS,
   type UsageReceiver,
@@ -48,5 +53,6 @@ export {
   disableUsageEnv,
   enableUsageEnv,
   usageEnv,
+  type DisableResult,
   type EnableResult,
 } from './claude-env.ts';
