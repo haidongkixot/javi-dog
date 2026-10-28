@@ -1,0 +1,36 @@
+{
+  "$schema": "./schema.json",
+  "description": "Empty object {} is an empty ExportMetricsServiceRequest: 200 {} and no event",
+  "contract": "OTLP §Full Success (\"empty request ... SHOULD respond with success\"); ADR-0011 Receiver (200 {})",
+  "ambiguities": ["A3"],
+  "steps": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/json",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": {},
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": {
+            "pattern": "^application/json(\\s*;.*)?$"
+          }
+        },
+        "body": {},
+        "events": [],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "./schema.json",
+  "description": "AMBIGUOUS: a JGR-shaped object {\"events\":[...]} has only unknown OTLP fields; OTLP/JSON ignores unknown fields, so it is an empty request: 200 {} and no event",
+  "contract": "OTLP §JSON Protobuf Encoding (unknown fields MUST be ignored), §Full Success (empty request); ADR-0011 Receiver",
+  "ambiguities": ["A3"],
+  "steps": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/json",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": {
+          "events": [
+            {
+              "jgr": "0.1",
+              "type": "usage.reported",
+              "usage_delta": {
+                "input_tokens": 5
+              }
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": {
+            "pattern": "^application/json(\\s*;.*)?$"
+          }
+        },
+        "body": {},
+        "events": [],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}

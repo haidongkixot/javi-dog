@@ -1,0 +1,36 @@
+{
+  "$schema": "./schema.json",
+  "description": "GET /v1/metrics: 405 with an Allow header naming POST, nothing recorded",
+  "contract": "ADR-0011 Receiver (accepts POST only); RFC 9110 §15.5.6 (405 MUST carry Allow)",
+  "ambiguities": ["A4"],
+  "steps": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/json",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": null,
+        "rawBody": "",
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 405,
+        "headers": {
+          "allow": {
+            "pattern": "\\bPOST\\b"
+          }
+        },
+        "body": null,
+        "events": [],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}
