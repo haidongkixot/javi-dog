@@ -1,6 +1,6 @@
 # JD-C01 · `@javis-dog/collector-claude-code` — Claude Code collector (`javi`)
 
-Status: **in-progress** (S3c, ADR-0010). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage arrives in S3d.
+Status: **in-progress** (S3c, ADR-0010). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage is opt-in (see below).
 
 ## Set up a project
 
@@ -21,6 +21,8 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 | `javi flush --project <slug>` | Deliver the spool now |
 | `javi uninstall --project <slug> [--forget-token]` | Remove our hooks (others stay); optionally delete the stored token |
 | `javi hook --project <slug>` | Called by Claude Code; silent, always exit 0 |
+| `javi usage on [--port <n>]` / `javi usage off` | Opt in to / out of token usage (below); no `--project` needed |
+| `javi receive` | The local usage receiver; hooks start it for you |
 
 ## What is sent
 
@@ -34,3 +36,19 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 | Stop | `heartbeat` idle |
 
 Session and agent ids become `cc_…` / `ag_…` refs: HMAC-SHA-256 with a salt that never leaves `~/.javi`.
+
+## Token usage (opt-in)
+
+Hooks carry no token counts, so usage comes from Claude Code's own OpenTelemetry metrics, sent to a small receiver on your machine (ADR-0011). It is off until you turn it on:
+
+```powershell
+node "<repo>/collectors/claude-code/src/cli.ts" usage on      # or: javi init ... --usage
+```
+
+**What changes.** `usage on` backs up `~/.claude/settings.json` once (`settings.json.javi-backup`) and adds these keys to its `env`: `CLAUDE_CODE_ENABLE_TELEMETRY`, `OTEL_METRICS_EXPORTER`, `OTEL_EXPORTER_OTLP_METRICS_PROTOCOL`, `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (`http://127.0.0.1:4319/v1/metrics`), `OTEL_EXPORTER_OTLP_METRICS_HEADERS` (a local secret kept in `~/.javi/usage.json`) and `OTEL_METRICS_INCLUDE_ACCOUNT_UUID=false`. Only metrics are exported: no logs or traces, so no prompt or tool content. If you already have telemetry set up (any `OTEL_*` or `CLAUDE_CODE_ENABLE_TELEMETRY` in that file or your shell), javi changes nothing and names the keys in the way.
+
+**What is sent.** Per session, model and minute: input, output, cache read and cache write tokens and Claude Code's cost estimate, as `usage.reported`. The session id is hashed like the hooks do (`cc_…`). Identity attributes (`user.email`, `user.id`, `organization.id`, account uuid, terminal) are dropped on your machine and never stored or sent.
+
+**What to expect.** Claude Code exports about every 60 s, so numbers lag by up to a minute. Only sessions started after `usage on` export. A session counts once a hook has seen it, so usage of projects without `javi init` is dropped locally (counted in `javi status`) and never leaves this machine. The receiver listens on 127.0.0.1 only, accepts only requests with the local secret, starts with the next hook and stops after 30 idle minutes; usage exported while it is not running is lost. `javi status --project <slug>` shows whether usage is on, whether the receiver is running, the forwarded and dropped counts and the last export.
+
+**Turning it off.** `javi usage off` removes only the keys whose values are still the ones javi wrote, stops the receiver and forgets the local secret. Your backup stays where it is.

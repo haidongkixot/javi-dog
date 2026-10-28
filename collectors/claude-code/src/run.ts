@@ -18,6 +18,11 @@ export interface HookDeps {
   now?: () => Date;
   /** Starts `javi flush` in the background (detached in the CLI). */
   spawnFlush: () => void;
+  /**
+   * When token usage is on (`~/.javi/usage.json`): makes sure the local usage receiver runs
+   * (ADR-0011). Must never throw or print; the CLI spawns a detached `javi receive`.
+   */
+  ensureReceiver?: () => void | Promise<void>;
 }
 
 /**
@@ -37,6 +42,18 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
     const { producer_id, salt } = await deps.state.installation();
     const input = mapHook(raw, { projectRef: deps.projectRef, salt });
     if (!input) return 'ignored';
+
+    // Usage attribution (ADR-0011): the receiver forwards only sessions seen by a hook.
+    // Failures here must not cost the hook event itself.
+    const seenAt = (deps.now?.() ?? new Date()).getTime();
+    await deps.state.rememberSession(input.thread_ref, deps.projectRef, seenAt).catch(() => false);
+    if (deps.ensureReceiver) {
+      try {
+        if (await deps.state.usageConfig()) await deps.ensureReceiver();
+      } catch {
+        // A receiver that cannot start shows up in `javi status`, never in Claude Code.
+      }
+    }
 
     const spool = createFileSpool(deps.state.spoolDir(deps.projectRef));
     const client = createJgrClient({

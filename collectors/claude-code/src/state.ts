@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,6 +17,37 @@ export interface ProjectCredentials {
   endpoint: string;
   token: string;
 }
+
+/** `~/.javi/usage.json` — written by `javi usage on` (ADR-0011). Holds the local secret. */
+export interface UsageConfig {
+  port: number;
+  /** Bearer secret Claude Code sends to the local receiver; never printed. */
+  secret: string;
+  /** The env values javi wrote into Claude's user settings (for a clean `usage off`). */
+  written: Record<string, string>;
+}
+
+/** `~/.javi/receiver.json` — the running (or last) usage receiver. `pid` 0 = stopped cleanly. */
+export interface ReceiverInfo {
+  pid: number;
+  port: number;
+  startedAt: string;
+  /** Usage groups spooled for a project (lifetime of the file, carried across restarts). */
+  forwarded: number;
+  /** Usage groups dropped locally: unknown session, project without credentials, invalid. */
+  dropped: number;
+  /** Last accepted OTLP export, or null. */
+  lastRequestAt: string | null;
+}
+
+/** Session attributions older than this count as absent and are pruned (ADR-0011). */
+export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** A hook refreshes its session's attribution at most this often. */
+const SESSION_REFRESH_MS = 60 * 60 * 1000;
+/** Full sweeps of `sessions/` at most this often. */
+const SESSION_PRUNE_EVERY_MS = 24 * 60 * 60 * 1000;
+/** Only hashed session refs (`opaqueRef('cc', …)`) may name a file — never a raw session id. */
+const THREAD_REF = /^cc_[0-9a-f]{32}$/;
 
 export const javiHome = (env: NodeJS.ProcessEnv = process.env) =>
   env.JAVI_HOME?.trim() || join(homedir(), '.javi');
@@ -153,6 +184,85 @@ export const createState = (home: string) => {
     saveLastFlush: async (projectRef: string, result: Record<string, unknown>) => {
       await mkdir(path('last-flush'), { recursive: true, mode: 0o700 });
       await writeJsonPrivate(path('last-flush', `${projectRef}.json`), result);
+    },
+
+    // --- Token usage (ADR-0011) ---
+
+    usageConfig: async (): Promise<UsageConfig | null> => {
+      const config = await readJson<UsageConfig>(path('usage.json'));
+      return config && Number.isInteger(config.port) && typeof config.secret === 'string'
+        ? config
+        : null;
+    },
+
+    saveUsageConfig: async (config: UsageConfig) => {
+      await ready;
+      await writeJsonPrivate(path('usage.json'), config);
+    },
+
+    removeUsageConfig: () => rm(path('usage.json'), { force: true }),
+
+    /**
+     * Records which project a session belongs to, so the usage receiver can attribute
+     * machine-wide telemetry. Only hashed refs are accepted; returns false otherwise.
+     */
+    rememberSession: async (threadRef: string, projectRef: string, atMs: number) => {
+      if (!THREAD_REF.test(threadRef)) return false;
+      await ready;
+      const dir = path('sessions');
+      await mkdir(dir, { recursive: true, mode: 0o700 });
+      const file = join(dir, `${threadRef}.json`);
+      const existing = await readJson<{ project: string; at: number }>(file);
+      if (existing?.project !== projectRef || atMs - existing.at >= SESSION_REFRESH_MS) {
+        await writeJsonPrivate(file, { project: projectRef, at: atMs });
+      }
+      // Opportunistic sweep, at most once a day; never fails the caller.
+      const marker = join(dir, '.pruned.json');
+      const pruned = (await readJson<{ at: number }>(marker))?.at ?? 0;
+      if (atMs - pruned >= SESSION_PRUNE_EVERY_MS) {
+        await writeJsonPrivate(marker, { at: atMs });
+        for (const name of await readdir(dir).catch(() => [] as string[])) {
+          if (!/^cc_[0-9a-f]{32}\.json$/.test(name)) continue;
+          const entry = await readJson<{ at: number }>(join(dir, name));
+          if (!entry || !(atMs - entry.at < SESSION_TTL_MS)) {
+            await rm(join(dir, name), { force: true });
+          }
+        }
+      }
+      return true;
+    },
+
+    /** The project a session was seen in during the last 7 days, or null. */
+    sessionProject: async (threadRef: string, nowMs = Date.now()): Promise<string | null> => {
+      if (!THREAD_REF.test(threadRef)) return null;
+      const file = path('sessions', `${threadRef}.json`);
+      const entry = await readJson<{ project: string; at: number }>(file);
+      if (!entry || typeof entry.project !== 'string' || typeof entry.at !== 'number') {
+        return null;
+      }
+      if (!(nowMs - entry.at < SESSION_TTL_MS)) {
+        await rm(file, { force: true });
+        return null;
+      }
+      return entry.project;
+    },
+
+    receiverInfo: () => readJson<ReceiverInfo>(path('receiver.json')),
+
+    saveReceiverInfo: async (info: ReceiverInfo) => {
+      await ready;
+      await writeJsonPrivate(path('receiver.json'), info);
+    },
+
+    removeReceiverInfo: () => rm(path('receiver.json'), { force: true }),
+
+    /** When a hook last tried to start the receiver (debounces spawns). */
+    receiverRequestedAt: async () =>
+      (await readJson<{ at: number }>(path('receiver.requested.json')))?.at ?? 0,
+
+    markReceiverRequested: async (at: number) => {
+      await ready;
+      await writeJsonPrivate(path('receiver.requested.json'), { at });
     },
   };
 };
