@@ -2,9 +2,9 @@
 name: presence-only-health-endpoint
 description: Ship a small public health/diagnostics endpoint that reports which configuration variables are set as booleans only (never values), which build answered (environment name and commit), and whether the database responds (status word, latency, migration count) — so an agent or developer without access to the hosting platform's settings can observe a deployed environment, detect that a config change has not reached the running build yet, and catch wrong assumptions about deployment targets. Covers the security rules (no values, no driver messages, no caching, timeouts), a database ping that works on an unmigrated database, and tests that prove no secret leaks. Use when an agent gets 403 on listing or setting platform env vars, when you cannot tell what is configured in preview or production, after changing env vars on Vercel/Netlify/Render/Fly/Heroku/Kubernetes, when adding /health, /healthz, /status or readiness probes, or when a deploy "works locally but not in production".
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G2-prep"
-  confidence: "high (observing deployed config); medium (DB ping)"
+  version: "0.1.1"
+  origin: "javis-dog G2-prep; updated G2"
+  confidence: "high (observing deployed config and migration state); medium (DB ping implementation details)"
 ---
 
 # Presence-only health endpoint
@@ -91,3 +91,13 @@ Javi's Dog, Sprint 2a (2026-10-22) and later use in S2b. Confidence **high** for
 - DB ping defect: the first `pingDb` used a `CASE` guard and failed on an unmigrated PGlite database; split into two statements (`packages/event-store/src/client.ts`; test "reports 0 applied migrations on an empty database" in `packages/event-store/test/migrations.test.ts`; ADR-0005 *Changes*). Reproduced at G2-prep on PGlite 0.5.8: the `CASE` form raises `relation "drizzle.__drizzle_migrations" does not exist`; `to_regclass` returns `false`.
 - Retro: "the health route immediately answered the long-standing 'what is set on Vercel' question" (`SPRINT-02a.md`).
 - Not verified: behavior on other platforms (the env-applies-to-new-builds rule was observed once, on Vercel); whether public booleans ever helped an attacker (no incident, no measurement).
+
+### Update at G2 (Sprints 3a–3e, 2026-10-23 → 2026-10-28)
+
+The endpoint stayed the agent's deployment check in every iteration; reads are recorded in the iteration files' Test evidence. Confidence for *observing migration state* raised to **high**; the ping implementation itself is unchanged (still medium).
+
+- S3a: after deploying `8fd567c`, health 200, DB ok, **2 migrations** → "0002 pending" made visible before the live smoke; after the owner-supplied apply, the smoke passed (`docs/sprints/SPRINT-03a.md`).
+- S3b: after `07dfa99`, 3 migrations and `CRON_SECRET: false` → the purge job correctly reported as inactive until the owner adds the secret (`SPRINT-03b.md`).
+- S3d: `98c7974` READY with 3 migrations; after migration `0003`, **4 migrations**; then `1bb95e9` healthy (`SPRINT-03d.md`).
+- S3e: "production `/api/health` ok on `a3e4ce8`" (`SPRINT-03e.md` Log).
+- A new required variable was added to the endpoint's boolean list in the same change that introduced it (`CRON_SECRET`, `07dfa99`), so its absence was visible from the first deploy.

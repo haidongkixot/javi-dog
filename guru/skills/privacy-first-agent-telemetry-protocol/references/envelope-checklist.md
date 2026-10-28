@@ -77,3 +77,13 @@ Retrieved 2026-10-20 by the origin's research agent from official docs or offici
 | OTel GenAI semantic conventions are Development status; token metrics renamed after v1.41 | <https://github.com/open-telemetry/semantic-conventions-genai> | Research agent, via GitHub (opentelemetry.io blocked) |
 | CloudEvents 1.0.2: `source` + `id` unique per event; re-sends keep the same `id` | <https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md> | Research agent |
 | `Idempotency-Key` header is an IETF draft, not an RFC | `draft-ietf-httpapi-idempotency-key-header` | Draft status NOT VERIFIED (datatracker blocked) |
+
+Added 2026-10-28 (origin G2; Researcher lane in S3e, re-fetched by the orchestrator and again by Guru at G2):
+
+| Fact | Source | Verification |
+|---|---|---|
+| Claude Code ignores the OTel exporter variables in a repository's `.claude/settings.json` and `.claude/settings.local.json`; set them in managed settings, the shell or `~/.claude/settings.json` | <https://code.claude.com/docs/en/monitoring-usage> (l. 69 of the `.md` page at G2) | Researcher; re-fetched by the S3e orchestrator and at G2 |
+| Metrics temporality defaults to `delta` (`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`) | same page (l. 131) | Re-fetched (S3e, G2) |
+| `session.id` is Claude Code's own session id, which `/clear` replaces; `OTEL_METRICS_INCLUDE_SESSION_ID` defaults to true | same page (l. 153, 583) | Read at G2 |
+| That the OTel `session.id` equals the hooks' `session_id` | — | NOT VERIFIED (docs silent at G2); runtime check pending |
+| OTLP/HTTP JSON: unknown fields MUST be ignored; an empty request SHOULD succeed | OTLP specification, read from the `opentelemetry-proto` repository (website blocked) | QA lane (S3e) |

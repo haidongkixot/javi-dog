@@ -2,6 +2,121 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-10-28 · G2 — signal path end to end (Sprints 3a–3f) · Orcasus-PR checkpoint
+
+G2 is an Orcasus-PR checkpoint (`CLAUDE.md` §7). The PR below is a **proposal for owner review only**; Guru opened no PR and touched no other repository.
+
+- **Window:** `8fd567c^..4c0577f` — 49 commits from `8fd567c` (S3a ingress, owner's desktop session) through S3b (`07dfa99`), S3c (`fe604d1`, `5cc8ac0`), the S3d hardening and reconciliation (`3ed0ba0`…`4386501`), S3e (`9fc1d23`…`92a9244`) and S3f (`11f2e93`…`f7390b7`, `37c6dce`, review fixes `978a668`/`1a79b7e`, record `4c0577f` = HEAD at the end of the G2 read; the orchestrator committed in parallel with this checkpoint). Also read: the superseded local branch `backup/s3a-parallel` (6 commits, never pushed; merge-base `520ab666`).
+- **Records read:** `docs/sprints/SPRINT-03a.md`…`SPRINT-03f.md`; ADR-0008…0011 incl. *Changes*; `docs/memory/SESSION_LOG.md` (2026-10-23 → 2026-10-28) and `PROJECT_MEMORY.md`; `docs/agent-ops/TEAM.md`, `TEST_PLAN.md` §S3a–§S3f, `READINESS_MATRIX.md`, `ORCASUS_AGENT_OPERATING_CONTRACT.md` (roles); `docs/jgr/conformance/http/README.md`, `otlp/README.md`; `docs/how-to/run-database-migrations.md`; code at the cited lines in `collectors/claude-code/src/{receiver,cli,otlp,usage}.ts`, `scripts/{build,pack}.mjs`, `test/{process,usage-process,pack}.test.ts`, `packages/event-store/src/events.ts`, `packages/jgr-spec/src/{validate,schema}.ts`, `.github/workflows/ci.yml`, `.markdownlint-cli2.jsonc`.
+- **Re-runs by Guru:** none of the project suites. Read-only probes: `gh run list` plus the Actions jobs/annotations API for every red run in the window; `git merge-base` of the superseded line; markdownlint (repository rules) on `d45cc4c`'s `SPRINT-03f.md` → MD022 + MD032; Node 22.22.0 type stripping inside/outside `node_modules`; naive vs. real-path main detection through a symlink; re-fetch of `code.claude.com/docs/en/monitoring-usage.md` (HTTP 200; lines 69, 131, 153, 583); the new scripts (results under *Script verification*).
+
+### Verified lessons
+
+1. **Two sessions pushing one branch duplicated an iteration; fetching before planning is the fix.** The cloud session planned and built S3a from `520ab666` while the owner's desktop session had already pushed `be1c1fc`, `8fd567c`…`5cc8ac0` and applied migration 0002 to the development database. Nothing of the parallel line was pushed or applied (its migration failed on the first statement); it was kept on `backup/s3a-parallel`. Owner: reconciliation A, one pushing session. Retro: "a full sprint of duplicate work". The rule ("`git fetch` before planning and before every push") is in `TEAM.md` and was logged at the S3d and S3e starts. Ports re-derived, not replayed (`3ed0ba0`; HTTP vectors reused the format, no expectations). (`SESSION_LOG.md` 2026-10-27/28; `SPRINT-03d.md` Context, Team log, Retro.)
+2. **The baseline's CI history, not its latest run, showed the failure was pre-existing.** `process.test.ts` "detached flusher delivers" failed on `fe604d1` (run 39875014031), passed on `5cc8ac0`, failed again on `98c7974` (run 40612408695). Diagnosed without re-runs: ordering race (fake receiver records before answering; flusher writes its result after reading the answer); reproduced with a 500 ms late answer; fixed the wait, kept a 200 ms delay, product unchanged (`1bb95e9`, run 40612946751 green). Retro: check the baseline's CI history.
+3. **Primary-source research before design changed the architecture.** Researcher: Claude Code ignores OTel exporter variables in repository settings files; orchestrator re-fetched lines 69 and 131 and confirmed; owner moved to an opt-in user-level setting (ADR-0011 Status and fact 1; readiness row "OTel exporter config scope"). Guru re-fetched at G2: both lines unchanged. Same loop in S3c changed the hook design (exec form, async, notification matcher; ADR-0010). Third iteration with research-driven, traceable design changes (S1b, S3c, S3e).
+4. **Independent QA vectors plus a separately written runner plus mutation checks found a defect in the brief and proved detection.** HTTP: 43 vectors from ADR-0008 text, 20 ambiguities; runner 45 tests green; mutation 415 → 400 failed exactly vectors 32–34. OTLP: 40 vectors / 46 steps, 20 ambiguities; runner 41 tests green; Host check off → exactly vector 09; random ids → exactly 39–40. Ambiguity A3 (brief "non-OTLP object → 400" vs. OTLP "ignore unknown fields; empty request succeeds") → parser fix `ecc2c2c` before the dependent lane wrote its test. (`SPRINT-03d.md`, `SPRINT-03e.md` Test evidence; conformance READMEs.)
+5. **Adversarial review with probes found defects the unit tests missed; fixes landed red-first.** S3d Reviewer: 2 major, 11 minor (incl. two clock bugs m3/m4 "the audit missed"), re-ran 379 tests. S3e Reviewer: 3 majors reproduced with probes (silent `usage off` success on an unreadable file; pid-only liveness → lost usage or SIGTERM to a reused pid; foreign program on the port receives identity data); 24 new tests red against the old code (24 FAIL / 251 PASS), then 275 green twice (`95a4b5a`, `bff04fe`). S3f Reviewer: 2 majors (silent half-done `init` when the self-copy fails; one shared copy → last `init` wins incl. downgrade), 6 minor; red first 9 FAIL / 3 PASS, then 294 collector tests twice (`978a668`, `1a79b7e`, `SPRINT-03f.md`). Three consecutive review rounds found majors the lanes' tests had missed.
+6. **Localhost listener hardening** (bearer in constant time, Host allowlist, 415/413 caps with bounded gunzip, non-default port 4319, authenticated identity probe before any signal, visible port conflict with backoff, idle exit armed only by authenticated requests, 503 without state change): ADR-0011 Decision and *Changes*; `collectors/claude-code/src/receiver.ts` l. 17, 27, 142–160, 218, 298–302, 373, 380–382; vector 09 mutation.
+7. **Packaging pitfalls:** Node refuses type stripping under `node_modules` (verified locally in S3e; Guru re-probe: `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`); `.bin` symlinks break naive main detection (found before implementation; mutation → 2 of 3 pack tests fail; Guru re-probe naive `false` / real-path `true`); hooks registered at a stable `~/.javi/bin` copy (test deletes the install prefix); the generated `dist/pkg/README.md` failed repo-wide markdownlint → `**/dist/**` ignored (`ad0c058`, `d45cc4c`; `SPRINT-03f.md`). Review round added: versioned `~/.javi/bin/<version>/` copies made before credentials/hooks with a loud failure, rename retries on transient errors, `--preserve-symlinks-main`-tolerant main detection, path guard in the build, `THIRD_PARTY_NOTICES.md` for inlined code (`978a668`).
+8. **A docs lint failure reached the branch and was never evaluated by CI.** `d45cc4c`'s `SPRINT-03f.md` fails the repository's markdownlint (MD022, MD032 — Guru run); `f7390b7` fixed it 18 s later, and CI concurrency (`cancel-in-progress: true`) cancelled `d45cc4c`'s run (40619965768), so that commit has no CI result. CI on `f7390b7` green (run 40619993961). Cause recorded by the orchestrator in `4c0577f`: "gate command did not stop on that step"; gate steps "chained with `&&` since" (`SPRINT-03f.md` Log, Deviations). The earlier command itself is not recorded.
+9. **Ingest hardening rules** (canonical ids + DB check, tenant-scoped dedupe, signal on accepted-or-duplicate with forward-only DB-clock cap, 415 so producers keep data, > 100 events → 413, DB-clock rate window, sorted inserts, bounded purge) — tests, 43 vectors, production `smoke:live` 7/7 after deploy (`b710bee`, `048dad1`, `98c7974`; ADR-0008/0009 *Changes*). The audit that listed them is not recorded in the repository; only its findings (H1–H6) are.
+10. **Constraint migration with a pre-check:** read-only count of non-canonical ids (0 of 0) run twice, the second immediately before `db:migrate`; refusal test on the embedded engine; fixtures with shorthand ids replaced, assertions unchanged (`READINESS_MATRIX.md` "Migration 0003"; `migrations.test.ts`; `SPRINT-03d.md`). A bundler resolving a migration-folder URL broke only the production build (S3a) → separate entry point.
+11. **The health endpoint stayed the deployment check** in every iteration: 2 → 3 → 4 migrations observed, `CRON_SECRET: false` made the inactive purge visible (`SPRINT-03a/b/d/e.md`).
+12. **An owner-reported run was checked, not assumed.** S3c: the owner reported running `javi init`; the agent found no collector state on that machine, recorded the server side as NOT VERIFIED and added a read-only `db:events` summary (`SPRINT-03c.md` Log). Still open.
+13. **Retro actions carried forward:** S3a "ask for mutation-check permission up front" → mutation checks ran in S3d, S3e, S3f; S3d "test plan before lanes" → S3e and S3f plans written first (`TEST_PLAN.md`); S3d "check the baseline's CI history" → **not applied in S3e** (finding G2-F1).
+
+### Findings by Guru at G2 (verified by probe or reading)
+
+- **G2-F1 — Unrecorded intermittent CI failure.** `collectors/claude-code/test/usage-process.test.ts:120` (expects the first receiver's pid, receives `0`) failed on three docs-only commits — `474427c` (run 40617386527), `a632803` (run 40617962893), `92a9244` (run 40619197881, message "CI green on a3e4ce8") — and passed on `a3e4ce8`, `11f2e93`, `f7390b7`: 3 of 6 completed runs since the test was added in `37ac271`. Not in `SPRINT-03e.md` or `SPRINT-03f.md`. Root cause **not diagnosed**.
+- **G2-F2 — A pushed commit without CI evaluation** (`d45cc4c`, lesson 8). Every push to this branch is a production deploy (`TEAM.md`). The S3f record (`4c0577f`) now logs the deviation; the cancellation side (`cancel-in-progress`) is not addressed.
+- **G2-F3 — Memory and readiness drift, third recurrence** (after G1 lesson 9 and G2-prep F4). `READINESS_MATRIX.md`: header "Last updated: 2026-10-22"; "Readiness decision" still "S3 … can start; it needs a retention/partitioning ADR"; "Retention purge schedule" row "MISSING (S3b) … Do in S3b" although the route shipped in S3b (only `CRON_SECRET` pending). `PROJECT_MEMORY.md`: header "S3f … (not started)" although merged (`2e7d23b`); "Current state" still contains the S0 line "No auth or ingest yet".
+- **G2-F4 — Iterations left open.** `SPRINT-03b.md` (IN PROGRESS) and `SPRINT-03c.md` (BUILT) have empty Retro sections; both wait on owner runtime steps.
+
+### Hypotheses (unverified)
+
+- The usage-process flake comes from the 1 500 ms test idle timeout (`IDLE_MS`, l. 17) elapsing while the second `node cli.ts receive` starts on a slow runner — consistent with pid `0` (the idle-exit record) at l. 120; not reproduced.
+- The fetch rule prevents a recurrence — no second concurrent session has occurred since.
+- Lanes are faster than one agent — no comparison.
+- Translating OTLP locally is safer than a server edge — a design argument; no incident data either way.
+- OTel `session.id` equals the hooks' `session_id` — docs silent (re-read at G2); the docs do say `/clear` replaces `session.id` (l. 583), so a real run should include `/clear`.
+- Deterministic event ids dedupe *real* Claude Code export retries — tested with synthetic retries only.
+- The memory-staleness check would have caught F3/F4 earlier — it flags them now; not yet run in the origin's CI.
+- Carried: gap detection and stale derivation (S4); delivery p95 and event size (S5); release-age cooldown; redacted auth logger on a real failure; vectors keeping several implementations consistent.
+
+### Rejected or not packaged
+
+- **Windows checkout fixes** (`be1c1fc`, LF and `fileURLToPath`): just before the window, tool-specific; already in `SESSION_LOG.md`.
+- **Neutral hook design** (ADR-0010): folded into `local-companion-process-hardening` §4 rather than a separate skill; its real-session behaviour is unverified.
+- **Lesson 12 (owner-reported run)**: reinforces "report truthfully"; no new technique beyond `honest-empty-states` and `agent-second-memory` step 2.
+- **Timebox splits** (S3 → S3a–S3f): a fourth application of `agent-second-memory` step 8; no new lesson.
+- **Connection string pasted in chat again (S3a)**: handled as `prove-secrets-and-pii-minimization` §7 describes (temp file deleted, rotation recorded); no update.
+- **Postgres fixed-window rate limit, 30-day retention, daily cron**: product choices, not lessons.
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`orchestrated-agent-team-lanes`](skills/orchestrated-agent-team-lanes/SKILL.md) | 0.1.0 | new (+ `templates/lane-brief.md`) | medium (pattern); high (fetch-before-planning) | Lessons 1, 5, 13 |
+| [`independent-conformance-vectors`](skills/independent-conformance-vectors/SKILL.md) | 0.1.0 | new (+ `templates/suite-README.md`) | high (vectors + runner + mutation); medium (brief defects) | Lesson 4 |
+| [`diagnose-red-ci-from-history`](skills/diagnose-red-ci-from-history/SKILL.md) | 0.1.0 | new (+ `scripts/gate.sh`, `scripts/ci-history.sh`) | medium | Lessons 2, 8; G2-F1, F2 |
+| [`local-companion-process-hardening`](skills/local-companion-process-hardening/SKILL.md) | 0.1.0 | new | medium; low (real session) | Lessons 5, 6 |
+| [`package-node-cli-for-npx`](skills/package-node-cli-for-npx/SKILL.md) | 0.1.0 | new | medium | Lesson 7 |
+| [`primary-source-research-with-agents`](skills/primary-source-research-with-agents/SKILL.md) | 0.1.0 → 0.2.0 | ≥ 2 re-fetches by line as a team rule; "which config scope does the tool honour?" first; local runtime probes; defensive fallback + runtime-check row for undocumented facts; G2 evidence | medium → high (loop); medium (probes, fallbacks) | Lesson 3; third iteration with traceable changes |
+| [`privacy-first-agent-telemetry-protocol`](skills/privacy-first-agent-telemetry-protocol/SKILL.md) | 0.1.1 → 0.2.0 | §4 canonical, tenant-scoped, deterministic ids; §7 rewritten (status codes as spool instructions, liveness on duplicates, DB clock, sorted inserts, bounded purge); §8 local translation by allowlist; 4 pitfalls; dated facts added to `references/envelope-checklist.md` | §7–8 low → medium | Lessons 4, 9 |
+| [`agent-second-memory`](skills/agent-second-memory/SKILL.md) | 0.2.1 → 0.3.0 | fetch-first session contract; team log in iteration records; step 10 + `templates/memory-staleness.mjs`; G2 evidence | medium | Lesson 1; G2-F3, F4 (third recurrence) |
+| [`reviewed-schema-migrations`](skills/reviewed-schema-migrations/SKILL.md) | 0.1.0 → 0.2.0 | steps 7 (pre-check before constraints), 8 (half-applied recovery), 9 (migration assets out of app bundles); G2 evidence | medium | Lesson 10 |
+| [`presence-only-health-endpoint`](skills/presence-only-health-endpoint/SKILL.md) | 0.1.0 → 0.1.1 | G2 evidence; migration-state observation → high | high / medium | Lesson 11 |
+
+Catalog: Orcasus column narrowed to a focused first wave for this PR; earlier "yes" skills are now marked "later (G4)" with reasons below.
+
+### Script verification at G2
+
+- `diagnose-red-ci-from-history/scripts/gate.sh --self-test` → "self-test PASS", exit 0; `gate.sh true false "echo nope"` → "GATE FAIL at step 2/3", exit 1, step 3 not run; no arguments → usage, exit 2.
+- `ci-history.sh claude/clever-goldberg-wlurty 16` → flags `474427c`, `a632803`, `92a9244` `FLAKE? (docs-only diff) failed: Run pnpm test`, `98c7974` `CODE`, `d45cc4c` `NOT EVALUATED`. First version mis-aligned columns for in-progress runs (empty tab field collapsed); fixed and re-run.
+- `agent-second-memory/templates/memory-staleness.mjs --self-test` → PASS, exit 0; on the origin repository → 5 findings (G2-F3 readiness date; G2-F4 ×4), exit 1; no arguments → exit 2.
+
+### Proposals for the owner
+
+Project fixes (Guru does not edit project files; each is small and reversible):
+
+1. **G2-F1** — diagnose `usage-process.test.ts:120` per Orcasus rule 8: reproduce by delaying the second `receive` past `IDLE_MS`, fix the wait, keep a delay; record runs 40617386527, 40617962893, 40619197881 in `SPRINT-03e.md` Test evidence. No re-runs or skips to get green.
+2. **G2-F2** — the gate is now chained with `&&` (`SPRINT-03f.md`); write that into `TEAM.md`'s merge checklist ("run the chained gate after the last edit, including docs, before each push"). Owner decision: keep `cancel-in-progress` for the deploying branch, or not (trade-off: CI minutes vs. every production deploy having a CI result).
+3. **G2-F3** — `READINESS_MATRIX.md`: header date, readiness-decision paragraph, retention row → "BUILT, inactive until `CRON_SECRET`". `PROJECT_MEMORY.md`: S3f status, remove the S0 "No auth or ingest yet" line, condense "Current state".
+4. **G2-F4** — close S3b/S3c with retros for the built parts and move the owner-pending runtime checks to readiness rows (or mark the status "WAITING ON OWNER" with a retro).
+5. Add `memory-staleness.mjs` to `docs:check` with `--warn-only` first (changes CI; owner decision).
+6. Policy proposal (shared policy, owner review): add to `CLAUDE.md` §0/§6 "fetch before planning and before every push; one pushing session per branch" — today it lives only in `TEAM.md`.
+7. First real run (S3c/S3e): include a `/clear` in the session to test `session.id` correlation; read matched vs. dropped in `javi status`.
+8. Reminders (already recorded): B1-rotate (connection string pasted again in S3a), `CRON_SECRET`, ADR-0004 review, release-cooldown policy.
+
+### Orcasus PR proposal (G2) — for owner review, not opened
+
+**Target:** `haidongkixot/orcasus` (installed here as v1.2.1). **Scope:** four agent-operations skills, added as optional skills next to `project-discovery` and `efficient-testing`; no change to the operating contract text. Exact paths to follow the repository's layout (owner to confirm).
+
+| Skill | Confidence | Orcasus rule it operationalizes | Why now |
+|---|---|---|---|
+| `orchestrated-agent-team-lanes` | medium; high (fetch rule) | "Role-specific expectations" (orchestrator, developer, QA, reviewer, secretary); stop conditions | Turns the contract's roles into agent mechanics (worktrees, declared paths, sole pusher, merge checklist); adds the one rule the contract lacks — one pushing session per branch, fetch before planning — learned from a costly incident |
+| `independent-conformance-vectors` | high / medium | Rule 5 (plan tests, lowest reliable layer), rule 10 (truthful status vocabulary), QA role | Gives QA an independence rule and gives "tests detect regressions" an evidence form (mutation checks that fail exactly the expected vectors) |
+| `diagnose-red-ci-from-history` | medium | Rule 8 (diagnose before retry), rule 10 | Concrete steps and two scripts for rule 8: read history, classify pre-existing/flaky, reproduce deterministically, fix the wait, fail-fast gate, precise "green on `<sha>`" |
+| `primary-source-research-with-agents` | high (loop) | Rule 1 (discover before designing), rule 9 (verify resources at runtime), Researcher role | Verified in three iterations; the "which config scope does the tool honour?" question changed an architecture before code |
+
+Deferred to G4: `agent-second-memory` (drift recurred three times; propose after `memory-staleness.mjs` has run in the origin's CI), `presence-only-health-endpoint`, `verify-dependencies-against-registry`, `vendoring-agent-skills`, `honest-empty-states`, `prove-secrets-and-pii-minimization` §3/§7. Not candidates: `accessible-brand-tokens`, `tenant-isolation-by-construction`, `reviewed-schema-migrations`, `privacy-first-agent-telemetry-protocol`, `local-companion-process-hardening`, `package-node-cli-for-npx` (product engineering, not agent operations).
+
+Before opening (owner): (a) decide whether origin evidence may be public — if not, move each "Evidence from origin project" section to `references/origin-evidence.md` with repository paths removed and keep the confidence line; (b) check the skills against Orcasus precedence (no screenshot use; none found); (c) run the two scripts' self-tests on the target CI; (d) choose the version bump (suggested: minor, v1.3.0).
+
+**Proposed title:** `Add agent-team, conformance-oracle, CI-diagnosis and primary-source research skills (from Javi's Dog G2)`
+
+**Proposed body outline:**
+
+1. *Summary* — four optional skills that operationalize roles and rules 1, 5, 8, 9, 10 of the contract; contract text unchanged.
+2. *Why* — one paragraph per skill naming the incident or result behind it (parallel-session duplicate iteration; brief defect A3 and exact-vector mutation results; pre-existing red CI diagnosed without re-runs and an unrecorded flake found later; config-scope fact that changed an architecture).
+3. *Contents* — files per skill (`SKILL.md`, `templates/lane-brief.md`, `templates/suite-README.md`, `scripts/gate.sh`, `scripts/ci-history.sh`).
+4. *Evidence and confidence* — per skill, labelled high/medium with what is still a hypothesis (lane speed-up; fetch rule preventing recurrence; flake root cause).
+5. *Compatibility* — no new dependencies (bash, `gh`, `git`, Node ≥ 18 only); no screenshot use; precedence unchanged.
+6. *Testing* — `gate.sh --self-test`; `ci-history.sh` read-only run on a public repository; markdown lint.
+7. *Out of scope* — deferred and domain skills listed above.
+8. *Review asks* — role mapping wording; whether "one pushing session per branch" belongs in the contract's required workflow rather than a skill.
+
 ## 2026-10-22 · G2-prep — feature completion: data layer, identity, projects (Sprints 2a, 2b, 2c)
 
 Not the G2 Orcasus-PR checkpoint (that is at S3, `docs/explanation/roadmap.md`). No PR opened or drafted; Orcasus candidates are listed as proposals only.
