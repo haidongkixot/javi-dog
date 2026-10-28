@@ -25,7 +25,10 @@ export interface UsageAnalytics {
   days: UsageDay[];
   /** Sorted by input + output tokens, descending; `model` is null when reports carried none. */
   byModel: Array<UsageTotals & { model: string | null }>;
-  /** Every workspace project with usage in the range (or the one requested), same sort. */
+  /**
+   * Workspace projects with usage in the range, same sort. With `projectId`, at most that project —
+   * and only if it has usage in the range (an empty list otherwise, never a zero row).
+   */
   byProject: Array<UsageTotals & { projectId: string; slug: string; name: string }>;
   totals: UsageTotals & { tasksCompleted: number; tasksFailed: number };
   /** Newest `usage.reported` received in the range, or null. */
