@@ -10,11 +10,15 @@ import {
 import { createMemorySpool, type Spool } from './spool.ts';
 import { createUlid } from './ulid.ts';
 
-/** What a producer supplies; the SDK fills `jgr`, `event_id`, `producer_id`, time and sequence. */
+/**
+ * What a producer supplies; the SDK fills `jgr`, `producer_id` and, when absent, `event_id`
+ * (monotonic ULID), time and sequence. A caller-supplied `event_id` must be a ULID or UUID; use
+ * one derived from the source record so a re-sent record dedupes on the receiver (ADR-0011).
+ */
 export type RecordInput = Omit<
   JgrEventInput,
   'jgr' | 'event_id' | 'producer_id' | 'occurred_at' | 'sequence'
-> & { occurred_at?: string; sequence?: number };
+> & { event_id?: string; occurred_at?: string; sequence?: number };
 
 export type RecordResult =
   { ok: true; event: JgrEvent; evicted: number } | { ok: false; issues: Issue[] };
@@ -182,7 +186,7 @@ export const createJgrClient = (options: JgrClientOptions) => {
       const candidate = {
         ...input,
         jgr: JGR_VERSION,
-        event_id: ulid(at.getTime()),
+        event_id: input.event_id ?? ulid(at.getTime()),
         producer_id: producerId,
         occurred_at: input.occurred_at ?? at.toISOString(),
         sequence,

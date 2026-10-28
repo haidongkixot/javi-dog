@@ -93,6 +93,15 @@ describe('record', () => {
     expect(await seq({})).toBe(11);
   });
 
+  it('keeps a caller-supplied event_id in canonical form and refuses an invalid one', async () => {
+    const { c } = client({ fetch: fakeFetch().fn });
+    const id = '0F8FAD5B-D9CB-869F-A165-70867728950E';
+    const r = await c.record(input({ event_id: id }));
+    expect(r.ok && r.event.event_id).toBe(id.toLowerCase());
+    expect(await c.record(input({ event_id: 'usage-1' }))).toMatchObject({ ok: false });
+    expect(await c.spool.count()).toBe(1);
+  });
+
   it('returns issues and spools nothing for invalid input (e.g. a prompt attribute)', async () => {
     const { c } = client({ fetch: fakeFetch().fn });
     const r = await c.record(input({ attributes: { prompt: 'secret plan' } }));

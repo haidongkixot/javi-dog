@@ -168,3 +168,25 @@ Risk: **HIGH** (dedupe integrity, data loss in the SDK, production migration). S
 | Black-box HTTP behaviour (43 QA vectors) | Conformance (real handler, PGlite) | `ingest/test/conformance.test.ts` + mutation check | see SPRINT-03d |
 | Migration 0003 on Neon PG 18 | Smoke (dev-agent) | pre-check query, `db:migrate`, `db:smoke` | see SPRINT-03d |
 | Production behaviour | Live smoke | `pnpm --filter @javis-dog/ingest smoke:live` after READY | see SPRINT-03d |
+
+## S3e — Token usage via a local OTLP receiver (2026-10-28)
+
+Written before the lanes start. Risk: **HIGH** — a localhost listener (local injection, DNS rebinding), a machine-wide settings edit, privacy (identity attributes arrive on every data point), usage counting integrity. Screenshot budget: **0**. Stack reused: Vitest per package, PGlite + real ingest handler for e2e (as in `cli.test.ts`), real child processes (as in `process.test.ts`). No new dependency.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| U0 caller `event_id`: kept, canonicalized, invalid rejected, default ULID unchanged | Medium | Unit (SDK) | `jgr-sdk/test/client.test.ts` | No |
+| U1 only `session.id`/`model`/`type` read; identity/resource attrs never in output | High | Unit | serialized output contains no `user.email`/`organization.id`/`terminal.type` values | e2e spool check (U3) |
+| U1 type → counter mapping; cost → `cost_usd`; other metrics ignored | High | Unit | table cases incl. `claude_code.session.count`, unknown `type` | QA vectors |
+| U1 `asInt` as string and number, `asDouble`, unknown fields ignored, malformed → error | Medium | Unit | table cases | QA vectors |
+| U1 delta used as-is; cumulative → delta via baseline; first cumulative point only sets baseline; backwards → new baseline | High | Unit | sequences of exports | No |
+| U1 grouping per (session, model, start, end); all-zero groups skipped; deterministic canonical UUID id; same input → same id | High | Unit | | e2e duplicate (U3) |
+| U2 backup once; merge keeps other keys; refuses on parse error / foreign `OTEL_*` or telemetry key in file or shell; `off` removes only unchanged own keys | High | Unit (temp dir) | file contents before/after; refusal leaves bytes identical | No |
+| U3 401 without/with wrong bearer, 403 foreign `Host`, 415 protobuf / unknown encoding, 413 > 1 MiB, 400 malformed, 405 wrong method, 404 other path, 200 `{}` | High | Integration (real HTTP server, ephemeral port) | status + nothing spooled on refusals | QA vectors |
+| U3 attributed session → `usage.reported` in that project's spool with the hook `thread_ref`; unknown session dropped and counted | High | Integration | spool contents, `javi status` line | owner real run |
+| U3 export retried → server dedupes | High | E2E (receiver → SDK → real ingest handler on PGlite) | second delivery `duplicates: 1`, one row | No |
+| U3 hooks start the receiver when usage is on; second instance exits on taken port; idle exit; hooks stay silent | Medium | Process (real `node cli.ts` children, short idle via env) | pid file, port, exit codes, empty stdout/stderr | No |
+| OTel `session.id` = hook `session_id` | High | **Runtime only** (owner's first real Claude Code run) | `javi status`: matched vs dropped sessions | — (UNKNOWN until then) |
+| Docs, registry, changeset | Low | Static | `pnpm docs:check` | No |
+
+Execution: changed packages first (`pnpm --filter @javis-dog/collector-claude-code test`, `--filter @javis-dog/jgr-sdk test`), then the full gate in CI order. Failure policy as §6: diagnose before retry; no skipped tests; no softened assertions.

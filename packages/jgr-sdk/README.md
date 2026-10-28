@@ -38,3 +38,5 @@ const result = await jgr.flush(); // { status, accepted, duplicates, rejected, d
 | Other (e.g. `404`) | Stop (`failed`), spool kept |
 
 Batches hold at most 100 events and 256 KB; bodies above 1 KB are gzip-compressed.
+
+A caller may pass its own `event_id` (ULID or UUID, canonicalized by JD-M01) to `record()` — derive it from the source record so a re-sent record dedupes on the receiver (ADR-0011). Without one the SDK generates a monotonic ULID.
