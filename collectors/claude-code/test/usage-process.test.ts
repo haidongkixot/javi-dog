@@ -9,12 +9,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createState, type CollectorState } from '../src/index.ts';
 import { isPidAlive } from '../src/receiver.ts';
 
-// U3 process layer (TEST_PLAN §S3e): real `node cli.ts receive` / `hook` children, a short
-// idle timeout via JAVI_RECEIVER_IDLE_MS. Every wait polls for the state it then asserts.
+// U3 process layer (TEST_PLAN §S3e): real `node cli.ts receive` / `hook` children; idle timeout
+// via JAVI_RECEIVER_IDLE_MS. Every wait polls for the state it then asserts, and no assertion
+// races the idle timer against process start-up (CI run 40619197881: a second instance took
+// longer than the idle window on a loaded runner, so the first had already exited).
 const CLI = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 const TOKEN = `jd_it_${'Q'.repeat(43)}`;
 const SECRET = 'process-secret-0123456789';
-const IDLE_MS = '1500';
+/** Long enough that the receiver cannot idle out while a test still talks to it. */
+const LONG_IDLE_MS = '120000';
+/** The idle-exit case: generous margin over process start-up on a loaded runner. */
+const IDLE_MS = '4000';
 
 let home: string;
 let state: CollectorState;
@@ -60,10 +65,14 @@ afterAll(async () => {
   await rm(home, { recursive: true, force: true });
 });
 
-const env = () => ({ ...process.env, JAVI_HOME: home, JAVI_RECEIVER_IDLE_MS: IDLE_MS });
+const env = (idleMs = IDLE_MS) => ({
+  ...process.env,
+  JAVI_HOME: home,
+  JAVI_RECEIVER_IDLE_MS: idleMs,
+});
 
-const run = (args: string[], stdin = '') => {
-  const child = spawn(process.execPath, [CLI, ...args], { env: env() });
+const run = (args: string[], stdin = '', idleMs = IDLE_MS) => {
+  const child = spawn(process.execPath, [CLI, ...args], { env: env(idleMs) });
   if (child.pid) started.add(child.pid);
   let stdout = '';
   let stderr = '';
@@ -109,8 +118,8 @@ const postEmpty = () =>
   });
 
 describe('javi receive and hooks as real processes', () => {
-  it('receive serves, a second instance on the port exits 0, the first exits 0 when idle', async () => {
-    const first = run(['receive']);
+  it('receive serves, a second instance on the port exits 0, the first exits 0 on SIGTERM', async () => {
+    const first = run(['receive'], '', LONG_IDLE_MS);
     await waitFor(async () => (await state.receiverInfo())?.pid === first.child.pid);
     expect(await state.receiverInfo()).toMatchObject({ port, pid: first.child.pid });
     expect(await postEmpty()).toBe(200);
@@ -119,6 +128,9 @@ describe('javi receive and hooks as real processes', () => {
     expect(second).toEqual({ code: 0, stdout: '', stderr: '' });
     expect((await state.receiverInfo())?.pid).toBe(first.child.pid);
 
+    expect((await state.receiverInfo())?.portConflict).toBeUndefined();
+
+    first.child.kill('SIGTERM');
     expect(await first.done).toEqual({ code: 0, stdout: '', stderr: '' });
     expect(await state.receiverInfo()).toMatchObject({ pid: 0, port });
   });

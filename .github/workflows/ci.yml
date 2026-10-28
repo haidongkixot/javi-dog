@@ -7,7 +7,9 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Every push to the working branch is a production deploy and needs its own CI result
+  # (Guru G2-F2): only pull-request runs are cancelled by newer ones.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

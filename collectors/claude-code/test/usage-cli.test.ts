@@ -395,6 +395,34 @@ describe('javi usage off and status', () => {
   );
 
   // S3e review #3: a port held by another program is recorded and shown, silently for hooks.
+  it('receive does not call a slow own receiver a foreign program (probe timeout, live recorded pid)', async () => {
+    // A listener that accepts connections but never answers: the identity probe times out, as it
+    // can when our own receiver is busy on a loaded machine (CI run 40619197881).
+    const slow = createHttpServer(() => {});
+    await new Promise<void>((r) => slow.listen(0, '127.0.0.1', r));
+    const port = (slow.address() as { port: number }).port;
+    try {
+      await state.saveUsageConfig({ port, secret: 'cli-secret-0123456789', written: {} });
+      await state.saveReceiverInfo({
+        pid: process.pid,
+        port,
+        startedAt: new Date().toISOString(),
+        forwarded: 0,
+        dropped: 0,
+        lastRequestAt: null,
+      });
+      const t = io();
+      expect(await main(['receive'], t.value)).toBe(0);
+      expect([...t.out, ...t.err]).toEqual([]);
+      const info = (await state.receiverInfo())!;
+      expect(info.portConflict).toBeUndefined();
+      expect(info.pid).toBe(process.pid);
+    } finally {
+      slow.closeAllConnections();
+      await new Promise((r) => slow.close(r));
+    }
+  });
+
   it('receive records a port held by another program; status warns; usage on clears it', async () => {
     await state.saveCredentials('web-app', {
       endpoint: 'https://x.test/api/v1/events',

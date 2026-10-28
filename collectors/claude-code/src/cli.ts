@@ -365,9 +365,12 @@ const receive = async (io: Io, state: CollectorState): Promise<number> => {
     if ((e as { code?: string }).code !== 'EADDRINUSE') throw e;
     // Another javi receiver already holds the port: that one does the work.
     if ((await probeReceiver(config.port, config.secret)) !== null) return 0;
+    // No answer in time, but the recorded receiver is alive on this port: ours, just busy (a
+    // loaded machine can delay the probe). Never record that as a foreign program.
+    const previous = await state.receiverInfo();
+    if (previous && previous.port === config.port && isPidAlive(previous.pid)) return 0;
     // Another program holds it and gets Claude Code's exports: record it for `javi status` and
     // the hooks' back-off. Still silent and exit 0: hooks must stay neutral.
-    const previous = await state.receiverInfo();
     await state.saveReceiverInfo({
       forwarded: 0,
       dropped: 0,
