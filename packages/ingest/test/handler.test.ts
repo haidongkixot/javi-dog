@@ -2,11 +2,18 @@ import { gzipSync } from 'node:zlib';
 import { PGlite } from '@electric-sql/pglite';
 import { schema } from '@javis-dog/event-store';
 import { getMigrationsFolder } from '@javis-dog/event-store/migrations';
+import { validateBatch } from '@javis-dog/jgr-spec';
 import { createProjectRepository } from '@javis-dog/projects';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createIngestDeps, createIngestHandler, type IngestDeps } from '../src/index.ts';
+
+// Real validator by default; one test forces a result the validator may return (H4).
+vi.mock('@javis-dog/jgr-spec', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@javis-dog/jgr-spec')>();
+  return { ...actual, validateBatch: vi.fn(actual.validateBatch) };
+});
 
 const NOW = new Date('2026-10-23T10:00:00Z');
 
@@ -64,8 +71,26 @@ const post = (token: string | null, body: unknown, headers: Record<string, strin
       : JSON.stringify(body)) as BodyInit,
   });
 
+/**
+ * In-memory stand-in for the store's rate window. The real window comes from the DB clock (H6),
+ * so the handler's `now` no longer picks it; the store's own tests cover the SQL.
+ */
+const fakeRateWindow = (resetAt = new Date('2026-10-23T10:01:00Z')) => {
+  const counts = new Map<string, number>();
+  return vi.fn(async (tokenId: string) => {
+    const n = (counts.get(tokenId) ?? 0) + 1;
+    counts.set(tokenId, n);
+    return { count: n, resetAt };
+  });
+};
+
 const handler = (overrides: Partial<IngestDeps> = {}) =>
-  createIngestHandler({ ...createIngestDeps(db), now: () => NOW, ...overrides });
+  createIngestHandler({
+    ...createIngestDeps(db),
+    hitRateWindow: fakeRateWindow(),
+    now: () => NOW,
+    ...overrides,
+  });
 
 const count = async (table: string) =>
   (await client.query<{ n: number }>(`select count(*)::int as n from ${table}`)).rows[0]!.n;
@@ -73,7 +98,8 @@ const count = async (table: string) =>
 describe('authentication', () => {
   it('answers 401 with WWW-Authenticate for missing, malformed, unknown and revoked tokens', async () => {
     const { ws, token, tokenId } = await setup();
-    const h = handler();
+    const hitRateWindow = fakeRateWindow();
+    const h = handler({ hitRateWindow });
     const unknown = `jd_it_${'A'.repeat(43)}`;
     for (const t of [null, 'nope', unknown]) {
       const res = await h(post(t, { events: [event(1)] }));
@@ -83,7 +109,12 @@ describe('authentication', () => {
     await projects.revokeToken(ws.id, tokenId);
     expect((await h(post(token, { events: [event(1)] }))).status).toBe(401);
     expect(await count('events')).toBe(0);
-    expect(await count('ingest_rate_windows')).toBe(0);
+    expect(hitRateWindow).not.toHaveBeenCalled();
+  });
+
+  it('checks the token before the media type', async () => {
+    const res = await handler()(post('nope', 'x', { 'content-type': 'text/plain' }));
+    expect(res.status).toBe(401);
   });
 });
 
@@ -125,7 +156,7 @@ describe('accepting events', () => {
     expect(await res.json()).toMatchObject({ accepted: 1 });
   });
 
-  it('reports a retried batch as duplicates and does not refresh the signal', async () => {
+  it('reports a retried batch as duplicates and still marks the signal (H2)', async () => {
     const { ws, p, token } = await setup();
     const batch = { events: [event(1), event(2)] };
     await handler()(post(token, batch));
@@ -133,7 +164,44 @@ describe('accepting events', () => {
     const res = await handler({ now: () => later })(post(token, batch));
     expect(await res.json()).toEqual({ accepted: 0, duplicates: 2, rejected: [] });
     expect(await count('events')).toBe(2);
-    expect((await projects.getProject(ws.id, p.id))?.lastSignalAt).toEqual(NOW);
+    expect((await projects.getProject(ws.id, p.id))?.lastSignalAt).toEqual(later);
+  });
+
+  it('writes the signal on the retry when the first bookkeeping write failed (H2)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ws, p, token, tokenId } = await setup();
+    const batch = { events: [event(1), event(2)] };
+    const touchSignal = vi
+      .fn<IngestDeps['touchSignal']>()
+      .mockRejectedValueOnce(new Error('statement timeout'))
+      .mockResolvedValue(undefined);
+    const markTokenUsed = vi.fn<IngestDeps['markTokenUsed']>(async () => {});
+
+    const first = await handler({ touchSignal, markTokenUsed })(post(token, batch));
+    expect(first.status).toBe(503);
+    expect(await count('events')).toBe(2); // the insert itself committed
+
+    const later = new Date(NOW.getTime() + 5_000);
+    const second = await handler({ touchSignal, markTokenUsed, now: () => later })(
+      post(token, batch),
+    );
+    expect(second.status).toBe(202);
+    expect(await second.json()).toEqual({ accepted: 0, duplicates: 2, rejected: [] });
+    expect(touchSignal).toHaveBeenCalledTimes(2);
+    expect(touchSignal).toHaveBeenLastCalledWith({ projectId: p.id, workspaceId: ws.id }, later);
+    expect(markTokenUsed).toHaveBeenLastCalledWith(tokenId, later);
+  });
+
+  it('marks no signal when every event was rejected', async () => {
+    const { token } = await setup();
+    const touchSignal = vi.fn<IngestDeps['touchSignal']>(async () => {});
+    const markTokenUsed = vi.fn<IngestDeps['markTokenUsed']>(async () => {});
+    const res = await handler({ touchSignal, markTokenUsed })(
+      post(token, { events: [event(1, { project_ref: 'someone-elses-project' })] }),
+    );
+    expect(await res.json()).toMatchObject({ accepted: 0, duplicates: 0 });
+    expect(touchSignal).not.toHaveBeenCalled();
+    expect(markTokenUsed).not.toHaveBeenCalled();
   });
 
   it('collapses a duplicate inside one batch', async () => {
@@ -210,18 +278,51 @@ describe('partial acceptance and tenant rules', () => {
 });
 
 describe('malformed and oversized requests', () => {
-  it('answers 400 for bad JSON, wrong content type, bad batch shape and unknown encodings', async () => {
+  it('answers 400 for bad JSON, an empty body and a bad batch shape', async () => {
     const { token } = await setup();
     const h = handler();
     expect((await h(post(token, '{not json'))).status).toBe(400);
+    expect((await h(post(token, ''))).status).toBe(400);
     expect((await h(post(token, { events: [] }))).status).toBe(400);
     expect((await h(post(token, { events: [event(1)], extra: 1 }))).status).toBe(400);
-    expect(
-      (await h(post(token, { events: [event(1)] }, { 'content-type': 'text/plain' }))).status,
-    ).toBe(400);
-    expect(
-      (await h(post(token, { events: [event(1)] }, { 'content-encoding': 'br' }))).status,
-    ).toBe(400);
+    expect(await count('events')).toBe(0);
+  });
+
+  it('answers 415 for another media type or an unknown encoding (H4)', async () => {
+    const { token } = await setup();
+    const h = handler();
+    for (const headers of [
+      { 'content-type': 'text/plain' },
+      { 'content-type': 'application/json-seq' },
+      { 'content-type': 'application/x-www-form-urlencoded' },
+      { 'content-encoding': 'br' },
+    ]) {
+      const res = await h(post(token, { events: [event(1)] }, headers));
+      expect(res.status).toBe(415);
+      expect(res.headers.get('cache-control')).toBe('no-store');
+      expect(await res.json()).toEqual({
+        error: 'unsupported_media_type',
+        message: expect.any(String),
+      });
+    }
+    expect(await count('events')).toBe(0);
+  });
+
+  it('accepts application/json with parameters, in any case', async () => {
+    const { token } = await setup();
+    const res = await handler()(
+      post(token, { events: [event(1)] }, { 'content-type': 'Application/JSON; charset=utf-8' }),
+    );
+    expect(res.status).toBe(202);
+  });
+
+  it('maps a too_large validation result (e.g. > 100 events) to 413', async () => {
+    const { token } = await setup();
+    const issues = [{ code: 'too_large' as const, path: 'events', message: 'At most 100.' }];
+    vi.mocked(validateBatch).mockReturnValueOnce({ ok: false, issues });
+    const res = await handler()(post(token, { events: [event(1)] }));
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: 'too_large', issues });
     expect(await count('events')).toBe(0);
   });
 
@@ -241,15 +342,39 @@ describe('rate limiting', () => {
   it('answers 429 with Retry-After once a token exceeds its batches per minute', async () => {
     const { token } = await setup();
     const at = new Date('2026-10-23T10:00:45Z');
-    const h = handler({ now: () => at, rateLimitPerMinute: 2 });
+    const hitRateWindow = fakeRateWindow(new Date('2026-10-23T10:01:00Z'));
+    const h = handler({ now: () => at, rateLimitPerMinute: 2, hitRateWindow });
     expect((await h(post(token, { events: [event(1)] }))).status).toBe(202);
     expect((await h(post(token, { events: [event(2)] }))).status).toBe(202);
     const res = await h(post(token, { events: [event(3)] }));
     expect(res.status).toBe(429);
     expect(res.headers.get('retry-after')).toBe('15');
     expect(await count('events')).toBe(2);
+    // The window is the store's (DB clock); the handler passes only the token id.
+    expect(hitRateWindow.mock.calls.every((c) => c.length === 1)).toBe(true);
+    // A new window (fresh count) lets the token in again.
     const next = handler({ now: () => new Date('2026-10-23T10:01:00Z'), rateLimitPerMinute: 2 });
     expect((await next(post(token, { events: [event(3)] }))).status).toBe(202);
+  });
+
+  it('never answers Retry-After below 1 s when the DB clock is ahead of this instance', async () => {
+    const { token } = await setup();
+    const h = handler({
+      now: () => new Date('2026-10-23T10:01:02Z'),
+      rateLimitPerMinute: 0,
+      hitRateWindow: fakeRateWindow(new Date('2026-10-23T10:01:00Z')),
+    });
+    const res = await h(post(token, { events: [event(1)] }));
+    expect(res.status).toBe(429);
+    expect(res.headers.get('retry-after')).toBe('1');
+  });
+
+  it('checks the rate limit before the media type', async () => {
+    const { token } = await setup();
+    const res = await handler({ rateLimitPerMinute: 0 })(
+      post(token, 'x', { 'content-type': 'text/plain' }),
+    );
+    expect(res.status).toBe(429);
   });
 });
 

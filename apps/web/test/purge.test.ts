@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runRetentionPurge } from '@/lib/purge';
 
-const purgeEventsBefore = vi.fn(async () => 3);
+const purgeEventsBefore = vi.fn(async () => ({ deleted: 3, batches: 1, complete: true }));
 vi.mock('@javis-dog/event-store', async (original) => ({
   ...(await original<typeof import('@javis-dog/event-store')>()),
   createDb: () => ({}),
@@ -20,33 +20,54 @@ afterEach(() => {
 
 describe('runRetentionPurge', () => {
   it('deletes events older than 30 days with the right secret', async () => {
-    const purge = vi.fn(async () => 7);
+    const purge = vi.fn(async () => ({ deleted: 7, batches: 2, complete: true }));
     const r = await runRetentionPurge(`Bearer ${SECRET}`, { env, purge, now: () => NOW });
     expect(r).toEqual({
       httpStatus: 200,
-      body: { deleted: 7, cutoff: '2026-09-23T20:00:00.000Z' },
+      body: { deleted: 7, batches: 2, complete: true, cutoff: '2026-09-23T20:00:00.000Z' },
     });
     expect(purge).toHaveBeenCalledWith(new Date('2026-09-23T20:00:00Z'), NOW);
   });
 
+  it('reports an incomplete purge when the time budget ran out (H3)', async () => {
+    const purge = vi.fn(async () => ({ deleted: 20_000, batches: 4, complete: false }));
+    const r = await runRetentionPurge(`Bearer ${SECRET}`, { env, purge, now: () => NOW });
+    expect(r).toEqual({
+      httpStatus: 200,
+      body: { deleted: 20_000, batches: 4, complete: false, cutoff: '2026-09-23T20:00:00.000Z' },
+    });
+  });
+
   it('answers 401 for a missing, wrong or differently formatted secret and deletes nothing', async () => {
-    const purge = vi.fn(async () => 0);
+    const purge = vi.fn(async () => ({ deleted: 0, batches: 0, complete: true }));
     for (const header of [null, 'Bearer wrong', SECRET, `Bearer ${SECRET} `, `bearer ${SECRET}`]) {
       expect((await runRetentionPurge(header, { env, purge })).httpStatus).toBe(401);
     }
     expect(purge).not.toHaveBeenCalled();
   });
 
-  it('answers 503 not_configured without CRON_SECRET or DATABASE_URL, even for "Bearer "', async () => {
-    const purge = vi.fn(async () => 0);
-    for (const e of [
-      { DATABASE_URL: env.DATABASE_URL },
-      { CRON_SECRET: SECRET },
-      { ...env, CRON_SECRET: '  ' },
-    ]) {
+  it('answers 503 not_configured without CRON_SECRET, even for "Bearer "', async () => {
+    const purge = vi.fn(async () => ({ deleted: 0, batches: 0, complete: true }));
+    for (const e of [{ DATABASE_URL: env.DATABASE_URL }, { ...env, CRON_SECRET: '  ' }]) {
       const r = await runRetentionPurge('Bearer ', { env: e, purge });
       expect(r).toEqual({ httpStatus: 503, body: { error: 'not_configured' } });
     }
+    expect(purge).not.toHaveBeenCalled();
+  });
+
+  it('authenticates before revealing a missing DATABASE_URL (H3)', async () => {
+    const purge = vi.fn(async () => ({ deleted: 0, batches: 0, complete: true }));
+    const e = { CRON_SECRET: SECRET };
+    for (const header of [null, 'Bearer ', 'Bearer wrong']) {
+      expect(await runRetentionPurge(header, { env: e, purge })).toEqual({
+        httpStatus: 401,
+        body: { error: 'unauthorized' },
+      });
+    }
+    expect(await runRetentionPurge(`Bearer ${SECRET}`, { env: e, purge })).toEqual({
+      httpStatus: 503,
+      body: { error: 'not_configured' },
+    });
     expect(purge).not.toHaveBeenCalled();
   });
 
@@ -78,7 +99,7 @@ describe('GET /api/cron/purge-events', () => {
     );
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
-    expect(await res.json()).toMatchObject({ deleted: 3 });
+    expect(await res.json()).toMatchObject({ deleted: 3, batches: 1, complete: true });
   });
 
   it('is scheduled once a day in vercel.json', () => {

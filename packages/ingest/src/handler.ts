@@ -17,7 +17,8 @@ export interface TokenScope {
 /** Everything the handler touches outside itself; real wiring in `createIngestDeps`. */
 export interface IngestDeps {
   verifyToken(raw: string): Promise<TokenScope | null>;
-  hitRateWindow(tokenId: string, now: Date): Promise<{ count: number; resetAt: Date }>;
+  /** Counts one batch in the token's current window; the window comes from the DB clock. */
+  hitRateWindow(tokenId: string): Promise<{ count: number; resetAt: Date }>;
   insertEvents(rows: NewEvent[]): Promise<number>;
   touchSignal(scope: { projectId: string; workspaceId: string }, at: Date): Promise<void>;
   markTokenUsed(tokenId: string, at: Date): Promise<void>;
@@ -48,6 +49,8 @@ const json = (status: number, body: unknown, headers: Record<string, string> = {
 const malformed = (message: string) =>
   json(400, { error: 'malformed', issues: [{ code: 'schema', path: '', message }] });
 
+const unsupported = (message: string) => json(415, { error: 'unsupported_media_type', message });
+
 const unauthorized = () =>
   json(
     401,
@@ -67,8 +70,9 @@ const logFailure = (error: unknown) =>
   );
 
 /**
- * `POST /api/v1/events` (JGR v0.1 §8, ADR-0008). Order: auth → rate limit → bounded body →
- * JD-M01 validation → project scope and privacy ceiling → idempotent insert → verified signal.
+ * `POST /api/v1/events` (JGR v0.1 §8, ADR-0008). Order: auth → rate limit → media type (415)
+ * → bounded body (413, 415 for an unknown encoding) → JD-M01 validation → project scope and
+ * privacy ceiling → idempotent insert → verified signal.
  */
 export const createIngestHandler =
   (deps: IngestDeps) =>
@@ -82,7 +86,7 @@ export const createIngestHandler =
       if (!scope) return unauthorized();
 
       const limit = deps.rateLimitPerMinute ?? INGEST_RATE_LIMIT_PER_MINUTE;
-      const window = await deps.hitRateWindow(scope.tokenId, now);
+      const window = await deps.hitRateWindow(scope.tokenId);
       if (window.count > limit) {
         const retryAfter = Math.max(
           1,
@@ -96,7 +100,7 @@ export const createIngestHandler =
       }
 
       const type = (request.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase();
-      if (type !== 'application/json') return malformed('Content-Type must be application/json.');
+      if (type !== 'application/json') return unsupported('Content-Type must be application/json.');
 
       const body = await readBoundedBody(request, JGR_LIMITS.maxBatchBytes);
       if (!body.ok) {
@@ -112,12 +116,13 @@ export const createIngestHandler =
             ],
           });
         }
+        if (body.reason === 'unsupported_encoding') {
+          return unsupported('Content-Encoding must be gzip or identity.');
+        }
         return malformed(
-          body.reason === 'unsupported_encoding'
-            ? 'Content-Encoding must be gzip or identity.'
-            : body.reason === 'empty'
-              ? 'Request body is empty.'
-              : 'Request body is not valid gzip or UTF-8.',
+          body.reason === 'empty'
+            ? 'Request body is empty.'
+            : 'Request body is not valid gzip or UTF-8.',
         );
       }
 
@@ -186,7 +191,10 @@ export const createIngestHandler =
       });
 
       const stored = await deps.insertEvents(rows);
-      if (stored > 0) {
+      // Any valid row (stored or duplicate) is a verified signal. Gating on `stored > 0` would
+      // lose the signal for good when the insert commits but this write fails: the client gets
+      // 503, retries, and the retry stores nothing (H2). Both writes are idempotent in the store.
+      if (rows.length > 0) {
         await Promise.all([
           deps.touchSignal({ projectId: scope.projectId, workspaceId: scope.workspaceId }, now),
           deps.markTokenUsed(scope.tokenId, now),
