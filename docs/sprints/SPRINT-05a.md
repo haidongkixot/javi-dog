@@ -29,6 +29,15 @@
 | R8 | Security review | all | read-only | Findings fixed or logged before the release gate | Planned (Reviewer) |
 | R9 | Release checklist + readiness | docs | — → `docs/how-to/release-checklist.md`, readiness rows | Gate items with evidence links; accepted risk recorded | Planned |
 
+## Owner steps (R2 cutover)
+
+1. Optional, recommended in the readiness row "Accepted risk": in the Neon console, open project `neon-javisdog` → Branches → `main` → Roles → `neondb_owner` → **Reset password**. This changes only `main`, and `dev-agent` keeps working.
+2. In the Neon console, open `main` → **Connect**, choose the pooled connection, and copy the URL. Do not paste it into chat.
+3. In Vercel, open Project `javisdog` → Settings → Environment Variables → `DATABASE_URL`, then **Edit** the **Production** value only and paste the URL.
+4. Go to Deployments → the latest production deployment → **Redeploy**.
+5. Sign in at `https://javisdog.vercel.app/sign-in`. You get a new personal workspace, because nothing carries over from `dev-agent`.
+6. Tell the orchestrator "cutover done". It checks `/api/health` and the `users` count on `main`, then runs the bounded load test and the end-to-end smoke (R6/R7). Cleaning up the ephemeral workspace afterwards needs your OK.
+
 ## Review focus
 
 - A signed-in user of workspace A passes workspace B's project id to a page, route or action → not found, nothing of B in the response (R5).

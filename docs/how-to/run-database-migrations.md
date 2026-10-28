@@ -1,6 +1,6 @@
 # How to change the database schema and run migrations
 
-Applies to JD-M06 (`packages/event-store`). Decision: ADR-0005. Only the Neon `dev-agent` branch is migrated until the S5 release gate.
+Applies to JD-M06 (`packages/event-store`). Decision: ADR-0005. Migrate `dev-agent` first, then production (`main`) as described in §5 (ADR-0015).
 
 ## 1. Change the schema
 
@@ -33,9 +33,13 @@ Then open `/api/health` and check `db.migrationsApplied`.
 
 **If a migration fails half-way:** the neon-http migrator runs statement by statement without a transaction and records the journal row only at the end, so a retry fails with "relation already exists". Run the migration's reviewed `rollback/NNNN_down.sql` (it uses `IF EXISTS`, so it clears partial state) in the Neon SQL editor, fix the cause, then migrate again.
 
+## 5. Apply to production (`main`)
+
+After `dev-agent` passes `db:smoke` and CI is green, follow `docs/how-to/operate-production.md` "Migrations on production". It covers the restore-point branch, `db:migrate` from the owner's machine or `db:statements --after <created_at>` through the Neon MCP (one transaction per migration, including its ledger row), and verification against `dev-agent`.
+
 ## Rollback
 
-Run the reviewed `rollback/NNNN_down.sql` in the Neon SQL editor. For data loss, use Neon point-in-time restore on the branch.
+Run the reviewed `rollback/NNNN_down.sql` in the Neon SQL editor. For data loss, use Neon point-in-time restore on the branch. The window is 6 h on the free plan. Full procedure: `docs/how-to/roll-back-a-release.md`.
 
 ## Never
 
