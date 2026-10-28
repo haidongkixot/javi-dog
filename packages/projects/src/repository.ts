@@ -1,4 +1,4 @@
-import { and, count, eq, isNull, lt, or } from 'drizzle-orm';
+import { and, count, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { ingestTokens, projects, projectTables, workspaces } from './db/tables.ts';
 import { normalizeProjectInput, normalizeWorkspaceInput } from './schema.ts';
@@ -8,8 +8,16 @@ import { displayPrefix, generateIngestToken, hashIngestToken, parseIngestToken }
 export type ProjectsDb = PgDatabase<PgQueryResultHKT, typeof projectTables>;
 
 export const MAX_ACTIVE_TOKENS_PER_PROJECT = 5;
+/** Projects one workspace may hold (S5a M1, owner decision 2026-10-28). */
+export const MAX_PROJECTS_PER_WORKSPACE = 20;
+/**
+ * Ingest tokens one project may issue per rolling 24 h by the database clock, revoked ones
+ * included, so issue-then-revoke cannot loop (S5a M1). The active cap above still applies.
+ */
+export const MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY = 10;
 
-export type ProjectRepositoryErrorCode = 'slug_taken' | 'not_found' | 'token_limit';
+export type ProjectRepositoryErrorCode =
+  'slug_taken' | 'not_found' | 'token_limit' | 'project_limit' | 'token_issue_limit';
 
 export class ProjectRepositoryError extends Error {
   readonly code: ProjectRepositoryErrorCode;
@@ -67,6 +75,15 @@ export const createProjectRepository = (db: ProjectsDb) => {
 
     async createProject(workspaceId: string, raw: unknown) {
       const input = normalizeProjectInput(raw);
+      // Soft cap like the token caps: a concurrent create may briefly exceed it (no
+      // transactions on neon-http).
+      const [held] = await db
+        .select({ n: count() })
+        .from(projects)
+        .where(eq(projects.workspaceId, workspaceId));
+      if ((held?.n ?? 0) >= MAX_PROJECTS_PER_WORKSPACE) {
+        throw new ProjectRepositoryError('project_limit');
+      }
       try {
         const [row] = await db
           .insert(projects)
@@ -100,12 +117,25 @@ export const createProjectRepository = (db: ProjectsDb) => {
     async issueToken(workspaceId: string, projectId: string, name: string) {
       const project = await findProject(workspaceId, projectId);
       if (!project) throw new ProjectRepositoryError('not_found');
-      // Soft limit: a concurrent issue may briefly exceed it (no transactions on neon-http).
-      const [active] = await db
-        .select({ n: count() })
+      // Soft limits: a concurrent issue may briefly exceed them (no transactions on neon-http).
+      // One read for both; the 24 h window uses the database clock, not this instance's.
+      const [used] = await db
+        .select({
+          active: sql<number>`count(*) filter (where ${ingestTokens.revokedAt} is null)`.mapWith(
+            Number,
+          ),
+          issuedToday:
+            sql<number>`count(*) filter (where ${ingestTokens.createdAt} > now() - interval '24 hours')`.mapWith(
+              Number,
+            ),
+        })
         .from(ingestTokens)
-        .where(and(eq(ingestTokens.projectId, projectId), isNull(ingestTokens.revokedAt)));
-      if ((active?.n ?? 0) >= MAX_ACTIVE_TOKENS_PER_PROJECT) {
+        .where(eq(ingestTokens.projectId, projectId));
+      // The daily cap first: revoking a token does not lift it, so its message is the useful one.
+      if ((used?.issuedToday ?? 0) >= MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY) {
+        throw new ProjectRepositoryError('token_issue_limit');
+      }
+      if ((used?.active ?? 0) >= MAX_ACTIVE_TOKENS_PER_PROJECT) {
         throw new ProjectRepositoryError('token_limit');
       }
       const token = generateIngestToken();

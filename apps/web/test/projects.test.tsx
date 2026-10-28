@@ -89,6 +89,22 @@ describe('createProjectAction', () => {
     );
     expect(res.errors?.name).toBe('This workspace already has a project with that name.');
   });
+
+  it('explains the 20-project cap (S5a M1)', async () => {
+    repo.createProject.mockRejectedValue(new ProjectRepositoryError('project_limit'));
+    const res = await createProjectAction(
+      {},
+      form([
+        ['name', 'Web app'],
+        ['platforms', 'github'],
+      ]),
+    );
+    expect(res).toEqual({
+      errors: {
+        form: 'This workspace already has 20 projects, the most it can hold for now.',
+      },
+    });
+  });
 });
 
 describe('issueTokenAction', () => {
@@ -106,6 +122,10 @@ describe('issueTokenAction', () => {
 
   it.each([
     ['token_limit', 'This project already has 5 active tokens. Revoke one first.'],
+    [
+      'token_issue_limit',
+      'This project has issued 10 tokens in the last 24 hours. You can issue another once the oldest is a day old.',
+    ],
     ['not_found', 'Project not found.'],
   ] as const)('maps %s to a readable message', async (code, message) => {
     repo.issueToken.mockRejectedValue(new ProjectRepositoryError(code));

@@ -1,7 +1,7 @@
 import { createEventRepository, type AnyDb, type NewEvent } from '@javis-dog/event-store';
 import { JGR_LIMITS, validateBatch, type Issue } from '@javis-dog/jgr-spec';
 import { createProjectRepository } from '@javis-dog/projects';
-import { readBoundedBody } from './body.ts';
+import { exceedsJsonDepth, MAX_JSON_DEPTH, readBoundedBody } from './body.ts';
 
 /** 60 batches per token per UTC minute ≈ 6 000 events (ADR-0008). */
 export const INGEST_RATE_LIMIT_PER_MINUTE = 60;
@@ -154,6 +154,10 @@ export const createIngestHandler =
         );
       }
 
+      // Too deep to walk safely: a malformed request, never a retryable 503 (S5a review L3).
+      if (exceedsJsonDepth(body.text)) {
+        return malformed(`Request body nests deeper than ${MAX_JSON_DEPTH} levels.`);
+      }
       let parsed: unknown;
       try {
         parsed = JSON.parse(body.text);

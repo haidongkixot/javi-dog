@@ -55,11 +55,29 @@ const SHA256 = /^sha256:[0-9a-f]{64}$/;
 /** Types whose meaning requires a status (JGR-R05). */
 const STATUS_TYPES = new Set(['heartbeat', 'agent.started', 'agent.stopped']);
 
-const utf8Bytes = (value: unknown): number =>
-  new TextEncoder().encode(JSON.stringify(value)).length;
+/**
+ * Serialized size in UTF-8 bytes, or `null` when the value nests too deeply to serialize
+ * (JSON.stringify recurses and throws RangeError; S5a review L3).
+ */
+const utf8Bytes = (value: unknown): number | null => {
+  try {
+    return new TextEncoder().encode(JSON.stringify(value)).length;
+  } catch (error) {
+    if (error instanceof RangeError) return null;
+    throw error;
+  }
+};
+
+/** A deeply nested value is malformed input, never a temporary failure. */
+const tooDeep = (): { ok: false; issues: Issue[] } => ({
+  ok: false,
+  issues: [{ code: 'schema', path: '', message: 'Value nests too deeply to validate.' }],
+});
 
 export const validateEvent = (raw: unknown, now: Date = new Date()): EventResult => {
-  if (utf8Bytes(raw) > JGR_LIMITS.maxEventBytes) {
+  const size = utf8Bytes(raw);
+  if (size === null) return tooDeep();
+  if (size > JGR_LIMITS.maxEventBytes) {
     return {
       ok: false,
       issues: [
@@ -159,7 +177,9 @@ export type BatchResult =
 
 /** Validate a batch. Valid events are accepted even when others fail (partial acceptance, JGR-R13). */
 export const validateBatch = (raw: unknown, now: Date = new Date()): BatchResult => {
-  if (utf8Bytes(raw) > JGR_LIMITS.maxBatchBytes) {
+  const size = utf8Bytes(raw);
+  if (size === null) return tooDeep();
+  if (size > JGR_LIMITS.maxBatchBytes) {
     return {
       ok: false,
       issues: [

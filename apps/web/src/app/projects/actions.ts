@@ -1,15 +1,32 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ProjectRepositoryError } from '@javis-dog/projects';
+import {
+  MAX_ACTIVE_TOKENS_PER_PROJECT,
+  MAX_PROJECTS_PER_WORKSPACE,
+  MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY,
+  ProjectRepositoryError,
+  type ProjectRepositoryErrorCode,
+} from '@javis-dog/projects';
 import { ZodError } from 'zod';
 import { budgetDeps, budgetLimitSchema, canManageBudget } from '@/lib/budgets';
+import { canManageProject } from '@/lib/permissions';
 import { getViewer, isUuid } from '@/lib/viewer';
 
 export interface CreateProjectState {
   errors?: Record<string, string>;
   createdId?: string;
 }
+
+// Project and token changes: workspace owners and admins only (S5a review L1, like budgets).
+const NOT_ALLOWED_PROJECT = 'Only workspace owners and admins can create projects.';
+const NOT_ALLOWED_TOKEN = 'Only workspace owners and admins can issue tokens.';
+
+/** Token refusals; anything else (including another workspace's project) reads as not found. */
+const TOKEN_ERRORS: Partial<Record<ProjectRepositoryErrorCode, string>> = {
+  token_limit: `This project already has ${MAX_ACTIVE_TOKENS_PER_PROJECT} active tokens. Revoke one first.`,
+  token_issue_limit: `This project has issued ${MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY} tokens in the last 24 hours. You can issue another once the oldest is a day old.`,
+};
 
 const formToInput = (form: FormData) => ({
   name: String(form.get('name') ?? ''),
@@ -24,6 +41,8 @@ export async function createProjectAction(
 ): Promise<CreateProjectState> {
   const viewer = await getViewer();
   if (!viewer) return { errors: { form: 'Your session ended. Sign in again to continue.' } };
+  // Owners and admins only (S5a review L1); the role comes from the membership row.
+  if (!canManageProject(viewer.role)) return { errors: { form: NOT_ALLOWED_PROJECT } };
   try {
     const project = await viewer.projects.createProject(viewer.workspaceId, formToInput(form));
     revalidatePath('/projects');
@@ -38,6 +57,13 @@ export async function createProjectAction(
     }
     if (error instanceof ProjectRepositoryError && error.code === 'slug_taken') {
       return { errors: { name: 'This workspace already has a project with that name.' } };
+    }
+    if (error instanceof ProjectRepositoryError && error.code === 'project_limit') {
+      return {
+        errors: {
+          form: `This workspace already has ${MAX_PROJECTS_PER_WORKSPACE} projects, the most it can hold for now.`,
+        },
+      };
     }
     throw error;
   }
@@ -55,6 +81,7 @@ export async function issueTokenAction(
 ): Promise<IssueTokenState> {
   const viewer = await getViewer();
   if (!viewer) return { error: 'Your session ended. Sign in again to continue.' };
+  if (!canManageProject(viewer.role)) return { error: NOT_ALLOWED_TOKEN };
   if (!isUuid(projectId)) return { error: 'Project not found.' };
   try {
     const { token } = await viewer.projects.issueToken(
@@ -67,21 +94,20 @@ export async function issueTokenAction(
     return { token };
   } catch (error) {
     if (error instanceof ProjectRepositoryError) {
-      return {
-        error:
-          error.code === 'token_limit'
-            ? 'This project already has 5 active tokens. Revoke one first.'
-            : 'Project not found.',
-      };
+      return { error: TOKEN_ERRORS[error.code] ?? 'Project not found.' };
     }
     throw error;
   }
 }
 
+/**
+ * Revokes one token. A plain form action (no state): members, signed-out requests and malformed
+ * ids write nothing, and the page never offers the control to members.
+ */
 export async function revokeTokenAction(projectId: string, form: FormData): Promise<void> {
   const viewer = await getViewer();
   const tokenId = form.get('tokenId');
-  if (!viewer || !isUuid(tokenId) || !isUuid(projectId)) return;
+  if (!viewer || !canManageProject(viewer.role) || !isUuid(tokenId) || !isUuid(projectId)) return;
   await viewer.projects.revokeToken(viewer.workspaceId, tokenId);
   revalidatePath(`/projects/${projectId}`);
 }

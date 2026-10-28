@@ -298,6 +298,41 @@ describe('malformed and oversized requests', () => {
     expect(await count('events')).toBe(0);
   });
 
+  // S5a review L3: ~240 KB of nesting is under the 256 KB limit and parses, but walking it
+  // overflowed the stack and came back as a retryable 503. It is a malformed request.
+  it('answers 400 malformed, not 503, for deeply nested JSON under the size limit', async () => {
+    const { token } = await setup();
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const h = handler();
+    const deep = `{"events":[${'['.repeat(120_000)}${']'.repeat(120_000)}]}`;
+    expect(new TextEncoder().encode(deep).length).toBeLessThan(256 * 1024);
+    for (const body of [deep, gzipSync(deep)]) {
+      const res = await h(
+        post(token, body, body instanceof Uint8Array ? { 'content-encoding': 'gzip' } : {}),
+      );
+      expect(res.status).toBe(400);
+      expect(res.headers.get('retry-after')).toBeNull();
+      const json = (await res.json()) as { error: string; issues: Array<{ code: string }> };
+      expect(json.error).toBe('malformed');
+      expect(json.issues[0]!.code).toBe('schema');
+    }
+    // Deep objects too, and just past the depth limit.
+    const objects = `{"events":[${'{"a":'.repeat(40)}1${'}'.repeat(40)}]}`;
+    expect((await h(post(token, objects))).status).toBe(400);
+    expect(quiet).not.toHaveBeenCalled();
+    expect(await count('events')).toBe(0);
+  });
+
+  it('counts only structural brackets, so bracket characters in strings are fine', async () => {
+    const { token } = await setup();
+    // Escaped quotes and backslashes must not end the string early in the scan.
+    const value = `"[\\${'[{'.repeat(50)}\\"`;
+    const brackets = event(1, { attributes: { platform_version: value } });
+    const res = await handler()(post(token, { events: [brackets] }));
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ accepted: 1, duplicates: 0, rejected: [] });
+  });
+
   it('answers 415 for another media type or an unknown encoding (H4)', async () => {
     const { token } = await setup();
     const h = handler();

@@ -93,3 +93,21 @@ describe('S3d hardening (ADR-0008 Changes)', () => {
     );
   });
 });
+
+// S5a review L3: a parsed value too deep for JSON.stringify must come back as a schema issue,
+// never as a thrown RangeError (which callers would treat as a temporary failure).
+describe('values nested too deeply to measure', () => {
+  const deep = JSON.parse(`${'['.repeat(120_000)}${']'.repeat(120_000)}`) as unknown;
+  const tooDeep = {
+    ok: false,
+    issues: [{ code: 'schema', path: '', message: 'Value nests too deeply to validate.' }],
+  };
+
+  it('validateBatch returns a schema issue instead of throwing', () => {
+    expect(validateBatch({ events: [deep] }, now)).toEqual(tooDeep);
+  });
+
+  it('validateEvent returns a schema issue instead of throwing', () => {
+    expect(validateEvent({ ...event(), attributes: { platform: deep } }, now)).toEqual(tooDeep);
+  });
+});
