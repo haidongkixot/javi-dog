@@ -13,10 +13,10 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { realpathSync } from 'node:fs';
-import { appendFile, chmod, copyFile, mkdir, readFile, rename, rm } from 'node:fs/promises';
+import { appendFile, chmod, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createFileSpool, createJgrClient } from '@javis-dog/jgr-sdk';
 import {
@@ -103,25 +103,61 @@ const ensureIgnored = async (projectDir: string, file: string) => {
   }
 };
 
+/** Where `javi init` installs a bundle: one folder per version (S3f review finding 2). */
+export const installTarget = (home: string, version: string) =>
+  join(home, 'bin', version, 'javi.mjs');
+
+/** Rename errors Windows reports while an antivirus scanner or the indexer holds the file. */
+const TRANSIENT_RENAME = new Set(['EPERM', 'EBUSY', 'EACCES']);
+const RENAME_RETRIES = 5;
+
+export interface InstallOptions {
+  /** Injectable for tests (simulates Windows' transient rename errors). */
+  rename?: (from: string, to: string) => Promise<void>;
+  /** First retry delay; doubles on each retry (default 25 ms: 25, 50, 100, 200, 400). */
+  retryDelayMs?: number;
+}
+
 /**
- * Copies the running bundle to `<JAVI_HOME>/bin/javi.mjs` (temp file + rename) and returns that
- * path, so hooks never point into an `npx` cache that may be cleared later (S3f P3).
+ * Copies the running bundle to `<JAVI_HOME>/bin/<version>/javi.mjs` (temp file + rename) and
+ * returns that path, so hooks never point into an `npx` cache that may be cleared later (S3f
+ * P3), each project keeps the version it was set up with, and an older tarball cannot replace
+ * the copy other projects use. A byte-identical copy is kept as it is.
  */
-const installSelf = async (home: string, source: string) => {
-  const dir = join(home, 'bin');
+export const installSelf = async (
+  home: string,
+  source: string,
+  version: string,
+  { rename: move = rename, retryDelayMs = 25 }: InstallOptions = {},
+): Promise<{ path: string; copied: boolean }> => {
+  const target = installTarget(home, version);
+  const dir = dirname(target);
   await mkdir(dir, { recursive: true, mode: 0o700 });
-  await chmod(dir, 0o700).catch(() => {});
-  const target = join(dir, 'javi.mjs');
+  for (const d of [join(home, 'bin'), dir]) await chmod(d, 0o700).catch(() => {});
+  const bytes = await readFile(source);
+  const current = await readFile(target).catch(() => null);
+  if (current?.equals(bytes)) return { path: target, copied: false };
+
   const temp = `${target}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
   try {
-    await copyFile(source, temp);
+    await writeFile(temp, bytes, { mode: 0o755 });
     await chmod(temp, 0o755);
-    await rename(temp, target);
+    for (let retry = 0; ; retry++) {
+      try {
+        await move(temp, target);
+        break;
+      } catch (e) {
+        const code = (e as NodeJS.ErrnoException).code ?? '';
+        if (!TRANSIENT_RENAME.has(code) || retry >= RENAME_RETRIES) throw e;
+        await new Promise((r) => setTimeout(r, retryDelayMs * 2 ** retry));
+      }
+    }
   } catch (e) {
-    await rm(temp, { force: true });
+    // Never leave a half-written .tmp copy behind; the original error is the one to report.
+    await rm(temp, { force: true }).catch(() => {});
     throw e;
   }
-  return target;
+  return { path: target, copied: true };
 };
 
 // --- Token usage (ADR-0011) ---
@@ -406,12 +442,29 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         return 2;
       }
       const projectDir = resolve(io.cwd, flag(argv, 'dir') ?? '.');
+      // From the bundle: hooks run a stable, versioned copy. From a repo checkout: this .ts file,
+      // as before. The copy comes first: if it fails, no token is saved and no hook registered.
+      let cliPath = fileURLToPath(import.meta.url);
+      if (BUNDLED) {
+        try {
+          const installed = await installSelf(state.home, cliPath, COLLECTOR_VERSION);
+          cliPath = installed.path;
+          io.out(
+            installed.copied
+              ? `javi ${COLLECTOR_VERSION} installed in ${cliPath}.`
+              : `javi ${COLLECTOR_VERSION} already installed in ${cliPath}.`,
+          );
+        } catch (e) {
+          // The error code only: the target path is named here, nothing else is echoed.
+          const code = (e as NodeJS.ErrnoException).code ?? 'unknown error';
+          io.err(
+            `javi init failed: could not install javi in ${installTarget(state.home, COLLECTOR_VERSION)} (${code}). Nothing was changed: no token saved, no hooks registered.`,
+          );
+          return 1;
+        }
+      }
       await state.saveCredentials(projectRef, { endpoint, token });
       const installation = await state.installation();
-      const running = fileURLToPath(import.meta.url);
-      // From the bundle: hooks run a stable copy. From a repo checkout: this .ts file, as before.
-      const cliPath = BUNDLED ? await installSelf(state.home, running) : running;
-      if (BUNDLED) io.out(`javi installed in ${cliPath}.`);
       const path = await installHooks(projectDir, process.execPath, cliPath, projectRef);
       io.out(
         `Hooks registered in ${path} (${await ensureIgnored(projectDir, settingsPath(projectDir))}).`,
@@ -501,18 +554,19 @@ const readAllStdin = async () => {
 
 /**
  * True when this file is the program Node started. npm/npx run the bin through a symlink in
- * node_modules/.bin, while import.meta.url is the real path, so compare real paths.
+ * node_modules/.bin, while import.meta.url is the real path, so compare real paths, except under
+ * --preserve-symlinks-main, where import.meta.url keeps the symlink path: accept either.
  */
 const isEntryPoint = () => {
   const entry = process.argv[1];
   if (!entry) return false;
-  let real: string;
+  const candidates = [resolve(entry)];
   try {
-    real = realpathSync(entry);
+    candidates.push(realpathSync(entry));
   } catch {
-    real = resolve(entry);
+    // argv[1] does not exist as a path: only its resolved form can match.
   }
-  return import.meta.url === pathToFileURL(real).href;
+  return candidates.some((path) => pathToFileURL(path).href === import.meta.url);
 };
 
 if (isEntryPoint()) {
