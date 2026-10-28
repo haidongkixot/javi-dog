@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { ProjectRepositoryError } from '@javis-dog/projects';
 import { ZodError } from 'zod';
+import { budgetDeps, budgetLimitSchema, canManageBudget } from '@/lib/budgets';
 import { getViewer, isUuid } from '@/lib/viewer';
 
 export interface CreateProjectState {
@@ -83,4 +84,91 @@ export async function revokeTokenAction(projectId: string, form: FormData): Prom
   if (!viewer || !isUuid(tokenId) || !isUuid(projectId)) return;
   await viewer.projects.revokeToken(viewer.workspaceId, tokenId);
   revalidatePath(`/projects/${projectId}`);
+}
+
+// Budgets (ADR-0014). Only workspace owners and admins may set or clear one; members read
+// only. The workspace comes from the viewer; the project id from the form is checked against
+// it here and again by the JD-M12 repository. Nothing is written unless every check passes.
+
+export interface BudgetActionState {
+  errors?: { limitUsd?: string; form?: string };
+  saved?: 'set' | 'cleared';
+}
+
+const SIGNED_OUT = 'Your session ended. Sign in again to continue.';
+const NOT_ALLOWED = 'Only workspace owners and admins can change budgets.';
+const NOT_FOUND = 'Project not found.';
+
+const budgetFailure = (error: unknown): BudgetActionState => {
+  if (error instanceof RangeError) return { errors: { limitUsd: 'This limit is out of range.' } };
+  if ((error as { code?: unknown } | null)?.code === 'not_found')
+    return { errors: { form: NOT_FOUND } };
+  console.error(
+    JSON.stringify({
+      level: 'error',
+      module: 'JD-APP',
+      msg: 'budget change failed',
+      // The name only: driver messages can echo hosts or credentials.
+      error: error instanceof Error ? error.name : typeof error,
+    }),
+  );
+  return { errors: { form: 'The budget could not be saved. Try again in a moment.' } };
+};
+
+/** The viewer, store and project id when the viewer may change this project's budget. */
+const budgetScope = async (form: FormData) => {
+  const viewer = await getViewer();
+  if (!viewer) return { error: SIGNED_OUT } as const;
+  if (!canManageBudget(viewer.role)) return { error: NOT_ALLOWED } as const;
+  const projectId = form.get('projectId');
+  if (!isUuid(projectId)) return { error: NOT_FOUND } as const;
+  const db = budgetDeps.getDb();
+  if (!db) return { error: 'Budgets need a database, and none is configured.' } as const;
+  return { viewer, projectId, store: budgetDeps.repository(db) } as const;
+};
+
+const revalidateBudget = (projectId: string) => {
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath('/projects');
+};
+
+/** Sets or replaces the project's monthly limit (form fields `projectId`, `limitUsd`). */
+export async function setBudgetAction(
+  _prev: BudgetActionState,
+  form: FormData,
+): Promise<BudgetActionState> {
+  const scope = await budgetScope(form);
+  if ('error' in scope) return { errors: { form: scope.error } };
+  const parsed = budgetLimitSchema.safeParse(String(form.get('limitUsd') ?? ''));
+  if (!parsed.success)
+    return { errors: { limitUsd: parsed.error.issues[0]?.message ?? 'Check the limit.' } };
+  const { viewer, projectId, store } = scope;
+  try {
+    if (!(await viewer.projects.getProject(viewer.workspaceId, projectId)))
+      return { errors: { form: NOT_FOUND } };
+    await store.setBudget(viewer.workspaceId, projectId, parsed.data, viewer.user.id);
+  } catch (error) {
+    return budgetFailure(error);
+  }
+  revalidateBudget(projectId);
+  return { saved: 'set' };
+}
+
+/** Removes the project's monthly limit (form field `projectId`). */
+export async function clearBudgetAction(
+  _prev: BudgetActionState,
+  form: FormData,
+): Promise<BudgetActionState> {
+  const scope = await budgetScope(form);
+  if ('error' in scope) return { errors: { form: scope.error } };
+  const { viewer, projectId, store } = scope;
+  try {
+    if (!(await viewer.projects.getProject(viewer.workspaceId, projectId)))
+      return { errors: { form: NOT_FOUND } };
+    await store.clearBudget(viewer.workspaceId, projectId);
+  } catch (error) {
+    return budgetFailure(error);
+  }
+  revalidateBudget(projectId);
+  return { saved: 'cleared' };
 }

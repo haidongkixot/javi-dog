@@ -4,9 +4,11 @@ import { notFound } from 'next/navigation';
 import { Card, CardHead, EmptyState, PageHead, StatusPill } from '@javis-dog/ui/components';
 import { revokeTokenAction } from '@/app/projects/actions';
 import { ProjectUsage } from '@/components/analytics/usage-panels';
+import { BudgetCard } from '@/components/budget/budget-card';
 import { SignInPrompt } from '@/components/sign-in-prompt';
 import { IssueTokenForm } from '@/components/token-panel';
 import { analyticsDeps, loadUsage } from '@/lib/analytics';
+import { budgetDeps, canManageBudget, loadBudget } from '@/lib/budgets';
 import { getViewer, isUuid } from '@/lib/viewer';
 
 export const metadata: Metadata = { title: 'Project' };
@@ -21,7 +23,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   // Scoped by the viewer's workspace: another workspace's project id is simply not found.
   const project = isUuid(id) ? await viewer.projects.getProject(viewer.workspaceId, id) : null;
   if (!project) notFound();
-  const [tokens, usage] = await Promise.all([
+  const [tokens, usage, budget] = await Promise.all([
     viewer.projects.listTokens(viewer.workspaceId, project.id),
     // The project id comes from the workspace-scoped lookup above, never from the URL directly;
     // the viewer is reused, so the reader is scoped to the same workspace (ADR-0013). Usage by
@@ -30,6 +32,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       { ...analyticsDeps, getViewer: async () => viewer },
       { projectId: project.id, include: { byProject: false } },
     ),
+    // Same rule for the budget (ADR-0014); read once per visit, no polling.
+    loadBudget({ ...budgetDeps, getViewer: async () => viewer }, project.id),
   ]);
 
   return (
@@ -44,6 +48,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </Link>
         }
       />
+      <BudgetCard load={budget} canEdit={canManageBudget(viewer.role)} />
       <Card labelledBy="tokens-title">
         <CardHead
           id="tokens-title"
