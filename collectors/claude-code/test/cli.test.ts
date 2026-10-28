@@ -47,6 +47,7 @@ const io = (overrides: Partial<Io> = {}) => {
     out: (l) => out.push(l),
     err: (l) => err.push(l),
     spawnFlush: (ref) => spawned.push(ref),
+    spawnReceiver: () => spawned.push('receiver'),
     fetch: fetchToHandler,
     ...overrides,
   };
