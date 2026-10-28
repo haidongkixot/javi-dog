@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { DashboardSnapshot } from '@javis-dog/realtime';
 import { Card, CardHead, EmptyState, StatusPill } from '@javis-dog/ui/components';
+import { BudgetCell, type BudgetCellData } from '@/components/budget/budget-cell';
 import { FreshnessPill, SignalTime } from './signal';
 
 /** A workspace project as the server page passes it (dates as ISO strings). */
@@ -11,6 +12,8 @@ export interface ProjectRow {
   platforms: string[];
   privacyClass: string;
   createdAt: string;
+  /** Month-to-date budget use (ADR-0014); absent when the page did not load budgets. */
+  budget?: BudgetCellData;
 }
 
 const columns = [
@@ -20,6 +23,7 @@ const columns = [
   'Freshness',
   'Last signal',
   'Threads',
+  'Budget',
   'Created',
 ] as const;
 
@@ -118,6 +122,9 @@ export function ProjectsTable({
                       ) : (
                         '—'
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-ink">
+                      <BudgetCell budget={p.budget} />
                     </td>
                     <td className="px-4 py-3 text-xs text-muted tabular-nums">
                       {dateFmt.format(new Date(p.createdAt))}
