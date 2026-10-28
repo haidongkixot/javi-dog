@@ -2,7 +2,7 @@
   "name": "@javis-dog/event-store",
   "version": "0.1.0",
   "private": true,
-  "description": "JD-M06 — Neon client, composed Drizzle schema, migrations and DB health",
+  "description": "JD-M06 \u2014 Neon client, composed Drizzle schema, migrations and DB health",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@javis-dog/identity": "workspace:*",
+    "@javis-dog/jgr-spec": "workspace:*",
     "@javis-dog/projects": "workspace:*",
     "@neondatabase/serverless": "1.2.0",
     "drizzle-orm": "0.45.4"

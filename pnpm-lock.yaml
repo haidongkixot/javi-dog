@@ -148,6 +148,9 @@ importers:
       '@javis-dog/identity':
         specifier: workspace:*
         version: link:../identity
+      '@javis-dog/jgr-spec':
+        specifier: workspace:*
+        version: link:../jgr-spec
       '@javis-dog/projects':
         specifier: workspace:*
         version: link:../projects

@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD CONSTRAINT "events_event_id_canonical_check" CHECK ("events"."event_id" ~ '^[0-9A-HJKMNP-TV-Z]{26}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');

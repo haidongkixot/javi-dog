@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { JGR_LIMITS, validateBatch, validateEvent, type JgrEventInput } from '../src/index.ts';
+import {
+  canonicalEventId,
+  JGR_LIMITS,
+  validateBatch,
+  validateEvent,
+  type JgrEventInput,
+} from '../src/index.ts';
 
 const now = new Date('2026-10-20T19:00:00Z');
 const event = (overrides: Partial<JgrEventInput> = {}, index = 1): JgrEventInput => ({
@@ -61,5 +67,29 @@ describe('validateBatch', () => {
     expect(validateBatch({ events: [] }, now).ok).toBe(false);
     const many = Array.from({ length: JGR_LIMITS.maxBatchEvents + 1 }, (_, i) => event({}, i));
     expect(validateBatch({ events: many }, now).ok).toBe(false);
+  });
+});
+
+describe('S3d hardening (ADR-0008 Changes)', () => {
+  it('reports more than 100 events as too_large, not schema', () => {
+    const many = Array.from({ length: JGR_LIMITS.maxBatchEvents + 1 }, (_, i) => event({}, i));
+    const result = validateBatch({ events: many }, now);
+    expect(result).toMatchObject({ ok: false, issues: [{ code: 'too_large', path: 'events' }] });
+  });
+
+  it('canonicalizes event ids so letter case cannot defeat dedupe', () => {
+    expect(canonicalEventId('01jbz4xq800000000000000001')).toBe('01JBZ4XQ800000000000000001');
+    expect(canonicalEventId('0B8F0C2E-6D3A-4C8E-9F1B-2A3C4D5E6F70')).toBe(
+      '0b8f0c2e-6d3a-4c8e-9f1b-2a3c4d5e6f70',
+    );
+    const lower = validateEvent(event({ event_id: '01jbz4xq800000000000000001' }), now);
+    expect(lower.ok && lower.event.event_id).toBe('01JBZ4XQ800000000000000001');
+  });
+
+  it('accepts only well-formed UUIDs (36 hyphens are not an id)', () => {
+    expect(validateEvent(event({ event_id: '-'.repeat(36) }), now).ok).toBe(false);
+    expect(validateEvent(event({ event_id: '0b8f0c2e-6d3a-4c8e-9f1b-2a3c4d5e6f70' }), now).ok).toBe(
+      true,
+    );
   });
 });

@@ -20,14 +20,26 @@ describe('db:events summary script', () => {
     await createEventRepository(db).insertEvents([
       {
         ...base,
-        eventId: 'e1',
+        eventId: '01JBZ4XQ800000000000000001',
         threadRef: 'cc_a',
         sequence: 0,
         type: 'session.started',
         status: 'working',
       },
-      { ...base, eventId: 'e2', threadRef: 'cc_a', sequence: 1, type: 'task.started' },
-      { ...base, eventId: 'e3', threadRef: 'cc_b', sequence: 0, type: 'task.started' },
+      {
+        ...base,
+        eventId: '01JBZ4XQ800000000000000002',
+        threadRef: 'cc_a',
+        sequence: 1,
+        type: 'task.started',
+      },
+      {
+        ...base,
+        eventId: '01JBZ4XQ800000000000000003',
+        threadRef: 'cc_b',
+        sequence: 0,
+        type: 'task.started',
+      },
     ]);
     const summary = await eventsSummary(db, 'web-app');
     expect(summary.projects).toBe(1);

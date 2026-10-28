@@ -17,6 +17,13 @@ export type IssueCode =
   | 'privacy_class_not_allowed';
 
 export type Issue = { code: IssueCode; path: string; message: string };
+
+/**
+ * Canonical form of an event id for deduplication (ADR-0008 Changes, S3d): ULIDs upper-case,
+ * UUIDs lower-case, so the same id in different letter case is one event.
+ */
+export const canonicalEventId = (id: string): string =>
+  id.length === 26 ? id.toUpperCase() : id.toLowerCase();
 export type EventResult = { ok: true; event: Event } | { ok: false; issues: Issue[] };
 
 /**
@@ -75,7 +82,7 @@ export const validateEvent = (raw: unknown, now: Date = new Date()): EventResult
       })),
     };
   }
-  const e = parsed.data;
+  const e = { ...parsed.data, event_id: canonicalEventId(parsed.data.event_id) };
   const issues: Issue[] = [];
 
   for (const [key, value] of Object.entries(e.attributes ?? {})) {
@@ -160,6 +167,19 @@ export const validateBatch = (raw: unknown, now: Date = new Date()): BatchResult
           code: 'too_large',
           path: '',
           message: `Batch exceeds ${JGR_LIMITS.maxBatchBytes} bytes.`,
+        },
+      ],
+    };
+  }
+  const events = (raw as { events?: unknown } | null)?.events;
+  if (Array.isArray(events) && events.length > JGR_LIMITS.maxBatchEvents) {
+    return {
+      ok: false,
+      issues: [
+        {
+          code: 'too_large',
+          path: 'events',
+          message: `A batch holds at most ${JGR_LIMITS.maxBatchEvents} events.`,
         },
       ],
     };

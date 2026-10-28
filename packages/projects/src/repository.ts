@@ -1,4 +1,4 @@
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, isNull, lt, or } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { ingestTokens, projects, projectTables, workspaces } from './db/tables.ts';
 import { normalizeProjectInput, normalizeWorkspaceInput } from './schema.ts';
@@ -179,9 +179,21 @@ export const createProjectRepository = (db: ProjectsDb) => {
       return row ?? null;
     },
 
-    /** Written only by the verified ingest path after a stored event (ADR-0005, ADR-0008). */
+    /**
+     * Written only by the verified ingest path (ADR-0005, ADR-0008). At most once a minute per
+     * token (S3d H2): busy collectors do not rewrite the token row on every batch.
+     */
     async markTokenUsed(tokenId: string, at: Date) {
-      await db.update(ingestTokens).set({ lastUsedAt: at }).where(eq(ingestTokens.id, tokenId));
+      const minuteAgo = new Date(at.getTime() - 60_000);
+      await db
+        .update(ingestTokens)
+        .set({ lastUsedAt: at })
+        .where(
+          and(
+            eq(ingestTokens.id, tokenId),
+            or(isNull(ingestTokens.lastUsedAt), lt(ingestTokens.lastUsedAt, minuteAgo)),
+          ),
+        );
     },
   };
 };

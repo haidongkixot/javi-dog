@@ -13,6 +13,7 @@ export {
   type JgrEventInput,
 } from './schema.ts';
 export {
+  canonicalEventId,
   L0_ATTRIBUTES,
   L1_HASHED_ATTRIBUTES,
   validateBatch,

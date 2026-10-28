@@ -104,7 +104,12 @@ export const EncryptedPayload = z
 export const JgrEvent = z
   .object({
     jgr: z.literal(JGR_VERSION),
-    event_id: z.string().regex(/^[0-9A-HJKMNP-TV-Z]{26}$|^[0-9a-f-]{36}$/i, 'Use a ULID or UUID.'),
+    event_id: z
+      .string()
+      .regex(
+        /^[0-9A-HJKMNP-TV-Z]{26}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+        'Use a ULID or UUID.',
+      ),
     producer_id: REF,
     project_ref: REF,
     thread_ref: REF,

@@ -1,5 +1,6 @@
+import { canonicalEventId } from '@javis-dog/jgr-spec';
 import { projects } from '@javis-dog/projects';
-import { and, eq, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
 import {
   bigint,
   check,
@@ -47,6 +48,11 @@ export const events = pgTable(
     }).onDelete('cascade'),
     // Dedupe key, scoped by project so one tenant cannot pre-claim another's ids.
     uniqueIndex('events_project_producer_event_key').on(t.projectId, t.producerId, t.eventId),
+    // Dedupe relies on canonical ids (ADR-0008 Changes, S3d H1): any other spelling is refused.
+    check(
+      'events_event_id_canonical_check',
+      sql`${t.eventId} ~ '^[0-9A-HJKMNP-TV-Z]{26}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'`,
+    ),
     index('events_project_thread_received_idx').on(t.projectId, t.threadRef, t.receivedAt),
     index('events_received_idx').on(t.receivedAt),
     check('events_privacy_class_check', sql`${t.privacyClass} in ('L0', 'L1', 'L2')`),
@@ -84,20 +90,37 @@ type EventsDb = PgDatabase<PgQueryResultHKT, typeof eventTables & { projects: ty
  * transactions); every write is idempotent or atomic on its own.
  */
 export const createEventRepository = (db: EventsDb) => ({
-  /** Stores new events; duplicates (also within one call) are skipped. Returns the stored count. */
+  /**
+   * Stores new events; duplicates (also within one call) are skipped. Returns the stored count.
+   * Ids are canonicalized even for callers that bypass `validateEvent` (H1), and rows are sorted
+   * by key so concurrent overlapping batches take row locks in one order (H5, no deadlocks).
+   */
   async insertEvents(rows: NewEvent[]): Promise<number> {
     if (rows.length === 0) return 0;
+    const ordered = rows
+      .map((r) => ({ ...r, eventId: canonicalEventId(r.eventId) }))
+      .sort((a, b) =>
+        a.producerId === b.producerId
+          ? a.eventId.localeCompare(b.eventId)
+          : a.producerId.localeCompare(b.producerId),
+      );
     const stored = await db
       .insert(events)
-      .values(rows)
+      .values(ordered)
       .onConflictDoNothing({ target: [events.projectId, events.producerId, events.eventId] })
       .returning({ id: events.id });
     return stored.length;
   },
 
-  /** Counts one request in the token's current minute; returns the count and the window end. */
-  async hitRateWindow(tokenId: string, now: Date) {
-    const start = new Date(Math.floor(now.getTime() / RATE_WINDOW_MS) * RATE_WINDOW_MS);
+  /**
+   * Counts one request in the token's current minute; returns the count and the window end.
+   * The window comes from the **database** clock (H6), so instances with skewed clocks share
+   * one window. `at` pins the window for tests only.
+   */
+  async hitRateWindow(tokenId: string, at?: Date) {
+    const start = at
+      ? sql`${new Date(Math.floor(at.getTime() / RATE_WINDOW_MS) * RATE_WINDOW_MS).toISOString()}::timestamptz`
+      : sql`date_trunc('minute', now())`;
     const [row] = await db
       .insert(ingestRateWindows)
       .values({ tokenId, windowStart: start, count: 1 })
@@ -105,27 +128,68 @@ export const createEventRepository = (db: EventsDb) => ({
         target: [ingestRateWindows.tokenId, ingestRateWindows.windowStart],
         set: { count: sql`${ingestRateWindows.count} + 1` },
       })
-      .returning({ count: ingestRateWindows.count });
-    return { count: row!.count, resetAt: new Date(start.getTime() + RATE_WINDOW_MS) };
+      .returning({ count: ingestRateWindows.count, windowStart: ingestRateWindows.windowStart });
+    return {
+      count: row!.count,
+      resetAt: new Date(row!.windowStart.getTime() + RATE_WINDOW_MS),
+    };
   },
 
-  /** Retention (ADR-0008): deletes events received before `cutoff` and stale rate windows. */
-  async purgeEventsBefore(cutoff: Date, now: Date) {
-    const deleted = await db
-      .delete(events)
-      .where(lt(events.receivedAt, cutoff))
-      .returning({ id: events.id });
+  /**
+   * Retention (ADR-0008, ADR-0009): deletes events received before `cutoff` in bounded batches
+   * (oldest first) until a batch comes back short or the time budget is spent (H3), then stale
+   * rate windows. `complete: false` means the next run continues.
+   */
+  async purgeEventsBefore(
+    cutoff: Date,
+    now: Date,
+    opts: { batchSize?: number; budgetMs?: number; clock?: () => number } = {},
+  ) {
+    const batchSize = opts.batchSize ?? 5000;
+    const budgetMs = opts.budgetMs ?? 20_000;
+    const clock = opts.clock ?? Date.now;
+    if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 50_000) {
+      throw new RangeError('batchSize must be an integer between 1 and 50000.');
+    }
+    const started = clock();
+    let deleted = 0;
+    let batches = 0;
+    let complete = false;
+    for (;;) {
+      const oldest = db
+        .select({ id: events.id })
+        .from(events)
+        .where(lt(events.receivedAt, cutoff))
+        .orderBy(asc(events.receivedAt))
+        .limit(batchSize);
+      const rows = await db
+        .delete(events)
+        .where(inArray(events.id, oldest))
+        .returning({ id: events.id });
+      batches += 1;
+      deleted += rows.length;
+      if (rows.length < batchSize) {
+        complete = true;
+        break;
+      }
+      if (clock() - started >= budgetMs) break;
+    }
     await db
       .delete(ingestRateWindows)
       .where(lt(ingestRateWindows.windowStart, new Date(now.getTime() - 60 * RATE_WINDOW_MS)));
-    return deleted.length;
+    return { deleted, batches, complete };
   },
 
-  /** Marks a verified signal: written only after at least one event was stored (product rule 2). */
+  /**
+   * Marks a verified signal (product rule 2). Forward-only (H2): a slower request or a skewed
+   * instance never moves `last_signal_at` backwards.
+   */
   async touchSignal(scope: { projectId: string; workspaceId: string }, at: Date) {
     await db
       .update(projects)
-      .set({ lastSignalAt: at })
+      .set({
+        lastSignalAt: sql`greatest(coalesce(${projects.lastSignalAt}, ${at.toISOString()}::timestamptz), ${at.toISOString()}::timestamptz)`,
+      })
       .where(and(eq(projects.id, scope.projectId), eq(projects.workspaceId, scope.workspaceId)));
   },
 });
