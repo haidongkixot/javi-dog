@@ -7,10 +7,11 @@ export interface BudgetAlertEmailInput {
   projectUrl: string;
   /** e.g. "October 2026". */
   monthLabel: string;
-  /** 80 or 100 (ADR-0014). */
+  /** 80 or 100 (ADR-0014): the threshold crossed, stated in the subject and lead. */
   threshold: number;
   spendUsd: number;
   limitUsd: number;
+  /** Current percent of the limit; shown floored to a whole percent. */
   percentUsed: number;
   /** null before 24 h of the month have elapsed. */
   forecastUsd: number | null;
@@ -21,6 +22,8 @@ export interface BudgetAlertEmailInput {
 
 /** Structurally a JD-M12 `BudgetAlertJob`; JD-M09 does not depend on JD-M12. */
 export interface BudgetAlertSendInput {
+  /** The claimed alert's id; with it, each request carries `Idempotency-Key: budget-alert/<alertId>/<recipient index>`. */
+  alertId?: string;
   projectId: string;
   projectName: string;
   threshold: number;
@@ -62,13 +65,16 @@ export const budgetAlertEmail = (input: BudgetAlertEmailInput) => {
   const name = oneLine(input.projectName);
   const reached = input.threshold >= 100;
   const pct = percent(input.percentUsed);
+  // The threshold that was crossed — never a rounded current percent (79.99 % is not "80 %").
+  const crossed = reached ? '100 %' : `${input.threshold} %`;
 
   const subject = reached
     ? `${name} reached its ${input.monthLabel} budget (estimated)`
-    : `${name} is at ${pct} of its ${input.monthLabel} budget (estimated)`;
+    : `${name} reached ${crossed} of its ${input.monthLabel} budget (estimated)`;
+  const used = `${name} has used an estimated ${crossed} of its ${input.monthLabel} budget.`;
   const lead = reached
-    ? `${name} has reached its ${input.monthLabel} budget. Javi's Dog never pauses your agents, so spend can keep growing past the limit.`
-    : `${name} has used an estimated ${pct} of its ${input.monthLabel} budget. Nothing is blocked — this is an early heads-up so you can plan the rest of the month.`;
+    ? `${used} Javi's Dog never pauses your agents, so spend can keep growing past the limit.`
+    : `${used} Nothing is blocked — this is an early heads-up so you can plan the rest of the month.`;
   const facts = [
     `Estimated spend: ${money(input.spendUsd)} of your ${money(input.limitUsd)} budget (${pct})`,
     input.forecastUsd === null
@@ -82,8 +88,9 @@ export const budgetAlertEmail = (input: BudgetAlertEmailInput) => {
   ];
   const howItWorks =
     "Spend adds up the cost your coding agents report, so it is an estimate and can differ from your provider's bill.";
+  // "Usually": a failed delivery is retried, and a retry can reach an owner twice (ADR-0014).
   const footer =
-    "You're receiving this because you own this Javi's Dog workspace. You get at most one email per threshold (80 % and 100 %) per project each month.";
+    "You're receiving this because you own this Javi's Dog workspace. There is usually one email per threshold and project each month, at an estimated 80 % and 100 % of the budget.";
 
   const text = [
     'Hi,',
@@ -107,6 +114,15 @@ export const budgetAlertEmail = (input: BudgetAlertEmailInput) => {
   return { subject, text, html };
 };
 
+/** `<appUrl>/projects/<id>`, keeping any path prefix of the app URL (e.g. `/jd`). */
+const projectUrl = (appUrl: string, projectId: string) => {
+  const url = new URL(appUrl);
+  url.pathname = `${url.pathname.replace(/\/+$/, '')}/projects/${encodeURIComponent(projectId)}`;
+  url.search = '';
+  url.hash = '';
+  return url.href;
+};
+
 /**
  * Sends one budget alert email per recipient (never one email with every owner in `to`).
  * Returns the per-recipient report; throws only for a job without a limit (nothing sent).
@@ -121,7 +137,7 @@ export const sendBudgetAlertEmail = async (
   }
   const message = budgetAlertEmail({
     projectName: job.projectName,
-    projectUrl: new URL(`/projects/${encodeURIComponent(job.projectId)}`, config.appUrl).href,
+    projectUrl: projectUrl(config.appUrl, job.projectId),
     monthLabel: budgetMonthLabel(job.status.month),
     threshold: job.threshold,
     spendUsd,
@@ -131,5 +147,10 @@ export const sendBudgetAlertEmail = async (
     estimatedReports: job.status.estimatedReports,
     reports: job.status.reports,
   });
-  return sendEmail(config, { to: job.recipients, ...message });
+  return sendEmail(config, {
+    to: job.recipients,
+    ...message,
+    // Stable across retries of this alert, so Resend can de-duplicate a re-send.
+    ...(job.alertId && { idempotencyKey: `budget-alert/${job.alertId}` }),
+  });
 };

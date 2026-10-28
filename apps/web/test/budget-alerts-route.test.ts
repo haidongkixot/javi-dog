@@ -1,15 +1,16 @@
 import type { IngestDeps } from '@javis-dog/ingest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resetIngestForTests } from '@/lib/ingest';
+import { getIngestHandler, resetIngestForTests } from '@/lib/ingest';
 
-const { captured, claimAlert, after } = vi.hoisted(() => ({
+const { captured, claimAlert, after, createDb } = vi.hoisted(() => ({
+  createDb: vi.fn(() => ({})),
   captured: {} as { deps?: IngestDeps | undefined },
   claimAlert: vi.fn(async () => null),
   after: vi.fn(),
 }));
 
 vi.mock('next/server', () => ({ after }));
-vi.mock('@javis-dog/event-store', () => ({ createDb: () => ({}) }));
+vi.mock('@javis-dog/event-store', () => ({ createDb }));
 vi.mock('@javis-dog/resilience', () => ({
   createBudgetRepository: () => ({ claimAlert, markAlert: vi.fn() }),
 }));
@@ -27,6 +28,7 @@ afterEach(() => {
   captured.deps = undefined;
   claimAlert.mockClear();
   after.mockClear();
+  createDb.mockClear();
 });
 
 const request = () =>
@@ -60,5 +62,28 @@ describe('POST /api/v1/events budget alert wiring (ADR-0014)', () => {
     expect((await POST(request())).status).toBe(202);
     expect(captured.deps).toBeDefined();
     expect(captured.deps?.onStored).toBeUndefined();
+  });
+
+  it('uses each call’s schedule instead of caching the first caller’s', () => {
+    const env = {
+      DATABASE_URL: 'postgresql://user:pw@host/db',
+      RESEND_API_KEY: 're_x',
+      EMAIL_FROM: 'a <a@example.com>',
+      BETTER_AUTH_URL: 'https://app.example',
+    };
+    // A first caller without a schedule must not disable alerts for later callers.
+    expect(getIngestHandler(env)).not.toBeNull();
+    expect(captured.deps?.onStored).toBeUndefined();
+
+    const first = vi.fn();
+    const second = vi.fn();
+    getIngestHandler(env, first);
+    captured.deps?.onStored?.(scope, { usageReports: 1 });
+    getIngestHandler(env, second);
+    captured.deps?.onStored?.(scope, { usageReports: 1 });
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
+    // The database client and the deps are still created once.
+    expect(createDb).toHaveBeenCalledOnce();
   });
 });

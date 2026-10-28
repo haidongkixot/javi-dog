@@ -1,4 +1,4 @@
-import type { BudgetStatus } from '@javis-dog/resilience';
+import type { BudgetStatus, BudgetThreshold } from '@javis-dog/resilience';
 import { Card, CardHead, EmptyState, StatusPill } from '@javis-dog/ui/components';
 import { estimatedNote, formatTokens } from '@/components/analytics/format';
 import { UtcStamp } from '@/components/analytics/utc-stamp';
@@ -13,12 +13,20 @@ import { formatUsd, monthLabel, monthName, percentOfLimit, thresholdBadge } from
 // depends on colour alone.
 
 export const ALERT_RECIPIENTS_TEXT =
-  'Workspace owners get one email at 80 % and at 100 % each month.';
+  'Workspace owners usually get one email at 80 % and at 100 % each month.';
 
-const barTone = (percentUsed: number) =>
-  percentUsed >= 100 ? 'bg-danger' : percentUsed >= 80 ? 'bg-warn' : 'bg-ok';
+const barTone = (threshold: BudgetThreshold | null) =>
+  threshold === 100 ? 'bg-danger' : threshold === 80 ? 'bg-warn' : 'bg-ok';
 
-function PercentBar({ percentUsed, limitUsd }: { percentUsed: number; limitUsd: number }) {
+function PercentBar({
+  percentUsed,
+  limitUsd,
+  threshold,
+}: {
+  percentUsed: number;
+  limitUsd: number;
+  threshold: BudgetThreshold | null;
+}) {
   const width = Math.min(Math.max(percentUsed, 0), 100);
   return (
     <div className="px-5 pt-4">
@@ -27,7 +35,7 @@ function PercentBar({ percentUsed, limitUsd }: { percentUsed: number; limitUsd: 
         aria-hidden
         className="h-2.5 overflow-hidden rounded-pill border border-line bg-surface-subtle"
       >
-        <div className={`h-full ${barTone(percentUsed)}`} style={{ width: `${width}%` }} />
+        <div className={`h-full ${barTone(threshold)}`} style={{ width: `${width}%` }} />
       </div>
       <p className="mt-2 text-xs font-bold text-ink tabular-nums">
         {percentOfLimit(percentUsed, limitUsd)} (estimated)
@@ -51,12 +59,24 @@ function Forecast({ status: s, limitUsd }: { status: BudgetStatus; limitUsd: num
   );
 }
 
-/** Which alerts went out this month; 100 % covers 80 % when both are crossed together. */
-const alertsText = (alerted: readonly number[]) => {
-  if (alerted.includes(100))
-    return 'Owners were emailed at 100 % this month (this covers the 80 % alert).';
-  if (alerted.includes(80)) return 'Owners were emailed at 80 % this month.';
-  return 'No budget alerts this month.';
+/**
+ * This month's alert emails, truthfully: "emailed" only for emails that were sent (`alerted`);
+ * a failed or still pending email says so. 100 % covers 80 % when both are crossed together.
+ */
+const alertsLines = (s: BudgetStatus): string[] => {
+  const lines: string[] = [];
+  if (s.alerted.includes(100))
+    lines.push('Owners were emailed at 100 % this month (this covers the 80 % alert).');
+  else if (s.alerted.includes(80)) lines.push('Owners were emailed at 80 % this month.');
+  if (s.exhaustedAlerts.length > 0)
+    lines.push('An alert email could not be sent — gave up after 5 attempts.');
+  else if (s.failedAlerts.length > 0)
+    lines.push('An alert email could not be sent yet — it is retried with the next usage report.');
+  if (s.pendingAlerts.length > 0)
+    lines.push(
+      'An alert email is on its way; if it does not go out, the next usage report retries it.',
+    );
+  return lines.length > 0 ? lines : ['No budget alerts this month.'];
 };
 
 function Meta({ status: s }: { status: BudgetStatus }) {
@@ -99,11 +119,15 @@ function BudgetSet({
           <span className="text-sm font-semibold text-muted">of {formatUsd(limitUsd)}</span>
         </dd>
       </dl>
-      <PercentBar percentUsed={percentUsed} limitUsd={limitUsd} />
+      <PercentBar percentUsed={percentUsed} limitUsd={limitUsd} threshold={s.thresholdReached} />
       <Forecast status={s} limitUsd={limitUsd} />
       <Meta status={s} />
       <div className="mx-5 mt-4 rounded-control border border-line bg-surface-subtle px-3 py-2.5 text-xs">
-        <p className="font-bold text-ink">{alertsText(s.alerted)}</p>
+        {alertsLines(s).map((line) => (
+          <p key={line} className="font-bold text-ink">
+            {line}
+          </p>
+        ))}
         <p className="mt-1 text-muted">{ALERT_RECIPIENTS_TEXT}</p>
       </div>
       {canEdit ? (
@@ -153,7 +177,7 @@ export function BudgetCard({ load, canEdit }: { load: BudgetLoad; canEdit: boole
   const status = load.kind === 'ready' ? load.status : null;
   const limitUsd = status?.limitUsd ?? null;
   const percentUsed = status?.percentUsed ?? null;
-  const badge = thresholdBadge(limitUsd === null ? null : percentUsed);
+  const badge = thresholdBadge(limitUsd === null ? null : (status?.thresholdReached ?? null));
   return (
     <Card labelledBy="budget-title">
       <CardHead

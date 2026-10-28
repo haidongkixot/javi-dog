@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   budgetAlertEmail,
   budgetMonthLabel,
@@ -30,6 +30,7 @@ const input = (over: Partial<BudgetAlertEmailInput> = {}): BudgetAlertEmailInput
 });
 
 const job = (over: Partial<BudgetAlertSendInput> = {}): BudgetAlertSendInput => ({
+  alertId: 'alert_1',
   projectId: 'p_1',
   projectName: 'Web App',
   threshold: 80,
@@ -48,20 +49,58 @@ const job = (over: Partial<BudgetAlertSendInput> = {}): BudgetAlertSendInput => 
 
 const bodies = (fetchMock: ReturnType<typeof vi.fn>) =>
   fetchMock.mock.calls.map(([, init]) => JSON.parse((init as RequestInit).body as string));
+const headers = (fetchMock: ReturnType<typeof vi.fn>) =>
+  fetchMock.mock.calls.map(([, init]) => (init as RequestInit).headers as Record<string, string>);
+
+/** Every line (text) or paragraph/list item (HTML) that states money or a percent says "estimated". */
+const expectEstimated = ({
+  subject,
+  text,
+  html,
+}: {
+  subject: string;
+  text: string;
+  html: string;
+}) => {
+  const htmlParts = html.split(/<\/?(?:p|li|ul)[^>]*>/);
+  for (const part of [subject, ...text.split('\n'), ...htmlParts].filter((l) => /[$%]/.test(l))) {
+    expect(part.toLowerCase()).toContain('estimated');
+  }
+};
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('budgetAlertEmail', () => {
   it('labels every money value as estimated and links to the project', () => {
     const { subject, text, html } = budgetAlertEmail(input());
-    expect(subject).toBe('Web App is at 81 % of its October 2026 budget (estimated)');
+    // The crossed threshold, not the (floored) current percent.
+    expect(subject).toBe('Web App reached 80 % of its October 2026 budget (estimated)');
     expect(text).toContain('Estimated spend: $8.12 of your $10.00 budget (81 %)');
     expect(text).toContain('Forecast for October 2026: about $24.36 (estimated)');
     expect(text).toContain('Open the project: https://app.example/projects/p_1');
     expect(html).toContain('href="https://app.example/projects/p_1"');
     expect(html).toContain('Estimated spend: $8.12 of your $10.00 budget (81 %)');
-    // Every dollar figure sits on a line that says "estimated" (the limit shares the spend line).
-    for (const line of text.split('\n').filter((l) => l.includes('$'))) {
-      expect(line.toLowerCase()).toContain('estimated');
-    }
+    expectEstimated({ subject, text, html });
+  });
+
+  it('states the crossed threshold as estimated in subject and lead, never a rounded percent', () => {
+    const e = budgetAlertEmail(input({ percentUsed: 99.99, spendUsd: 9.999 }));
+    expect(e.subject).toBe('Web App reached 80 % of its October 2026 budget (estimated)');
+    expect(e.text).toContain('Web App has used an estimated 80 % of its October 2026 budget.');
+    expect(e.text).toContain('(99 %)');
+    expect(e.text).not.toContain('100 %)');
+    const reached = budgetAlertEmail(input({ threshold: 100, percentUsed: 104, spendUsd: 10.4 }));
+    expect(reached.text).toContain(
+      'Web App has used an estimated 100 % of its October 2026 budget.',
+    );
+    for (const x of [e, reached]) expectEstimated(x);
+  });
+
+  it('promises "usually one email" per threshold and project, not "at most"', () => {
+    const { text, html } = budgetAlertEmail(input());
+    expect(text).toContain('usually one email per threshold and project each month');
+    expect(html).toContain('usually one email per threshold and project each month');
+    expect(text).not.toContain('at most one');
   });
 
   it('says "too early to forecast" without a forecast', () => {
@@ -84,6 +123,7 @@ describe('budgetAlertEmail', () => {
     );
     expect(reached.subject).toBe('Web App reached its October 2026 budget (estimated)');
     expect(reached.text).toContain('$10.40 of your $10.00 budget (104 %)');
+    expectEstimated(reached);
     expect(budgetAlertEmail(input({ percentUsed: 99.6 })).text).toContain('(99 %)');
     for (const e of [reached, budgetAlertEmail(input())]) {
       const all = `${e.subject} ${e.text} ${e.html}`;
@@ -147,7 +187,106 @@ describe('sendEmail', () => {
   });
 });
 
+describe('sendEmail robustness', () => {
+  const message = { to: ['a@example.com', 'b@example.com'], subject: 's', text: 't', html: 'h' };
+
+  it('sends Idempotency-Key <key>/<recipient index> only when a key is given', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ id: 'email_1' }));
+    await sendEmail({ ...config, fetch: fetchMock }, { ...message, idempotencyKey: 'k/1' });
+    expect(headers(fetchMock).map((h) => h['Idempotency-Key'])).toEqual(['k/1/0', 'k/1/1']);
+
+    fetchMock.mockClear();
+    await sendEmail({ ...config, fetch: fetchMock }, message);
+    for (const h of headers(fetchMock)) expect(h).not.toHaveProperty('Idempotency-Key');
+    // The key is a header, never part of the email body.
+    for (const b of bodies(fetchMock)) expect(b).not.toHaveProperty('idempotencyKey');
+  });
+
+  it('gives every request a 10 s timeout signal by default', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const fetchMock = vi.fn(async () => Response.json({ id: 'email_1' }));
+    await sendEmail({ ...config, fetch: fetchMock }, message);
+    expect(timeout).toHaveBeenCalledTimes(2);
+    expect(timeout).toHaveBeenCalledWith(10_000);
+    for (const [, init] of fetchMock.mock.calls as unknown as [string, RequestInit][]) {
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+    }
+  });
+
+  /** A fetch that only settles when its signal aborts (a hung Resend request). */
+  const hangingFetch = () =>
+    vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+        }),
+    ) as unknown as typeof fetch;
+
+  it('counts a timed-out request as a failure without an address, and tries the next one', async () => {
+    const fetchMock = hangingFetch();
+    const report = await sendEmail({ ...config, fetch: fetchMock, timeoutMs: 20 }, message);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(report.ids).toEqual([]);
+    expect(report.errors.map((e) => [e.name, (e as NotifyError).status])).toEqual([
+      ['NotifyError', 0],
+      ['NotifyError', 0],
+    ]);
+    expect(JSON.stringify(report.errors.map((e) => [e.name, e.message]))).not.toContain('@');
+  });
+
+  it('falls back to an AbortController timer where AbortSignal.timeout is missing', async () => {
+    const original = AbortSignal.timeout;
+    Object.defineProperty(AbortSignal, 'timeout', { value: undefined, configurable: true });
+    try {
+      const report = await sendEmail(
+        { ...config, fetch: hangingFetch(), timeoutMs: 20 },
+        { ...message, to: ['a@example.com'] },
+      );
+      expect(report.errors.map((e) => (e as NotifyError).status)).toEqual([0]);
+    } finally {
+      Object.defineProperty(AbortSignal, 'timeout', { value: original, configurable: true });
+    }
+  });
+
+  it('wraps a transport error (whatever its message) as NotifyError with status 0', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new TypeError('fetch failed for a@example.com');
+    });
+    const report = await sendEmail(
+      { ...config, fetch: fetchMock },
+      { ...message, to: ['a@example.com'] },
+    );
+    expect(report.errors).toHaveLength(1);
+    expect(report.errors[0]).toBeInstanceOf(NotifyError);
+    expect((report.errors[0] as NotifyError).status).toBe(0);
+    expect(report.errors[0]!.message).not.toContain('@');
+  });
+});
+
 describe('sendBudgetAlertEmail', () => {
+  it('uses budget-alert/<alertId>/<recipient index> as the idempotency key', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ id: 'email_1' }));
+    await sendBudgetAlertEmail({ ...config, fetch: fetchMock }, job());
+    expect(headers(fetchMock).map((h) => h['Idempotency-Key'])).toEqual([
+      'budget-alert/alert_1/0',
+      'budget-alert/alert_1/1',
+    ]);
+  });
+
+  it.each([
+    ['https://app.example', 'https://app.example/projects/p_1'],
+    ['https://app.example/', 'https://app.example/projects/p_1'],
+    ['https://example.com/jd', 'https://example.com/jd/projects/p_1'],
+    ['https://example.com/jd/', 'https://example.com/jd/projects/p_1'],
+  ])('keeps the path prefix of the app URL %s', async (appUrl, link) => {
+    const fetchMock = vi.fn(async () => Response.json({ id: 'email_1' }));
+    await sendBudgetAlertEmail(
+      { ...config, appUrl, fetch: fetchMock },
+      job({ recipients: ['ada@example.com'] }),
+    );
+    expect(bodies(fetchMock)[0].text).toContain(`Open the project: ${link}\n`);
+  });
+
   it('sends the alert to each owner separately with an absolute project link', async () => {
     const fetchMock = vi.fn(async () => Response.json({ id: 'email_1' }));
     const report = await sendBudgetAlertEmail({ ...config, fetch: fetchMock }, job());

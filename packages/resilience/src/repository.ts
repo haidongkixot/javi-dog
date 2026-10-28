@@ -1,7 +1,13 @@
 import { ProjectRepositoryError } from '@javis-dog/projects';
 import { sql, type SQL } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
-import { crossedThreshold, forecastSpend, MAX_MONTHLY_LIMIT_USD, utcMonth } from './budget.ts';
+import {
+  crossedThreshold,
+  forecastSpend,
+  MAX_MONTHLY_LIMIT_USD,
+  percentOfLimit,
+  utcMonth,
+} from './budget.ts';
 import type { BudgetThreshold } from './budget.ts';
 import type { BudgetAlertJob, BudgetStatus } from './types.ts';
 
@@ -38,9 +44,14 @@ interface StatusRow {
   spend_usd: Num;
   reports: Num;
   estimated_reports: Num;
-  alerted_80: boolean;
-  alerted_100: boolean;
+  /** This month's `budget_alerts` status and attempts per threshold; null without a row. */
+  status_80: AlertRowStatus | null;
+  status_100: AlertRowStatus | null;
+  attempts_80: Num | null;
+  attempts_100: Num | null;
 }
+
+type AlertRowStatus = 'pending' | 'sent' | 'failed' | 'covered';
 
 /**
  * Status rows for the workspace's projects (one, or every budgeted one) in ONE statement.
@@ -68,12 +79,7 @@ const statusQuery = (
            b.monthly_limit_usd as limit_usd,
            floor(extract(epoch from win.now) * 1000)::float8 as now_ms,
            u.spend_usd, u.reports, u.estimated_reports,
-           exists (select 1 from budget_alerts a
-                    where a.project_id = p.id and a.month = win.month and a.threshold = 80
-                      and a.status in ('sent', 'covered')) as alerted_80,
-           exists (select 1 from budget_alerts a
-                    where a.project_id = p.id and a.month = win.month and a.threshold = 100
-                      and a.status in ('sent', 'covered')) as alerted_100
+           al.status_80, al.status_100, al.attempts_80, al.attempts_100
       from projects p
       cross join win
       left join project_budgets b on b.project_id = p.id and b.workspace_id = p.workspace_id
@@ -91,28 +97,70 @@ const statusQuery = (
            and e.type = 'usage.reported'
            and e.received_at >= win.start
            and e.received_at <= win.now) u
+      cross join lateral (
+        -- At most one row per threshold (unique key), so max() just picks it.
+        select max(a.status) filter (where a.threshold = 80) as status_80,
+               max(a.status) filter (where a.threshold = 100) as status_100,
+               max(a.attempts) filter (where a.threshold = 80) as attempts_80,
+               max(a.attempts) filter (where a.threshold = 100) as attempts_100
+          from budget_alerts a
+         where a.project_id = p.id and a.month = win.month) al
      where p.workspace_id = ${workspaceId}::uuid ${filter}
      order by p.name, p.id`;
+};
+
+/**
+ * Alert fields from this month's rows. `alerted` only claims emails that were sent: a covered
+ * 80 counts once the 100 email it was folded into was sent (ADR-0014 Changes, S4c review).
+ */
+const alertFields = (row: StatusRow) => {
+  const rows = [
+    { threshold: 80, status: row.status_80, attempts: Number(row.attempts_80 ?? 0) },
+    { threshold: 100, status: row.status_100, attempts: Number(row.attempts_100 ?? 0) },
+  ] as const;
+  const where = (keep: (r: (typeof rows)[number]) => boolean): BudgetThreshold[] =>
+    rows.filter(keep).map((r) => r.threshold);
+  const sent100 = row.status_100 === 'sent';
+  return {
+    alerted: where(
+      (r) => r.status === 'sent' || (r.threshold === 80 && r.status === 'covered' && sent100),
+    ),
+    pendingAlerts: where((r) => r.status === 'pending'),
+    failedAlerts: where((r) => r.status === 'failed'),
+    exhaustedAlerts: where((r) => r.status === 'failed' && r.attempts >= MAX_ALERT_ATTEMPTS),
+  };
 };
 
 const toStatus = (row: StatusRow): BudgetStatus => {
   const now = new Date(Number(row.now_ms));
   const spendUsd = Number(row.spend_usd);
   const limitUsd = row.limit_usd === null ? null : Number(row.limit_usd);
-  const alerted: BudgetThreshold[] = [];
-  if (row.alerted_80) alerted.push(80);
-  if (row.alerted_100) alerted.push(100);
   return {
     projectId: row.project_id,
     limitUsd,
     month: utcMonth(now).key,
     spendUsd,
-    percentUsed: limitUsd === null ? null : Math.round((spendUsd / limitUsd) * 1000) / 10,
+    percentUsed: limitUsd === null ? null : percentOfLimit(spendUsd, limitUsd),
+    thresholdReached: limitUsd === null ? null : crossedThreshold(spendUsd, limitUsd),
     forecastUsd: forecastSpend(spendUsd, now),
     reports: Number(row.reports),
     estimatedReports: Number(row.estimated_reports),
-    alerted,
+    ...alertFields(row),
     generatedAt: now.toISOString(),
+  };
+};
+
+/**
+ * The job's status as of its own claim: the claimed threshold is pending (no longer failed) and,
+ * at 100 %, a pending or failed 80 is now covered. `alerted` is unchanged — nothing new was sent.
+ */
+const afterClaim = (status: BudgetStatus, threshold: BudgetThreshold): BudgetStatus => {
+  const settled = (t: BudgetThreshold) => t === threshold || (threshold === 100 && t === 80);
+  return {
+    ...status,
+    pendingAlerts: [threshold],
+    failedAlerts: status.failedAlerts.filter((t) => !settled(t)),
+    exhaustedAlerts: status.exhaustedAlerts.filter((t) => !settled(t)),
   };
 };
 
@@ -211,10 +259,21 @@ export const createBudgetRepository = (db: BudgetDb) => {
       scope: { workspaceId: string; projectId: string },
       opts: { now?: Date } = {},
     ): Promise<BudgetAlertJob | null> {
+      if (!isUuid(scope.workspaceId) || !isUuid(scope.projectId)) return null;
+      // Most ingested projects have no budget: one primary-key lookup, and the month-to-date
+      // aggregate below only runs for a budgeted project of this workspace.
+      const budgeted = rowsOf<{ one: number }>(
+        await db.execute(sql`
+          select 1 as one from project_budgets
+           where project_id = ${scope.projectId}::uuid
+             and workspace_id = ${scope.workspaceId}::uuid`),
+      );
+      if (budgeted.length === 0) return null;
+
       const row = await readStatus(scope.workspaceId, scope.projectId, opts.now);
       if (!row || row.limit_usd === null) return null;
       const status = toStatus(row);
-      const threshold = crossedThreshold(status.spendUsd, status.limitUsd!);
+      const threshold = status.thresholdReached;
       if (threshold === null) return null;
 
       const recipients = rowsOf<{ email: string }>(
@@ -266,10 +325,6 @@ export const createBudgetRepository = (db: BudgetDb) => {
       }
       if (!claimed) return null;
 
-      const alerted: BudgetThreshold[] =
-        threshold === 100 && !status.alerted.includes(80)
-          ? [80, ...status.alerted]
-          : status.alerted;
       return {
         alertId: claimed.id,
         projectId: row.project_id,
@@ -277,7 +332,7 @@ export const createBudgetRepository = (db: BudgetDb) => {
         projectName: row.name,
         projectSlug: row.slug,
         threshold,
-        status: { ...status, alerted },
+        status: afterClaim(status, threshold),
         recipients,
       };
     },

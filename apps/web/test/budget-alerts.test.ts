@@ -25,7 +25,11 @@ const job = (over: Partial<BudgetAlertJob> = {}): BudgetAlertJob => ({
     forecastUsd: 24.36,
     reports: 42,
     estimatedReports: 0,
+    thresholdReached: 80,
     alerted: [],
+    pendingAlerts: [80],
+    failedAlerts: [],
+    exhaustedAlerts: [],
     generatedAt: '2026-10-28T10:00:00.000Z',
   },
   ...over,
@@ -85,6 +89,23 @@ describe('processBudgetAlert', () => {
       { level: 'info', module: 'JD-APP', msg: 'budget alert sent', threshold: 80, outcome: 'sent' },
     ]);
     expect(logs.raw()).not.toContain('@');
+  });
+
+  it('sends a stable idempotency key per alert and recipient, so a retry can be de-duplicated', async () => {
+    spyLogs();
+    const fetchMock = ok();
+    const { deps } = fakeDeps(job(), fetchMock);
+    await processBudgetAlert(deps, scope);
+    await processBudgetAlert(deps, scope);
+    const keys = vi
+      .mocked(fetchMock)
+      .mock.calls.map(([, init]) => (init?.headers as Record<string, string>)['Idempotency-Key']);
+    expect(keys).toEqual([
+      'budget-alert/alert_1/0',
+      'budget-alert/alert_1/1',
+      'budget-alert/alert_1/0',
+      'budget-alert/alert_1/1',
+    ]);
   });
 
   it('marks the alert failed when one owner email fails, after trying every owner', async () => {

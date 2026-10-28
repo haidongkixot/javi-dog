@@ -64,22 +64,34 @@ const { budgetLimitSchema, canManageBudget, loadBudget, loadBudgets } =
 const { BudgetCard, ALERT_RECIPIENTS_TEXT } = await import('@/components/budget/budget-card');
 const { BudgetCell, toBudgetCell } = await import('@/components/budget/budget-cell');
 const { ProjectsTable } = await import('@/components/dashboard/projects-table');
+// The real JD-M12 arithmetic (the mock above only replaces the repository).
+const { crossedThreshold } = await import('@javis-dog/resilience');
 const { default: ProjectPage } = await import('@/app/projects/[id]/page');
 const { default: ProjectsPage } = await import('@/app/projects/page');
 
-const status = (over: Partial<BudgetStatus> = {}): BudgetStatus => ({
-  projectId: PROJECT,
-  limitUsd: 10,
-  month: '2026-10',
-  spendUsd: 6.2,
-  percentUsed: 62,
-  forecastUsd: 9.61,
-  reports: 9,
-  estimatedReports: 0,
-  alerted: [],
-  generatedAt: NOW,
-  ...over,
-});
+/** A status; `thresholdReached` follows spend and limit (exact) unless given. */
+const status = (over: Partial<BudgetStatus> = {}): BudgetStatus => {
+  const s = {
+    projectId: PROJECT,
+    limitUsd: 10,
+    month: '2026-10',
+    spendUsd: 6.2,
+    percentUsed: 62,
+    forecastUsd: 9.61,
+    reports: 9,
+    estimatedReports: 0,
+    alerted: [],
+    pendingAlerts: [],
+    failedAlerts: [],
+    exhaustedAlerts: [],
+    generatedAt: NOW,
+    ...over,
+  };
+  return {
+    thresholdReached: s.limitUsd === null ? null : crossedThreshold(s.spendUsd, s.limitUsd),
+    ...s,
+  };
+};
 const noBudget = (over: Partial<BudgetStatus> = {}) =>
   status({ limitUsd: null, percentUsed: null, ...over });
 
@@ -410,6 +422,24 @@ describe('BudgetCard', () => {
     else expect(c.textContent).not.toMatch(/reached/);
   });
 
+  it('badges by the exact threshold, never by the percent shown', () => {
+    // 7.999999 of 10 is below 80 % even if a caller hands over a rounded 80.
+    render(
+      <BudgetCard load={ready(status({ percentUsed: 80, spendUsd: 7.999999 }))} canEdit={false} />,
+    );
+    expect(card().textContent).not.toMatch(/reached/);
+    cleanup();
+    render(
+      <BudgetCard
+        load={ready(status({ percentUsed: 99.99, spendUsd: 9.999999 }))}
+        canEdit={false}
+      />,
+    );
+    expect(within(card()).getByText('99 % of $10.00 (estimated)')).toBeTruthy();
+    expect(within(card()).getByText('80 % reached')).toBeTruthy();
+    expect(card().textContent).not.toMatch(/Budget reached/);
+  });
+
   it('says when it is too early to forecast', () => {
     render(<BudgetCard load={ready(status({ forecastUsd: null }))} canEdit={false} />);
     expect(
@@ -446,6 +476,38 @@ describe('BudgetCard', () => {
       />,
     );
     expect(within(card()).getByText(text)).toBeTruthy();
+  });
+
+  const FAILED = 'An alert email could not be sent yet — it is retried with the next usage report.';
+  const GAVE_UP = 'An alert email could not be sent — gave up after 5 attempts.';
+  const PENDING =
+    'An alert email is on its way; if it does not go out, the next usage report retries it.';
+
+  const alertCases: [string, Partial<BudgetStatus>, string[]][] = [
+    ['failed', { failedAlerts: [80] }, [FAILED]],
+    ['exhausted', { failedAlerts: [100], exhaustedAlerts: [100] }, [GAVE_UP]],
+    [
+      '80 sent, 100 failed',
+      { alerted: [80], failedAlerts: [100] },
+      ['Owners were emailed at 80 % this month.', FAILED],
+    ],
+    ['pending', { pendingAlerts: [100] }, [PENDING]],
+    ['none', {}, ['No budget alerts this month.']],
+  ];
+
+  it.each(alertCases)('only claims emails that were sent (%s)', (_name, over, texts) => {
+    render(
+      <BudgetCard
+        load={ready(status({ percentUsed: 100, spendUsd: 10, ...over }))}
+        canEdit={false}
+      />,
+    );
+    const c = card();
+    for (const t of texts) expect(within(c).getByText(t)).toBeTruthy();
+    if (!over.alerted) expect(c.textContent).not.toContain('Owners were emailed');
+    if (Object.keys(over).length > 0) {
+      expect(c.textContent).not.toContain('No budget alerts this month.');
+    }
   });
 
   it('with a budget, owners and admins can edit and remove it', () => {
@@ -532,7 +594,12 @@ describe('Projects list — Budget column', () => {
       kind: 'ready' as const,
       statuses: [status(), noBudget({ projectId: OTHER })],
     };
-    expect(toBudgetCell(load, PROJECT)).toEqual({ kind: 'set', limitUsd: 10, percentUsed: 62 });
+    expect(toBudgetCell(load, PROJECT)).toEqual({
+      kind: 'set',
+      limitUsd: 10,
+      percentUsed: 62,
+      threshold: null,
+    });
     expect(toBudgetCell(load, OTHER)).toEqual({ kind: 'none' });
     expect(toBudgetCell(load, rows[2]!.id)).toEqual({ kind: 'none' });
     expect(toBudgetCell({ kind: 'unavailable' }, PROJECT)).toEqual({ kind: 'not_loaded' });
@@ -542,8 +609,11 @@ describe('Projects list — Budget column', () => {
     render(
       <ProjectsTable
         rows={[
-          { ...rows[0]!, budget: { kind: 'set', limitUsd: 10, percentUsed: 62 } },
-          { ...rows[1]!, budget: { kind: 'set', limitUsd: 25, percentUsed: 104.2 } },
+          { ...rows[0]!, budget: { kind: 'set', limitUsd: 10, percentUsed: 62, threshold: null } },
+          {
+            ...rows[1]!,
+            budget: { kind: 'set', limitUsd: 25, percentUsed: 104.2, threshold: 100 },
+          },
           { ...rows[2]!, budget: { kind: 'none' } },
         ]}
         snapshot={null}
@@ -567,8 +637,19 @@ describe('Projects list — Budget column', () => {
   });
 
   it('badges 80 % in the list too', () => {
-    render(<BudgetCell budget={{ kind: 'set', limitUsd: 10, percentUsed: 80 }} />);
+    render(<BudgetCell budget={{ kind: 'set', limitUsd: 10, percentUsed: 80, threshold: 80 }} />);
     expect(screen.getByText('80 % reached')).toBeTruthy();
+  });
+
+  it('badges the list by the exact threshold, not the percent', () => {
+    const load = {
+      kind: 'ready' as const,
+      statuses: [status({ percentUsed: 80, spendUsd: 7.999999 })],
+    };
+    const cell = toBudgetCell(load, PROJECT);
+    expect(cell).toMatchObject({ kind: 'set', threshold: null });
+    render(<BudgetCell budget={cell} />);
+    expect(screen.queryByText(/reached/)).toBeNull();
   });
 
   it('the page loads budgets for the viewer’s workspace', async () => {

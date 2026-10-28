@@ -37,15 +37,31 @@ export const forecastSpend = (spendUsd: number, now: Date): number | null => {
  */
 const toMicros = (usd: number) => BigInt(Math.round(usd * 1_000_000));
 
-/** Highest threshold reached by `spend / limit` (in percent), or null below 80 %. */
-export const crossedThreshold = (spendUsd: number, limitUsd: number): BudgetThreshold | null => {
+const exactMicros = (spendUsd: number, limitUsd: number) => {
   if (!Number.isFinite(limitUsd) || limitUsd <= 0) {
     throw new RangeError('limitUsd must be a positive finite number.');
   }
   if (!Number.isFinite(spendUsd)) throw new RangeError('spendUsd must be a finite number.');
-  const spend = toMicros(spendUsd);
-  const limit = toMicros(limitUsd);
+  return { spend: toMicros(spendUsd), limit: toMicros(limitUsd) };
+};
+
+/** Highest threshold reached by `spend / limit` (in percent), or null below 80 %. */
+export const crossedThreshold = (spendUsd: number, limitUsd: number): BudgetThreshold | null => {
+  const { spend, limit } = exactMicros(spendUsd, limitUsd);
   if (spend >= limit) return 100;
   if (spend * 100n >= limit * 80n) return 80;
   return null;
+};
+
+/**
+ * `spend / limit × 100`, exact (micro-dollars) and floored to 0.01 — never rounded up, so it
+ * agrees with `crossedThreshold`: ≥ 80 exactly when 80 % is reached, ≥ 100 exactly at 100 %.
+ */
+export const percentOfLimit = (spendUsd: number, limitUsd: number): number => {
+  const { spend, limit } = exactMicros(spendUsd, limitUsd);
+  // Hundredths of a percent: spend × 100 × 100 / limit, floored (BigInt division truncates).
+  const scaled = spend * 10_000n;
+  let hundredths = scaled / limit;
+  if (scaled % limit !== 0n && scaled < 0n) hundredths -= 1n;
+  return Number(hundredths) / 100;
 };
