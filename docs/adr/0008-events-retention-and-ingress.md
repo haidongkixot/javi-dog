@@ -43,3 +43,13 @@ S3 proves the signal path: collectors send JGR batches (spec v0.1 §8) to `POST 
 - Positive: no new service or dependency; dedupe and tenant isolation are enforced by Postgres; retention keeps storage within the free tier at today's volume.
 - Negative: ~5 HTTP round trips per batch (auth, rate window, insert, two updates) — measure against the p95 < 2 s hypothesis in S5; the rate window adds write load per batch; until S3b no purge runs.
 - Follow-up: S3b cron purge + `CRON_SECRET`; S4 derives `stale` and sequence gaps from `events`; S5 load test and partitioning review.
+
+## Changes
+
+- 2026-10-28 (S3d hardening, after an adversarial audit of the S3a–S3c code; owner chose to fix before S3e):
+  - **Canonical event ids (H1):** `validateEvent` normalizes `event_id` (ULID upper-case, UUID lower-case, strict UUID shape) and the store normalizes again; migration `0003` adds a check constraint so the dedupe key cannot be split by letter case.
+  - **Signal on retry (H2):** `last_signal_at` / token `last_used_at` are written whenever a batch contains at least one valid event, accepted **or** duplicate, so a retry after a failed bookkeeping write still records the signal. `last_signal_at` only moves forward; `last_used_at` is written at most once a minute.
+  - **Media type (H4):** a `Content-Type` other than `application/json` or a `Content-Encoding` other than absent/`identity`/`gzip` → `415 unsupported_media_type` (was `400`), so producers keep the batch instead of dropping it as malformed. More than 100 events → `413 too_large` (was `400 schema`).
+  - **Rate window (H6):** the window start comes from the database clock (`date_trunc('minute', now())`), so instances with skewed clocks share one window.
+  - **Insert order (H5):** rows are sorted by (`producer_id`, `event_id`) before the insert so concurrent overlapping batches take locks in one order.
+  - **Purge (H3, ADR-0009):** bounded batches of 5 000 within a ~20 s budget; the response reports `{ deleted, batches, complete }`.
