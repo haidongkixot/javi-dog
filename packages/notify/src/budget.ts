@@ -22,8 +22,14 @@ export interface BudgetAlertEmailInput {
 
 /** Structurally a JD-M12 `BudgetAlertJob`; JD-M09 does not depend on JD-M12. */
 export interface BudgetAlertSendInput {
-  /** The claimed alert's id; with it, each request carries `Idempotency-Key: budget-alert/<alertId>/<recipient index>`. */
+  /**
+   * The claimed alert's id and attempt; with both, each request carries
+   * `Idempotency-Key: budget-alert/<alertId>/<attempt>/<recipient index>`. Unique per attempt on
+   * purpose: a retry carries new figures, and Resend's handling of a reused key with a different
+   * body is UNVERIFIED (ADR-0014 Changes) — so cross-attempt de-duplication is never relied on.
+   */
   alertId?: string;
+  attempt?: number;
   projectId: string;
   projectName: string;
   threshold: number;
@@ -150,7 +156,8 @@ export const sendBudgetAlertEmail = async (
   return sendEmail(config, {
     to: job.recipients,
     ...message,
-    // Stable across retries of this alert, so Resend can de-duplicate a re-send.
-    ...(job.alertId && { idempotencyKey: `budget-alert/${job.alertId}` }),
+    // Stable within one attempt (a lost response re-sent in the same attempt de-duplicates);
+    // a new attempt gets a new key because its body differs.
+    ...(job.alertId && { idempotencyKey: `budget-alert/${job.alertId}/${job.attempt ?? 1}` }),
   });
 };

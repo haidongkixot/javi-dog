@@ -264,12 +264,16 @@ describe('sendEmail robustness', () => {
 });
 
 describe('sendBudgetAlertEmail', () => {
-  it('uses budget-alert/<alertId>/<recipient index> as the idempotency key', async () => {
+  it('uses budget-alert/<alertId>/<attempt>/<recipient index> as the idempotency key', async () => {
     const fetchMock = vi.fn(async () => Response.json({ id: 'email_1' }));
     await sendBudgetAlertEmail({ ...config, fetch: fetchMock }, job());
+    await sendBudgetAlertEmail({ ...config, fetch: fetchMock }, job({ attempt: 2 }));
+    // A retry (new attempt, new figures) never reuses an earlier attempt's key.
     expect(headers(fetchMock).map((h) => h['Idempotency-Key'])).toEqual([
-      'budget-alert/alert_1/0',
-      'budget-alert/alert_1/1',
+      'budget-alert/alert_1/1/0',
+      'budget-alert/alert_1/1/1',
+      'budget-alert/alert_1/2/0',
+      'budget-alert/alert_1/2/1',
     ]);
   });
 

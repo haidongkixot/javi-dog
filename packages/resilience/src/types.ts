@@ -35,6 +35,8 @@ export interface BudgetStatus {
 
 export interface BudgetAlertJob {
   alertId: string;
+  /** 1 for the first claim, +1 per reclaim (≤ 5). Part of the email idempotency key. */
+  attempt: number;
   projectId: string;
   workspaceId: string;
   projectName: string;

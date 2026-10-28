@@ -294,7 +294,7 @@ export const createBudgetRepository = (db: BudgetDb) => {
         insert into budget_alerts (project_id, month, threshold, status, claimed_at)
         values (${scope.projectId}::uuid, ${month}::date, ${threshold}, 'pending', ${clock})
         on conflict (project_id, month, threshold) do nothing
-        returning id`;
+        returning id, attempts`;
       // Crossing 100 % covers 80 % (never downgrading a sent row) in the same statement.
       const claim =
         threshold === 100
@@ -308,9 +308,9 @@ export const createBudgetRepository = (db: BudgetDb) => {
               returning id)
             ${insert}`
           : insert;
-      let [claimed] = rowsOf<{ id: string }>(await db.execute(claim));
+      let [claimed] = rowsOf<{ id: string; attempts: Num }>(await db.execute(claim));
       if (!claimed) {
-        [claimed] = rowsOf<{ id: string }>(
+        [claimed] = rowsOf<{ id: string; attempts: Num }>(
           await db.execute(sql`
             update budget_alerts
                set status = 'pending', claimed_at = ${clock}, attempts = attempts + 1
@@ -320,13 +320,14 @@ export const createBudgetRepository = (db: BudgetDb) => {
                and attempts < ${MAX_ALERT_ATTEMPTS}
                and (status = 'failed'
                     or (status = 'pending' and claimed_at < ${clock} - ${STALE_PENDING}))
-            returning id`),
+            returning id, attempts`),
         );
       }
       if (!claimed) return null;
 
       return {
         alertId: claimed.id,
+        attempt: Number(claimed.attempts),
         projectId: row.project_id,
         workspaceId: scope.workspaceId,
         projectName: row.name,

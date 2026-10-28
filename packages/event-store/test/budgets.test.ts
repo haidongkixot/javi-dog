@@ -389,10 +389,12 @@ describe('claimAlert: exactly once per (project, month, threshold)', () => {
   it('retries a failed alert on later claims, up to 5 attempts in total', async () => {
     const s = await budgeted(10, 9);
     const first = await budgets.claimAlert(s, { now: NOW });
+    expect(first).toMatchObject({ attempt: 1 });
     for (let attempt = 2; attempt <= 5; attempt++) {
       await budgets.markAlert(first!.alertId, 'failed');
       const retry = await budgets.claimAlert(s, { now: NOW });
-      expect(retry).toMatchObject({ alertId: first!.alertId, threshold: 80 });
+      // The job carries the attempt: it is part of the email idempotency key (ADR-0014 Changes).
+      expect(retry).toMatchObject({ alertId: first!.alertId, threshold: 80, attempt });
       expect((await alertRows(s.projectId))[0]).toMatchObject({
         status: 'pending',
         attempts: attempt,

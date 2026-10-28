@@ -190,13 +190,11 @@ const utcMonthKey = (d: Date) =>
   `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 
 /**
- * `|actual − expected| ≤ tol` on the real numbers. The extra slack only absorbs binary
- * floating-point representation error (a few ULPs of the operands, e.g. 80 − 79.99 evaluates to
- * 0.010000000000005116); it never widens the README tolerance by a meaningful amount.
+ * `|actual − expected| ≤ tol`, exactly as the README states — no extra slack (an earlier version
+ * added a few ULPs, which hid a rounding defect in `percentUsed`; removed after the S4c review).
  */
 const within = (actual: number, expected: number, tol: number) =>
-  Math.abs(actual - expected) <=
-  tol + 8 * Number.EPSILON * Math.max(1, Math.abs(actual), Math.abs(expected));
+  Math.abs(actual - expected) <= tol;
 
 const show = (v: unknown) => JSON.stringify(v);
 

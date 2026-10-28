@@ -10,6 +10,7 @@ const scope = { workspaceId: 'ws_1', projectId: 'p_1' };
 
 const job = (over: Partial<BudgetAlertJob> = {}): BudgetAlertJob => ({
   alertId: 'alert_1',
+  attempt: 1,
   projectId: 'p_1',
   workspaceId: 'ws_1',
   projectName: 'Web App',
@@ -100,11 +101,12 @@ describe('processBudgetAlert', () => {
     const keys = vi
       .mocked(fetchMock)
       .mock.calls.map(([, init]) => (init?.headers as Record<string, string>)['Idempotency-Key']);
+    // Same claimed attempt → same keys; the attempt number is part of the key.
     expect(keys).toEqual([
-      'budget-alert/alert_1/0',
-      'budget-alert/alert_1/1',
-      'budget-alert/alert_1/0',
-      'budget-alert/alert_1/1',
+      'budget-alert/alert_1/1/0',
+      'budget-alert/alert_1/1/1',
+      'budget-alert/alert_1/1/0',
+      'budget-alert/alert_1/1/1',
     ]);
   });
 
