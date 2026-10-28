@@ -136,6 +136,9 @@ importers:
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.2.0)(kysely@0.29.7)
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       typescript:
         specifier: 5.9.3
         version: 5.9.3
