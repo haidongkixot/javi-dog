@@ -1,13 +1,5 @@
 [
   {
-    "id": "JD-M07",
-    "name": "@javis-dog/realtime",
-    "path": "packages/realtime",
-    "status": "planned",
-    "sprint": "S4",
-    "description": "SSE streams, freshness and stale state"
-  },
-  {
     "id": "JD-M08",
     "name": "@javis-dog/analytics",
     "path": "packages/analytics",

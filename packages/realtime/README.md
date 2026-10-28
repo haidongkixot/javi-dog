@@ -1,0 +1,9 @@
+# JD-M07 · `@javis-dog/realtime` — dashboard read model
+
+Status: **in-progress** (S4a, ADR-0012). Derives thread state, freshness, overview counters, the activity feed and project health from stored JGR events, scoped to one workspace. JD-APP serves it as a snapshot the browser polls every 10 s.
+
+| Export | Description |
+|---|---|
+| `createDashboardReader(db).snapshot(workspaceId, { now? })` | `DashboardSnapshot` for the last 24 h, times from the database clock |
+| `threadFreshness(lastType, lastSignalAt, now)` | `ended` / `fresh` / `stale` (180 s window, JGR §5) |
+| `FRESHNESS_WINDOW_MS`, `SNAPSHOT_WINDOW_HOURS`, `ACTIVITY_LIMIT` | Constants |

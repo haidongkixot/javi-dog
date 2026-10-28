@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
     '@javis-dog/jgr-spec',
     '@javis-dog/notify',
     '@javis-dog/projects',
+    '@javis-dog/realtime',
   ],
   poweredByHeader: false,
 };

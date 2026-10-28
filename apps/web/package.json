@@ -19,6 +19,7 @@
     "@javis-dog/ingest": "workspace:*",
     "@javis-dog/notify": "workspace:*",
     "@javis-dog/projects": "workspace:*",
+    "@javis-dog/realtime": "workspace:*",
     "@javis-dog/ui": "workspace:*",
     "better-auth": "1.7.7",
     "next": "16.4.2",

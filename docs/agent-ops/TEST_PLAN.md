@@ -204,3 +204,19 @@ Written before implementation. Risk: **MEDIUM** — a broken install path silent
 | CI builds the bundle | Low | `pnpm build` in CI | exit 0 | No |
 
 Tests: `collectors/claude-code/test/pack.test.ts`, `install-self.test.ts`, `pack-scripts.test.ts` (build scan, offline tarball install via the `.bin` symlink, stable `~/.javi/bin` copy surviving removal of the install prefix).
+
+## S4a — Live state: read model, freshness, dashboard (2026-10-28)
+
+Written before the lanes start. Risk: **HIGH** — tenant isolation on a new read path, truthfulness of "live"/stale (product rule 2), first data-driven UI. Screenshot budget: **0** (behaviour and semantics are asserted with jsdom queries; no visual question is open). Stack reused: Vitest, PGlite (as JD-M06), Testing Library + jsdom (as `apps/web/test`).
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| Freshness: fresh ≤ 180 s (inclusive), stale after, `ended` after `session.ended` | High | Unit | boundary table (179.999 / 180 / 180.001 s) | QA state vectors |
+| Thread state: last status, attention (latest status-bearing event `waiting`), agents, tasks, tokens | High | Integration (PGlite) | seeded event sequences | QA state vectors |
+| Overview counters + activity (25, newest first) + project health incl. `never` | High | Integration (PGlite) | seeded workspace | No |
+| Workspace isolation | High | Integration (PGlite) | two workspaces; snapshot of A contains nothing of B (ids, slugs, refs) | Route test |
+| 24 h window and DB clock (`generatedAt` from `now()`) | Medium | Integration (PGlite) | event at 25 h excluded; pinned `now` | No |
+| Route: 401 signed out, 503 no DB, `no-store`, workspace from session only | High | Unit (route handler with injected deps) | status + headers; query params ignored | No |
+| Hook: 10 s while visible, paused when hidden, failure keeps data + notice | Medium | Component (jsdom, fake timers) | fetch call count; visibilitychange; notice text | No |
+| Pages: values with last-signal time and stale/ended labels; empty states; attention visible; no "live" wording | High | Component (jsdom) | role/name queries; `not.toMatch(/\blive\b/i)` on values | No |
+| Real data on production | — | Runtime (owner's first real run) | dashboard shows the session | NOT RUN until then |

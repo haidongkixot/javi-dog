@@ -12,7 +12,7 @@
 | JD-M04 | `@javis-dog/projects` | `packages/projects` | in-progress | 0.1.0 | Project registry: workspaces, projects and hashed ingest tokens. S2a: Drizzle tables, workspace-scoped repository, token primitives (ADR-0005). | — |
 | JD-M05 | `@javis-dog/ingest` | `packages/ingest` | in-progress | 0.1.0 | JGR ingress for POST /api/v1/events. S3a: bearer ingest-token auth, bounded (gzip-aware) body, JD-M01 validation, project scope and privacy ceiling, per-project dedupe, per-token rate limit, verified last signal (ADR-0008). OTLP/HTTP arrives in S3c. | JD-M01, JD-M04, JD-M06 |
 | JD-M06 | `@javis-dog/event-store` | `packages/event-store` | in-progress | 0.1.0 | Neon client (neon-http), composed Drizzle schema, migrations and DB health. S2a: JD-M04 tables; S2b: JD-M03 identity tables; JGR events, rollups and retention arrive in S3. | JD-M01, JD-M03, JD-M04 |
-| JD-M07 | `@javis-dog/realtime` | `packages/realtime` | planned | — | SSE streams, freshness and stale state | — |
+| JD-M07 | `@javis-dog/realtime` | `packages/realtime` | in-progress | 0.1.0 | Dashboard read model (ADR-0012): per-thread state and freshness (stale after 180 s without a signal, JGR §5), overview counters, activity feed and project health from workspace-scoped queries; served by JD-APP as a snapshot polled every 10 s. | JD-M06, JD-M04 |
 | JD-M08 | `@javis-dog/analytics` | `packages/analytics` | planned | — | Effectiveness metrics and model comparison | — |
 | JD-M09 | `@javis-dog/notify` | `packages/notify` | in-progress | 0.1.0 | Transactional email via the Resend REST API. S2c: welcome email on first sign-in; alerts arrive with JD-M12. | — |
 | JD-M10 | `@javis-dog/github-bridge` | `packages/github-bridge` | planned | — | GitHub App webhooks, opt-in archive | — |

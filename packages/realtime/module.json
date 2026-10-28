@@ -1,0 +1,15 @@
+{
+  "id": "JD-M07",
+  "name": "@javis-dog/realtime",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Dashboard read model (ADR-0012): per-thread state and freshness (stale after 180 s without a signal, JGR §5), overview counters, activity feed and project health from workspace-scoped queries; served by JD-APP as a snapshot polled every 10 s.",
+  "owner": "platform",
+  "provides": [
+    "createDashboardReader()",
+    "threadFreshness()",
+    "DashboardSnapshot",
+    "FRESHNESS_WINDOW_MS"
+  ],
+  "consumes": ["JD-M06", "JD-M04"]
+}

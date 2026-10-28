@@ -56,6 +56,9 @@ importers:
       '@javis-dog/projects':
         specifier: workspace:*
         version: link:../../packages/projects
+      '@javis-dog/realtime':
+        specifier: workspace:*
+        version: link:../../packages/realtime
       '@javis-dog/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -301,6 +304,31 @@ importers:
         specifier: 4.6.7
         version: 4.6.7
     devDependencies:
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.0.5
+        version: 5.0.5(@types/node@22.20.5)(jsdom@30.1.3(@noble/hashes@2.4.0))(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
+  packages/realtime:
+    dependencies:
+      '@javis-dog/event-store':
+        specifier: workspace:*
+        version: link:../event-store
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(@electric-sql/pglite@0.5.8)(@neondatabase/serverless@1.2.0)(kysely@0.29.7)
+    devDependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.8
+        version: 0.5.8
+      '@javis-dog/projects':
+        specifier: workspace:*
+        version: link:../projects
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
