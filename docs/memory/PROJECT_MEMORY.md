@@ -9,7 +9,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Current state
 
-- S0 foundations committed on branch `claude/clever-goldberg-wlurty`: Orcasus adopted, brand guide + logo v0.1, feasibility, readiness, ADR-0001…0003, monorepo scaffold, JD-M13 tokens (29 tests), minimal JD-APP page, CI (GitHub Actions green), vendored skills, Guru agent.
+- S0 foundations (Orcasus, brand, ADR-0001…0003, monorepo, CI, Guru): see `docs/sprints/SPRINT-00.md`.
 - G0 done: 4 generalized skills in `guru/skills/` (medium confidence); see `guru/WISDOM_LOG.md`.
 - S1a done: five-space shell with honest states (JD-APP), JD-M13 components, JD-M04 draft project schema.
 - S1b done: JGR v0.1 draft (JD-M01) — spec `docs/jgr/spec/v0.1.md`, ADR-0004, 20 conformance vectors, primary-source research; 89 tests green workspace-wide.

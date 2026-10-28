@@ -2,9 +2,9 @@
 name: privacy-first-agent-telemetry-protocol
 description: Design a small, strict, privacy-first event protocol for telemetry from AI coding agents, CLIs, hooks, SDKs or any producer you do not fully control — a minimal envelope with unknown fields rejected, privacy classes enforced at the envelope by allowlist (reject, do not strip), token/cost usage as deltas, per-event IDs for deduplication, per-thread sequence numbers for gap detection, receiver-derived "stale" status, stable error codes, partial batch acceptance, normative rule IDs, shared JSON conformance vectors, canonical event IDs, delivery status codes that tell producers whether to keep or drop data, liveness that survives retries, and translating tool-native OpenTelemetry (OTLP) into the envelope where the data is born (a local receiver) so identity and content never cross the network. Use when defining an ingest API or webhook contract, an observability or analytics event schema, an agent heartbeat/status protocol, a telemetry SDK, when deciding between OTLP, CloudEvents or a custom envelope, when building an ingest endpoint, collector, SDK spool or OTLP receiver for agent telemetry, or when payloads might carry prompts, code, paths, emails or secrets.
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G1; updated G2-prep, G2"
-  confidence: "medium (envelope, vectors, ingest delivery, local OTLP translation); low (gap detection, stale derivation, latency and size targets)"
+  version: "0.3.0"
+  origin: "javis-dog G1; updated G2-prep, G2, G3"
+  confidence: "medium (envelope, vectors, ingest delivery, local OTLP translation, receiver-derived freshness, receipt-time aggregation); low (gap detection, latency and size targets, behaviour on real host-tool traffic)"
 ---
 
 # Privacy-first agent telemetry protocol
@@ -13,7 +13,7 @@ Coding agents and their tooling can emit a lot: prompts, tool inputs, file paths
 
 The core move: **make the envelope small and strict, make privacy a validation rule rather than a cleanup step, and ship the rules as executable test vectors.**
 
-Confidence is split. The envelope, validator and vectors (sections 1–6), the ingest and delivery path (section 7) and the local OTLP translator (section 8) are built, tested and — for ingest — smoke-tested against production in the origin (**medium**). Sequence-gap detection, receiver-derived stale status and the latency/size targets are still unbuilt or unmeasured (**low**), and the OTLP path has not yet run inside a real host-tool session.
+Confidence is split. The envelope, validator and vectors (sections 1–6), the ingest and delivery path (section 7) and the local OTLP translator (section 8) are built, tested and — for ingest — smoke-tested against production in the origin (**medium**). Receiver-derived freshness and receipt-time aggregation (section 9) were built and vector-tested at G3 (**medium**). Sequence-gap detection and the latency/size targets are still unbuilt or unmeasured (**low**), and the OTLP path has not yet run inside a real host-tool session.
 
 ## Forces
 
@@ -114,6 +114,7 @@ Receiver rules that the origin's audit and review turned into fixes:
 - **Use the database clock for shared windows.** Rate-limit windows keyed by `date_trunc('minute', now())` in the database, not by each serverless instance's clock; compute `Retry-After` from the same clock.
 - **Insert in a fixed order.** Sort rows by the unique key before a multi-row insert so concurrent overlapping batches take locks in one order.
 - **Bound destructive jobs.** Retention purges delete in batches within a time budget and report `{deleted, batches, complete}`; the next run continues. Answer `401` before revealing "not configured".
+- **Retention covers every reporting period.** A raw-event purge shorter than the longest period a consumer reports on (calendar month-to-date spend needs up to 31 days) silently undercounts; cut off at `min(now − N days, start of the current period)`.
 - Producers spool unsent events locally (bounded, oldest-first eviction), never the token. Latency and size targets stay **hypotheses** until a load test records them.
 
 ## 8. Translate tool-native telemetry where it is born
@@ -130,6 +131,13 @@ Many tools already export OTLP. Translate it into your envelope, then validate. 
 
 The receiver itself is a localhost listener; harden it with the `local-companion-process-hardening` skill. Write conformance vectors for the translator — mapping tables are not evidence. Dated tool facts with sources: [`references/envelope-checklist.md`](references/envelope-checklist.md#tool-native-telemetry-facts-dated).
 
+## 9. Consume the stream honestly
+
+- **Freshness is derived, from one clock.** `fresh` while the database clock minus the last *received* signal is within the window (state whether the boundary is inclusive; the origin used 3 × heartbeat = 180 s, inclusive), `stale` after, `ended` after the lifecycle end event. Status and freshness travel together (see `truthful-live-status`).
+- **Aggregate by receipt time, not producer time.** Bucket days, months and rolling windows by when the receiver stored the event; producer clocks drift and replays arrive late. Write a vector where the two disagree.
+- **Carry `estimated` through every aggregate.** Count estimated reports per bucket and total, so the UI can say "includes estimated counts (N of M)" instead of presenting sums as exact.
+- **Time zones are part of the contract.** Bucket in UTC on the server independent of the session's time zone (`… at time zone 'UTC'`) and label UTC in the UI; test in several session zones.
+
 ## Pitfalls
 
 - **Stripping at the envelope.** It feels safer and makes producer bugs invisible.
@@ -141,6 +149,8 @@ The receiver itself is a localhost listener; harden it with the `local-companion
 - **`400` for configuration errors.** Producers drop good data.
 - **Liveness only on newly stored events.** A retry after a partial failure leaves the signal stale forever.
 - **Server-side stripping of data you could have never sent.** Translate locally when you control the collector.
+- **Bucketing by producer time.** Late or skewed events land in the wrong day.
+- **Retention shorter than the reporting period.** Day 31 loses day 1.
 
 ## Evidence from origin project
 
@@ -161,3 +171,9 @@ Javi's Dog, Sprint 1b (2026-10-20); at G1 confidence was **medium** for sections
   - Hardening after an adversarial audit (`b710bee`, `048dad1`, `98c7974`; ADR-0008/0009 *Changes*): canonical IDs + check constraint (migration `0003`), signal on accepted-or-duplicate with database-clock cap (`packages/event-store/src/events.ts` l. 201), DB-clock rate window (l. 124), sorted inserts (l. 102), bounded purge, `415` with the SDK keeping its spool, more than 100 events → `413`. 43 independent HTTP vectors; mutation 415 → 400 failed exactly vectors 32–34.
   - Local OTLP translation (ADR-0011, `385e6af`, `37ac271`, `95a4b5a`): allowlist parser, delta/cumulative handling, deterministic UUIDv8-layout IDs (`collectors/claude-code/src/usage.ts` l. 67–74), session attribution with local drops. 40 independent vectors incl. identity canaries; mutation "random event ids" failed exactly vectors 39–40; retried export → `duplicates: 1` end to end on an embedded Postgres (`SPRINT-03e.md`).
   - Still not verified: sequence-gap detection and stale derivation (dashboard work not yet built); latency and size targets; the OTLP path inside a real host-tool session, including whether the telemetry session id equals the hook session id (UNVERIFIED; unmatched usage is dropped, never misattributed).
+- G3 update (2026-10-28, Sprints 4a–4c): stale derivation raised from **low** to **medium**; gap detection still **low** (not built).
+  - Freshness (ADR-0012 and *Changes*): `fresh` ≤ 180 s inclusive on the database clock (truncated to ms), `ended` after `session.ended`, `needsAttention` = waiting and not ended; 27 independent state vectors; mutation "exclusive 180 s boundary" → only vector 01 FAIL (`docs/sprints/SPRINT-04a.md`).
+  - Receipt time: analytics and budgets bucket by received time; mutation "bucket by `occurred_at`" → only analytics vector 10 FAIL (`SPRINT-04b.md`); budgets vector 02 covers the same rule. UTC bucketing with `to_char(… at time zone 'UTC')`, verified in three session time zones by the reviewer (ADR-0013 *Changes*).
+  - Estimated: `estimatedReports` per day, model, project and total (`da6b7a7`); carried into the budget status contract from its first scaffold (`025e35d`).
+  - Retention: cutoff keeps the current UTC month (ADR-0008 *Changes*, `packages/event-store/src/events.ts` l. 88–94).
+  - Still not verified: all of the above on real producer traffic (production had no real events at G3).

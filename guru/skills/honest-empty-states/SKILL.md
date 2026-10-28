@@ -2,8 +2,8 @@
 name: honest-empty-states
 description: Build dashboards, admin consoles and app shells before real data or a backend exists without faking anything — missing values render as "No signal yet" (never 0 or a sample number), a global disclosure banner says what is not connected, planned features are labelled planned or concept-only, actions that cannot work yet are visibly disabled with a reason, design targets are labelled as hypotheses, deployments missing configuration say "not configured" (UI and API) instead of crashing or faking, disclosure copy is narrowed as each capability becomes real, and static guard tests (no sample numbers in rendered text, no raw color literals) are proven able to fail. Use when porting a design mockup or template with illustrative numbers into a real app, building a UI shell ahead of the API, writing empty, loading, not-connected or demo states, reviewing copy that says live, connected, secure or encrypted, adding tests that keep mock data out of production UI, or wiring the first real backend feature (sign-in, first real rows) into a shell that used to be all empty states.
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G1; updated G2-prep"
+  version: "0.2.1"
+  origin: "javis-dog G1; updated G2-prep, G3"
   confidence: medium
 ---
 
@@ -79,6 +79,7 @@ The first backend features (sign-in, real rows) do not end the empty-state work;
 - **Real rows, still-missing signals.** A real project with no signal yet shows "No signal yet" in its signal column; never fill it with the creation time or a zero.
 - **Disabled-with-reason becomes the real action.** When the feature ships, replace the disabled control and its reason; signed-out visitors get a prompt to sign in instead of a disabled button.
 - **One-time secrets.** Show them once, in the response that created them, with a visible "shown once" warning; lists show a non-secret display prefix.
+- **Data-driven empty states.** With real data, "nothing reported" is still not zero: no flat chart of zeros ("No usage reports in the last 14 days"), no bare `0` on a counter whose source sent nothing ("No usage reports in the last hour", "Not reported"). Once values are real, freshness, delivery state and estimates become the next truthfulness problem — see `truthful-live-status`.
 - **Narrow the disclosure as capabilities arrive.** Review the global banner and status copy in the same change that makes something real, so it neither overclaims (G1: copy ahead of the spec) nor underclaims (copy behind the product).
 
 ## Pitfalls
@@ -108,3 +109,7 @@ Javi's Dog, Sprint 1a (2026-10-20), commit `0235df1`. Confidence **medium**: the
 - Real rows: the projects list renders "No signal yet" while `lastSignalAt` is null; signed-out visitors get a sign-in prompt; tokens are shown once with a warning, then listed by display prefix (`apps/web/src/app/projects/page.tsx`, `apps/web/src/app/projects/[id]/page.tsx`, `apps/web/src/components/token-panel.tsx`; `93cc254`). Owner exercised create/issue/revoke on production once (`docs/sprints/SPRINT-02c.md`, `2d6b87d`).
 - Disclosure narrowing: in S2b the banner changed from "No projects, agents, providers or backend are connected yet" to "You can sign in; projects, agents and providers are not connected yet", and the top bar's "Preview build · no backend" became the account menu (`a55b415`). At HEAD (`93cc254`), after project creation shipped in S2c, the banner still says "projects … are not connected yet" (`apps/web/src/app/layout.tsx`) — ambiguous at best (projects exist; no agent is connected to them). Found by reading at G2-prep; proposed to the owner, not changed.
 - Confidence stays **medium**: the patterns were applied once each; user trust effects remain unmeasured.
+
+### Update at G3 (Sprints 4a–4b, 2026-10-28)
+
+- Real data, still-empty states: the token card never shows a bare 0 ("No usage reports in the last hour"), agent counts of 0 render "Not reported", and the usage chart renders "No usage reports in the last 14 days" instead of a flat zero line (ADR-0012 *Changes*; `docs/sprints/SPRINT-04a.md`, `SPRINT-04b.md` Review focus and Team log). The follow-on defects (stale data looking fresh, frozen relative times, "emailed" for undelivered alerts) are packaged in `truthful-live-status`.

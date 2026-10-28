@@ -70,6 +70,9 @@ Team log, newest first:
 | `pnpm --filter @javis-dog/web test` after merge + shell fix | 0 | — | 143 | 0 | 0 | 0 | 0 | dashboard 42 |
 | Full gate (`format`/`lint`/`typecheck`/`test`/`build`/`docs`) | 0 | — | 759 | 0 | 0 | 0 | 0 | before review fixes |
 | Review fixes: new tests against the old code (red first) | 1 | — | — | 30 | 0 | 0 | 0 | 27 web + 3 realtime |
+| Full gate after review fixes | 0 | — | 776 | 0 | 0 | 0 | 0 | — |
+| CI on `6377e88` / `6ed8beb` | 0 | — | runs 40647195467 / 40647484633 | 0 | 0 | 0 | 0 | closing pushes |
+| Rendered layout of Overview / Live agents / Projects | — | — | — | — | — | — | 1 | screenshot budget 0 |
 | Real data on production | — | — | — | — | — | — | 1 | owner's first real run |
 
 ## Decisions and deviations

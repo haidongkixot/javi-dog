@@ -1,6 +1,6 @@
 # Sprint 04c — Budgets, forecast and alerts (JD-M12, Resilience v1)
 
-- Dates: 2026-10-28 (timebox 30 min) · Status: **BUILT** — closes with CI green on the push; real alert email waits on the owner's first real run
+- Dates: 2026-10-28 (timebox 30 min) · Status: **BUILT** (CI green on `e968421`); real alert email waits on the owner's first real run
 - Goal: owners set a monthly USD budget per project, see month-to-date estimated spend with a forecast, and workspace owners get one email at 80 % and at 100 % — triggered on ingest.
 - Modules touched: JD-M12 (new), JD-M06 (migration 0005, retention cutoff), JD-M09, JD-M05, JD-APP, docs
 - Readiness gate: owner decisions 2026-10-28 (ADR-0014); Resend + `eagodi.com` verified (S2c); migration 0005 on `dev-agent` after deploy; no `CRON_SECRET` needed
@@ -77,6 +77,9 @@ Team log, newest first:
 | Mutation: no ON CONFLICT in the claim | 1 | — | 17 | 9 | 0 | 0 | 0 | 10, 11, 13–19 |
 | Mutation: stale window 0 | 1 | — | 25 | 1 | 0 | 0 | 0 | 18 only |
 | Review fixes: new tests against the old code (red first) | 1 | — | — | 43 | 0 | 0 | 0 | resilience 16, event-store 6, notify 12, web 9 |
+| Full gate after review fixes | 0 | — | 1105 | 0 | 0 | 0 | 0 | drift clean |
+| CI on `e968421` / `e564df8` | 0 | — | runs 40684915546 / 40685564553 | 0 | 0 | 0 | 0 | production health ok, no runtime errors |
+| Rendered layout of the budget card / Budget column | — | — | — | — | — | — | 1 | screenshot budget 0 |
 | Real alert email to the owner | — | — | — | — | — | — | 1 | owner's first real run with a budget |
 
 ## Decisions and deviations

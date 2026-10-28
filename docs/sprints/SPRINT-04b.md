@@ -70,6 +70,8 @@ Team log, newest first:
 | `pnpm --filter @javis-dog/web test` (Developer B, 2 runs) | 0 | — | 194 | 0 | 0 | 0 | 0 | analytics 34 |
 | Full gate (`format`/`lint`/`typecheck`/`test`/`build`/`docs`) | 0 | — | 865 | 0 | 0 | 0 | 0 | before review |
 | Review fixes: new tests against the old code (red first) | 1 | — | 73 | 32 | 0 | 0 | 0 | analytics 14 + web 18 |
+| Full gate after review fixes | 0 | — | 888 | 0 | 0 | 0 | 0 | — |
+| CI on `1993bd8` / `ed7c7cf` | 0 | — | runs 40652083951 / 40652522728 | 0 | 0 | 0 | 0 | closing pushes |
 | Rendered chart layout at 1150 / 850 / 560 px | — | — | — | — | — | — | 1 | screenshot budget 0; owner may approve a bounded visual check |
 
 ## Decisions and deviations

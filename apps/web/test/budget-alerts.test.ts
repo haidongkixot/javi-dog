@@ -92,7 +92,7 @@ describe('processBudgetAlert', () => {
     expect(logs.raw()).not.toContain('@');
   });
 
-  it('sends a stable idempotency key per alert and recipient, so a retry can be de-duplicated', async () => {
+  it('sends an idempotency key per alert attempt and recipient (stable within one attempt)', async () => {
     spyLogs();
     const fetchMock = ok();
     const { deps } = fakeDeps(job(), fetchMock);

@@ -1,10 +1,10 @@
 ---
 name: independent-conformance-vectors
-description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, or when asked for "conformance tests", "test vectors", "golden files", "contract tests" or "an independent QA pass".
+description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, or when asked for "conformance tests", "test vectors", "golden files", "contract tests" or "an independent QA pass".
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G2"
-  confidence: "high (independent vectors + runner + mutation checks: two suites, two iterations); medium (ambiguity register catching a defect in the brief: once)"
+  version: "0.2.0"
+  origin: "javis-dog G2; updated G3"
+  confidence: "high (independent vectors + runner + mutation checks: five suites, five iterations, every mutation failed exactly the expected vectors); medium (ambiguity register catching a defect in the brief: once; strict-tolerance rule: one hidden defect)"
 ---
 
 # Independent conformance vectors
@@ -41,7 +41,14 @@ The README specifies the fixed environment (fresh receiver per vector, temporary
 - BLOCKED is never counted as PASS; a check the runner cannot observe is NOT RUN, reported separately.
 - The runner asserts the vector count, so a deleted file fails the suite.
 
-Someone other than the QA author writes the runner from those rules, against the real handler (in-process server, real engine such as an embedded database).
+Someone other than the QA author writes the runner from those rules, against the real handler (in-process server, real engine such as an embedded database). Prefer someone who is not the implementation's author either (a fresh lane), so neither oracle nor runner shares the implementer's reading.
+
+Runner rules that the origin learned the hard way:
+
+- **Tolerances are exactly the README's.** No "a few ULPs of slack" for floating point. If a vector only passes with extra slack, the implementation sits on the edge of the tolerance — that is a finding, not noise. In the origin, slack added by the runner hid a defect that rounded 79.99 % up to 80 %; only the reviewer caught it. Fix representation problems in the implementation (exact integers or decimals), never in the comparison.
+- **A runner author's "this only passes because…" is a FAIL candidate.** Route it to the owner of the implementation before merging, not into a comment.
+- **Parallel steps need parallel infrastructure.** On a single-connection embedded engine, concurrent calls interleave at statement level at most: that proves the claim logic, not the database's arbitration between connections. A runner that serialises "parallel" steps reports them NOT RUN; add one check on a real multi-connection server for the claim.
+- **First red: classify before fixing.** When a new runner fails on its first run, decide per failure whether the runner, the vector or the implementation is wrong. In the origin the first state-suite run had 4 FAIL from a runner field-mapping bug (an offset mapped to the wrong timestamp field); the vectors were right.
 
 ## 5. Prove the runner bites with mutation checks
 
@@ -62,6 +69,8 @@ If your environment blocks running mutations (an agent permission classifier did
 - **Choosing a reading without logging it.** Ambiguities resolved silently resurface as bugs.
 - **Counting BLOCKED as PASS.** A vector that could not run proves nothing.
 - **A green suite as evidence of detection.** Only a mutation that turns it red shows that.
+- **Widening a tolerance in the runner.** It turns a contract into a suggestion and hides edge-of-tolerance defects.
+- **Parallel steps on one connection reported as PASS.**
 
 ## Evidence from origin project
 
@@ -72,3 +81,18 @@ Javi's Dog, Sprints 3d and 3e (2026-10-28). Confidence **high** for vectors + ru
 - Brief defect: ambiguity A3 (brief vs. OTLP unknown-field and empty-request rules) → parser fix `ecc2c2c` ("an object without `resourceMetrics` is an empty request"); recorded in the receiver decision record's *Changes* (`docs/adr/0011-local-otlp-usage-receiver.md`).
 - Earlier attempt: a mutation check in S3a was blocked by the session's permission classifier and recorded as BLOCKED; the retro asked for permission up front (`docs/sprints/SPRINT-03a.md`). Mutation checks ran in S3d, S3e and S3f.
 - Not verified: that vectors keep *several* implementations consistent (each suite has one implementation).
+
+### Update at G3 (Sprints 4a–4c, 2026-10-28)
+
+Three more suites, each for a new read model or write path, each with a runner written by someone other than the QA author and mutation checks that failed exactly the expected vectors (`docs/sprints/SPRINT-04a.md`, `SPRINT-04b.md`, `SPRINT-04c.md` Test evidence):
+
+| Suite | Vectors / ambiguities | Runner | Mutations (each restored) |
+|---|---|---|---|
+| Thread state (`docs/jgr/conformance/state/`, `91c705e`) | 27 / 14 | orchestrator, `7e5f1e3`: first run 4 FAIL — runner bug, vectors correct; then 27/27 | exclusive 180 s boundary → only 01; workspace filters removed → only 17, 20, 21 |
+| Usage analytics (`…/analytics/`, `58f3f54`) | 23 / 12 | orchestrator, `8f0b7e1`: 23/23 first run | bucket by producer time instead of receipt time → only 10; workspace filters removed → only 19, 20, 23 |
+| Budgets and alerts (`…/budgets/`, `e8fbc48`) | 25 / 16 | fresh lane independent of the implementation, `3ef3bdb`: 25/25 | no `ON CONFLICT` in the claim → 9 vectors (10, 11, 13–19); stale window 0 → only 18 |
+
+- Hidden defect: the budget runner's comparison added `8 × Number.EPSILON × max(…)` to the README tolerance (`3ef3bdb`). Its author flagged that vectors 09 and 11 passed only through that slack; the implementation rounded percent to one decimal (`fa20a50`), so 79.99 % became 80.0 %, |80.0 − 79.99| exceeding 0.01 by about 5 × 10⁻¹⁵. The reviewer reported "percent rounded up into false thresholds" as a major; fix `12fdd97` (exact, floored); runner made strict in `e968421` — 25/25 still pass (`SPRINT-04c.md` Team log and Retro: "conformance tolerances are never widened in runners").
+- Parallel steps: the budgets README (l. 111) states that PGlite interleaves at statement level and that a serialising runner must report NOT RUN; the orchestrator added a real-Postgres check (5 parallel claims over separate connections → exactly 1 job) (ADR-0014 *Changes*).
+- QA ambiguity registers kept surfacing gaps that later became review findings: state A7 ("attention on ended threads untested") matched the S4a reviewer's first major (ended threads counted as attention in the UI).
+- Not verified: that vectors keep *several* implementations consistent (still one implementation per suite).

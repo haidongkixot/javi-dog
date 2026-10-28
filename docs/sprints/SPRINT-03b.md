@@ -57,6 +57,8 @@ Screenshots: 0.
 
 ## Retro
 
+- Pending: the sprint is still open (closes when `CRON_SECRET` is set and the first purge runs); lessons so far are in Guru G2 (`guru/WISDOM_LOG.md`).
+
 ## Guru checkpoint
 
 G2 at the end of S3 (after S3c).

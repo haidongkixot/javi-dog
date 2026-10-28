@@ -1,10 +1,10 @@
 ---
 name: orchestrated-agent-team-lanes
-description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when a session discovers someone else already pushed the work it planned, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
+description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when deciding what may be pushed to an auto-deploying branch before review, when a session discovers someone else already pushed the work it planned, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G2"
-  confidence: "medium (team pattern, used in three iterations); high (fetch-before-planning as the fix for duplicate work: one incident, rule applied twice since)"
+  version: "0.2.0"
+  origin: "javis-dog G2; updated G3"
+  confidence: "medium (team pattern, used in six iterations by one orchestrator); high (fetch-before-planning as the fix for duplicate work; adversarial reviewer with probes finding majors the lanes missed: six consecutive rounds); medium (holding user-facing pushes until review: three iterations)"
 ---
 
 # Orchestrated agent team lanes
@@ -46,6 +46,10 @@ Write the iteration's test plan before any lane starts (the origin's Reviewer fl
 
 **Write interface stubs first.** If a lane depends on a signature another lane (or the orchestrator) is changing, commit the stub before launching. In the origin, a Developer lane's typecheck failures depended only on the orchestrator's new store signatures and resolved at merge; the next iteration listed "interface stubs" as an orchestrator task up front.
 
+**Put derived fields into the scaffold contract.** The orchestrator's scaffold (types plus stubs) should already name every flag the views will need (`needsAttention`, `estimatedReports`, per-state lists). Lanes that consume a contract re-derive whatever it lacks, and they derive it differently (see `truthful-live-status`).
+
+**Give the conformance runner its own lane** when the implementation lane would otherwise write it: QA writes vectors from the contract, a fresh lane writes the runner from the README, the implementer writes neither.
+
 **Correct lanes mid-flight, in time.** When a contract question is decided while lanes run (in the origin, QA found that the brief contradicted the wire-format spec), message the affected lane before it writes the dependent test, and log the correction.
 
 ## 3. Merge with a checklist, in the main tree
@@ -58,6 +62,12 @@ Write the iteration's test plan before any lane starts (the origin's Reviewer fl
 6. Reviewer findings closed or logged as deviations.
 7. Readiness records and test evidence updated.
 8. Merge (`--no-ff` keeps the lane visible), one install, one push.
+
+A lane that needed one file outside its declared paths is not rejected automatically: accept it only if no other lane owns that file, and log the deviation (file, lines, why) in the team log.
+
+**Merging is not pushing.** On a branch where every push deploys, merge lanes locally, review the *combined* diff, and **hold the push** of anything user-facing or outbound (UI copy and states, emails, webhooks) until the review's majors are fixed and merged. Backend increments that nothing calls yet can go out earlier to get CI evidence; say so in the log ("R1 pushed; UI held for review fixes").
+
+**Claim CI only after it finished.** "CI green on `<sha>` (run `<id>`)" is written after the run completed, and the closing run id goes into the iteration record, not only into the memory file.
 
 ## 4. Review adversarially, fix red-first
 
@@ -84,6 +94,8 @@ If you discover that another session pushed the work you planned:
 - **Reviewer as a style pass.** Without an adversarial brief and probes, reviewers repeat what the tests already say.
 - **Fixes without a red run.** The test may not exercise the defect.
 - **Two lanes, one migration folder.** Migration numbering and drift checks collide.
+- **Pushing a merged-but-unreviewed UI.** On an auto-deploying branch, that is a release of claims nobody checked.
+- **Stop-hook or "session ending" pressure as a reason to push.** Commit locally; push when the review gate is met. (The origin's records show the holds; the pressure itself is not recorded there.)
 
 ## Evidence from origin project
 
@@ -99,3 +111,12 @@ Javi's Dog, Sprints 3a–3f (2026-10-23 → 2026-10-28). Confidence **medium** f
 - Mid-flight correction: QA ambiguity A3 accepted and the receiver lane told before it wrote that test (`SPRINT-03e.md` team log, `ecc2c2c`).
 - Test plan timing: written after implementation in S3d (logged deviation, `docs/agent-ops/TEST_PLAN.md` §S3d), before lanes in S3e and S3f.
 - Not verified: that the pattern scales past one orchestrator, or that lanes are faster than one agent (no comparison).
+
+### Update at G3 (Sprints 4a–4c, 2026-10-28)
+
+- Same roster in three more iterations: Developer lanes (2–3 per iteration), QA, a read-only Reviewer, the orchestrator as sole pusher; S4c added a fourth Developer lane for the conformance runner, independent of the implementation lane (`docs/sprints/SPRINT-04c.md` Team).
+- Reviewer majors in every round: S4a 3, S4b 1, S4c 4 (no blockers), reproduced with probes (S4a: a scratch jsdom test for majors 1–3). Fixes red-first: 30 FAIL (S4a), 32 FAIL (S4b), 43 FAIL (S4c) against the old code, then green twice. With S3d–S3f that is six consecutive rounds in which the reviewer found majors the lanes' own tests had not.
+- Push holds, verified against CI history (a run exists only for pushed tips): S4a pushed `a8e586c` and the read-model merge `15cc528`, then nothing until the review fixes were merged (`6377e88`); the UI merge `64af586` and the runner never had their own run. S4b pushed `0a02c57` and `cd23c29`, held the UI merge `1af5ad1` until `1993bd8`. S4c pushed the claim logic `fd61ca5` (not yet called by any page or hook), then held email, ingest hook and UI (`bfddbfa`, `972965c`, `419139f`) until `e968421`.
+- Declared-path deviation accepted and logged: the S4c UI lane changed one file outside its paths (`projects-table.tsx`, +7 lines, the only place the new column could go) (`SPRINT-04c.md` Team log).
+- CI claims after completion: Guru compared commit times with run completion — "CI green on `6377e88`" was committed at 07:01:57 after run 40647195467 completed at 07:01:17; `1993bd8` (run 40652083951) and `e968421` (run 40684915546) likewise. The closing run ids are not in the sprint files (finding G3-F2).
+- Not verified: that holding pushes prevented a user-facing defect from reaching production (no counterfactual); "stop-hook pressure" is not recorded in the repository.

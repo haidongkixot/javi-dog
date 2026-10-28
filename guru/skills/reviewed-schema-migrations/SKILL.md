@@ -1,10 +1,10 @@
 ---
 name: reviewed-schema-migrations
-description: Treat database schema migrations as reviewed, tested artifacts — generate SQL offline from table definitions, read the generated diff for integrity and tenancy holes, write and test a manual rollback, run up/down/re-apply on an in-process or throwaway real SQL engine in the unit test suite, assert the exact table list so silently skipped tables fail, check schema-vs-SQL drift in CI, pre-check existing rows before adding a constraint, recover from a migration that failed half-way, keep migration assets out of app bundles, and apply only by an explicit command to a named environment, never at build or deploy time. Use when adding an ORM with a migration generator (Drizzle, Prisma, TypeORM, Alembic, Django, Rails, Ecto, Flyway), composing tables owned by several modules, choosing how tests get a real database, wiring migrations into CI/CD, when adding a CHECK, UNIQUE or NOT NULL constraint to a table that already has rows, when a migration failed part-way on a driver without transactions, or after a generator "succeeded" but a table or constraint is missing.
+description: Treat database schema migrations as reviewed, tested artifacts — generate SQL offline from table definitions, read the generated diff for integrity and tenancy holes, write and test a manual rollback, run up/down/re-apply on an in-process or throwaway real SQL engine in the unit test suite, assert the exact table list so silently skipped tables fail, check schema-vs-SQL drift in CI, pre-check existing rows before adding a constraint, recover from a migration that failed half-way, keep migration assets out of app bundles, and apply only by an explicit command to a named environment, never at build or deploy time. Use when adding an ORM with a migration generator (Drizzle, Prisma, TypeORM, Alembic, Django, Rails, Ecto, Flyway), composing tables owned by several modules, choosing how tests get a real database, wiring migrations into CI/CD, when adding a CHECK, UNIQUE or NOT NULL constraint to a table that already has rows, when a migration failed part-way on a driver without transactions, when adding an index for a new read path, or after a generator "succeeded" but a table or constraint is missing.
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G2-prep; updated G2"
-  confidence: medium
+  version: "0.3.0"
+  origin: "javis-dog G2-prep; updated G2, G3"
+  confidence: "medium (workflow ran for six migrations; review, drift, table-list and refusal checks each caught or would catch a real defect)"
 ---
 
 # Reviewed schema migrations
@@ -83,6 +83,15 @@ Some migrators (HTTP drivers without interactive transactions) run statement by 
 
 If the store module locates its migration folder with a file URL relative to its source (`new URL('../migrations', import.meta.url)`), an app bundler that imports the module may try to resolve or bundle that folder; the origin's failure appeared only in the production build, not in tests. Expose the migration runner from a separate entry point that the app never imports, and run the production build before the first commit of any change to a package the app imports.
 
+### 10. Add indexes on evidence, and know how your migrator runs them
+
+- Measure before adding: run the new read path's queries with `EXPLAIN` at a realistic volume, including a **second busy tenant** (a planner may pick a different plan once other tenants' rows dominate). Defer the index with the measurement recorded when it is not yet needed; add it with the measurement when it is.
+- Many migrators wrap each migration in a transaction, where `CREATE INDEX CONCURRENTLY` is not allowed. A plain `CREATE INDEX` locks writes to the table while it builds — fine on small tables, not on large ones. Record that limit in the decision record and plan a manual concurrent step for large tables.
+
+### 11. Apply after the deploy is ready, then read the count
+
+When code and migration ship together and the new tables are only additive, push, wait until the deployment is ready, apply the migration to the named environment, run the smoke script, and read the migration count from the health endpoint. Record all four in the iteration record.
+
 ## Pitfalls
 
 - **"Generated successfully" as evidence.** Check the table list.
@@ -90,6 +99,8 @@ If the store module locates its migration folder with a file URL relative to its
 - **Editing an applied migration.** Add a new one instead.
 - **Migrating in the build step.** Convenient once, dangerous forever.
 - **Rollbacks never executed.** If the test suite does not run them, they are documentation.
+- **An index "just in case".** Or a missing one discovered in production; measure with `EXPLAIN` at volume.
+- **Retention changes hidden in code.** A purge cutoff that changes how long rows live is a data-lifecycle decision; record it in the retention decision record even though no migration changes.
 
 ## Evidence from origin project
 
@@ -110,3 +121,10 @@ Javi's Dog, Sprints 2a and 2b (2026-10-22), Drizzle ORM + Postgres (Neon in depl
 - Pre-check: read-only count of non-canonical ids → 0 of 0 rows, re-run immediately before `db:migrate` (2026-10-28T01:01Z), then applied; health endpoint showed 4 migrations (`docs/agent-ops/READINESS_MATRIX.md`, "Migration 0003" row). Refusal test: `packages/event-store/test/migrations.test.ts` ("0003 refuses to apply while non-canonical ids exist (why the pre-check matters)"). Fixture ids `'e1'`, `'old'`, `'same'` replaced with valid ULIDs, assertions unchanged (`SPRINT-03d.md` team log).
 - Half-applied recovery: written into `docs/how-to/run-database-migrations.md` (§4) during S3d, ported from a superseded parallel line whose migration had "failed on the first statement" (`docs/memory/SESSION_LOG.md`). The procedure itself has not been needed on the shared database yet.
 - Bundle failure: Turbopack resolved `new URL('../migrations', import.meta.url)` in the app build; fixed with a separate `…/migrations` entry point; tests had passed (`SPRINT-03a.md` Log and Retro).
+
+### Update at G3 (Sprints 4a–4c, 2026-10-28)
+
+- Two more migrations through the workflow: `0004` (`events_workspace_received_idx`, index only; `0a02c57`) and `0005` (two budget tables with a composite tenant FK, a limit check, a unique alert key, closed-set status check; `025e35d`). Each: generated offline with a name, rollback written and tested up/down on PGlite (event-store 47, then 48 incl. a cross-workspace refusal), drift check "no changes", applied to the development database after the deploy was READY, `db:smoke` 10/10, health showing 5 and then 6 migrations (`docs/sprints/SPRINT-04b.md`, `SPRINT-04c.md` Test evidence; `docs/agent-ops/READINESS_MATRIX.md` rows "Migration 0004", "Migration 0005").
+- Index on evidence: S4a measured a sequential scan of about 80 ms at 10 000 events per workspace on PGlite and deferred the index (`SPRINT-04a.md` Decisions); S4b's lane ran `EXPLAIN` with a second busy workspace (all queries used the new index) and the reviewer re-checked index use at 92 000 events (`SPRINT-04b.md` Team log).
+- Documented, not changed: `0004` is a plain `CREATE INDEX` because the migrator runs in a transaction; a future index on a large table needs a manual `CREATE INDEX CONCURRENTLY` step (ADR-0013 *Changes*).
+- Retention cutoff changed in code (`retentionCutoff`, keep the current UTC month) and recorded as an ADR-0008 change with the owner informed (`fa20a50`, ADR-0008 *Changes*).

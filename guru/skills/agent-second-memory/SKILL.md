@@ -2,8 +2,8 @@
 name: agent-second-memory
 description: Bootstrap and maintain a repository's "second memory" so coding agents (and humans) can resume work across sessions without re-deriving context — project memory, append-only session log, sprint records with a team log, ADRs, a readiness matrix, a generated module registry, CI checks for markdown lint, broken links, stale generated docs, doc drift and stale memory (dates, unclosed iterations, empty retros), and short timeboxed iterations that are split and rolled over truthfully. Use when starting a new repository or project with AI agents, when agents keep losing context between sessions, when asked to set up docs-as-code, ADRs, handoff notes, a project log or "memory", when docs drift from code, when an owner sets a short timebox per sprint or iteration, or before a long multi-session build.
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G0; updated G1, G2-prep, G2"
+  version: "0.3.1"
+  origin: "javis-dog G0; updated G1, G2-prep, G2, G3"
   confidence: medium
 ---
 
@@ -100,6 +100,8 @@ If the same drift recurs after it was written down as a rule, stop relying on th
 - **Hand-edited generated docs.** Mark them "GENERATED — do not edit" and let `--check` catch edits.
 - **Linting vendored docs.** Third-party files will fail your style rules; exclude them rather than reformatting them (which breaks upstream diffs).
 - **Unverifiable claims.** "Tests pass" without the command, exit code and counts is not evidence.
+- **Inserting into an empty list section.** Appending the first entry under an empty `## Log` heading without blank lines before the next heading fails markdown lint (MD022/MD032). Start every list section with a placeholder line or a first dated entry when the record is created.
+- **Final numbers only in the memory file.** The post-review gate count and the closing CI run id belong in the iteration's test evidence; the memory file summarizes and points there.
 
 ## Evidence from origin project
 
@@ -135,3 +137,9 @@ Javi's Dog, Sprint 0 (2026-10-20), single cloud session. Confidence **medium**: 
 - New template verified at G2: `memory-staleness.mjs --self-test` → "self-test PASS", exit 0; on the origin repository it reports 5 findings (the readiness date; S3b and S3c status and empty retros), exit 1. It does not catch content drift inside a correctly dated file (the PROJECT_MEMORY lines above); that still needs the step 9 walk.
 - Team log section adopted in the iteration template (`3ed0ba0`) and used in S3d–S3f; it recorded fetch results, merges, mid-flight corrections and review outcomes that the G2 checkpoint relied on.
 - Cross-session handoff (open since G0) now observed in both directions: the owner's desktop session and a cloud session alternated on one branch. The handoff **failed** once — the cloud session planned from a stale checkout and duplicated an iteration (see `orchestrated-agent-team-lanes`). Memory files cannot help a session that has not fetched them; "fetch, then read memory" belongs at the top of the session contract.
+
+### Update at G3 (Sprints 4a–4c, 2026-10-28)
+
+- Lint slip: "the empty-`## Log` blank-line slip recurred (third time)" (`docs/sprints/SPRINT-04a.md` Retro; caught before push — all S4 runs green). S4b and S4c records were created with a first dated Log entry ("Sprint start …"); no recurrence is recorded after that.
+- Final numbers: the post-review full-gate counts (776, 888, 1105 tests) appear only in `docs/memory/PROJECT_MEMORY.md`; the sprint files' Test evidence stops at the pre-review gate (759, 865, 1037) and records run ids only for the early pushes (finding G3-F2).
+- Staleness check re-run read-only at G3 (`memory-staleness.mjs --log SESSION_LOG.md --dated READINESS_MATRIX.md --dated PROJECT_MEMORY.md --iterations docs/sprints`): 6 findings — S3b and S3c still unclosed with empty retros (G2-F4 still open), S3e and S4a "BUILT" with newer iterations. The check is still not in the origin's `docs:check`. Content drift it cannot see: `PROJECT_MEMORY.md` "Current state" still carries the Sprint 0 line "No auth or ingest yet" (G2-F3, partly fixed); the readiness "Retention purge schedule" row still says "30 days" after the month-keeping change.

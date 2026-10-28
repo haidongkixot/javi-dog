@@ -2,8 +2,8 @@
 name: primary-source-research-with-agents
 description: Run fast, trustworthy technical research with a parallel research agent while the main agent keeps building — a scoped question list, one primary-source URL per fact, explicit NOT VERIFIED marking, official source repositories as fallback when documentation sites are blocked, orchestrator spot-checks of the facts that drive decisions, recorded rejections of the researcher's suggestions, and a findings-to-decisions table that ties every spec change to a source. Use when designing a protocol, integration, collector, SDK or API against third-party tools or standards, when an agent's web access is partly blocked by a proxy or sandbox, when facts about vendor defaults, telemetry, config flags, settings scopes or RFC status matter, when a design assumes where a tool reads its configuration or which runtime behaviour it has, or when asked to "research", "check the docs" or "verify sources" before deciding.
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G1; updated G2"
+  version: "0.2.1"
+  origin: "javis-dog G1; updated G2, G3"
   confidence: "high (research loop with orchestrator spot-checks changed designs in three iterations); medium (local runtime probes, defensive fallbacks for undocumented facts)"
 ---
 
@@ -48,6 +48,10 @@ When the docs are silent on a fact your design needs (where an attribute appears
 - Mark the fact UNVERIFIED in the decision record and keep an UNKNOWN readiness row with the runtime check that will settle it (who runs it, what output proves it).
 - Do not build checks for things the environment cannot observe (for example settings pushed by an organization's server): document the limit instead.
 
+### Check that the sources are reachable before the iteration starts
+
+List the vendor pages a design will depend on (API semantics such as idempotency windows, rate limits, timeouts) in discovery and fetch each once from the environment that will do the work. A sandbox or proxy allowlist that blocks them turns a design question into an UNVERIFIED fact mid-iteration. If a page stays unreachable, design for the weaker assumption (for example, do not rely on a vendor de-duplicating a reused key with a different body), record the limitation, and keep a readiness row for the check.
+
 ## 4. Record blocked sources as such
 
 When the environment blocks sites, list them in the note's method section. For each affected item, record which fallback was used ("via the official GitHub source of the docs") or NOT VERIFIED. Do not upgrade a fallback to "verified against the official site".
@@ -90,3 +94,7 @@ Confidence raised to **high** for the research loop: in S1b, S3c and S3e a resea
 - Undocumented facts handled defensively: the session id attribute's location (data point or resource) → fallback to the resource block (`774549e`); whether the telemetry session id equals the hook session id → UNVERIFIED, unmatched usage dropped locally and counted, readiness row "OTel session correlation" UNKNOWN until the owner's first real run. At G2 the docs still do not state the equality; they do say `/clear` replaces the telemetry `session.id` (monitoring page l. 583) — a case worth including in that runtime check (hypothesis about its effect).
 - Not built, documented: a check for organization-managed settings, which are invisible locally (docs re-fetched during the S3e review; `SPRINT-03e.md` team log).
 - QA lane fallback: the OTel website was blocked; the same specification text was read from the official proto repository (`docs/jgr/conformance/otlp/README.md`).
+
+### Update at G3 (Sprint 4c, 2026-10-28)
+
+- The email provider's documentation was outside the session's allowed domains, so its idempotency-key behaviour (reused key, different body) and rate limits stayed UNVERIFIED. The design took the weaker assumption — a key unique per attempt, cross-attempt de-duplication not relied on, the duplicate case written down as a known limitation (`e968421`; ADR-0014 *Changes*). Retro action: "allow-list vendor docs needed for verification before the sprint starts" (`docs/sprints/SPRINT-04c.md`).

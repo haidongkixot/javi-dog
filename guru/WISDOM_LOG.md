@@ -2,6 +2,91 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-10-28 · G3 — Sprint 4 close: live state, usage analytics, budgets and alerts (S4a–S4c)
+
+Not an Orcasus-PR checkpoint (G2 and G4 are, `CLAUDE.md` §7). No PR opened or drafted; G4 candidates are listed below.
+
+- **Window:** `6c89336..e564df8` — 45 commits (first-parent and lane commits): S4a `0e13e34`…`6ed8beb` (ADR-0012, JD-M07), S4b `0a02c57`…`ed7c7cf` (ADR-0013, JD-M08, migration 0004), S4c `025e35d`…`e564df8` (ADR-0014, JD-M12, migration 0005, ADR-0008 retention change).
+- **Records read:** `docs/sprints/SPRINT-04a.md`, `04b.md`, `04c.md` (team logs, test evidence, retros); ADR-0012…0014 and ADR-0008 *Changes*; ADR-0005 (test placement); `docs/memory/SESSION_LOG.md` S4 entries and `PROJECT_MEMORY.md`; `docs/agent-ops/TEST_PLAN.md` §S4a–§S4c, `TEAM.md`, `READINESS_MATRIX.md`; `docs/jgr/conformance/{state,analytics,budgets}/README.md`; commit messages and diffs of `2f44dfd`, `da6b7a7`, `fa20a50`, `12fdd97`, `3ef3bdb`, `e968421`, `025e35d`, `0a02c57`; code at the cited lines.
+- **Re-runs by Guru:** none of the project suites. Read-only probes: `gh run list` / `gh run view` for every pushed tip (below); commit times vs. run completion; `memory-staleness.mjs` on the origin (6 findings); grep of every outbound `fetch` call site for a timeout; markdownlint on `guru/` after editing.
+
+### CI verification of every S4 push
+
+12 pushed tips, 12 runs, all `success`: `a8e586c` 40643312553 · `15cc528` 40643889052 · `6377e88` 40647195467 · `6ed8beb` 40647484633 · `0a02c57` 40648378728 · `cd23c29` 40649033508 · `1993bd8` 40652083951 · `ed7c7cf` 40652522728 · `025e35d` 40680524099 · `fd61ca5` 40681669775 · `e968421` 40684915546 · `e564df8` 40685564553 (in progress when G3 started, re-read to completion). No cancelled and no red run in the window. Every "CI green on `<sha>`" in the memory files was committed after its run had completed. The sprint files record run ids only for the early pushes (G3-F2).
+
+### Verified lessons
+
+1. **Truthfulness defects recurred in three components, each found by the reviewer, not by the lane's tests.** S4a: ended threads counted as attention; values stayed "fresh" while refreshes failed; a hung request stopped polling (3 majors, reproduced in scratch jsdom; fix `2f44dfd`, red 30 → green). S4b: relative "ago" on server-rendered usage cards froze (major; fix `da6b7a7`, red 32 → green). S4c: card said "emailed" for covered/failed alerts; percent rounded up into a false 80 % (majors; fix `12fdd97`, red 43 → green). Retros name the cause: S4a "the contract had no field for it"; S4b "the rule lived in one hook, not in a shared component". → `truthful-live-status`.
+2. **Derived flags belong in the contract type, with one state per field.** `needsAttention` (S4a review), `estimatedReports` (S4b review), `alerted`/`pendingAlerts`/`failedAlerts`/`exhaustedAlerts`/`thresholdReached` (S4c review). S4c's scaffold (`025e35d`, `packages/resilience/src/types.ts`) already had `estimatedReports` but defined `alerted` as "sent or covered" — the merged state the UI rendered as "emailed". S4a's retro action ("derived flags into the contract up front") was **not** applied in S4b (`0a02c57` types had no `estimatedReports`; added at review) and applied only partly in S4c.
+3. **A runner's widened tolerance hid a defect.** `3ef3bdb` compared with `tol + 8·EPSILON·max(…)`; the implementation (`fa20a50`, `Math.round(x*1000)/10`) produced 80.0 for 79.99, |Δ| = 0.01 + ~5e-15. Runner author flagged "09/11 pass only through float slack"; the reviewer reported the rounding major; fix exact + floored (`12fdd97`); runner strict in `e968421`, 25/25 (`SPRINT-04c.md`). → `independent-conformance-vectors` 0.2.0.
+4. **Single-connection test engines cannot prove concurrency.** Budgets README l. 111 (PGlite interleaves at statement level; a serialising runner reports NOT RUN); real-Postgres check, ephemeral workspace, cleaned up: 5 parallel claims → 1 job, 80 % `covered` (ADR-0014 *Changes*). The throwaway script is not committed; Guru relies on the record. → `exactly-once-threshold-alerts`.
+5. **Tenant structure reapplied; claim narrowed.** `project_budgets` got the composite FK after a plain FK was caught at design (`SPRINT-04c.md`; `0005_jd_m12_budgets.sql`). `budget_alerts` has no tenant column and a plain FK — so the rule is "every table with a *denormalized* tenant column", not "every tenant-scoped child table". Table-owning modules keep DB tests in the composing store module: `@javis-dog/event-store` depends on `@javis-dog/resilience` (`package.json`), so the reverse would be a cycle (ADR-0005 l. 64; `packages/event-store/test/budgets.test.ts`); read-only JD-M07/JD-M08 depend on the store and keep their own tests. Filter-removal mutations failed exactly state 17, 20, 21 and analytics 19, 20, 23. → `tenant-isolation-by-construction` 0.2.0.
+6. **Retention vs. month-to-date.** 30-day retention would undercount on day 31 → `min(now − 30 d, UTC month start)` (`packages/event-store/src/events.ts` l. 88–94; ADR-0008 *Changes*; owner informed). Purge still inactive (`CRON_SECRET` unset), so no production effect yet.
+7. **Outbound calls need timeouts by default; idempotency keys only for verified vendor semantics.** Two majors on missing timeouts (S4a poll, S4c email). The welcome email had no timeout since S2c (`6c89336:packages/notify/src/welcome.ts`); it now uses the shared sender with a 10 s default (`send.ts` l. 14, 79). At HEAD all three outbound `fetch` sites have timeouts (`send.ts`, `jgr-sdk/src/client.ts` l. 105/135, `use-dashboard-snapshot.ts` l. 9). Vendor docs unreachable → key unique per attempt (`e968421`), cross-attempt dedupe not relied on, duplicate limitation recorded.
+8. **Merge is not push; user-facing pushes were held until review.** Verified from CI history: S4a held `64af586`…`9ca967a` until `6377e88`; S4b held `1af5ad1`/`f232eff` until `1993bd8`; S4c pushed only the uncalled claim logic `fd61ca5`, then held email/hook/UI until `e968421`. The "stop-hook pressure" named in the brief is not recorded anywhere in the repository — **unverified**.
+9. **Process slips recurred, caught before CI.** S4a retro: "empty-`## Log` blank-line slip recurred (third time)"; S4b/S4c records started with a dated Log entry and record no recurrence. A memory-update script "failed mid-way and the commit chain continued (script not chained)"; completed in `6ed8beb` (SESSION_LOG S4a). An async page made a shell test depend on an ambient `DATABASE_URL`; pinned in `68c68f4`.
+10. **Adversarial review with probes: majors in six consecutive rounds** (S3d 2, S3e 3, S3f 2, S4a 3, S4b 1, S4c 4), all fixed red-first.
+11. **Independent oracles kept paying:** three new suites (27/23/25 vectors, 14/12/16 ambiguities), every mutation failed exactly the expected vectors (table in `independent-conformance-vectors`). State ambiguity A7 ("attention on ended threads untested") pointed at the area of S4a's first major.
+12. **Hot-path side effects need a cheap early exit:** month aggregate on every usage batch even without a budget (major) → budget-first primary-key lookup (`12fdd97`).
+13. **Indexes on evidence:** seq scan ~80 ms at 10 000 events/workspace measured and deferred (S4a); `EXPLAIN` with a second busy workspace and at 92 000 events (S4b); transactional migrator → plain `CREATE INDEX` documented as a limit (ADR-0013 *Changes*). → `reviewed-schema-migrations` 0.3.0.
+
+### Findings needing orchestrator action (verified by reading; Guru changed nothing outside `guru/`)
+
+- **G3-F1 — stale test name and an undocumented duplicate path.** `apps/web/test/budget-alerts.test.ts:95` is titled "…so a retry can be de-duplicated", but since `e968421` a retry gets a new key by design. `sendEmail` makes no in-attempt retry (`packages/notify/src/send.ts` l. 95–110), so the per-attempt key only de-duplicates repeated processing of one claimed attempt; and a 10 s timeout is recorded `failed` although the provider may have delivered → a second duplicate path that ADR-0014's known limitation does not name. Rename the test; add one sentence to ADR-0014 *Changes*.
+- **G3-F2 — final evidence only in memory.** Post-review full-gate counts (776, 888, 1105) appear only in `PROJECT_MEMORY.md`; the sprint Test evidence tables stop at the pre-review gate (759, 865, 1037) and the Logs lack the closing run ids (listed above). Guru did not re-run the gate, so those three counts are unverified by Guru.
+- **G3-F3 — memory/readiness drift carried from G2.** `PROJECT_MEMORY.md` still has the S0 line "No auth or ingest yet" (G2-F3); `SPRINT-03b.md`/`03c.md` retros still empty (G2-F4; staleness check: 6 findings); readiness "Retention purge schedule" row says "30 days" (now month-keeping), header still "(S3e/S3f, Guru G2)" and the "Readiness decision" paragraph is still about S3.
+- **G3-F4 — NOT RUN rows incomplete.** Only S4b records "rendered layout NOT RUN (screenshot budget 0)"; S4a pages and the S4c budget card shipped UI without that row. Memory next action 7 covers dashboard/chart only.
+
+### Still NOT RUN / UNVERIFIED at G3
+
+Real events on production (S4a); rendered layout of dashboard, chart and budget card (screenshot budget 0); a real alert email (S4c); provider idempotency and rate-limit semantics (UNVERIFIED, docs unreachable); Vercel plan (UNKNOWN); the real-Postgres check's script (not committed); carried from G2: OTel `session.id` = hook `session_id`, Windows packaging, `CRON_SECRET`.
+
+### Hypotheses (unverified)
+
+- Putting derived flags into the scaffold contract would have prevented the three truthfulness majors — applied partly; S4c still shipped a merged-state field.
+- A reviewer checklist used before implementation finds these earlier than review — not tried (`truthful-live-status/templates/truthfulness-review.md` is new).
+- Holding pushes kept a defect out of production — no counterfactual.
+- The reviewer finding majors every round shows lane tests are insufficient — or that reviewers always find something; the records cannot tell apart.
+- The real-Postgres claim check transfers to the production driver (HTTP, single statements) — the record does not name the driver used.
+- One shared time component would have prevented the S4b defect — two components exist at HEAD.
+
+### Rejected or not packaged
+
+- **Polling vs. SSE** (ADR-0012), **no new navigation space** (S4b): product decisions.
+- **Framework post-response hook semantics** (Next 16 `after()`): framework-specific; generalized in `exactly-once-threshold-alerts` §3.
+- **Brand mint failing the palette validator at 1.35:1** (S4b): a data point for `accessible-brand-tokens`, not a new lesson.
+- **Intermittent TLS errors on health checks from the sandbox** (S4c): environment, not product; already recorded.
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`truthful-live-status`](skills/truthful-live-status/SKILL.md) | 0.1.0 | new (+ `templates/truthfulness-review.md`) | medium; low (real users) | Lessons 1, 2 |
+| [`exactly-once-threshold-alerts`](skills/exactly-once-threshold-alerts/SKILL.md) | 0.1.0 | new | medium (claims); low (delivery) | Lessons 4, 6, 7, 12; G3-F1 |
+| [`independent-conformance-vectors`](skills/independent-conformance-vectors/SKILL.md) | 0.1.0 → 0.2.0 | exact tolerances, runner-author flags, parallel steps on one connection, first-red triage, separate runner lane; G3 suites | high (5 suites); medium | Lessons 3, 4, 11 |
+| [`orchestrated-agent-team-lanes`](skills/orchestrated-agent-team-lanes/SKILL.md) | 0.1.0 → 0.2.0 | scaffold with derived fields, runner lane, path deviations, merge-is-not-push holds, CI claims after completion | medium; high (reviewer, 6 rounds) | Lessons 2, 8, 10 |
+| [`diagnose-red-ci-from-history`](skills/diagnose-red-ci-from-history/SKILL.md) | 0.1.0 → 0.1.1 | chained edit-then-commit scripts, pinned test env, run id in the iteration record; G3 history | medium | Lesson 9; CI table |
+| [`tenant-isolation-by-construction`](skills/tenant-isolation-by-construction/SKILL.md) | 0.1.0 → 0.2.0 | composite FK per denormalized table (narrowed), read models and fan-out, test placement | medium | Lesson 5 |
+| [`reviewed-schema-migrations`](skills/reviewed-schema-migrations/SKILL.md) | 0.2.0 → 0.3.0 | §10 indexes on evidence, §11 apply after deploy ready | medium | Lesson 13 |
+| [`privacy-first-agent-telemetry-protocol`](skills/privacy-first-agent-telemetry-protocol/SKILL.md) | 0.2.0 → 0.3.0 | §9 consume honestly (freshness, receipt time, UTC, estimated), retention covers the period | stale derivation low → medium | Lessons 6, 11 |
+| [`agent-second-memory`](skills/agent-second-memory/SKILL.md) | 0.3.0 → 0.3.1 | empty-list-section and final-numbers pitfalls; G3 staleness run | medium | Lesson 9; G3-F2, F3 |
+| [`primary-source-research-with-agents`](skills/primary-source-research-with-agents/SKILL.md) | 0.2.0 → 0.2.1 | check vendor-doc reachability before the iteration; weaker-assumption design | high / medium | Lesson 7 |
+| [`honest-empty-states`](skills/honest-empty-states/SKILL.md) | 0.2.0 → 0.2.1 | data-driven empty states; pointer to `truthful-live-status` | medium | Lesson 1 |
+
+### Proposals for the owner
+
+1. **`TEAM.md` additions** (project rule, owner-adopted file): "merge is not push — hold user-facing or outbound changes until reviewer majors are fixed"; "runner tolerances are exactly the README's; the runner lane is not the implementation lane"; "every outbound call has a timeout"; "run the chained gate after the last edit; scripted edit-then-commit under `set -e`" (G2 proposal 2, still open).
+2. **Vendor docs:** allow-list the email provider's docs for the next session (or accept UNVERIFIED) and decide on per-recipient delivery state (ADR-0014 follow-up).
+3. **Bounded visual check** (memory next action 7): add the budget card to the question.
+4. **Carried from G2:** `memory-staleness.mjs` in `docs:check` with `--warn-only`; `CLAUDE.md` fetch/one-pusher policy; G2 Orcasus PR proposal (not yet decided).
+5. **Policy proposal (shared policy, owner review; Guru does not edit `CLAUDE.md`):** add to `CLAUDE.md` §3 rule 2: "UI states that make a claim (fresh, attention, sent, threshold reached, exact) come from named contract fields computed in the read model, never re-derived in a component."
+
+### G4 candidates (Orcasus PR checkpoint; for owner review then)
+
+- If the G2 PR is still unopened: send `independent-conformance-vectors` 0.2.0, `orchestrated-agent-team-lanes` 0.2.0 and `diagnose-red-ci-from-history` 0.1.1 instead of the G2 versions (strict tolerances, push holds and CI-claim timing are agent-operations rules).
+- New for G4: `truthful-live-status` together with `honest-empty-states` — if the owner considers product-truthfulness skills in scope for Orcasus (its rule 10 covers reports, not UIs); `agent-second-memory` once the staleness check has run in the origin's CI.
+- Not candidates: `exactly-once-threshold-alerts`, `tenant-isolation-by-construction`, `reviewed-schema-migrations`, `privacy-first-agent-telemetry-protocol` (product engineering).
+
 ## 2026-10-28 · G2 — signal path end to end (Sprints 3a–3f) · Orcasus-PR checkpoint
 
 G2 is an Orcasus-PR checkpoint (`CLAUDE.md` §7). The PR below is a **proposal for owner review only**; Guru opened no PR and touched no other repository.

@@ -2,8 +2,8 @@
 name: diagnose-red-ci-from-history
 description: Diagnose a red CI run from the branch's run history instead of re-running it — find the first red run of the same assertion, separate pre-existing and flaky failures from regressions (a red run on a docs-only commit cannot come from its diff), reproduce timing races deterministically by delaying the collaborator, fix the wait rather than the assertion, keep the delay in the test so the race stays covered, and report "green on <sha>" precisely. Also covers fail-fast local gates (a gate that keeps going after a failed step lets a red change be pushed) and CI concurrency cancellation that leaves a pushed commit never evaluated. Includes a fail-fast gate script with a self-test and a read-only CI-history script that flags likely flakes. Use when CI is red after your change, when inheriting a branch or baseline from another session or teammate, before declaring an iteration closed, when a test passes locally but fails in CI, when real-process, network or timer-based tests fail intermittently, or when tempted to "just re-run CI".
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G2"
+  version: "0.1.1"
+  origin: "javis-dog G2; updated G3"
   confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded flakes found at G2)"
 ---
 
@@ -57,9 +57,14 @@ scripts/gate.sh --self-test   # proves the gate stops on a failing step
 
 Run it after the **last** edit before pushing — including edits to iteration records and other docs, which docs linters check too.
 
+The same applies to **any scripted edit-then-commit sequence** (a script that updates memory files, then commits and pushes): run it under `set -e` or chain with `&&`, so a failed edit stops the commit instead of committing half the update.
+
+**Pin the environment your tests read.** A test that passes in CI and fails locally (or the reverse) because an ambient variable is set in one place only (a database URL, a token) is an environment leak, not a flake: pin the variable in the test.
+
 ## 4. Report green precisely
 
 - "CI green on `<sha>` (run `<id>`)" — never "CI green" for a branch.
+- Write the claim only after the run has **completed**, and put the run id into the iteration record that closes on it — a memory file that says "green on `<sha>`" without the id makes the next checkpoint re-derive it.
 - Re-read the history at iteration close: a later docs-only commit going red is a flake signal about tests that are already merged.
 - Record flakes in the iteration's test evidence with run ids, even when you do not fix them yet, and open a diagnosis item. Never quarantine, skip or loosen a test to make the history green.
 
@@ -79,3 +84,10 @@ Javi's Dog, Sprints 3c–3f (2026-10-23 → 2026-10-28), GitHub Actions. Confide
 - G2 finding (read with `gh` at G2, not recorded in the iteration files): `collectors/claude-code/test/usage-process.test.ts:120` failed on three docs-only commits — `474427c` (run 40617386527), `a632803` (run 40617962893) and `92a9244` (run 40619197881), whose message reads "CI green on a3e4ce8" — and passed on `a3e4ce8`, `11f2e93` and `f7390b7`: 3 failures in the 6 completed runs since the test was added (`37ac271`). The assertion expects the first receiver's pid and receives `0`. **Root cause not diagnosed** (hypothesis: the test's 1 500 ms idle timeout elapses while the second process starts on the runner). The lane reported 3 local passes (`SPRINT-03e.md`).
 - Not evaluated: `d45cc4c`'s run (40619965768) was cancelled by the push of `f7390b7` 18 seconds later. Linting `d45cc4c`'s iteration file with the repository's rules at G2 reports MD022 and MD032 errors, fixed by `f7390b7`. The iteration record states the cause: "gate command did not stop on that step"; "gate steps are chained with `&&` since" (`docs/sprints/SPRINT-03f.md` Log and Deviations, `4c0577f`). The exact earlier command is not recorded.
 - Script verification at G2: `gate.sh --self-test` → "self-test PASS", exit 0; `gate.sh true false "echo nope"` → stops at step 2, exit 1, step 3 not run. `ci-history.sh` on the origin branch flags `474427c`, `a632803`, `92a9244` as `FLAKE? (docs-only diff) failed: Run pnpm test`, `98c7974` as `CODE`, and `d45cc4c` as `NOT EVALUATED`.
+
+### Update at G3 (Sprints 4a–4c, 2026-10-28)
+
+- History read by Guru (`gh run list`): 12 pushed tips in the window, all completed `success`: `a8e586c` 40643312553, `15cc528` 40643889052, `6377e88` 40647195467, `6ed8beb` 40647484633, `0a02c57` 40648378728, `cd23c29` 40649033508, `1993bd8` 40652083951, `ed7c7cf` 40652522728, `025e35d` 40680524099, `fd61ca5` 40681669775, `e968421` 40684915546, `e564df8` 40685564553 (in progress when the G3 read started; re-read to completion). No cancelled run, no red run, no docs-only red in the window — the G2 changes (race fix, no cancellation of branch runs) held for 12 pushes.
+- Every "CI green on `<sha>`" in the memory files was written after its run completed (commit times vs. run completion). The sprint files record run ids only for the early pushes of each iteration, not for the closing push.
+- Non-chained script: "a memory-update script failed mid-way and the commit chain continued (script not chained) — memory completed in the next commit" (`docs/memory/SESSION_LOG.md`, S4a entry; follow-up `6ed8beb`). It was pushed; CI passed because the half-update was valid markdown.
+- Environment leak: an async page made a shell test depend on `DATABASE_URL`, which was set only in the session; the test now pins it empty (`68c68f4`, `SPRINT-04a.md` Team log).

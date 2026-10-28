@@ -65,6 +65,8 @@ Screenshots: 0.
 
 ## Retro
 
+- Pending: the sprint is still open (closes after the owner's first real `javi init` + Claude Code session); lessons so far are in Guru G2 (`guru/WISDOM_LOG.md`).
+
 ## Guru checkpoint
 
 G2 after S3d (signal path incl. usage) or now if the owner prefers.
