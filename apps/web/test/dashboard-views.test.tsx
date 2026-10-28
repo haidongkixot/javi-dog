@@ -243,10 +243,9 @@ describe('Overview with data', () => {
     expect(items[2]!.textContent).toContain('No signal yet');
   });
 
-  it('keeps the token chart card as an honest note', () => {
-    expect(
-      within(region('Token consumption')).getByText('Charts arrive with usage analytics'),
-    ).toBeTruthy();
+  // The chart itself is covered by analytics-views.test.tsx (S4b).
+  it('keeps the token chart card honest when no usage was passed', () => {
+    expect(within(region('Token consumption')).getByText('No usage data yet')).toBeTruthy();
   });
 
   it('never calls a value live, nor the title of a card that holds values', () => {

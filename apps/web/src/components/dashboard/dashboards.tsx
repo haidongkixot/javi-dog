@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { DashboardSnapshot } from '@javis-dog/realtime';
 import { PageHead } from '@javis-dog/ui/components';
 import { SignInPrompt } from '@/components/sign-in-prompt';
+import type { UsageLoad } from '@/lib/analytics';
 import { AgentsView } from './agents-view';
 import { atClientTime } from './aging';
 import { OverviewView } from './overview-view';
@@ -27,7 +28,13 @@ function useDashboardView(initial: DashboardSnapshot | null) {
   };
 }
 
-export function OverviewDashboard({ initial }: { initial: DashboardSnapshot | null }) {
+export function OverviewDashboard({
+  initial,
+  usage,
+}: {
+  initial: DashboardSnapshot | null;
+  usage?: UsageLoad;
+}) {
   const { snapshot, view, error, notCurrent, signedOut } = useDashboardView(initial);
   if (signedOut)
     return (
@@ -45,6 +52,7 @@ export function OverviewDashboard({ initial }: { initial: DashboardSnapshot | nu
       snapshot={view}
       notCurrent={notCurrent}
       notice={<RefreshNotice snapshot={snapshot} error={error} />}
+      {...(usage && { usage })}
     />
   );
 }

@@ -2,6 +2,8 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import type { Counter, DashboardSnapshot, ThreadState } from '@javis-dog/realtime';
 import { Card, CardHead, EmptyState, Icon, MetricCard, PageHead } from '@javis-dog/ui/components';
+import { OverviewUsage } from '@/components/analytics/usage-panels';
+import type { UsageLoad } from '@/lib/analytics';
 import { agentCount, attentionHeadline, byAttention, formatNumber, windowLabel } from './format';
 import { FreshnessLabel, SignalTime, ThreadRef, ThreadStatusPill } from './signal';
 
@@ -306,15 +308,19 @@ function Squad({ snapshot: s, notCurrent }: { snapshot: DashboardSnapshot; notCu
  * Overview — "What is happening now?" With `snapshot === null` (no database) it renders the
  * honest empty page: every value stays empty until a verified JGR signal exists.
  * `notCurrent`: refreshes are failing, so nothing may read as fresh or claim activity.
+ * `usage` fills the "Token consumption" card; without it the card shows its empty state.
  */
 export function OverviewView({
   snapshot: s,
   notice,
   notCurrent = false,
+  usage,
 }: {
   snapshot: DashboardSnapshot | null;
   notice?: ReactNode;
   notCurrent?: boolean;
+  /** 14-day usage, read once per visit on the server (ADR-0013); not refreshed by polling. */
+  usage?: UsageLoad;
 }) {
   const head = headline(s, notCurrent);
   return (
@@ -328,20 +334,9 @@ export function OverviewView({
           <CardHead
             id="usage-title"
             title="Token consumption"
-            subtitle="Input, output and failed/retry tokens per day"
+            subtitle="Input and output tokens per UTC day, last 14 days"
           />
-          {s ? (
-            <EmptyState title="Charts arrive with usage analytics">
-              Daily token charts are not built yet. Until then, the token burn card above sums the
-              usage reports of the last hour. Javi&apos;s Dog never estimates usage without
-              labelling it as an estimate.
-            </EmptyState>
-          ) : (
-            <EmptyState title="No usage data yet">
-              Token deltas appear here once a connected thread reports them. Javi&apos;s Dog never
-              estimates usage without labelling it as an estimate.
-            </EmptyState>
-          )}
+          <OverviewUsage load={usage} />
         </Card>
         <Card labelledBy="activity-title">
           <CardHead

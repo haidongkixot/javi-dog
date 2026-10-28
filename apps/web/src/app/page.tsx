@@ -2,15 +2,23 @@ import { PageHead } from '@javis-dog/ui/components';
 import { OverviewDashboard } from '@/components/dashboard/dashboards';
 import { OverviewView } from '@/components/dashboard/overview-view';
 import { SignInPrompt } from '@/components/sign-in-prompt';
+import { analyticsDeps, loadUsage } from '@/lib/analytics';
 import { dashboardDeps, loadDashboard } from '@/lib/dashboard';
 
 export const dynamic = 'force-dynamic';
 
 // Overview — "What is happening now?" The first snapshot is read on the server; the client
-// refreshes it every 10 s (ADR-0012). Without a database every value stays empty: no sample
-// numbers are ever rendered (product rules 2 and 4).
+// refreshes it every 10 s (ADR-0012). The 14-day usage is read alongside, once per visit
+// (ADR-0013: daily aggregates need no polling). Without a database every value stays empty: no
+// sample numbers are ever rendered (product rules 2 and 4).
 export default async function OverviewPage() {
-  const load = await loadDashboard(dashboardDeps);
+  // One session lookup shared by both reads; each still decides "not configured" first.
+  let viewer: ReturnType<typeof dashboardDeps.getViewer> | undefined;
+  const getViewer = () => (viewer ??= dashboardDeps.getViewer());
+  const [load, usage] = await Promise.all([
+    loadDashboard({ ...dashboardDeps, getViewer }),
+    loadUsage({ ...analyticsDeps, getViewer }),
+  ]);
   if (load.kind === 'not_configured') return <OverviewView snapshot={null} />;
   if (load.kind === 'signed_out')
     return (
@@ -23,5 +31,5 @@ export default async function OverviewPage() {
         <SignInPrompt what="your pack’s signals" />
       </>
     );
-  return <OverviewDashboard initial={load.kind === 'ready' ? load.snapshot : null} />;
+  return <OverviewDashboard initial={load.kind === 'ready' ? load.snapshot : null} usage={usage} />;
 }
