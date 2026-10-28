@@ -234,3 +234,19 @@ Written before the lanes start. Risk: **MEDIUM-HIGH** — money-like numbers (es
 | Migration 0004 up/down + drift | Medium | Integration (PGlite) + static | `migrations.test.ts`, `db:generate` | `dev-agent` apply + `db:smoke` |
 | Chart + table equivalent, estimated label, empty state, UTC label | High | Component (jsdom) | role/name queries; every cost text has "estimated" | No |
 | Project page shows only its project's usage | Medium | Component + lib unit (injected reader) | projectId passed from the scoped project | No |
+
+## S4c — Budgets, forecast and alerts (2026-10-28)
+
+Written before the lanes start. Risk: **HIGH** — money-like figures, outbound email to real people (duplicates or misses), authorization on a write path, a production migration. Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| `utcMonth`, `forecastSpend` (null < 24 h; linear), `crossedThreshold` boundaries (79.99 / 80 / 99.99 / 100 %) | High | Unit | tables incl. Feb, 31-day months, leap year | QA vectors |
+| Month-to-date spend: current UTC month only, received time, only `usage.reported` | High | Integration (PGlite, `event-store/test/budgets.test.ts`) | seeded events around month boundaries | QA vectors |
+| Exactly-once claim; concurrent claims; covered lower threshold; retry failed / stale pending ≤ 5; raised limit does not re-alert | High | Integration (PGlite) | parallel `claimAlert` → one job | No |
+| Isolation: status/set/clear only within the workspace; composite FK | High | Integration (PGlite) | foreign project → null / refused | No |
+| Retention cutoff keeps the current month | Medium | Unit + integration | day 31 keeps day 1 | No |
+| Email: L0 content, "estimated", owners only, no address logged | High | Unit (fake fetch) | body/recipients; logs | No |
+| Ingest hook runs only when usage was stored; never fails ingest; runs after the response | High | Unit (handler with fakes) + route test | hook calls; 202 unchanged when hook throws | No |
+| Budget UI: owners/admins edit, members read-only, validation, percent text, forecast/"too early" | High | Component (jsdom) + server action unit | role matrix; invalid values refused | No |
+| Real email to the owner on production | — | Runtime (owner's first real run with a budget) | inbox | NOT RUN until then |

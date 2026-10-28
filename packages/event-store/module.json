@@ -6,5 +6,5 @@
   "description": "Neon client (neon-http), composed Drizzle schema, migrations and DB health. S2a: JD-M04 tables; S2b: JD-M03 identity tables; JGR events, rollups and retention arrive in S3.",
   "owner": "platform",
   "provides": ["createDb()", "pingDb()", "schema", "migrations/ (db:generate, db:migrate)"],
-  "consumes": ["JD-M01", "JD-M03", "JD-M04"]
+  "consumes": ["JD-M01", "JD-M03", "JD-M04", "JD-M12"]
 }

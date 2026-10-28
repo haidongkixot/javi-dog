@@ -21,6 +21,7 @@
     "@javis-dog/identity": "workspace:*",
     "@javis-dog/jgr-spec": "workspace:*",
     "@javis-dog/projects": "workspace:*",
+    "@javis-dog/resilience": "workspace:*",
     "@neondatabase/serverless": "1.2.0",
     "drizzle-orm": "0.45.4"
   },

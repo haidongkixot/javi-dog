@@ -28,7 +28,7 @@ const tables = await db.execute<{ table_name: string }>(
 );
 const names = tables.rows.map((r) => r.table_name).join(', ');
 const expected =
-  'accounts, events, ingest_rate_windows, ingest_tokens, invitations, projects, sessions, users, verifications, workspace_members, workspaces';
+  'accounts, budget_alerts, events, ingest_rate_windows, ingest_tokens, invitations, project_budgets, projects, sessions, users, verifications, workspace_members, workspaces';
 check(`tables: ${names}`, names === expected);
 
 const repo = createProjectRepository(db);

@@ -1,0 +1,25 @@
+{
+  "name": "@javis-dog/resilience",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-M12 — monthly project budgets, spend forecast and budget alerts (ADR-0014)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@javis-dog/identity": "workspace:*",
+    "@javis-dog/projects": "workspace:*",
+    "drizzle-orm": "0.45.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

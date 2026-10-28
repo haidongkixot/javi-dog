@@ -36,6 +36,13 @@
       "when": 1793171199403,
       "tag": "0004_jd_m06_workspace_received_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793186721121,
+      "tag": "0005_jd_m12_budgets",
+      "breakpoints": true
     }
   ]
 }

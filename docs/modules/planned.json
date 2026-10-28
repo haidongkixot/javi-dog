@@ -16,14 +16,6 @@
     "description": "Envelope and end-to-end encryption (WebCrypto)"
   },
   {
-    "id": "JD-M12",
-    "name": "@javis-dog/resilience",
-    "path": "packages/resilience",
-    "status": "planned",
-    "sprint": "S4-S6",
-    "description": "Budget forecast, exhaustion alerts, BYOK failover"
-  },
-  {
     "id": "JD-C02",
     "name": "@javis-dog/collector-otel-bridge",
     "path": "collectors/otel-bridge",

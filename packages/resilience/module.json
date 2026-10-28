@@ -1,0 +1,16 @@
+{
+  "id": "JD-M12",
+  "name": "@javis-dog/resilience",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Budgets and alerts (ADR-0014): one monthly USD budget per project, month-to-date estimated spend and a linear forecast, 80 %/100 % alerts claimed exactly once per month and emailed to workspace owners on ingest. BYOK failover is S6.",
+  "owner": "platform",
+  "provides": [
+    "budgetTables",
+    "createBudgetRepository()",
+    "forecastSpend()",
+    "crossedThreshold()",
+    "BUDGET_THRESHOLDS"
+  ],
+  "consumes": ["JD-M04", "JD-M03"]
+}

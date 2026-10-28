@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
     '@javis-dog/notify',
     '@javis-dog/projects',
     '@javis-dog/realtime',
+    '@javis-dog/resilience',
   ],
   poweredByHeader: false,
 };
