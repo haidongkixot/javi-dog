@@ -1,0 +1,185 @@
+{
+  "$schema": "./schema.json",
+  "description": "web: a failed row with attempts 4 is reclaimed once (attempts 5); when that fails too, later claims return null and attempts stays 5. api: a failed row already at attempts 5 is never reclaimed (AMBIGUOUS A8).",
+  "contract": "ADR-0014 Decision outcome: Exactly-once (\"may reclaim it ... up to 5 attempts\"); tables.ts attempts (default 1 at the first claim); SPRINT-04c Review focus (\"never more than 5 attempts\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        },
+        {
+          "slug": "api",
+          "name": "API",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q17a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 85
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_q17b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 90
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "month": "2026-10-01",
+      "threshold": 80,
+      "status": "failed",
+      "attempts": 4,
+      "claimedOffsetMs": -3600000,
+      "claimedAtUtc": "2026-10-28T11:00:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "month": "2026-10-01",
+      "threshold": 80,
+      "status": "failed",
+      "attempts": 5,
+      "claimedOffsetMs": -3600000,
+      "claimedAtUtc": "2026-10-28T11:00:00.000Z"
+    }
+  ],
+  "steps": [
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "pending",
+            "attempts": 5
+          }
+        ]
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j1",
+      "outcome": "failed",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "failed",
+            "attempts": 5
+          }
+        ]
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "api",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "api",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "failed",
+            "attempts": 5
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "./schema.json",
+  "description": "The month is decided by received_at: a spooled report that occurred in September but was received at 2026-10-01T00:00:00.000Z counts; a report received at 2026-09-30T23:59:00.000Z with occurred_at 4 minutes later (in October) does not.",
+  "contract": "ADR-0014 Decision outcome: Month-to-date spend (\"events received in the current UTC calendar month\"); spec §10 (receipt time)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 10
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q02a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -2376060000,
+      "receivedAtUtc": "2026-09-30T23:59:00.000Z",
+      "occurredOffsetMs": -2375820000,
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 7
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q02b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -2376000000,
+      "receivedAtUtc": "2026-10-01T00:00:00.000Z",
+      "occurredOffsetMs": -2376600000,
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 3
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q02b",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -702000000,
+      "receivedAtUtc": "2026-10-20T09:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.5
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 10,
+        "month": "2026-10",
+        "spendUsd": 4.5,
+        "percentUsed": 45,
+        "forecastUsd": 5.072727,
+        "reports": 2,
+        "estimatedReports": 0,
+        "alerted": []
+      }
+    }
+  ]
+}

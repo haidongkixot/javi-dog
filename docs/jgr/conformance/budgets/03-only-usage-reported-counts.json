@@ -1,0 +1,179 @@
+{
+  "$schema": "./schema.json",
+  "description": "Only usage.reported contributes spend and reports: cost_usd on heartbeat, task.completed, error, session.ended and an extension type is ignored (149.99 USD that would cross 100 %). A token-only report counts as a report with 0 USD; a report with estimated: true counts in estimatedReports.",
+  "contract": "ADR-0014 Decision outcome: Month-to-date spend (\"usage_delta.cost_usd of the project's usage.reported events\"; \"estimatedReports ... shown alongside\"); ADR-0013 Changes (estimatedReports); spec §6",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 50
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1994400000,
+      "receivedAtUtc": "2026-10-05T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 2.5
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -1908000000,
+      "receivedAtUtc": "2026-10-06T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.5,
+        "estimated": true
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -1821600000,
+      "receivedAtUtc": "2026-10-07T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 400,
+        "output_tokens": 40
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "heartbeat",
+      "sequence": 4,
+      "receivedOffsetMs": -1735200000,
+      "receivedAtUtc": "2026-10-08T10:00:00.000Z",
+      "status": "working",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 9.99
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "task.completed",
+      "sequence": 5,
+      "receivedOffsetMs": -1648800000,
+      "receivedAtUtc": "2026-10-09T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 20
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "error",
+      "sequence": 6,
+      "receivedOffsetMs": -1562400000,
+      "receivedAtUtc": "2026-10-10T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 30
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "x.acme.usage",
+      "sequence": 7,
+      "receivedOffsetMs": -1476000000,
+      "receivedAtUtc": "2026-10-11T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 50
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q03",
+      "type": "session.ended",
+      "sequence": 8,
+      "receivedOffsetMs": -1389600000,
+      "receivedAtUtc": "2026-10-12T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 40
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 50,
+        "month": "2026-10",
+        "spendUsd": 4,
+        "percentUsed": 8,
+        "forecastUsd": 4.509091,
+        "reports": 3,
+        "estimatedReports": 1,
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": []
+      }
+    }
+  ]
+}

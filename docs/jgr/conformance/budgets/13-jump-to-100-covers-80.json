@@ -1,0 +1,114 @@
+{
+  "$schema": "./schema.json",
+  "description": "Spend jumps from 0 % to 120 % in one report: the claim yields one job at 100 (not 80). After markAlert sent, 80 is recorded as covered: alerted = [80, 100], rows 100 sent and 80 covered, and no further job.",
+  "contract": "ADR-0014 Decision outcome: Thresholds (\"for the highest newly crossed threshold\"; \"When 100 % is crossed directly, the 80 % alert is recorded as covered, not sent separately\"); tables.ts status covered",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q13",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -3600000,
+      "receivedAtUtc": "2026-10-28T11:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 120
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "spendUsd": 120,
+        "percentUsed": 120,
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 100,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j1",
+      "outcome": "sent",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "alerted": [80, 100]
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "covered"
+          },
+          {
+            "month": "2026-10-01",
+            "threshold": 100,
+            "status": "sent",
+            "attempts": 1
+          }
+        ]
+      }
+    }
+  ]
+}

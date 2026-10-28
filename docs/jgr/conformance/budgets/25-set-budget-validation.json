@@ -1,0 +1,138 @@
+{
+  "$schema": "./schema.json",
+  "description": "setBudget refuses 0, -1, 1000000.01 and 12.345 (more than cents; never silently rounded, AMBIGUOUS A10) and leaves the limit at 50; it accepts the bounds 1000000 and 0.01. With no usage, spend 0, percent 0 and forecast 0 (A13).",
+  "contract": "ADR-0014 Decision outcome: Budget (\"monthly_limit_usd numeric(12,2) with 0 < x <= 1 000 000\"); SPRINT-04c B3 (\"Owners/admins edit (validated)\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 50
+          }
+        }
+      ]
+    }
+  },
+  "events": [],
+  "steps": [
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": 0,
+      "by": "o1",
+      "expect": {
+        "ok": false,
+        "errorKind": "invalid_limit"
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": -1,
+      "by": "o1",
+      "expect": {
+        "ok": false,
+        "errorKind": "invalid_limit"
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": 1000000.01,
+      "by": "o1",
+      "expect": {
+        "ok": false,
+        "errorKind": "invalid_limit"
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": 12.345,
+      "by": "o1",
+      "expect": {
+        "ok": false,
+        "errorKind": "invalid_limit"
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 50,
+        "month": "2026-10",
+        "spendUsd": 0,
+        "percentUsed": 0,
+        "forecastUsd": 0,
+        "reports": 0,
+        "estimatedReports": 0,
+        "alerted": []
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": 1000000,
+      "by": "o1",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 1000000,
+        "percentUsed": 0
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": 0.01,
+      "by": "o1",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 0.01,
+        "percentUsed": 0
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "./schema.json",
+  "description": "February 2028 has 29 days: 7 USD after exactly 7 days -> forecast 7 x 29 / 7 = 29. The January report 1 ms before the month start is excluded.",
+  "contract": "ADR-0014 Decision outcome: Forecast (\"spend x month length / elapsed\"; month = UTC calendar month); TEST_PLAN §S4c (\"tables incl. Feb, 31-day months, leap year\")",
+  "now": "2028-02-08T00:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 40
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q08",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -604800001,
+      "receivedAtUtc": "2028-01-31T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 100
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q08",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -604800000,
+      "receivedAtUtc": "2028-02-01T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 3
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q08",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -205200000,
+      "receivedAtUtc": "2028-02-05T15:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 4
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 40,
+        "month": "2028-02",
+        "spendUsd": 7,
+        "percentUsed": 17.5,
+        "forecastUsd": 29,
+        "reports": 2,
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    }
+  ]
+}
