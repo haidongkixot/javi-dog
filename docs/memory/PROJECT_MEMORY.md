@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-28 · Current sprint: **S3e — OTLP usage (local receiver in the collector), `npx` packaging, G2** (not started). S3d — ingest hardening (`docs/sprints/SPRINT-03d.md`) is closing: CI was red on `98c7974` from a pre-existing collector test race, fix pushed, closes when CI is green. Waiting on owner: S3b (`CRON_SECRET`), S3c (first real `javi init`).
+> Last updated: 2026-10-28 · Current sprint: **S3e — OTLP usage (local receiver in the collector), `npx` packaging, G2** (not started). Last closed: **S3d — ingest hardening** (`docs/sprints/SPRINT-03d.md`, CI green on `1bb95e9`). Waiting on owner: S3b (`CRON_SECRET`), S3c (first real `javi init`).
 
 ## What we are building
 
@@ -25,7 +25,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - S3c built (2026-10-23): JD-C01 `collectors/claude-code` — `javi` CLI (`init`/`hook`/`flush`/`status`/`uninstall`), exec-form `async` hooks in `.claude/settings.local.json`, allowlist mapping (no prompts/tool I/O/paths), salted `cc_`/`ag_` refs, token in `~/.javi`, detached flush. Hook contract verified against code.claude.com docs. 31 collector tests incl. real Windows processes. ADR-0010. Token usage (OTel) → S3d.
 - Local Windows dev machine ready (2026-10-23): Node 22.23.4, pnpm 10.28.0, Git 2.55.0; all checks green (209 tests). Repo now forces LF (`.gitattributes`) and resolves file URLs with `fileURLToPath` — required for Windows paths with spaces. Owner prefers local runs in GMT+7 windows: weekdays 23:00–17:00, weekends 22:00–08:00.
 
-- S3d (2026-10-28): ingest hardening H1–H6 (canonical event ids + migration 0003 check, signal on duplicate retries with DB-clock cap, bounded purge, 415 for media type/encoding with SDK keeping the spool, >100 events → 413, sorted inserts, DB-clock rate window); 43 QA conformance vectors + runner (mutation-checked); 383 tests; production smoke 7/7; dev-agent at 4 migrations. CI on `98c7974` FAIL (collector `process.test.ts` ordering race, pre-existing since `fe604d1`); test fixed, product code unchanged.
+- S3d (2026-10-28): ingest hardening H1–H6 (canonical event ids + migration 0003 check, signal on duplicate retries with DB-clock cap, bounded purge, 415 for media type/encoding with SDK keeping the spool, >100 events → 413, sorted inserts, DB-clock rate window); 43 QA conformance vectors + runner (mutation-checked); 383 tests; production smoke 7/7; dev-agent at 4 migrations. CI on `98c7974` FAIL (collector `process.test.ts` ordering race, pre-existing since `fe604d1`); test fixed in `1bb95e9` (CI green), product code unchanged.
 
 ## Decisions in force
 

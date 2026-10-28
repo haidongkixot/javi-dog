@@ -1,6 +1,6 @@
 # Sprint 03d — Ingest hardening + reconciliation ports
 
-- Dates: 2026-10-28 (timebox 30 min) · Status: **CLOSING** — CI fix pushed; closes when CI is green on it
+- Dates: 2026-10-28 (timebox 30 min) · Status: **CLOSED** 2026-10-28 (CI green on `1bb95e9`)
 - Goal: fix the five major audit findings on the S3a–S3c ingest path before OTLP work, and port the useful pieces of the superseded parallel S3a line.
 - Modules touched: JD-M01, JD-M05, JD-M06, JD-M02, JD-APP, docs
 - Readiness gate: owner line `5cc8ac0` green here (313 tests); dev-agent at 3 migrations
@@ -50,6 +50,7 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-28 — CI **PASS** on `1bb95e9` (run 40612946751); production `/api/health` ok on `1bb95e9`. Sprint closed.
 - 2026-10-28 — CI **FAIL** on `98c7974` (run 40612408695): `collectors/claude-code` `test/process.test.ts` › "detached flusher delivers" — `lastFlush` was `null`. Diagnosed, not re-run: the same assertion also failed on the owner's `fe604d1` (run 39875014031) and passed on `5cc8ac0` with no collector change in between, so it predates S3d. Root cause: an ordering race in the test — the fake receiver records the batch before it answers 202, and the flusher writes `last-flush/<project>.json` only after reading that answer; the test read the file as soon as the batch was recorded. Reproduced deterministically (receiver answers 500 ms late → same `expected null` failure); fix: wait for the flusher's result, then the unchanged `status: 'ok'` assertion; the receiver keeps a 200 ms late answer so the race stays covered. Product code unchanged.
 - 2026-10-28 — Pushed `98c7974`; production READY; migration 0003 on dev-agent; production smoke 7/7.
 - 2026-10-28 — H1–H6 + P2 done locally; Reviewer running.
@@ -74,6 +75,7 @@ Team log, newest first:
 | Production `/api/health` after 0003 | 0 | — | ok, 4 migrations | — | — | — | — | — |
 | GitHub Actions CI on `98c7974` | 1 | 82 s | 9 packages | 1 (collector `process.test.ts`) | 0 | 0 | 0 | run 40612408695; pre-existing race, see Log |
 | Repro: receiver answers 500 ms late, old test | 1 | 1 s | 1 | 1 | 0 | 0 | 0 | same `expected null` failure as CI |
+| GitHub Actions CI on `1bb95e9` | 0 | — | all jobs | 0 | 0 | 0 | 0 | run 40612946751 |
 | Fixed test, 3 runs; then full gate `format:check` / `lint` / `typecheck` / `test` / `build` / `docs:check` | 0 | — | 383 tests | 0 | 0 | 0 | 0 | collector 31 |
 
 ## Decisions and deviations
