@@ -12,7 +12,8 @@
 //   `init --usage` runs `usage on` after a verified init.
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { appendFile, readFile } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
+import { appendFile, chmod, copyFile, mkdir, readFile, rename, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -38,6 +39,10 @@ import {
 import { runFlush, runHook } from './run.ts';
 import { installHooks, settingsPath, uninstallHooks } from './settings.ts';
 import { createState, javiHome, type CollectorState } from './state.ts';
+
+/** Replaced with `true` by scripts/build.mjs (esbuild define); undeclared when run from .ts. */
+declare const __JAVI_BUNDLED__: boolean | undefined;
+const BUNDLED = typeof __JAVI_BUNDLED__ !== 'undefined' && __JAVI_BUNDLED__ === true;
 
 export const DEFAULT_ENDPOINT = 'https://javisdog.vercel.app/api/v1/events';
 const TOKEN = /^jd_it_[A-Za-z0-9_-]{43}$/;
@@ -96,6 +101,27 @@ const ensureIgnored = async (projectDir: string, file: string) => {
   } catch {
     return 'could not update git excludes — add .claude/settings.local.json to .gitignore';
   }
+};
+
+/**
+ * Copies the running bundle to `<JAVI_HOME>/bin/javi.mjs` (temp file + rename) and returns that
+ * path, so hooks never point into an `npx` cache that may be cleared later (S3f P3).
+ */
+const installSelf = async (home: string, source: string) => {
+  const dir = join(home, 'bin');
+  await mkdir(dir, { recursive: true, mode: 0o700 });
+  await chmod(dir, 0o700).catch(() => {});
+  const target = join(dir, 'javi.mjs');
+  const temp = `${target}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
+  try {
+    await copyFile(source, temp);
+    await chmod(temp, 0o755);
+    await rename(temp, target);
+  } catch (e) {
+    await rm(temp, { force: true });
+    throw e;
+  }
+  return target;
 };
 
 // --- Token usage (ADR-0011) ---
@@ -382,7 +408,10 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       const projectDir = resolve(io.cwd, flag(argv, 'dir') ?? '.');
       await state.saveCredentials(projectRef, { endpoint, token });
       const installation = await state.installation();
-      const cliPath = fileURLToPath(import.meta.url);
+      const running = fileURLToPath(import.meta.url);
+      // From the bundle: hooks run a stable copy. From a repo checkout: this .ts file, as before.
+      const cliPath = BUNDLED ? await installSelf(state.home, running) : running;
+      if (BUNDLED) io.out(`javi installed in ${cliPath}.`);
       const path = await installHooks(projectDir, process.execPath, cliPath, projectRef);
       io.out(
         `Hooks registered in ${path} (${await ensureIgnored(projectDir, settingsPath(projectDir))}).`,
@@ -470,7 +499,23 @@ const readAllStdin = async () => {
   return Buffer.concat(chunks).toString('utf8');
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+/**
+ * True when this file is the program Node started. npm/npx run the bin through a symlink in
+ * node_modules/.bin, while import.meta.url is the real path, so compare real paths.
+ */
+const isEntryPoint = () => {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  let real: string;
+  try {
+    real = realpathSync(entry);
+  } catch {
+    real = resolve(entry);
+  }
+  return import.meta.url === pathToFileURL(real).href;
+};
+
+if (isEntryPoint()) {
   const cliPath = fileURLToPath(import.meta.url);
   const detached = (args: string[]) =>
     spawn(process.execPath, [cliPath, ...args], {
