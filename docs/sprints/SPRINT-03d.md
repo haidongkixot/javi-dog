@@ -40,6 +40,7 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Reviewer — no blockers; 2 major (TEST_PLAN §S3d missing, spec silent on canonical ids), 11 minor, 4 nits; re-ran 379 tests at `3273725`. Majors and most minors fixed (see Decisions).
 - 2026-10-28 — Orchestrator — Conformance runner `packages/ingest/test/conformance.test.ts` written from the QA README runner rules; all 43 vectors PASS. Mutation check: handler answering 400 instead of 415 → exactly vectors 32–34 FAIL (runner detects regressions); handler restored.
 - 2026-10-28 — QA — 43 vectors from ADR-0008 (incl. Changes), independent of the implementation; 20 ambiguities listed in the README (A1–A20).
 - 2026-10-28 — Orchestrator — Merged Developer lane (`048dad1`, declared paths only); combined tree green: 334 tests, build, drift clean. Pre-check dev-agent: 0 events, 0 non-canonical ids → migration 0003 safe.
@@ -63,8 +64,13 @@ Team log, newest first:
 | `vitest run test/conformance.test.ts` (ingest) | 0 | — | 45 | 0 | 0 | 0 | 0 | 43 vectors + count + equivalence group |
 | Mutation: 415 → 400 in handler | 1 | — | 42 | 3 | 0 | 0 | 0 | vectors 32–34 FAIL as expected; restored |
 | dev-agent pre-check for 0003 | 0 | — | 0 non-canonical / 0 events | — | — | — | — | read-only |
+| Final gate after review fixes: `format:check` / `lint` / `typecheck` / `test` / `build` / `docs:check` / drift | 0 | 3 / 4 / 12 / 19 / 10 / 2 s | 383 tests | 0 | 0 | 0 | 0 | event-store 47, ingest 73, jgr-sdk 31, web 92, jgr-spec 32, projects 27, collector 31, ui 33, identity 13, notify 4 |
 
 ## Decisions and deviations
+
+- TEST_PLAN §S3d written after implementation (Reviewer major 1) — logged as a deviation there.
+- Reviewer minors fixed: `last_signal_at` capped by the DB clock (m3); Retry-After from the DB clock (m4); purge `maxDuration = 60` (m6); event-store `consumes` JD-M01 + registry (m8); tenant-rule rejections echo the producer's id spelling (m9); 0003 rollback/refusal tests (m10); ordinal sort; ADR-0009 Changes (m2); spec §3/§9 canonical ids (major 2).
+- Not changed, documented: strict `Content-Encoding` parsing (m5 — lists/`x-gzip` → 415, matches the vectors); overlapping purges may report `complete` early (m7); 415 body is `{ error, message }` without `issues` (m11).
 
 ## Retro
 

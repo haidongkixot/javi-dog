@@ -99,11 +99,12 @@ export const createEventRepository = (db: EventsDb) => ({
     if (rows.length === 0) return 0;
     const ordered = rows
       .map((r) => ({ ...r, eventId: canonicalEventId(r.eventId) }))
-      .sort((a, b) =>
-        a.producerId === b.producerId
-          ? a.eventId.localeCompare(b.eventId)
-          : a.producerId.localeCompare(b.producerId),
-      );
+      .sort((a, b) => {
+        // Ordinal (not locale) order, the same on every runtime.
+        const ka = `${a.producerId}\u0000${a.eventId}`;
+        const kb = `${b.producerId}\u0000${b.eventId}`;
+        return ka < kb ? -1 : ka > kb ? 1 : 0;
+      });
     const stored = await db
       .insert(events)
       .values(ordered)
@@ -128,11 +129,18 @@ export const createEventRepository = (db: EventsDb) => ({
         target: [ingestRateWindows.tokenId, ingestRateWindows.windowStart],
         set: { count: sql`${ingestRateWindows.count} + 1` },
       })
-      .returning({ count: ingestRateWindows.count, windowStart: ingestRateWindows.windowStart });
-    return {
-      count: row!.count,
-      resetAt: new Date(row!.windowStart.getTime() + RATE_WINDOW_MS),
-    };
+      .returning({
+        count: ingestRateWindows.count,
+        windowStart: ingestRateWindows.windowStart,
+        dbNow: sql<Date>`now()`.mapWith(ingestRateWindows.windowStart),
+      });
+    const resetAt = new Date(row!.windowStart.getTime() + RATE_WINDOW_MS);
+    // Retry-After from the same (database) clock as the window, never the instance clock.
+    const retryAfterSeconds = Math.min(
+      60,
+      Math.max(1, Math.ceil((resetAt.getTime() - row!.dbNow.getTime()) / 1000)),
+    );
+    return { count: row!.count, resetAt, retryAfterSeconds };
   },
 
   /**
@@ -188,7 +196,9 @@ export const createEventRepository = (db: EventsDb) => ({
     await db
       .update(projects)
       .set({
-        lastSignalAt: sql`greatest(coalesce(${projects.lastSignalAt}, ${at.toISOString()}::timestamptz), ${at.toISOString()}::timestamptz)`,
+        // Capped by the database clock: a fast instance clock cannot plant a future value that
+        // the forward-only rule would then keep (review m3).
+        lastSignalAt: sql`greatest(${projects.lastSignalAt}, least(${at.toISOString()}::timestamptz, now()))`,
       })
       .where(and(eq(projects.id, scope.projectId), eq(projects.workspaceId, scope.workspaceId)));
   },

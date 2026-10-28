@@ -149,3 +149,22 @@ Risk: **HIGH** (runs inside the developer's agent loop; handles prompts/tool dat
 | Real hook process: exit 0, empty stdout/stderr, detached flush delivers | High | Process (local HTTP receiver) | `process.test.ts` | see SPRINT-03c |
 | Hung network request aborted and retried | Medium | Unit | `jgr-sdk/test/client.test.ts` | see SPRINT-03c |
 | Real Claude Code session → production | High | Manual (owner, own token) | SPRINT-03c | pending owner |
+
+## S3d — Ingest hardening + reconciliation ports (2026-10-28)
+
+> **Deviation:** this section was written after implementation (flagged by the Reviewer). The tests below were written with each fix; the plan records them retroactively and truthfully.
+
+Risk: **HIGH** (dedupe integrity, data loss in the SDK, production migration). Screenshot budget: **0**.
+
+| Requirement | Layer | Test | Result |
+|---|---|---|---|
+| H1 canonical ids (validator, store, DB check), strict UUID | Unit + integration (PGlite) | `jgr-spec/test/validate.test.ts`, `event-store/test/events.test.ts` | see SPRINT-03d |
+| H1 migration 0003 up / rollback (constraint gone) / refuses non-canonical rows | Integration (PGlite) | `event-store/test/migrations.test.ts` | see SPRINT-03d |
+| H2 signal on accepted-or-duplicate retry, forward-only, DB-clock cap, token throttle | Integration (PGlite) + handler | `events.test.ts`, `ingest/test/handler.test.ts` | see SPRINT-03d |
+| H3 bounded purge + route matrix | Integration + unit | `events.test.ts`, `web/test/purge.test.ts` | see SPRINT-03d |
+| H4 415 media type/encoding, SDK keeps spool, > 100 → 413 | Handler + SDK unit | `handler.test.ts`, `jgr-sdk/test/client.test.ts` | see SPRINT-03d |
+| H5 sorted insert, first occurrence wins | Integration (PGlite) | `events.test.ts` | see SPRINT-03d |
+| H6 DB-clock window, Retry-After from DB clock | Integration (PGlite) | `events.test.ts` | see SPRINT-03d |
+| Black-box HTTP behaviour (43 QA vectors) | Conformance (real handler, PGlite) | `ingest/test/conformance.test.ts` + mutation check | see SPRINT-03d |
+| Migration 0003 on Neon PG 18 | Smoke (dev-agent) | pre-check query, `db:migrate`, `db:smoke` | see SPRINT-03d |
+| Production behaviour | Live smoke | `pnpm --filter @javis-dog/ingest smoke:live` after READY | see SPRINT-03d |

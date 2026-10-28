@@ -93,7 +93,8 @@ describe('hitRateWindow', () => {
   it('counts per token and minute and reports the window end', async () => {
     const t = '00000000-0000-4000-8000-000000000001';
     const at = new Date('2026-10-23T10:00:15Z');
-    expect(await repo.hitRateWindow(t, at)).toEqual({
+    // retryAfterSeconds (S3d review m4) is additive; the original fields are still exact.
+    expect(await repo.hitRateWindow(t, at)).toMatchObject({
       count: 1,
       resetAt: new Date('2026-10-23T10:01:00Z'),
     });
@@ -266,5 +267,21 @@ describe('S3d hardening', () => {
     const t2 = new Date('2026-10-23T10:01:30Z');
     await projectsRepo.markTokenUsed(record.id, t2);
     expect(await read()).toEqual(t2);
+  });
+
+  it('m3: a future signal time from a fast instance clock is capped by the database clock', async () => {
+    const s = await setup();
+    await repo.touchSignal(s, new Date(Date.now() + 3_600_000));
+    const row = await ctx.client.query<{ ahead: boolean }>(
+      "select last_signal_at > now() + interval '5 seconds' as ahead from projects where id = $1",
+      [s.projectId],
+    );
+    expect(row.rows[0]!.ahead).toBe(false);
+  });
+
+  it('m4: Retry-After comes from the database clock and stays within 1–60 s', async () => {
+    const w = await repo.hitRateWindow('00000000-0000-4000-8000-00000000000a');
+    expect(w.retryAfterSeconds).toBeGreaterThanOrEqual(1);
+    expect(w.retryAfterSeconds).toBeLessThanOrEqual(60);
   });
 });

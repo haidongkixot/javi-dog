@@ -36,3 +36,9 @@ Collectors need one library that turns tool signals into valid JGR events and de
 - Positive: hook processes stay fast (append a file, optional flush); outages and restarts lose nothing until the spool limit; retries never inflate counters.
 - Negative: one file per event costs inodes (bounded at 10 000); sequences from separate processes may interleave until S3c persists them; the purge only runs once the owner sets `CRON_SECRET` on Vercel.
 - Follow-up: S3c persists sequences per thread and wires hooks to `record`/`flush`; S5 load-tests delivery and revisits the batch/flush policy.
+
+## Changes
+
+- 2026-10-28 (S3d hardening, see ADR-0008 Changes):
+  - **Delivery:** `415` (unsupported content type or encoding) stops the flush with `failed`, `httpStatus: 415`, and keeps the spool — a configuration problem, not a bad batch. The SDK never retries `400`, `401`, `403`, `413`, `415` unchanged.
+  - **Purge:** bounded batches of 5 000 rows (oldest first) within a ~20 s budget; the route returns `{ deleted, batches, complete, cutoff }` (`complete: false` → the next run continues) and sets `maxDuration = 60`. With `CRON_SECRET` set, a bad `Authorization` gets `401` before any configuration detail. Two overlapping runs can report `complete: true` early; harmless (the next run continues). At about 5 000 rows per batch and one run a day, purge throughput must be revisited with the S5 load test.

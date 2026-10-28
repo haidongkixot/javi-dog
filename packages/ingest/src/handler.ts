@@ -18,7 +18,9 @@ export interface TokenScope {
 export interface IngestDeps {
   verifyToken(raw: string): Promise<TokenScope | null>;
   /** Counts one batch in the token's current window; the window comes from the DB clock. */
-  hitRateWindow(tokenId: string): Promise<{ count: number; resetAt: Date }>;
+  hitRateWindow(
+    tokenId: string,
+  ): Promise<{ count: number; resetAt: Date; retryAfterSeconds?: number }>;
   insertEvents(rows: NewEvent[]): Promise<number>;
   touchSignal(scope: { projectId: string; workspaceId: string }, at: Date): Promise<void>;
   markTokenUsed(tokenId: string, at: Date): Promise<void>;
@@ -88,10 +90,9 @@ export const createIngestHandler =
       const limit = deps.rateLimitPerMinute ?? INGEST_RATE_LIMIT_PER_MINUTE;
       const window = await deps.hitRateWindow(scope.tokenId);
       if (window.count > limit) {
-        const retryAfter = Math.max(
-          1,
-          Math.ceil((window.resetAt.getTime() - now.getTime()) / 1000),
-        );
+        const retryAfter =
+          window.retryAfterSeconds ??
+          Math.max(1, Math.ceil((window.resetAt.getTime() - now.getTime()) / 1000));
         return json(
           429,
           { error: 'rate_limited', message: `At most ${limit} batches per minute per token.` },
@@ -168,7 +169,14 @@ export const createIngestHandler =
           });
         }
         if (issues.length) {
-          rejected.push({ index, event_id: event.event_id, issues });
+          // Echo the producer's own spelling, like schema rejections do (review m9).
+          const raw = ((parsed as { events: Array<{ event_id?: unknown }> }).events[index] ?? {})
+            .event_id;
+          rejected.push({
+            index,
+            event_id: typeof raw === 'string' ? raw : event.event_id,
+            issues,
+          });
           return;
         }
         rows.push({

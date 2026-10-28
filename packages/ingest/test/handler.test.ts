@@ -240,6 +240,16 @@ describe('partial acceptance and tenant rules', () => {
     expect(await count('events')).toBe(2);
   });
 
+  it('echoes the producer’s own event_id spelling in tenant-rule rejections (review m9)', async () => {
+    const { token } = await setup();
+    const lower = ulid(7).toLowerCase();
+    const res = await handler()(
+      post(token, { events: [event(7, { event_id: lower, project_ref: 'not-this-project' })] }),
+    );
+    const body = (await res.json()) as { rejected: Array<{ event_id: string }> };
+    expect(body.rejected[0]!.event_id).toBe(lower);
+  });
+
   it('never stores an event in another tenant’s project, even with its slug', async () => {
     const mine = await setup('L0', 'Mine');
     await setup('L0', 'Theirs'); // same slug "web-app" in another workspace

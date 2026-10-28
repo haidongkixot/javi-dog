@@ -35,6 +35,10 @@ describe('migrations 0000–0003', () => {
     const { client, db } = await freshDb();
     await client.exec(rollbackSql('0003'));
     expect((await pingDb(db)).migrationsApplied).toBe(3);
+    const check = await client.query(
+      `select 1 from pg_constraint where conname = 'events_event_id_canonical_check'`,
+    );
+    expect(check.rows).toHaveLength(0);
     await client.exec(rollbackSql('0002'));
     expect(await publicTables(client)).not.toContain('events');
     expect((await pingDb(db)).migrationsApplied).toBe(2);
@@ -52,5 +56,19 @@ describe('migrations 0000–0003', () => {
     const { client, db } = await freshDb();
     await client.exec('drop schema drizzle cascade');
     expect((await pingDb(db)).migrationsApplied).toBe(0);
+  });
+
+  it('0003 refuses to apply while non-canonical ids exist (why the pre-check matters)', async () => {
+    const { client, db } = await freshDb();
+    await client.exec(rollbackSql('0003'));
+    await client.exec(`insert into workspaces (name, slug) values ('W', 'w')`);
+    await client.exec(
+      `insert into projects (workspace_id, name, slug, platforms) select id, 'P', 'p', '{claude-code}' from workspaces`,
+    );
+    await client.exec(
+      `insert into events (project_id, workspace_id, producer_id, event_id, thread_ref, sequence, type, privacy_class, occurred_at)
+       select id, workspace_id, 'p', '01jbz4xq800000000000000001', 's', 1, 'heartbeat', 'L0', now() from projects`,
+    );
+    await expect(migrate(db, { migrationsFolder })).rejects.toThrow();
   });
 });
