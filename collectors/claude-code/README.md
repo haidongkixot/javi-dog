@@ -22,6 +22,8 @@ No checkout needed: `javi` also ships as one self-contained file in a tarball (N
 pnpm --filter @javis-dog/collector-claude-code pack:cli   # → collectors/claude-code/dist/javis-dog-javi-<version>.tgz
 ```
 
+`node scripts/build.mjs --out <dir>` and `node scripts/pack.mjs --out <dir>` write somewhere other than `dist/` (the tests use a temp dir). The tarball contains `javi.mjs`, a README, and `THIRD_PARTY_NOTICES.md`: the name, version and full licence text of every third-party package bundled into `javi.mjs` (today: `zod`). The list comes from the build's own record of bundled files, and packing fails if a bundled package has no licence file.
+
 Then, in the project's directory:
 
 ```powershell
@@ -30,7 +32,9 @@ npx ./javis-dog-javi-<version>.tgz init --project <project-slug>
 Remove-Item Env:JAVI_INGEST_TOKEN
 ```
 
-`init` from the tarball copies javi to `~/.javi/bin/javi.mjs` and points the hooks there, so they keep working after the npx cache is cleared. Running `init` again replaces that copy. Use `node "$HOME/.javi/bin/javi.mjs" <command>` for `status`, `flush` and the rest. Run from a repository checkout, `init` registers `src/cli.ts` as before.
+`init` from the tarball copies javi to `~/.javi/bin/<version>/javi.mjs` (for example `~/.javi/bin/0.1.0/javi.mjs`; `init` prints the version and path) and points the project's hooks there, so they keep working after the npx cache is cleared. Each version gets its own folder: a project keeps the javi version it was set up with, and running an older tarball later cannot replace the copy other projects use. Running `init` again with the same tarball keeps the existing copy. If the copy cannot be written, `init` stops with one error line naming the path, before it saves the token or touches any hooks. Use `node "$HOME/.javi/bin/<version>/javi.mjs" <command>` for `status`, `flush` and the rest. Run from a repository checkout, `init` registers `src/cli.ts` as before.
+
+`javi uninstall` removes hooks (and with `--forget-token` the token) but never deletes these copies, because other projects' hooks may still run them. To see which versions are still used, search your projects' `.claude/settings.local.json` files for `.javi/bin/`. Then delete a folder you no longer need, for example `rm -r ~/.javi/bin/0.1.0` (PowerShell: `Remove-Item -Recurse "$HOME\.javi\bin\0.1.0"`).
 
 | Command | What it does |
 |---|---|

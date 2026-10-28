@@ -1,25 +1,30 @@
-// Packs the bundled `javi` CLI into dist/javis-dog-javi-<version>.tgz (JD-C01, S3f P2).
+// Packs the bundled `javi` CLI into <out>/javis-dog-javi-<version>.tgz (JD-C01, S3f P2).
 // Owner decision 2026-10-28: no npm publish, a tarball only. The package has no dependencies,
 // so `npx ./javis-dog-javi-<version>.tgz …` installs without registry access.
+//   node scripts/pack.mjs [--out <dir>]      (default: dist/ in this package)
+// npm runs with this process's environment: callers (tests) point npm_config_cache and
+// npm_config_logs_dir at a temp dir to keep ~/.npm untouched.
 import { execFileSync } from 'node:child_process';
 import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { buildBundle } from './build.mjs';
+import { join } from 'node:path';
+import { ROOT, buildBundle, outDir } from './build.mjs';
+import { renderNotices, thirdPartyPackages } from './notices.mjs';
+import { npmInvocation } from './npm.mjs';
 
-const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const dist = join(root, 'dist');
-const pkgDir = join(dist, 'pkg');
-
-const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const out = outDir();
+const pkgDir = join(out, 'pkg');
 const NAME = 'javis-dog-javi';
+const NOTICES = 'THIRD_PARTY_NOTICES.md';
+
+const { path: bundle, size, metafile, version } = await buildBundle({ out });
 
 const README = `# javi — Javi's Dog collector for Claude Code
 
 \`javi\` sends Claude Code lifecycle, tool and attention signals to Javi's Dog as operational
 metadata only: never prompts, tool inputs or outputs, file paths or transcripts.
 
-This tarball is one self-contained file (Node.js 22 or newer, no dependencies).
+This tarball is one self-contained file (Node.js 22 or newer, no dependencies). The licences of
+the third-party code bundled into it are in \`${NOTICES}\`.
 
 Create an ingest token on the project page in Javi's Dog, then in your project directory:
 
@@ -27,8 +32,10 @@ Create an ingest token on the project page in Javi's Dog, then in your project d
 JAVI_INGEST_TOKEN='<paste token>' npx ./${NAME}-${version}.tgz init --project <project-slug>
 \`\`\`
 
-\`init\` copies javi to \`~/.javi/bin/javi.mjs\` and points the project's Claude Code hooks there,
-so they keep working after the npx cache is cleared.
+\`init\` copies javi to \`~/.javi/bin/${version}/javi.mjs\` and points the project's Claude Code
+hooks there, so they keep working after the npx cache is cleared, and each project keeps the
+javi version it was set up with. \`javi uninstall\` does not delete these copies: remove an old
+\`~/.javi/bin/<version>/\` folder yourself once no project's hooks use it.
 
 Commands, what is sent and how to opt in to token usage: see \`collectors/claude-code/README.md\`
 in the Javi's Dog repository, <https://github.com/haidongkixot/javi-dog>.
@@ -40,25 +47,29 @@ const manifest = {
   description: "Javi's Dog collector for Claude Code: the javi CLI and its command hooks",
   type: 'module',
   bin: { javi: 'javi.mjs' },
-  files: ['javi.mjs', 'README.md'],
+  files: ['javi.mjs', 'README.md', NOTICES],
   engines: { node: '>=22' },
   license: 'UNLICENSED',
   private: true,
 };
 
-const { size } = await buildBundle();
+// Fails the pack when a bundled third-party package has no licence file.
+const notices = renderNotices(await thirdPartyPackages(metafile, ROOT));
+
 await rm(pkgDir, { recursive: true, force: true });
 await mkdir(pkgDir, { recursive: true });
-await copyFile(join(dist, 'javi.mjs'), join(pkgDir, 'javi.mjs'));
+await copyFile(bundle, join(pkgDir, 'javi.mjs'));
 await writeFile(join(pkgDir, 'README.md'), README);
+await writeFile(join(pkgDir, NOTICES), notices);
 await writeFile(join(pkgDir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 
-const tarball = join(dist, `${NAME}-${version}.tgz`);
+const tarball = join(out, `${NAME}-${version}.tgz`);
 await rm(tarball, { force: true });
-execFileSync('npm', ['pack', '--ignore-scripts', '--pack-destination', dist], {
+const npm = npmInvocation(['pack', '--ignore-scripts', '--pack-destination', out]);
+execFileSync(npm.command, npm.args, {
   cwd: pkgDir,
   stdio: ['ignore', 'ignore', 'inherit'],
-  shell: process.platform === 'win32',
+  shell: npm.shell,
 });
 await readFile(tarball).catch(() => {
   throw new Error(`npm pack did not produce ${tarball}`);
