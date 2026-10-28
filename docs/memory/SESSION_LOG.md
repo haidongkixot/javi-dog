@@ -2,6 +2,12 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-28 · Session 2 (cloud), continued — S4c budgets and alerts
+
+- Owner decisions: monthly USD budget per project; alerts on ingest (no cron); workspace owners at 80 %/100 %. ADR-0014; retention keeps the current UTC month (31-day months).
+- Lanes B1 logic, B2 email+ingest, B3 UI, QA 25 vectors, D runner; real-Postgres parallel-claim check on dev-agent; Reviewer 4 major (false "emailed", rounding up, aggregate without budget, Resend timeout) fixed red-first; Resend idempotency semantics unverifiable here → per-attempt keys. CI green on `e968421`; production healthy, no runtime errors.
+- Next: Guru G3, owner's first real run with a budget, S5.
+
 ## 2026-10-28 · Session 2 (cloud), continued — S4b usage analytics
 
 - ADR-0013 (no owner question needed: within roadmap, no dependency/cost). Migration 0004 index applied to dev-agent after deploy (health 5). Lanes A1 reader, W3 UI, QA 23 vectors; runner + mutation checks; Reviewer 1 major (usage "ago" freezing on open pages) + 4 minor — fixed red-first. CI green on `1993bd8`; production health ok.
