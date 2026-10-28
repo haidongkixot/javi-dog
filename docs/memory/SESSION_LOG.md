@@ -2,6 +2,13 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-28 · Session 2 (cloud), continued — S4a live state
+
+- Owner: "Proceed S4 first"; chose 10 s polling (ADR-0012). S4 split into S4a (live state), S4b (analytics), S4c (budgets/alerts).
+- Lanes: R1 read model, W1+W2 route/hook/pages, QA 27 state vectors; orchestrator runner (mutation-checked); Reviewer found 3 UI truthfulness majors (ended = attention, stale data looking fresh, hung poll) — fixed red-first. CI green on `6377e88`.
+- Process slip: a memory-update script failed mid-way and the commit chain continued (script not chained) — memory completed in the next commit.
+- State: dashboard shows real workspace data once events exist; production has none until the owner's first real run. Next: S4b.
+
 ## 2026-10-28 · Session 2 (cloud), continued — S3f packaging, Guru G2
 
 - S3f: esbuild bundle + private, dependency-free tarball; versioned `~/.javi/bin/<version>/` copy; THIRD_PARTY_NOTICES; reviewer round fixed (2 major). Windows UNVERIFIED.
