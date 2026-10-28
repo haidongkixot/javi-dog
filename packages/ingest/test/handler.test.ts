@@ -388,6 +388,101 @@ describe('rate limiting', () => {
   });
 });
 
+describe('onStored hook (ADR-0014 budget alerts)', () => {
+  const usage = (n: number, extra: Record<string, unknown> = {}) =>
+    event(n, { type: 'usage.reported', usage_delta: { cost_usd: 0.25 }, ...extra });
+  type Hook = NonNullable<IngestDeps['onStored']>;
+
+  it('is called once, after the insert, with the token scope and the usage report count', async () => {
+    const { ws, p, token } = await setup();
+    const seen: number[] = [];
+    const onStored = vi.fn<Hook>(() => {
+      void count('events').then((n) => seen.push(n));
+    });
+    const res = await handler({ onStored })(
+      post(token, { events: [usage(1), event(2), usage(3)] }),
+    );
+    expect(res.status).toBe(202);
+    expect(onStored).toHaveBeenCalledOnce();
+    expect(onStored).toHaveBeenCalledWith(
+      { workspaceId: ws.id, projectId: p.id },
+      { usageReports: 2 },
+    );
+    await vi.waitFor(() => expect(seen).toEqual([3]));
+  });
+
+  it('is called again for a duplicate-only retry (the consumer is idempotent)', async () => {
+    const { token } = await setup();
+    const onStored = vi.fn<Hook>();
+    const batch = { events: [usage(1)] };
+    await handler({ onStored })(post(token, batch));
+    const res = await handler({ onStored })(post(token, batch));
+    expect(await res.json()).toEqual({ accepted: 0, duplicates: 1, rejected: [] });
+    expect(onStored).toHaveBeenCalledTimes(2);
+  });
+
+  it('is not called for batches without usage, rejected-only usage, or auth and rate-limit failures', async () => {
+    const { token } = await setup();
+    const onStored = vi.fn<Hook>();
+    await handler({ onStored })(post(token, { events: [event(1), event(2)] }));
+    const rejected = await handler({ onStored })(
+      post(token, { events: [usage(3, { project_ref: 'someone-elses-project' })] }),
+    );
+    expect(await rejected.json()).toMatchObject({ accepted: 0, duplicates: 0 });
+    expect((await handler({ onStored })(post('nope', { events: [usage(4)] }))).status).toBe(401);
+    const limited = handler({ onStored, rateLimitPerMinute: 0 });
+    expect((await limited(post(token, { events: [usage(5)] }))).status).toBe(429);
+    expect(onStored).not.toHaveBeenCalled();
+  });
+
+  it('is not called when the signal write fails (503); the retry triggers it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { token } = await setup();
+    const onStored = vi.fn<Hook>();
+    const touchSignal = vi
+      .fn<IngestDeps['touchSignal']>()
+      .mockRejectedValueOnce(new Error('statement timeout'))
+      .mockResolvedValue(undefined);
+    const batch = { events: [usage(1)] };
+    expect((await handler({ onStored, touchSignal })(post(token, batch))).status).toBe(503);
+    expect(onStored).not.toHaveBeenCalled();
+    expect((await handler({ onStored, touchSignal })(post(token, batch))).status).toBe(202);
+    expect(onStored).toHaveBeenCalledOnce();
+  });
+
+  it('never changes the 202 status or body when the hook throws or rejects', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { token } = await setup();
+    const baseline = await handler()(post(token, { events: [usage(1), usage(2)] }));
+    const expected = { status: baseline.status, body: await baseline.json() };
+    expect(expected).toEqual({
+      status: 202,
+      body: { accepted: 2, duplicates: 0, rejected: [] },
+    });
+
+    const throwing = vi.fn<Hook>(() => {
+      throw new Error('postgresql://user:hunter2@host/db');
+    });
+    const rejecting = vi.fn(async () => {
+      throw new TypeError('boom');
+    }) as unknown as Hook;
+    for (const [n, onStored] of [
+      [3, throwing],
+      [5, rejecting],
+    ] as const) {
+      const res = await handler({ onStored })(post(token, { events: [usage(n), usage(n + 1)] }));
+      expect({ status: res.status, body: await res.json() }).toEqual(expected);
+    }
+    await vi.waitFor(() => expect(log).toHaveBeenCalledTimes(2));
+    const logged = log.mock.calls.map(([line]) => JSON.parse(String(line)));
+    expect(logged).toEqual([
+      { level: 'error', module: 'JD-M05', msg: 'ingest onStored hook failed', error: 'Error' },
+      { level: 'error', module: 'JD-M05', msg: 'ingest onStored hook failed', error: 'TypeError' },
+    ]);
+    expect(JSON.stringify(log.mock.calls)).not.toContain('hunter2');
+  });
+});
+
 describe('failures', () => {
   it('answers 503 without driver details when the database fails', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => {});

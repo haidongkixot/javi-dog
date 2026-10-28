@@ -1,4 +1,5 @@
 // Welcome email (JD-M09). Brand voice: warm, brief, concrete; no claims without evidence.
+import { sendEmail, type SendConfig } from './send.ts';
 
 const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
@@ -23,34 +24,15 @@ export const welcomeEmail = ({ name, appUrl }: { name: string; appUrl: string })
   return { subject, text, html };
 };
 
-export class NotifyError extends Error {
-  readonly status: number;
-  constructor(status: number) {
-    super(`Resend responded ${status}`);
-    this.name = 'NotifyError';
-    this.status = status;
-  }
-}
-
-export interface SendConfig {
-  apiKey: string;
-  from: string;
-  appUrl: string;
-  fetch?: typeof fetch;
-}
-
 /** Sends the welcome email. Throws `NotifyError` (status only — never the address) on failure. */
 export const sendWelcomeEmail = async (
   config: SendConfig,
   to: { email: string; name: string },
 ): Promise<{ id: string }> => {
-  const { subject, text, html } = welcomeEmail({ name: to.name, appUrl: config.appUrl });
-  const res = await (config.fetch ?? fetch)('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${config.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: config.from, to: [to.email], subject, text, html }),
+  const report = await sendEmail(config, {
+    to: [to.email],
+    ...welcomeEmail({ name: to.name, appUrl: config.appUrl }),
   });
-  if (!res.ok) throw new NotifyError(res.status);
-  const body = (await res.json()) as { id?: string };
-  return { id: body.id ?? '' };
+  if (report.errors[0]) throw report.errors[0];
+  return { id: report.ids[0] ?? '' };
 };

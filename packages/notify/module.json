@@ -3,8 +3,16 @@
   "name": "@javis-dog/notify",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Transactional email via the Resend REST API. S2c: welcome email on first sign-in; alerts arrive with JD-M12.",
+  "description": "Transactional email via the Resend REST API, one email per recipient. S2c: welcome email on first sign-in; S4c: budget alerts (ADR-0014).",
   "owner": "platform",
-  "provides": ["sendWelcomeEmail()", "welcomeEmail()", "NotifyError"],
+  "provides": [
+    "sendWelcomeEmail()",
+    "welcomeEmail()",
+    "sendBudgetAlertEmail()",
+    "budgetAlertEmail()",
+    "budgetMonthLabel()",
+    "sendEmail()",
+    "NotifyError"
+  ],
   "consumes": []
 }
