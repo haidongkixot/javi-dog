@@ -39,4 +39,4 @@ const result = await jgr.flush(); // { status, accepted, duplicates, rejected, d
 
 Batches hold at most 100 events and 256 KB; bodies above 1 KB are gzip-compressed.
 
-A caller may pass its own `event_id` (ULID or UUID, canonicalized by JD-M01) to `record()` — derive it from the source record so a re-sent record dedupes on the receiver (ADR-0011). Without one the SDK generates a monotonic ULID.
+A caller may pass its own `event_id` (ULID or UUID, canonicalized by JD-M01) to `record()` — derive it from the source record so a re-sent record dedupes on the receiver (ADR-0011). Without one the SDK generates a monotonic ULID. The spool orders by `event_id`, so caller UUIDs do not sort by time among ULIDs: with a backlog, their delivery order and oldest-first eviction are approximate (S3e review).

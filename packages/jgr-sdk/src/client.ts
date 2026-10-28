@@ -14,6 +14,8 @@ import { createUlid } from './ulid.ts';
  * What a producer supplies; the SDK fills `jgr`, `producer_id` and, when absent, `event_id`
  * (monotonic ULID), time and sequence. A caller-supplied `event_id` must be a ULID or UUID; use
  * one derived from the source record so a re-sent record dedupes on the receiver (ADR-0011).
+ * The spool orders by `event_id`, so caller UUIDs do not sort by time among ULIDs: under a
+ * backlog, delivery order and oldest-first eviction are approximate for such events.
  */
 export type RecordInput = Omit<
   JgrEventInput,
