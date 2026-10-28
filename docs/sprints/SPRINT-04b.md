@@ -16,10 +16,10 @@
 
 | # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| M1 | Index `(workspace_id, received_at)` | JD-M06 | migration 0004 + rollback | Up/down tested on PGlite; drift clean; applied to `dev-agent` after deploy | Done (code) |
-| A1 | Analytics read model | JD-M08 | events → `createAnalyticsReader(db).usage(workspaceId, opts)` | Rules of ADR-0013: UTC days zero-filled, clamp 1–30, by model/project, tasks, totals, `lastReportAt`, DB clock, project filter inside the workspace | Planned |
-| W3 | Overview chart + project usage | JD-APP | analytics → Overview "Token consumption", Project detail usage | Chart + table equivalent; estimated-cost label; empty state "No usage reports in the last 14 days"; computed-at time | Planned |
-| Q2 | Analytics vectors (QA, independent) | docs | `docs/jgr/conformance/analytics/*.json` | From ADR-0013 + JGR §6 text only | Planned |
+| M1 | Index `(workspace_id, received_at)` | JD-M06 | migration 0004 + rollback | Up/down tested on PGlite; drift clean; applied to `dev-agent` after deploy | Done |
+| A1 | Analytics read model | JD-M08 | events → `createAnalyticsReader(db).usage(workspaceId, opts)` | Rules of ADR-0013: UTC days zero-filled, clamp 1–30, by model/project, tasks, totals, `lastReportAt`, DB clock, project filter inside the workspace | Done |
+| W3 | Overview chart + project usage | JD-APP | analytics → Overview "Token consumption", Project detail usage | Chart + table equivalent; estimated-cost label; empty state "No usage reports in the last 14 days"; computed-at time | Done |
+| Q2 | Analytics vectors (QA, independent) | docs | `docs/jgr/conformance/analytics/*.json` | From ADR-0013 + JGR §6 text only | Done |
 
 ## Review focus
 
@@ -42,11 +42,17 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Reviewer — launched on `6ed8beb..HEAD`; push held until findings are closed.
+- 2026-10-28 — Orchestrator — Runner `packages/analytics/test/analytics-conformance.test.ts`: 23/23 on first run. Mutations: bucketing by `occurred_at` → only vector 10 FAIL; workspace filters removed → only 19, 20, 23 FAIL; restored. Merged W3 (`1af5ad1`). Full gate 865 tests. Contract wording: a filtered project appears in `byProject` only with usage (A1 lane question, QA A6).
+- 2026-10-28 — Developer B — W3: grouped columns (input vs output per UTC day, one axis — dataviz: pairs compare day to day), violet + deep-mint `positive` (brand mint #A0EBC2 failed the palette validator at 1.35:1), table toggle, "Estimated cost" everywhere; 34 tests. NOT verified: rendered layout at the breakpoints (screenshot budget 0).
+- 2026-10-28 — QA — 23 vectors, A1–A12 (fractional `days` not tested: ADR silent on rounding).
+- 2026-10-28 — Developer A — A1: 3 queries (+ DB clock), 30 tests; mutation (workspace filter) → 2 FAIL; EXPLAIN: with a second busy workspace all queries use `events_workspace_received_idx`.
+- 2026-10-28 — Orchestrator — Migration 0004 applied to `dev-agent` after deploy `0a02c57` READY: health 5 migrations, `db:smoke` 10/10.
 - 2026-10-28 — Orchestrator — ADR-0013 (no owner question: within the approved roadmap, no dependency or cost); JD-M08 scaffold with contract types; migration 0004 generated (`db:generate --name`), rollback written, up/down tests (event-store 47). Screenshot budget 0.
 
 ## Log
 
-- 2026-10-28 — Sprint start (plan, scaffold, migration 0004 code).
+- 2026-10-28 — Sprint start (plan, scaffold, migration 0004 code); pushed `0a02c57` (CI 40648378728 PASS), `cd23c29` (CI 40649033508 PASS).
 
 ## Test evidence
 
@@ -54,6 +60,14 @@ Team log, newest first:
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 | `vitest run` (event-store, after 0004) | 0 | — | 47 | 0 | 0 | 0 | 0 | — |
 | `db:generate` drift after 0004 | 0 | — | no changes | — | — | — | — | — |
+| `db:migrate` 0004 + `db:smoke` (dev-agent) | 0 | — | 10 | 0 | 0 | 0 | 0 | health: 5 migrations |
+| `pnpm --filter @javis-dog/analytics test` (Developer A, 2 runs) | 0 | — | 31 | 0 | 0 | 0 | 0 | — |
+| Analytics runner | 0 | — | 24 | 0 | 0 | 0 | 0 | 23 vectors + count |
+| Mutation: bucket by `occurred_at` | 1 | — | 23 | 1 | 0 | 0 | 0 | vector 10 only |
+| Mutation: workspace filters removed | 1 | — | 21 | 3 | 0 | 0 | 0 | 19, 20, 23 only |
+| `pnpm --filter @javis-dog/web test` (Developer B, 2 runs) | 0 | — | 194 | 0 | 0 | 0 | 0 | analytics 34 |
+| Full gate (`format`/`lint`/`typecheck`/`test`/`build`/`docs`) | 0 | — | 865 | 0 | 0 | 0 | 0 | before review |
+| Rendered chart layout at 1150 / 850 / 560 px | — | — | — | — | — | — | 1 | screenshot budget 0; owner may approve a bounded visual check |
 
 ## Decisions and deviations
 
