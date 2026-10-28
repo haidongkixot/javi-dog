@@ -1,0 +1,146 @@
+{
+  "$schema": "./schema.json",
+  "description": "byProject lists only workspace projects with usage reports in the range, sorted by input + output tokens descending, with projectId, slug and name; a project whose only usage is older than the range and a project without events are absent.",
+  "contract": "ADR-0013 Decision outcome: Read model (totals by project); types.ts byProject \"Every workspace project with usage in the range ..., same sort\"",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API service"
+        },
+        {
+          "slug": "docs",
+          "name": "Docs site"
+        },
+        {
+          "slug": "ops",
+          "name": "Ops tooling"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t17a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -266400000,
+      "receivedAtUtc": "2026-10-25T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 60,
+        "output_tokens": 600,
+        "cache_read_tokens": 50000,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t17a",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -180000000,
+      "receivedAtUtc": "2026-10-26T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 40,
+        "output_tokens": 300,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t17b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -93600000,
+      "receivedAtUtc": "2026-10-27T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1500,
+        "output_tokens": 500,
+        "cost_usd": 0.75,
+        "model": "gemini-3-pro"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "docs",
+      "thread_ref": "cc_t17c",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1735200000,
+      "receivedAtUtc": "2026-10-08T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 99999,
+        "output_tokens": 99999,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "docs",
+      "thread_ref": "cc_t17c",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 2,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z"
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "totals": {
+      "inputTokens": 1600,
+      "outputTokens": 1400,
+      "cacheReadTokens": 50000,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0.75,
+      "reports": 3,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "byProjectLength": 2,
+    "byProjectOrder": ["api", "web"],
+    "byProject": [
+      {
+        "slug": "api",
+        "name": "API service",
+        "projectId": "$PROJECT_ID:A:api",
+        "inputTokens": 1500,
+        "outputTokens": 500,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.75,
+        "reports": 1
+      },
+      {
+        "slug": "web",
+        "name": "Web app",
+        "projectId": "$PROJECT_ID:A:web",
+        "inputTokens": 100,
+        "outputTokens": 900,
+        "cacheReadTokens": 50000,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 2
+      }
+    ],
+    "lastReportOffsetMs": -93600000,
+    "absentStrings": ["$PROJECT_ID:A:docs", "$PROJECT_ID:A:ops", "Docs site", "Ops tooling"]
+  }
+}

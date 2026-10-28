@@ -1,0 +1,83 @@
+{
+  "$schema": "./schema.json",
+  "description": "Usage reports exist only before the range (the last one 1 ms before the first day): totals are zero, reports 0, breakdowns empty and lastReportAt null, because lastReportAt is the newest report in the range.",
+  "contract": "ADR-0013 Decision outcome: Read model (lastReportAt); types.ts lastReportAt \"Newest usage.reported received in the range, or null\"",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -1166400001,
+      "receivedAtUtc": "2026-10-14T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 444,
+        "output_tokens": 44,
+        "cost_usd": 0.44,
+        "model": "x-q22-old-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -2340000000,
+      "receivedAtUtc": "2026-10-01T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 555,
+        "model": "x-q22-old-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t22",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 3,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z"
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 0,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "byModelLength": 0,
+    "byModel": [],
+    "byProjectLength": 0,
+    "byProject": [],
+    "lastReportOffsetMs": null,
+    "absentStrings": ["x-q22-old-model", "$PROJECT_ID:A:web"]
+  }
+}

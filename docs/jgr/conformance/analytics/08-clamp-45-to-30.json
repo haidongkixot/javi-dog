@@ -1,0 +1,106 @@
+{
+  "$schema": "./schema.json",
+  "description": "days = 45 is clamped to 30 (retention): range 2026-09-29..2026-10-28; reports on 2026-09-28 23:59:59.999, 35 days ago and on the first day of an unclamped 45-day range (2026-09-14) are excluded.",
+  "contract": "ADR-0013 Decision outcome: Read model (\"days is clamped to 1-30 (retention)\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08",
+      "type": "usage.reported",
+      "sequence": 4,
+      "receivedOffsetMs": -2548800000,
+      "receivedAtUtc": "2026-09-29T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 10,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -2548800001,
+      "receivedAtUtc": "2026-09-28T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 20,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -3024000000,
+      "receivedAtUtc": "2026-09-23T12:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 40,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -3844800000,
+      "receivedAtUtc": "2026-09-14T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 80,
+        "model": "claude-opus-5-5"
+      }
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 45
+  },
+  "expect": {
+    "from": "2026-09-29",
+    "to": "2026-10-28",
+    "daysLength": 30,
+    "days": [
+      {
+        "date": "2026-09-29",
+        "inputTokens": 10,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 10,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 1,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "lastReportOffsetMs": -2548800000,
+    "absentStrings": []
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "$schema": "./schema.json",
+  "description": "Only usage.reported contributes tokens, cost, reports, byModel and lastReportAt: usage_delta seeded on heartbeat, task.*, error, session.ended and an extension type is ignored; the task.completed still counts as a task.",
+  "contract": "ADR-0013 Decision outcome: Read model (\"... from usage.reported\"; task.completed / task.failed counts); spec \u00a74, \u00a76",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -10800000,
+      "receivedAtUtc": "2026-10-28T09:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 500,
+        "output_tokens": 50,
+        "cost_usd": 0.05,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -7200000,
+      "receivedAtUtc": "2026-10-28T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 9999,
+        "output_tokens": 999,
+        "cost_usd": 9.99,
+        "model": "x-q11-heartbeat-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11",
+      "type": "task.started",
+      "sequence": 3,
+      "receivedOffsetMs": -6300000,
+      "receivedAtUtc": "2026-10-28T10:15:00.000Z",
+      "usage_delta": {
+        "input_tokens": 3333,
+        "model": "x-q11-started-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11",
+      "type": "task.completed",
+      "sequence": 4,
+      "receivedOffsetMs": -5400000,
+      "receivedAtUtc": "2026-10-28T10:30:00.000Z",
+      "usage_delta": {
+        "input_tokens": 7777,
+        "model": "x-q11-task-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11",
+      "type": "error",
+      "sequence": 5,
+      "receivedOffsetMs": -4500000,
+      "receivedAtUtc": "2026-10-28T10:45:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1111,
+        "model": "x-q11-error-model"
+      },
+      "attributes": {
+        "error_code": "E_Q11"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11",
+      "type": "x.acme.usage",
+      "sequence": 6,
+      "receivedOffsetMs": -3000000,
+      "receivedAtUtc": "2026-10-28T11:10:00.000Z",
+      "usage_delta": {
+        "input_tokens": 4444,
+        "model": "x-q11-ext-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t11",
+      "type": "session.ended",
+      "sequence": 7,
+      "receivedOffsetMs": -2400000,
+      "receivedAtUtc": "2026-10-28T11:20:00.000Z",
+      "usage_delta": {
+        "input_tokens": 2222,
+        "model": "x-q11-ended-model"
+      }
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "days": [
+      {
+        "date": "2026-10-28",
+        "inputTokens": 500,
+        "outputTokens": 50,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.05,
+        "reports": 1,
+        "tasksCompleted": 1,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 500,
+      "outputTokens": 50,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0.05,
+      "reports": 1,
+      "tasksCompleted": 1,
+      "tasksFailed": 0
+    },
+    "byModelLength": 1,
+    "byModel": [
+      {
+        "model": "claude-opus-5-5",
+        "inputTokens": 500,
+        "outputTokens": 50,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.05,
+        "reports": 1
+      }
+    ],
+    "byProjectLength": 1,
+    "byProject": [
+      {
+        "slug": "web",
+        "inputTokens": 500,
+        "outputTokens": 50,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.05,
+        "reports": 1
+      }
+    ],
+    "lastReportOffsetMs": -10800000,
+    "absentStrings": [
+      "x-q11-heartbeat-model",
+      "x-q11-started-model",
+      "x-q11-task-model",
+      "x-q11-error-model",
+      "x-q11-ext-model",
+      "x-q11-ended-model"
+    ]
+  }
+}

@@ -1,0 +1,170 @@
+{
+  "$schema": "./schema.json",
+  "description": "estimatedCostUsd is the plain sum of cost_usd (0.1 + 0.2 compares as 0.3 within 1e-9); estimated: true and estimated: false reports are both summed (AMBIGUOUS A5, A9); a report without cost_usd adds 0 cost but still counts as a report.",
+  "contract": "ADR-0013 Decision outcome: Read model (cost_usd), Cost is always labelled estimated; types.ts estimatedCostUsd \"Sum of producer-reported cost_usd\"; spec \u00a76",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -100800000,
+      "receivedAtUtc": "2026-10-27T08:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1,
+        "cost_usd": 0.1,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -97200000,
+      "receivedAtUtc": "2026-10-27T09:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1,
+        "cost_usd": 0.2,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -39600000,
+      "receivedAtUtc": "2026-10-28T01:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1,
+        "cost_usd": 0.3,
+        "model": "claude-opus-5-5",
+        "estimated": true
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "usage.reported",
+      "sequence": 4,
+      "receivedOffsetMs": -36000000,
+      "receivedAtUtc": "2026-10-28T02:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1,
+        "cost_usd": 1e-6,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "usage.reported",
+      "sequence": 5,
+      "receivedOffsetMs": -32400000,
+      "receivedAtUtc": "2026-10-28T03:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 1,
+        "cost_usd": 1234.5678,
+        "model": "claude-opus-5-5",
+        "estimated": false
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "usage.reported",
+      "sequence": 6,
+      "receivedOffsetMs": -28800000,
+      "receivedAtUtc": "2026-10-28T04:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 10,
+        "model": "claude-opus-5-5"
+      }
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "days": [
+      {
+        "date": "2026-10-27",
+        "inputTokens": 2,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.3,
+        "reports": 2,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-10-28",
+        "inputTokens": 13,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 1234.867801,
+        "reports": 4,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 15,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 1235.167801,
+      "reports": 6,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "byModelLength": 1,
+    "byModel": [
+      {
+        "model": "claude-opus-5-5",
+        "inputTokens": 15,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 1235.167801,
+        "reports": 6
+      }
+    ],
+    "byProjectLength": 1,
+    "byProject": [
+      {
+        "slug": "web",
+        "estimatedCostUsd": 1235.167801,
+        "reports": 6
+      }
+    ],
+    "lastReportOffsetMs": -28800000,
+    "absentStrings": []
+  }
+}

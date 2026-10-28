@@ -1,0 +1,208 @@
+{
+  "$schema": "./schema.json",
+  "description": "projectId narrows days, tasks, totals, byModel, byProject and lastReportAt to that one project of the workspace; the other project (with newer reports and its own model) contributes nothing.",
+  "contract": "ADR-0013 Decision outcome: Read model (\"projectId narrows to one project inside the workspace\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -93600000,
+      "receivedAtUtc": "2026-10-27T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 0.1,
+        "model": "m-web"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18a",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -14400000,
+      "receivedAtUtc": "2026-10-28T08:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 200,
+        "output_tokens": 20,
+        "model": "m-shared"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18a",
+      "type": "task.completed",
+      "sequence": 4,
+      "receivedOffsetMs": -12600000,
+      "receivedAtUtc": "2026-10-28T08:30:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t18a",
+      "type": "task.failed",
+      "sequence": 2,
+      "receivedOffsetMs": -91800000,
+      "receivedAtUtc": "2026-10-27T10:30:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -90000000,
+      "receivedAtUtc": "2026-10-27T11:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 5000,
+        "cost_usd": 3.0,
+        "model": "x-q18-api-only-model"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18b",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -3600000,
+      "receivedAtUtc": "2026-10-28T11:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 7000,
+        "model": "m-shared"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18b",
+      "type": "task.completed",
+      "sequence": 4,
+      "receivedOffsetMs": -3000000,
+      "receivedAtUtc": "2026-10-28T11:10:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18b",
+      "type": "task.completed",
+      "sequence": 5,
+      "receivedOffsetMs": -2400000,
+      "receivedAtUtc": "2026-10-28T11:20:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t18b",
+      "type": "task.failed",
+      "sequence": 2,
+      "receivedOffsetMs": -88200000,
+      "receivedAtUtc": "2026-10-27T11:30:00.000Z"
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 14,
+    "project": "web"
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "days": [
+      {
+        "date": "2026-10-27",
+        "inputTokens": 100,
+        "outputTokens": 10,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.1,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 1
+      },
+      {
+        "date": "2026-10-28",
+        "inputTokens": 200,
+        "outputTokens": 20,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 1,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 300,
+      "outputTokens": 30,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0.1,
+      "reports": 2,
+      "tasksCompleted": 1,
+      "tasksFailed": 1
+    },
+    "byModelLength": 2,
+    "byModelOrder": ["m-shared", "m-web"],
+    "byModel": [
+      {
+        "model": "m-shared",
+        "inputTokens": 200,
+        "outputTokens": 20,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1
+      },
+      {
+        "model": "m-web",
+        "inputTokens": 100,
+        "outputTokens": 10,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.1,
+        "reports": 1
+      }
+    ],
+    "byProjectLength": 1,
+    "byProjectOrder": ["web"],
+    "byProject": [
+      {
+        "slug": "web",
+        "name": "Web app",
+        "projectId": "$PROJECT_ID:A:web",
+        "inputTokens": 300,
+        "outputTokens": 30,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0.1,
+        "reports": 2
+      }
+    ],
+    "lastReportOffsetMs": -14400000,
+    "absentStrings": ["x-q18-api-only-model", "$PROJECT_ID:A:api"]
+  }
+}

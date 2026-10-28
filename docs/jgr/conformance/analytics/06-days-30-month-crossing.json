@@ -1,0 +1,153 @@
+{
+  "$schema": "./schema.json",
+  "description": "days = 30 gives 30 zero-filled days 2026-09-29..2026-10-28 across a month boundary; the first day starts at 00:00:00.000 and 2026-09-30 / 2026-10-01 split at midnight.",
+  "contract": "ADR-0013 Decision outcome: Read model (per UTC day, zero-filled, oldest first, days 1-30)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -2548800000,
+      "receivedAtUtc": "2026-09-29T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 300,
+        "output_tokens": 30,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -2548800001,
+      "receivedAtUtc": "2026-09-28T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 600,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -2376000001,
+      "receivedAtUtc": "2026-09-30T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 1,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "usage.reported",
+      "sequence": 4,
+      "receivedOffsetMs": -2376000000,
+      "receivedAtUtc": "2026-10-01T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 2,
+        "model": "claude-opus-5-5"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t06",
+      "type": "usage.reported",
+      "sequence": 5,
+      "receivedOffsetMs": -21600000,
+      "receivedAtUtc": "2026-10-28T06:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 4,
+        "model": "claude-opus-5-5"
+      }
+    }
+  ],
+  "query": {
+    "workspace": "A",
+    "days": 30
+  },
+  "expect": {
+    "from": "2026-09-29",
+    "to": "2026-10-28",
+    "daysLength": 30,
+    "days": [
+      {
+        "date": "2026-09-29",
+        "inputTokens": 300,
+        "outputTokens": 30,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-09-30",
+        "inputTokens": 1,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-10-01",
+        "inputTokens": 2,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      },
+      {
+        "date": "2026-10-28",
+        "inputTokens": 4,
+        "outputTokens": 0,
+        "cacheReadTokens": 0,
+        "cacheWriteTokens": 0,
+        "estimatedCostUsd": 0,
+        "reports": 1,
+        "tasksCompleted": 0,
+        "tasksFailed": 0
+      }
+    ],
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 307,
+      "outputTokens": 30,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 4,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "lastReportOffsetMs": -21600000,
+    "absentStrings": []
+  }
+}

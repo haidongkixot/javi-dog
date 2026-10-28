@@ -1,0 +1,89 @@
+{
+  "$schema": "./schema.json",
+  "description": "A workspace with projects and activity (session, heartbeat, task.started) but no usage reports and no task outcomes: 14 zero-filled days, zero totals, reports 0, empty breakdowns, lastReportAt null.",
+  "contract": "ADR-0013 Decision outcome: Read model (zero-filled), Empty states (no usage reports)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t21",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -10800000,
+      "receivedAtUtc": "2026-10-28T09:00:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t21",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -10740000,
+      "receivedAtUtc": "2026-10-28T09:01:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t21",
+      "type": "task.started",
+      "sequence": 3,
+      "receivedOffsetMs": -10680000,
+      "receivedAtUtc": "2026-10-28T09:02:00.000Z",
+      "attributes": {
+        "tool_name": "Read"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t21b",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -75600000,
+      "receivedAtUtc": "2026-10-27T15:00:00.000Z"
+    }
+  ],
+  "query": {
+    "workspace": "A"
+  },
+  "expect": {
+    "from": "2026-10-15",
+    "to": "2026-10-28",
+    "daysLength": 14,
+    "otherDaysZero": true,
+    "totals": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "estimatedCostUsd": 0,
+      "reports": 0,
+      "tasksCompleted": 0,
+      "tasksFailed": 0
+    },
+    "byModelLength": 0,
+    "byModel": [],
+    "byProjectLength": 0,
+    "byProject": [],
+    "lastReportOffsetMs": null,
+    "absentStrings": []
+  }
+}
