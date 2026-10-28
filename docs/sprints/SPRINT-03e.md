@@ -18,11 +18,11 @@
 
 | # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| U0 | SDK caller-supplied `event_id` | JD-M02 | `RecordInput.event_id?` | Valid id kept (canonicalized by JD-M01); invalid id → `ok: false`; default ULID unchanged | Planned |
-| U1 | OTLP JSON parser + usage mapping | JD-C01 `src/otlp.ts`, `src/usage.ts` | OTLP JSON → `UsagePoint[]` → `UsageGroup[]` → `RecordInput` | Allowlist attributes only; delta/cumulative; int64 string/number; deterministic UUID ids; zero groups skipped | Planned |
-| U2 | Claude user-settings editor | JD-C01 `src/claude-env.ts` | `enableUsageEnv` / `disableUsageEnv` | Backup once; refuses on parse error or foreign `OTEL_*`/telemetry keys (file or shell); revert removes only unchanged own keys | Planned |
-| U3 | Receiver, lifecycle, CLI, attribution | JD-C01 `src/receiver.ts`, `cli.ts`, `run.ts`, `state.ts` | HTTP → spool → `runFlush`; `javi usage on` / `off`, `javi receive`, `javi status` | 401/403/413/415/400/200 rules; unknown sessions dropped + counted; hooks start the receiver; idle exit | Planned |
-| Q1 | OTLP vectors (QA, independent) | docs | `docs/jgr/conformance/otlp/*.json` | Vectors from the OTLP spec + Claude Code docs only; runner in U3 tests | Planned |
+| U0 | SDK caller-supplied `event_id` | JD-M02 | `RecordInput.event_id?` | Valid id kept (canonicalized by JD-M01); invalid id → `ok: false`; default ULID unchanged | Done |
+| U1 | OTLP JSON parser + usage mapping | JD-C01 `src/otlp.ts`, `src/usage.ts` | OTLP JSON → `UsagePoint[]` → `UsageGroup[]` → `RecordInput` | Allowlist attributes only; delta/cumulative; int64 string/number; deterministic UUID ids; zero groups skipped | Done |
+| U2 | Claude user-settings editor | JD-C01 `src/claude-env.ts` | `enableUsageEnv` / `disableUsageEnv` | Backup once; refuses on parse error or foreign `OTEL_*`/telemetry keys (file or shell); revert removes only unchanged own keys | Done |
+| U3 | Receiver, lifecycle, CLI, attribution | JD-C01 `src/receiver.ts`, `cli.ts`, `run.ts`, `state.ts` | HTTP → spool → `runFlush`; `javi usage on` / `off`, `javi receive`, `javi status` | 401/403/413/415/400/200 rules; unknown sessions dropped + counted; hooks start the receiver; idle exit | Done |
+| Q1 | OTLP vectors (QA, independent) | docs | `docs/jgr/conformance/otlp/*.json` | Vectors from the OTLP spec + Claude Code docs only; runner in U3 tests | Done |
 
 ## Review focus
 
@@ -47,16 +47,32 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Reviewer — launched on `4386501..HEAD` (security focus: listener, settings edit, privacy).
+- 2026-10-28 — Orchestrator — Runner `test/otlp-conformance.test.ts` from the QA README: 40/40 PASS. Mutation checks: Host check disabled → exactly vector 09 FAIL; random event ids → exactly 39 and 40 FAIL; code restored. Full gate: 604 tests.
+- 2026-10-28 — Orchestrator — Merged U3 (`5e3730a`, declared paths only; 208 collector tests, 3 runs). Exported the receiver API; changeset notes `Io.spawnReceiver`.
+- 2026-10-28 — Orchestrator — QA A3 accepted: an object without `resourceMetrics` is an empty OTLP request → 200 (parser fixed, U3 told before it wrote that test). Test fix: `resourceMetrics: null` is the proto3 JSON default (empty), not malformed.
+- 2026-10-28 — QA — 40 vectors / 46 steps from ADR-0011 + OTLP spec + Claude Code docs, 20 ambiguities (A1–A20); opentelemetry.io blocked, same text read from `opentelemetry-proto/docs/specification.md`.
+- 2026-10-28 — Orchestrator — Merged U1 (`f8ced2c`); added `session.id` fallback to the resource block (docs do not say where standard attributes sit; `model`/`type` stay data-point only).
+- 2026-10-28 — Orchestrator — Merged U2 (`222f654`; 43 tests). Note: rewriting `~/.claude/settings.json` sets mode 0600 (stricter).
 - 2026-10-28 — Orchestrator — Owner decisions: opt-in global OTel (project settings cannot enable it — verified); packaging = bundle + tarball, no npm publish (S3f). Screenshot budget 0.
 - 2026-10-28 — Researcher — OTel contract report; orchestrator re-fetched `monitoring-usage.md` lines 69 (project settings ignored) and 131 (delta default): both confirmed. `session.id` = hook `session_id` UNVERIFIED.
 - 2026-10-28 — Orchestrator — `git fetch`: origin at `4386501`, nothing new. Verified locally that Node refuses type stripping under `node_modules` (packaging needs a JS bundle).
 
 ## Log
 
+- 2026-10-28 — U0–U3 + Q1 merged locally; runner 40/40; Reviewer running. Pushed so far: `1e10741`, `222f654`, `774549e`, `ecc2c2c` (library code only; nothing calls it in production).
+
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm --filter @javis-dog/jgr-sdk test` (U0) | 0 | — | 32 | 0 | 0 | 0 | 0 | — |
+| `pnpm --filter @javis-dog/collector-claude-code test` after U2 / U1 / U3 merges | 0 | — | 74 / 166 / 208 | 0 | 0 | 0 | 0 | U3 lane ran it 3× |
+| `vitest run test/otlp-conformance.test.ts` | 0 | — | 41 | 0 | 0 | 0 | 0 | 40 vectors + count |
+| Mutation: Host check off | 1 | — | 40 | 1 | 0 | 0 | 0 | vector 09 only; restored |
+| Mutation: random event ids | 1 | — | 39 | 2 | 0 | 0 | 0 | vectors 39, 40 only; restored |
+| Full gate `format:check` / `lint` / `typecheck` / `test` / `build` / `docs:check` | 0 | — | 604 tests | 0 | 0 | 0 | 0 | collector 251, sdk 32 |
+| OTel `session.id` = hook `session_id` (runtime) | — | — | — | — | — | — | 1 | owner's first real run |
 
 ## Decisions and deviations
 
