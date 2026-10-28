@@ -21,13 +21,13 @@
 |---|---|---|---|---|---|
 | R1 | Migrate `main` | JD-M06 | committed migrations → `db:statements` (drizzle `readMigrationFiles`) → Neon MCP, one transaction per migration | 6 rows in `drizzle.__drizzle_migrations` with the same hashes and `created_at` as `dev-agent`; schema diff vs `dev-agent` empty; 13 public tables | Done |
 | R2 | Cutover (owner) | JD-APP | Vercel Production `DATABASE_URL` → `main` pooled URL; redeploy | `/api/health` ok, 6 migrations; `users` count on `main` > 0 after the owner signs in | Waiting on owner |
-| R3 | Rollback plan | docs | — → `docs/how-to/roll-back-a-release.md` | App, schema, data (6 h PITR), env paths with limits and commands | Planned |
-| R4 | Runbooks | docs | — → `docs/how-to/operate-production.md` | Symptom → check → action → escalation for ingest, sign-in, email, purge/`CRON_SECRET`, migrations, secrets, Neon limits | Planned |
-| R5 | Access-boundary suite | JD-APP | ADR-0005/0006/0008/0012/0014 text → `apps/web/test/access-boundaries.test.ts(x)` | Every route handler and server action: signed out, foreign workspace, foreign project id, wrong role, bad bearer / cron secret → refused without leaking existence or data | Planned (QA lane) |
-| R6 | Bounded load test | JD-M05 | token file + endpoint → `packages/ingest/scripts/load-test.ts` → JSON summary | Hard caps enforced in code; p50/p95/max, status counts; payload builder near 256 KB gzip; unit-tested against a local server | Planned (Developer lane) |
-| R7 | End-to-end telemetry smoke | JD-C01 | packed tarball + token file + endpoint → `collectors/claude-code/scripts/e2e-smoke.mjs` | Temp home; `init` → hook events → `flush` → spool empty, exit 0; tested against a local recording server | Planned (Developer lane) |
-| R8 | Security review | all | read-only | Findings fixed or logged before the release gate | Planned (Reviewer) |
-| R9 | Release checklist + readiness | docs | — → `docs/how-to/release-checklist.md`, readiness rows | Gate items with evidence links; accepted risk recorded | Planned |
+| R3 | Rollback plan | docs | — → `docs/how-to/roll-back-a-release.md` | App, schema, data (6 h PITR), env paths with limits and commands | Done |
+| R4 | Runbooks | docs | — → `docs/how-to/operate-production.md` | Symptom → check → action → escalation for ingest, sign-in, email, purge/`CRON_SECRET`, migrations, secrets, Neon limits | Done |
+| R5 | Access-boundary suite | JD-APP | ADR-0005/0006/0008/0012/0014 text → `apps/web/test/access-boundaries.test.ts(x)` | Every route handler and server action: signed out, foreign workspace, foreign project id, wrong role, bad bearer / cron secret → refused without leaking existence or data | Done (52 tests) |
+| R6 | Bounded load test | JD-M05 | token file + endpoint → `packages/ingest/scripts/load-test.ts` → JSON summary | Hard caps enforced in code; p50/p95/max, status counts; payload builder near 256 KB decompressed; unit-tested against a local server | Built (production run waits on R2) |
+| R7 | End-to-end telemetry smoke | JD-C01 | packed tarball + token file + endpoint → `collectors/claude-code/scripts/e2e-smoke.mjs` | Temp home; `init` → hook events → `flush` → spool empty, exit 0; tested against a local recording server | Built (production run waits on R2) |
+| R8 | Security review | all | read-only | Findings fixed or logged before the release gate | Review done; M1/M2/L1/L3/L4/I2 fixed red-first; L2/L5 logged |
+| R9 | Release checklist + readiness | docs | — → `docs/how-to/release-checklist.md`, readiness rows | Gate items with evidence links; accepted risk recorded | Done |
 
 ## Owner steps (R2 cutover)
 
@@ -58,6 +58,31 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Orchestrator — Merged Developer B (`7a7673a`). Wrote the ADR-0005/0006/0008 Changes and the README updates. Fixed two more stale statuses on the integrations page: Claude Code now "Available · javi CLI (beta)", GitHub now "Planned · Sprint 6".
+  - **Test oversubscription (diagnosed, not retried).** `jgr-sdk` `e2e.test.ts` timed out at 30 s in two forced full runs after the merges.
+  - It takes 4.1 s alone, and already took 25.6 s at base `4daa69c` under turbo's default concurrency of 10 on 4 CPUs.
+  - Cause: about 13 vitest processes, each with PGlite WASM workers, on 4 cores. The new suites added enough load to cross 30 s.
+  - Fix: the root `test` script runs `turbo run test --concurrency=2`. Wall time went from 126 s to 139 s, and the SDK e2e test from 24.7 s to 3.3 s. No timeout was raised and no test was skipped.
+- 2026-10-28 — Developer B — Six fixes, each red first.
+  - M2: organization plugin options plus `disabledPaths` for every plugin path (404), including path variants. First sign-in still creates one owner workspace.
+  - L1: `canManageProject` gates project creation and token issue/revoke to owners and admins, with matching UI and a 17-test role matrix.
+  - L3: `MAX_JSON_DEPTH` 32 means the real 240 KB nested payload now gets 400 instead of 503.
+  - L4: security headers, checked on a running `next start`.
+  - I2: truthful copy on the integrations page.
+  - M1: 20 projects per workspace and 10 tokens issued per 24 h, enforced in the repository.
+  - 1156 tests in the lane.
+
+- 2026-10-28 — Orchestrator — Merged R5 (QA, `f414cba`) and R6/R7 (Developer, `9644308`).
+  - The QA tests had imported PGlite and drizzle through `packages/event-store/node_modules/...`. They now use package names: `@electric-sql/pglite` 0.5.8 and `drizzle-orm` 0.45.4 are `apps/web` devDependencies. The lockfile resolves the same variant, so no new package was downloaded. 52/52 pass.
+  - ADR-0015 corrected: the 256 KB limit applies **after decompression** (ADR-0008, `body.ts`), so a ~240 KB gzip batch would be refused. Near-limit batches are about 255 KiB decompressed, about 177 KB gzip.
+- 2026-10-28 — Owner — M1 quotas: "Caps, no migration". At most 20 projects per workspace and at most 10 tokens issued per project per 24 h (revoked tokens count); 60 batches/min per token unchanged. Added to Developer B's scope.
+- 2026-10-28 — Developer — R6/R7 built.
+  - Caps are frozen in code: 70 requests, 6 000 events, 120 s, concurrency 5, 50 starts per rolling minute. The run stops on a 401 or on 3 consecutive failures.
+  - Payload limit: about 177 KB gzip is the most a valid 255 KiB batch can reach.
+  - The e2e test passes the token on stdin and plants prompt, tool and path sentinels; a privacy scan checks them.
+  - Test counts: ingest 98/98, collector 300/300. Local runs PASS: 55 × 202 in 60.2 s; e2e 7/7 events delivered, spool 0.
+- 2026-10-28 — QA — R5: 52 tests, all PASS, no findings. They cover two seeded workspaces with positive controls; every route, action, loader and page; foreign id ≡ unknown id; the ingest 401 variants are byte-identical; cron auth comes before `not_configured`. Six spec-silent decisions are listed in the test comments.
+
 - 2026-10-28 — Orchestrator — Review triage. M2, L1, L3, L4 and I2 go to Developer B (red-first). M1 (quotas) goes to the owner, because it sets limits on product use. L2 (Vercel Firewall rate rules) and L5 (Better Auth rate limit is in memory per instance, so the ADR-0006 wording is best-effort) are logged and need owner or dashboard action or an ADR note. I1 is `CRON_SECRET`.
 - 2026-10-28 — Reviewer — Security review of the whole surface (read-only plus one PGlite probe): **0 critical, 0 high**, 2 medium, 5 low, 4 info.
   - M1: one free sign-up can fill the 512 MiB branch. Rate limits are per token only, the token cap ignores revoked tokens, and there is no project or workspace cap.
@@ -86,6 +111,11 @@ Team log, newest first:
 | Neon MCP `run_sql_transaction` × 6 on `main` (0000–0005) | 0 | — | 6 | 0 | 0 | 0 | 0 | — |
 | Neon MCP `compare_database_schema` `main` vs `dev-agent` | 0 | — | diff empty | 0 | 0 | 0 | 0 | — |
 | Ledger + table count on `main` | 0 | — | 6 rows match, 13 tables | 0 | 0 | 0 | 0 | — |
+| `vitest run test/access-boundaries*.test.ts(x)` (`apps/web`, after the import fix) | 0 | 7.9 s | 52 | 0 | 0 | 0 | 0 | — |
+| `packages/ingest` vitest (Developer) | 0 | — | 98 | 0 | 0 | 0 | 0 | 20 in `load-test.test.ts` |
+| `collectors/claude-code` vitest (Developer) | 0 | — | 300 | 0 | 0 | 0 | 0 | 5 in `e2e-smoke.test.ts` |
+| Forced full gate after all merges (`format:check`, `lint`, `typecheck`, `test --force` at concurrency 2, `build`, `docs:check`, drift) | 0 | ~140 s tests | 1233 | 0 | 0 | 0 | 0 | — |
+| Diagnosis: `test --force`, default concurrency 10, before the fix (2 runs) | 1 | 126 s+ | — | 1 each | — | — | — | `jgr-sdk` e2e timed out after 30 s; it takes 4.1 s alone |
 | `db:smoke` on `main` | — | — | — | — | — | — | NOT RUN | writes rows on production; replaced by the schema diff + post-cutover end-to-end smoke |
 
 ## Decisions and deviations

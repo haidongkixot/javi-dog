@@ -11,6 +11,7 @@ Status: **in-progress**. S3a: `POST /api/v1/events` logic (JGR v0.1 §8, ADR-000
 | `createIngestDeps(db)` | Wires JD-M04 `verifyToken` / `markTokenUsed` and JD-M06 event repository onto a Drizzle handle |
 | `readBoundedBody(request, maxBytes)` | Streams the body, inflating gzip, and stops as soon as `maxBytes` is passed |
 | `INGEST_RATE_LIMIT_PER_MINUTE` | 60 batches per token per UTC minute |
+| `MAX_JSON_DEPTH`, `exceedsJsonDepth(text)` | 32 nested arrays/objects; a deeper body is `400 malformed` before parsing (S5a review L3) |
 
 ## Responses
 

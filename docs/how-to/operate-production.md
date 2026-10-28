@@ -22,7 +22,7 @@ Ground rules for every runbook:
 |---|---|---|
 | Collectors report `401` | Token revoked or issued on another database (after cutover, every `dev-agent` token is gone) | Issue a new token on the project page and run `javi init` again |
 | `415` | Wrong `Content-Type` or `Content-Encoding` from a custom producer | The JGR SDK keeps its spool on 415; fix the producer's headers |
-| `413` | Batch > 256 KB after gzip or > 100 events | The SDK halves the batch by itself; a custom producer must split |
+| `413` | Batch > 256 KB after decompression or > 100 events | The SDK halves the batch by itself; a custom producer must split |
 | `429` | > 60 batches/min for one token | Expected under bursts; the SDK honours `Retry-After`. If it persists, look for a runaway producer |
 | `503 not_configured` | `/api/health` `env.DATABASE_URL` false | Restore the env var in Vercel (owner), then redeploy |
 | `500` with `{"module":"JD-M05"…}` logs | Database errors in the log `msg` | Check Neon compute and storage; if `main` hit 512 MiB, see "Neon limits" |

@@ -7,7 +7,7 @@ The release gate (roadmap, end of S5) has four parts: working end-to-end telemet
 | G1 | Production has its own database | `main` ledger = committed migrations (6), schema diff vs `dev-agent` empty | SPRINT-05a R1 | PASS (2026-10-28) |
 | G2 | Production reads `main` | `users` count on `main` > 0 after the owner signs in; `/api/health` ok, 6 migrations | SPRINT-05a R2 | NOT RUN (owner cutover) |
 | G3 | Access boundaries verified | Access-boundary suite green in CI; security review has no open critical/high finding | SPRINT-05a R5, R8 | NOT RUN |
-| G4 | Ingest performance measured | One bounded production run: p95 < 2 s (JGR hypothesis) or the miss recorded as a finding; 256 KB gzip payload accepted | SPRINT-05a R6 | NOT RUN |
+| G4 | Ingest performance measured | One bounded production run: p95 < 2 s (JGR hypothesis) or the miss recorded as a finding; near-limit payload (≈ 255 KiB decompressed) accepted | SPRINT-05a R6 | NOT RUN |
 | G5 | End-to-end telemetry | Packed `javi` → production → rows on `main` (count) → dashboard reader shows the thread | SPRINT-05a R7 | NOT RUN |
 | G6 | Real agent session | The owner's real Claude Code session with `javi init --usage`: hooks fire, usage attributed (session-id match, ADR-0011) | SPRINT-03c/03e | NOT RUN (owner) |
 | G7 | Rollback plan | `docs/how-to/roll-back-a-release.md` reviewed; down files exist for every migration | SPRINT-05a R3 | PASS (docs) / real rollback NOT RUN |

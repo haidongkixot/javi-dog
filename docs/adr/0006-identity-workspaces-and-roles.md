@@ -32,3 +32,10 @@ Chosen: **option 2**.
 - Positive: one workspace model; membership and roles come from a maintained library; tests cover redirect URLs, workspace creation, idempotency, isolation and cascades on PGlite.
 - Negative: the session hook adds one or two queries to each sign-in; Better Auth upgrades must be checked against the mapped columns (CI drift check + tests).
 - Follow-up: S2c uses the active workspace for project CRUD and ingest-token UI, and sends the JD-M09 welcome email; an allowlist or invite-only mode can be added if open sign-up becomes a problem.
+
+## Changes
+
+- 2026-10-28 (S5a review M2/L1/L5):
+  - **Organization plugin surface closed.** Options: `allowUserToCreateOrganization: false`, `organizationLimit: 1`, `membershipLimit: 1`, `invitationLimit: 0`, `disableOrganizationDeletion: true`. Every plugin path is in `disabledPaths`, so it answers 404. Only `ensurePersonalWorkspace` creates workspaces. Re-check the path list on Better Auth upgrades; `packages/identity/test/organization-surface.test.ts` enumerates the plugin's endpoints.
+  - **Project actions are owner/admin only** (`canManageProject`): project creation and token issue/revoke. Members read only.
+  - **The Better Auth rate limit is best-effort.** It is held in memory per serverless instance, so it is not enforced across Vercel instances. The IP field is kept for it, but it is not a protection boundary.

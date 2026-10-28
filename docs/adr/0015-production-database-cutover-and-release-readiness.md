@@ -32,7 +32,7 @@ The release gate (roadmap, end of S5) needs working end-to-end telemetry, verifi
 6. **Load test**, bounded and run once, with its budget fixed before the run:
    - One ephemeral workspace, project and ingest token, seeded on `main` through MCP SQL. Only the SHA-256 of a locally generated token is stored. The token lives in a scratch file and is never printed.
    - At most **70 requests within 2 minutes** and at most **6 000 events**, staying under the 60 batches/min/token limit.
-   - Mix: about 50 batches of 100 typical events at concurrency ≤ 5, plus 5 near-limit payloads of about 240 KB after gzip.
+   - Mix: about 50 batches of 100 typical events at concurrency ≤ 5, plus 5 near-limit payloads of about 255 KiB **after decompression** (the 256 KB limit applies to the decompressed body, ADR-0008). Valid events then gzip to about 177 KB.
    - Measure client-side p50, p95 and max, including the sandbox proxy, and record any `429`.
    - Afterwards, delete the ephemeral workspace (cascade) only after the owner says OK (Neon MCP rule: no destructive SQL without asking).
    - Target: p95 < 2 s. A miss is reported as a finding, not tuned away.

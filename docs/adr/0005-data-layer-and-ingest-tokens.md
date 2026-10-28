@@ -64,3 +64,5 @@ Facts (2026-10-20): Neon `dev-agent` answers over HTTPS (PostgreSQL 18.6, 0 publ
   - Repository integration tests live in **JD-M06** (`packages/event-store/test/`), which owns the migrations; JD-M04 keeps pure unit tests. This avoids a JD-M04 → JD-M06 dependency cycle.
   - `pingDb` checks for `drizzle.__drizzle_migrations` with a separate statement: Postgres resolves relation names at plan time, so a `CASE` guard failed on an unmigrated database (caught by a test).
   - `tsconfig.base.json` sets `erasableSyntaxOnly` so code stays runnable by Node's built-in type stripping (used by `db:migrate` / `db:smoke`).
+
+- 2026-10-28 (S5a review M1, owner "Caps, no migration"): at most 20 projects per workspace (`project_limit`). At most 10 ingest tokens issued per project per rolling 24 h by the DB clock, revoked ones included (`token_issue_limit`), on top of the existing 5 active. These are soft caps, because neon-http has no transactions. Ingest stays at 60 batches/min per token.

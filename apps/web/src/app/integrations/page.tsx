@@ -22,7 +22,7 @@ const integrations: ReadonlyArray<{
     key: 'CC',
     name: 'Claude Code',
     desc: 'Hooks + OpenTelemetry adapter',
-    status: 'Planned · Sprint 3',
+    status: 'Available · javi CLI (beta)',
     tone: 'info',
   },
   {
@@ -36,7 +36,7 @@ const integrations: ReadonlyArray<{
     key: 'GH',
     name: 'GitHub',
     desc: 'Commits, pull requests and CI for any tool',
-    status: 'Planned · Sprint 5',
+    status: 'Planned · Sprint 6',
     tone: 'info',
   },
   {

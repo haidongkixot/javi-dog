@@ -1,6 +1,6 @@
 # JD-M03 · `@javis-dog/identity` — Sign-in, users and workspace membership
 
-Status: **in-progress**. S2b: Better Auth 1.7 with GitHub and Google, organization plugin mapped onto JD-M04 `workspaces`, personal workspace on first sign-in (ADR-0006).
+Status: **in-progress**. S2b: Better Auth 1.7 with GitHub and Google, organization plugin mapped onto JD-M04 `workspaces`, personal workspace on first sign-in (ADR-0006). S5a: the organization plugin's HTTP endpoints are disabled (`disabledPaths`, 404). Only `ensurePersonalWorkspace` creates workspaces, and no create, invite, role or delete endpoint is exposed (ADR-0006 Changes).
 
 ## Public contract
 

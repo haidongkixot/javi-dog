@@ -14,8 +14,10 @@ Status: **in-progress**. S1a: draft project model. S2a: Drizzle tables, workspac
 | `WorkspaceInput`, `normalizeWorkspaceInput(raw)` | Workspace name (2–80) and optional slug |
 | `workspaces`, `projects`, `ingestTokens`, `projectTables` | Drizzle tables, composed into migrations by JD-M06 |
 | `createProjectRepository(db)` | Workspace-scoped persistence: `createWorkspace`, `createProject`, `listProjects`, `getProject`, `issueToken`, `listTokens`, `revokeToken`, `verifyToken` |
-| `ProjectRepositoryError` | `code`: `slug_taken`, `not_found`, `token_limit` |
+| `ProjectRepositoryError` | `code`: `slug_taken`, `not_found`, `token_limit`, `project_limit`, `token_issue_limit` |
 | `MAX_ACTIVE_TOKENS_PER_PROJECT` | 5 (soft limit — no transactions on neon-http) |
+| `MAX_PROJECTS_PER_WORKSPACE` | 20 (soft limit; S5a review M1) |
+| `MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY` | 10 per rolling 24 h by the DB clock, revoked tokens included (soft limit; S5a review M1) |
 | `generateIngestToken()`, `parseIngestToken()`, `hashIngestToken()`, `displayPrefix()`, `INGEST_TOKEN_PREFIX` | Token primitives: `jd_it_` + 43 base64url chars; SHA-256 hex stored |
 | `ProjectsDb` | Type of any Drizzle Postgres handle that knows these tables |
 
