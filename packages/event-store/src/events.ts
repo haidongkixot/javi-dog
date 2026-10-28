@@ -81,9 +81,17 @@ const RATE_WINDOW_MS = 60_000;
 /** Raw events are kept this long after receipt (ADR-0008, owner Q1). */
 export const EVENT_RETENTION_DAYS = 30;
 
-/** Receipt-time cutoff for the retention purge. */
+/**
+ * Receipt-time cutoff for the retention purge: 30 days, but never inside the current UTC month
+ * (ADR-0014 changes ADR-0008), so month-to-date budget spend is complete on day 31.
+ */
 export const retentionCutoff = (now: Date) =>
-  new Date(now.getTime() - EVENT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  new Date(
+    Math.min(
+      now.getTime() - EVENT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    ),
+  );
 
 type EventsDb = PgDatabase<PgQueryResultHKT, typeof eventTables & { projects: typeof projects }>;
 
