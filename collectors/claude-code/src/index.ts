@@ -9,7 +9,23 @@ export {
 } from './mapping.ts';
 export { FLUSH_BACKLOG, FLUSH_DEBOUNCE_MS, FLUSH_INTERVAL_MS, runFlush, runHook } from './run.ts';
 export { HOOK_MARKER, hookEntry, installHooks, settingsPath, uninstallHooks } from './settings.ts';
-export { createState, javiHome, type CollectorState } from './state.ts';
+export {
+  createState,
+  javiHome,
+  SESSION_TTL_MS,
+  type CollectorState,
+  type ReceiverInfo,
+  type UsageConfig,
+} from './state.ts';
+export {
+  createUsageReceiver,
+  ensureReceiver,
+  isPidAlive,
+  MAX_BODY_BYTES,
+  RECEIVER_IDLE_MS,
+  type UsageReceiver,
+  type UsageReceiverOptions,
+} from './receiver.ts';
 export {
   COST_METRIC,
   TOKEN_METRIC,

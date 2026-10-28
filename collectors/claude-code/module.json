@@ -15,7 +15,9 @@
     "createState()",
     "parseOtlpMetrics()",
     "toUsageGroups() / toUsageRecord() / usageEventId()",
-    "enableUsageEnv() / disableUsageEnv()"
+    "enableUsageEnv() / disableUsageEnv()",
+    "createUsageReceiver() / ensureReceiver()",
+    "javi usage on|off, javi receive"
   ],
   "consumes": ["JD-M01", "JD-M02"]
 }
