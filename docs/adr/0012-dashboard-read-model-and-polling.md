@@ -31,10 +31,15 @@ S4 turns the empty Overview, Projects and Live agents pages into a real dashboar
 - **Projects:** every workspace project with `last_signal_at`, fresh/stale/never, fresh threads and threads needing attention.
 - **Transport.** `GET /api/dashboard/snapshot` (session cookie; workspace from the session + membership, never from input; `401` signed out; `Cache-Control: no-store`; `503` without a database). Pages render the first snapshot on the server; a client hook re-fetches every 10 s while visible. A failed refresh keeps the last data with a visible "could not refresh — showing data from HH:MM:SS" notice.
 - **Privacy.** Only L0 data exists; thread and agent refs are opaque hashes; no attribute other than `tool_name` is read.
-- **Cost/performance.** One snapshot = a handful of indexed queries over ≤ 24 h of one workspace (`events_received_idx`, `events_project_thread_received_idx`). A `(workspace_id, received_at)` index is deferred until data volume needs it (revisit in S4b with analytics queries).
+- **Cost/performance.** One snapshot = 3 workspace-scoped queries over ≤ 24 h (+ 1 for the DB clock). Measured on PGlite (review, 10 000 events per workspace): the thread aggregate is a sequential scan and the activity query uses `events_received_idx` then filters by workspace, so cost grows with every tenant's 24 h volume; ~80 ms at that size. A `(workspace_id, received_at)` index is deferred to S4b, where the analytics queries decide its exact shape.
 
 ## Consequences
 
 - Positive: honest freshness on every value; works on any plan; testable on PGlite and with jsdom.
 - Negative: up to 10 s extra latency; one small request per open tab every 10 s; no push for alerts (S4c uses email).
 - Usage numbers appear only for attributed sessions; until the owner's first real run confirms the session-id match (ADR-0011), token figures may stay empty — shown as "no usage reports yet", never as zero.
+
+## Changes
+
+- 2026-10-28 (S4a implementation): window is `(now − 24 h, now]` (events after the snapshot clock are excluded); DB `now()` truncated to ms; token-burn hour is `> now − 60 min`; project freshness can also be `ended` (all its threads ended); `attention` keeps the literal rule, while sorting and every attention count exclude ended threads (`needsAttention`); the route answers `503 not_configured` before looking up a session; absolute times are shown in UTC so server and browser render the same text.
+- 2026-10-28 (S4a review — fixes in progress, not yet merged): ages are measured against the client time a snapshot arrived (values turn "Not current" while refreshes fail, and stale once older than 180 s client-side); requests time out after 8 s and polling always continues; "Live activity" renamed "Recent activity"; session-lookup failures answer `503 unavailable`.
