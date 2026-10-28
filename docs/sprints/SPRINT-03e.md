@@ -1,6 +1,6 @@
 # Sprint 03e — Token usage via a local OTLP receiver
 
-- Dates: 2026-10-28 (timebox 30 min) · Status: **ACTIVE**
+- Dates: 2026-10-28 (timebox 30 min) · Status: **BUILT** — CI green on `a3e4ce8`; closes after the owner's first real run shows forwarded usage (session-id match)
 - Goal: Claude Code token and cost usage reaches Javi's Dog as `usage.reported` events, received locally by `javi`, attributed to the right project, with no identity or content leaving the machine.
 - Modules touched: JD-C01, JD-M02, docs
 - Readiness gate: rows "OTel exporter config scope", "OTel session correlation", "Local receiver port" in `docs/agent-ops/READINESS_MATRIX.md`
@@ -63,6 +63,7 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-28 — CI **PASS** on `a3e4ce8` (run 40618995163); production `/api/health` ok on `a3e4ce8`.
 - 2026-10-28 — Review fixes merged; gate 628 green; pushing for CI.
 - 2026-10-28 — U0–U3 + Q1 merged locally; runner 40/40; Reviewer running. Pushed so far: `1e10741`, `222f654`, `774549e`, `ecc2c2c` (library code only; nothing calls it in production).
 
@@ -87,6 +88,10 @@ Team log, newest first:
 - Not fixed, documented (ADR-0011 Changes, README): settings `env` may reach programs Claude Code runs; managed settings can override or disable the export unseen; caller UUIDs make spool order approximate; 404/405 answered before auth.
 
 ## Retro
+
+- Went well: the Researcher's primary-source check caught the project-settings constraint before any code; QA vectors found a spec defect in the orchestrator's own brief (A3); the Reviewer found three real majors that unit tests missed; red-first tests for every fix.
+- Hurt: one lane's tests depended on an orchestrator decision made mid-flight (A3) — sent as a correction message in time; the `session.id` location was undocumented and needed a fallback.
+- Change next sprint: give lanes the OTLP/HTTP semantics (empty request, proto3 nulls) up front; keep a runtime-check row visible until the owner run.
 
 ## Guru checkpoint
 

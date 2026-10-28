@@ -2,6 +2,12 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-28 · Session 2 (cloud), continued — S3e token usage
+
+- Researcher verified the Claude Code OTel contract; the key fact (project settings cannot enable OTel) changed the plan → owner chose opt-in global OTel and bundle + tarball packaging (no npm publish).
+- ADR-0011, test plan before lanes; lanes U1 (parser/mapping), U2 (settings editor), U3 (receiver/CLI/attribution), QA (40 OTLP vectors); orchestrator added the conformance runner (mutation-checked) and accepted QA A3. Reviewer: 3 major + 7 minor; fixed with red-first tests. CI green on `a3e4ce8`, production healthy.
+- State: S3e built; runtime check (session id match) waits on the owner's first real run. Next: S3f packaging + G2.
+
 ## 2026-10-27/28 · Session 2 (cloud), continued — S3 planning, parallel-work incident, S3d hardening
 
 - 2026-10-27: planned S3 with the Orcasus agent team (owner: roles, seeded smoke, 30-day cron retention, per-project HMAC refs) and built a parallel S3a locally — then found the owner's local session had already pushed S3a–S3c to the same branch (`8fd567c`…`5cc8ac0`, migration 0002 on dev-agent). Nothing of the parallel line was pushed or applied (its migration failed on the first statement); work kept on local `backup/s3a-parallel`.

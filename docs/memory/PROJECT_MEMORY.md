@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-28 · Current sprint: **S3e — OTLP usage (local receiver in the collector), `npx` packaging, G2** (not started). Last closed: **S3d — ingest hardening** (`docs/sprints/SPRINT-03d.md`, CI green on `1bb95e9`). Waiting on owner: S3b (`CRON_SECRET`), S3c (first real `javi init`).
+> Last updated: 2026-10-28 · Current sprint: **S3f — `npx` packaging (bundle + tarball) + Guru G2** (not started). S3e — token usage via a local OTLP receiver — built, CI green on `a3e4ce8` (`docs/sprints/SPRINT-03e.md`). Last closed: S3d. Waiting on owner: S3b (`CRON_SECRET`), S3c + S3e (first real `javi init` + `javi usage on` + a Claude Code session).
 
 ## What we are building
 
@@ -26,6 +26,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - Local Windows dev machine ready (2026-10-23): Node 22.23.4, pnpm 10.28.0, Git 2.55.0; all checks green (209 tests). Repo now forces LF (`.gitattributes`) and resolves file URLs with `fileURLToPath` — required for Windows paths with spaces. Owner prefers local runs in GMT+7 windows: weekdays 23:00–17:00, weekends 22:00–08:00.
 
 - S3d (2026-10-28): ingest hardening H1–H6 (canonical event ids + migration 0003 check, signal on duplicate retries with DB-clock cap, bounded purge, 415 for media type/encoding with SDK keeping the spool, >100 events → 413, sorted inserts, DB-clock rate window); 43 QA conformance vectors + runner (mutation-checked); 383 tests; production smoke 7/7; dev-agent at 4 migrations. CI on `98c7974` FAIL (collector `process.test.ts` ordering race, pre-existing since `fe604d1`); test fixed in `1bb95e9` (CI green), product code unchanged.
+- S3e built (2026-10-28, ADR-0011): opt-in `javi usage on|off` edits `~/.claude/settings.json` env (project settings cannot enable OTel — verified), local receiver `javi receive` on `127.0.0.1:4319` (bearer + Host checks, 1 MiB, http/json only), allowlist parser (`session.id`, `model`, `type`), deterministic UUID event ids, sessions attributed via hooks (unknown → dropped locally). JD-M02 optional caller `event_id`. 40 QA OTLP vectors + runner (mutation-checked); Reviewer: 3 major fixed (red-first tests); 628 tests. UNVERIFIED until a real run: OTel `session.id` = hook `session_id`.
 
 ## Decisions in force
 
@@ -61,8 +62,8 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 1. Owner: rotate `neondb_owner` (pasted in chat on 2026-10-20 and 2026-10-23) and the GitHub client secret (pasted 2026-10-22); update Vercel afterwards.
 2. Owner: add `CRON_SECRET` on Vercel Production (steps in `SPRINT-03b.md`) → closes S3b.
-3. Owner: first real `javi init` + Claude Code session (steps in `SPRINT-03c.md`) → closes S3c and confirms the exec-form hook `args`.
-4. S3e — Claude Code OTel token/cost metrics → `usage.reported` via a **local OTLP receiver in the collector** (owner decision 2026-10-28), `npx` packaging; then Guru **G2** + Orcasus PR proposal. S4 (live dashboard) after.
+3. Owner: first real `javi init --usage` + a Claude Code session (steps in `SPRINT-03c.md` + `javi usage on`), then `javi status` → closes S3c (exec-form hook `args`) and S3e (usage forwarded, not dropped = session ids match).
+4. S3f — `npx` packaging (esbuild bundle from the lockfile, `pnpm pack` tarball, `javi init` copies the bundle to `~/.javi/bin`), then Guru **G2** + Orcasus PR proposal. S4 (live dashboard; cost labelled as estimated) after.
 
 ## Process (owner decisions 2026-10-28)
 
