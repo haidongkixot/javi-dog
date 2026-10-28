@@ -1,6 +1,6 @@
 # Sprint 03f — `npx` packaging of `javi` + Guru G2
 
-- Dates: 2026-10-28 (timebox 30 min) · Status: **BUILT** — closes with CI green on the final push; Windows behaviour UNVERIFIED
+- Dates: 2026-10-28 (timebox 30 min) · Status: **CLOSED** 2026-10-28 (CI green on `488bde9`, run 40622140903); Windows behaviour UNVERIFIED
 - Goal: `javi` runs from one self-contained tarball (`npx ./javis-dog-javi-<version>.tgz init …`), and hooks keep working after the `npx` cache is gone; then the G2 Guru checkpoint closes S3.
 - Modules touched: JD-C01, docs, `guru/`
 - Readiness gate: owner decision 2026-10-28 "Bundle + tarball" (no npm publish); esbuild is already in the lockfile (no new external package)
@@ -51,6 +51,7 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-28 — CI **PASS** on `4c0577f` (40621503840) and `488bde9` (40622140903); production `/api/health` ok on `488bde9`. Sprint closed.
 - 2026-10-28 — CI **PASS** on `f7390b7` (run 40619993961); run 40619965768 on `d45cc4c` (pushed with a failing `docs:check` — gate command did not stop on that step) was cancelled by the newer push. Gate steps are chained with `&&` since.
 - 2026-10-28 — P1–P3 merged; gate 631 tests; pushing for CI.
 
