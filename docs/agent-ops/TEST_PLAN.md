@@ -190,3 +190,15 @@ Written before the lanes start. Risk: **HIGH** — a localhost listener (local i
 | Docs, registry, changeset | Low | Static | `pnpm docs:check` | No |
 
 Execution: changed packages first (`pnpm --filter @javis-dog/collector-claude-code test`, `--filter @javis-dog/jgr-sdk test`), then the full gate in CI order. Failure policy as §6: diagnose before retry; no skipped tests; no softened assertions.
+
+## S3f — `npx` packaging (2026-10-28)
+
+Written before implementation. Risk: **MEDIUM** — a broken install path silently stops all signals (hooks are neutral by design, so failures are invisible). Screenshot budget: **0**. No new external package (esbuild is in the lockfile).
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| Bundle is self-contained (no `@javis-dog/*`, `zod` imports left; shebang; ESM) | High | Build + static check | build, then scan the bundle for bare imports other than `node:` | Tarball install |
+| Tarball installs offline and the `javi` bin runs through the `.bin` symlink | High | Process (npm install from the tarball into a temp prefix, `--offline`) | `javi status --project x` prints "not configured", exit 1 (CLI ran) | No |
+| `init` from the bundle copies itself to `~/.javi/bin/javi.mjs` and hooks point there | High | Process (temp `JAVI_HOME`, temp project dir, `--no-verify`) | settings `args[0]` = the stable copy; deleting the install prefix leaves a working hook (`hook` exits 0, event spooled) | No |
+| Repo-checkout `init` unchanged | Medium | Existing `cli.test.ts` | unchanged assertions | No |
+| CI builds the bundle | Low | `pnpm build` in CI | exit 0 | No |
