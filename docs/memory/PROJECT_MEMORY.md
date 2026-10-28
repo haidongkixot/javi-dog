@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-28 · Current sprint: **S4a — live state** built 2026-10-28 (`docs/sprints/SPRINT-04a.md`); next S4b analytics, S4c budgets/alerts, then G3. S3 built (S3f closed). S3e — token usage via a local OTLP receiver — built, CI green on `a3e4ce8` (`docs/sprints/SPRINT-03e.md`). Last closed: S3d. Waiting on owner: S3b (`CRON_SECRET`), S3c + S3e (first real `javi init` + `javi usage on` + a Claude Code session).
+> Last updated: 2026-10-28 · Current sprint: **S4c — budgets, forecast, alerts** (not started). S4b analytics built 2026-10-28 (CI green on `1993bd8`); S4a live state built. Then Guru G3. S3 built (S3f closed). S3e — token usage via a local OTLP receiver — built, CI green on `a3e4ce8` (`docs/sprints/SPRINT-03e.md`). Last closed: S3d. Waiting on owner: S3b (`CRON_SECRET`), S3c + S3e (first real `javi init` + `javi usage on` + a Claude Code session).
 
 ## What we are building
 
@@ -29,6 +29,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - S3e built (2026-10-28, ADR-0011): opt-in `javi usage on|off` edits `~/.claude/settings.json` env (project settings cannot enable OTel — verified), local receiver `javi receive` on `127.0.0.1:4319` (bearer + Host checks, 1 MiB, http/json only), allowlist parser (`session.id`, `model`, `type`), deterministic UUID event ids, sessions attributed via hooks (unknown → dropped locally). JD-M02 optional caller `event_id`. 40 QA OTLP vectors + runner (mutation-checked); Reviewer: 3 major fixed (red-first tests); 628 tests. UNVERIFIED until a real run: OTel `session.id` = hook `session_id`.
 - S3f built (2026-10-28): `pnpm pack:cli` → private, dependency-free `javis-dog-javi-0.1.0.tgz` (`npx ./…tgz init`), versioned stable copy `~/.javi/bin/<version>/javi.mjs`, `THIRD_PARTY_NOTICES.md`; Windows UNVERIFIED. Guru G2 done (5 new skills, 5 updated; Orcasus PR proposal only). G2 found CI red on three docs pushes (`474427c`, `a632803`, `92a9244`) from a process-test race (receiver idle timer vs start-up) — fixed, plus a false port-conflict under load; CI no longer cancels branch runs.
 - S4a built (2026-10-28, ADR-0012, owner: 10 s polling): JD-M07 `@javis-dog/realtime` read model (thread state, freshness 180 s, `needsAttention`, counters, activity, project health; 3 workspace-scoped queries); `GET /api/dashboard/snapshot`; real Overview / Live agents / Projects with client-clock aging, "Not current" on failed refreshes, 8 s timeout. 27 QA state vectors + runner (mutation-checked); Reviewer 3 major fixed red-first; 776 tests.
+- S4b built (2026-10-28, ADR-0013): JD-M08 `@javis-dog/analytics` (per-UTC-day tokens, estimated cost, tasks, by model/project, `estimatedReports`); migration 0004 `events_workspace_received_idx` (dev-agent: 5 migrations); Overview token chart (grouped columns + table) + usage by project, Project detail usage; absolute UTC stamps. 23 QA analytics vectors + runner (mutation-checked); Reviewer 1 major fixed red-first; 888 tests. Rendered chart layout NOT verified (screenshot budget 0).
 
 ## Decisions in force
 
@@ -66,7 +67,8 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 2. Owner: add `CRON_SECRET` on Vercel Production (steps in `SPRINT-03b.md`) → closes S3b.
 3. Owner: first real `javi init --usage` + a Claude Code session (steps in `SPRINT-03c.md` + `javi usage on`), then `javi status` → closes S3c (exec-form hook `args`) and S3e (usage forwarded, not dropped = session ids match).
 4. Owner: review the G2 Orcasus PR proposal (`guru/WISDOM_LOG.md`, nothing opened) and the policy proposal to add "fetch before planning and before every push; one pusher per branch" to `CLAUDE.md`.
-5. S4b — JD-M08 analytics (usage per day/model/project, cost labelled estimated; decide the `(workspace_id, received_at)` index); S4c — JD-M12 budgets, forecast, exhaustion + email alerts; then Guru G3.
+5. S4c — JD-M12 budgets, forecast, exhaustion + email alerts (needs `CRON_SECRET` for scheduled checks); then Guru G3.
+6. Owner (optional): approve a bounded visual check of the dashboard/chart (question: label collisions and layout at 1150/850/560 px; budget e.g. ≤ 6 screenshots).
 
 ## Process (owner decisions 2026-10-28)
 

@@ -2,6 +2,11 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-28 · Session 2 (cloud), continued — S4b usage analytics
+
+- ADR-0013 (no owner question needed: within roadmap, no dependency/cost). Migration 0004 index applied to dev-agent after deploy (health 5). Lanes A1 reader, W3 UI, QA 23 vectors; runner + mutation checks; Reviewer 1 major (usage "ago" freezing on open pages) + 4 minor — fixed red-first. CI green on `1993bd8`; production health ok.
+- Next: S4c (budgets/alerts — owner decisions + `CRON_SECRET`), then G3.
+
 ## 2026-10-28 · Session 2 (cloud), continued — S4a live state
 
 - Owner: "Proceed S4 first"; chose 10 s polling (ADR-0012). S4 split into S4a (live state), S4b (analytics), S4c (budgets/alerts).
