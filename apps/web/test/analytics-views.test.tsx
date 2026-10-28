@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import type { UsageAnalytics, UsageDay } from '@javis-dog/analytics';
 import type { DashboardSnapshot } from '@javis-dog/realtime';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Usage analytics UI (TEST_PLAN §S4b, ADR-0013) with fixtures and an injected reader.
@@ -34,7 +35,7 @@ vi.mock('@javis-dog/realtime', () => ({
 vi.mock('next/navigation', () => ({ notFound }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
-const { UsageChart } = await import('@/components/analytics/usage-chart');
+const { UsageChart, axisLabels } = await import('@/components/analytics/usage-chart');
 const { niceTicks, formatUsd } = await import('@/components/analytics/format');
 const { OverviewUsage, ProjectUsage } = await import('@/components/analytics/usage-panels');
 const { OverviewView } = await import('@/components/dashboard/overview-view');
@@ -52,6 +53,7 @@ const zero = {
   cacheWriteTokens: 0,
   estimatedCostUsd: 0,
   reports: 0,
+  estimatedReports: 0,
 };
 
 /** 14 UTC days, 15 Oct – 28 Oct 2026, zero-filled, with `over` applied by date. */
@@ -71,6 +73,7 @@ const usage = (d: UsageDay[], over: Partial<UsageAnalytics> = {}): UsageAnalytic
     cacheWriteTokens: sum('cacheWriteTokens'),
     estimatedCostUsd: sum('estimatedCostUsd'),
     reports: sum('reports'),
+    estimatedReports: sum('estimatedReports'),
     tasksCompleted: sum('tasksCompleted'),
     tasksFailed: sum('tasksFailed'),
   };
@@ -100,7 +103,36 @@ const ACTIVE_DAYS = days({
   },
   '2026-10-28': { inputTokens: 400, outputTokens: 4000, estimatedCostUsd: 0.004, reports: 1 },
 });
+const WEB_ID = '33333333-3333-4333-8333-333333333333';
+const API_ID = '44444444-4444-4444-8444-444444444444';
+const BY_PROJECT: UsageAnalytics['byProject'] = [
+  {
+    projectId: WEB_ID,
+    slug: 'web-app',
+    name: 'Web App',
+    inputTokens: 10200,
+    outputTokens: 5000,
+    cacheReadTokens: 40000,
+    cacheWriteTokens: 0,
+    estimatedCostUsd: 3.5,
+    reports: 6,
+    estimatedReports: 0,
+  },
+  {
+    projectId: API_ID,
+    slug: 'api',
+    name: 'API',
+    inputTokens: 400,
+    outputTokens: 800,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    estimatedCostUsd: 0.024,
+    reports: 2,
+    estimatedReports: 0,
+  },
+];
 const ACTIVE = usage(ACTIVE_DAYS, {
+  byProject: BY_PROJECT,
   byModel: [
     {
       model: 'claude-opus-5-5',
@@ -110,6 +142,7 @@ const ACTIVE = usage(ACTIVE_DAYS, {
       cacheWriteTokens: 1200,
       estimatedCostUsd: 3.52,
       reports: 7,
+      estimatedReports: 0,
     },
     {
       model: null,
@@ -119,6 +152,7 @@ const ACTIVE = usage(ACTIVE_DAYS, {
       cacheWriteTokens: 0,
       estimatedCostUsd: 0.004,
       reports: 1,
+      estimatedReports: 0,
     },
   ],
 });
@@ -166,12 +200,16 @@ const costElements = (root: Element) =>
   );
 
 beforeEach(() => {
+  // The viewer's clock is pinned: usage times are compared with the client's UTC date.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(NOW);
   state.viewer = null;
   state.db = null;
   getViewerCalls.n = 0;
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
   vi.restoreAllMocks();
 });
@@ -219,7 +257,7 @@ describe('UsageChart', () => {
       within(legend)
         .getAllByRole('listitem')
         .map((l) => l.textContent),
-    ).toEqual(['Input tokens', 'Output tokens']);
+    ).toEqual(['Input tokens (left)', 'Output tokens (right)']);
   });
 
   it('has a table equivalent with a caption, column headers and UTC row headers', () => {
@@ -273,7 +311,7 @@ describe('Overview "Token consumption"', () => {
     expect(card.textContent).toContain('Computed 10:00:00 UTC');
     expect(card.textContent).toContain('From 8 usage reports');
     const last = within(card).getByText(/Last usage report/);
-    expect(last.textContent).toContain('Last usage report 2 h ago');
+    expect(last.textContent).toBe('Last usage report 08:00 UTC');
     expect(last.querySelector('time')!.getAttribute('title')).toBe('28 Oct 2026, 08:00:00 UTC');
   });
 
@@ -393,7 +431,12 @@ describe('server pages', () => {
     readUsage.mockResolvedValue(ACTIVE);
     render(await ProjectPage({ params: Promise.resolve({ id: PROJECT }) }));
     expect(getProject).toHaveBeenCalledWith(WS, PROJECT);
-    expect(readUsage).toHaveBeenCalledExactlyOnceWith(WS, { days: 14, projectId: PROJECT });
+    // The project page never shows usage by project, so it does not query it.
+    expect(readUsage).toHaveBeenCalledExactlyOnceWith(WS, {
+      days: 14,
+      projectId: PROJECT,
+      include: { byProject: false },
+    });
     const card = region('Usage (last 14 days)');
     expect(within(card).getByRole('img')).toBeTruthy();
     expect(within(card).getByRole('heading', { name: 'Usage by model' })).toBeTruthy();
@@ -409,5 +452,205 @@ describe('server pages', () => {
       'NEXT_NOT_FOUND',
     );
     expect(readUsage).not.toHaveBeenCalled();
+  });
+});
+
+describe('usage times on a page left open (product rule 2)', () => {
+  const at = (generatedAt: string, lastReportAt: string): UsageAnalytics => ({
+    ...ACTIVE,
+    generatedAt,
+    lastReportAt,
+  });
+  const lastText = () => screen.getByText(/Last usage report/).textContent;
+  const computedText = () => screen.getByText(/^Computed/).textContent;
+
+  it('3 h after the read, the last report shows its absolute time, never a stale "ago"', () => {
+    vi.setSystemTime('2026-10-28T13:00:00.000Z');
+    const u = at('2026-10-28T10:00:00.000Z', '2026-10-28T09:58:00.000Z');
+    const { container } = render(<OverviewUsage load={{ kind: 'ready', usage: u }} />);
+    expect(lastText()).toBe('Last usage report 09:58 UTC');
+    expect(container.textContent).not.toMatch(/\bago\b/);
+    expect(computedText()).toBe('Computed 10:00:00 UTC');
+  });
+
+  it('a read from a previous UTC date shows that date', () => {
+    vi.setSystemTime('2026-10-29T01:00:00.000Z');
+    render(
+      <OverviewUsage
+        load={{ kind: 'ready', usage: at('2026-10-28T23:30:00.000Z', '2026-10-28T23:28:00.000Z') }}
+      />,
+    );
+    expect(computedText()).toBe('Computed 28 Oct 2026, 23:30:00 UTC');
+    expect(lastText()).toBe('Last usage report 28 Oct 2026, 23:28 UTC');
+  });
+
+  it('a last report from an earlier day shows its date even when computed today', () => {
+    render(<ProjectUsage load={{ kind: 'ready', usage: at(NOW, '2026-10-26T08:05:00.000Z') }} />);
+    expect(lastText()).toBe('Last usage report 26 Oct 2026, 08:05 UTC');
+    expect(computedText()).toBe('Computed 10:00:00 UTC');
+  });
+
+  it('re-renders on the client clock: after UTC midnight the date appears', () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ now: new Date('2026-10-28T23:59:30.000Z') });
+    render(
+      <OverviewUsage
+        load={{ kind: 'ready', usage: at('2026-10-28T23:50:00.000Z', '2026-10-28T23:45:00.000Z') }}
+      />,
+    );
+    expect(computedText()).toBe('Computed 23:50:00 UTC');
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(computedText()).toBe('Computed 28 Oct 2026, 23:50:00 UTC');
+    expect(lastText()).toBe('Last usage report 28 Oct 2026, 23:45 UTC');
+  });
+
+  it('the server render always carries the date (no client clock yet, no hydration guess)', () => {
+    const html = renderToStaticMarkup(<OverviewUsage load={{ kind: 'ready', usage: ACTIVE }} />);
+    expect(html).toContain('28 Oct 2026, 10:00:00 UTC');
+    expect(html).toContain('28 Oct 2026, 08:00 UTC');
+    expect(html).not.toMatch(/\bago\b/);
+  });
+});
+
+describe('estimated token counts', () => {
+  const NOTE = 'Includes estimated token counts (3 of 8 reports)';
+  const EST: UsageAnalytics = { ...ACTIVE, totals: { ...ACTIVE.totals, estimatedReports: 3 } };
+
+  it('Overview: says so next to the totals and in the daily table caption', () => {
+    const { container } = render(<OverviewUsage load={{ kind: 'ready', usage: EST }} />);
+    const note = screen.getByText(NOTE, { selector: 'p' });
+    expect(note.previousElementSibling!.tagName).toBe('DL');
+    const caption = [...container.querySelectorAll('caption')].find((c) =>
+      /per UTC day/.test(c.textContent!),
+    )!;
+    expect(caption.textContent).toContain(NOTE);
+  });
+
+  it('Project: says so next to the totals and in the by-model caption', () => {
+    const { container } = render(<ProjectUsage load={{ kind: 'ready', usage: EST }} />);
+    expect(screen.getByText(NOTE, { selector: 'p' })).toBeTruthy();
+    const caption = [...container.querySelectorAll('caption')].find((c) =>
+      /per model/.test(c.textContent!),
+    )!;
+    expect(caption.textContent).toContain(NOTE);
+  });
+
+  it('says nothing when every count is exact', () => {
+    const { container } = render(<ProjectUsage load={{ kind: 'ready', usage: ACTIVE }} />);
+    expect(container.textContent).not.toMatch(/estimated token counts/i);
+  });
+});
+
+describe('chart labels', () => {
+  /** 14 UTC days from 31 Oct 2026, with input/output on day `peakDay`. */
+  const fromOct31 = (peakDay: number): UsageDay[] =>
+    Array.from({ length: 14 }, (_, i) => {
+      const date = new Date(Date.UTC(2026, 9, 31 + i)).toISOString().slice(0, 10);
+      const base = { date, ...zero, tasksCompleted: 0, tasksFailed: 0 };
+      if (i === peakDay) return { ...base, inputTokens: 5000, outputTokens: 100, reports: 1 };
+      if (i === 6) return { ...base, inputTokens: 100, outputTokens: 50, reports: 1 };
+      return base;
+    });
+  const slot = 100 / 14;
+
+  it('skips a month label in the slot directly before another month label', () => {
+    const l = axisLabels(fromOct31(0));
+    expect(l.months).toEqual([{ index: 1, text: 'Nov' }]);
+    // A range that only crosses a month keeps both labels.
+    expect(axisLabels(ACTIVE_DAYS).months).toEqual([{ index: 0, text: 'Oct' }]);
+    const crossing = days().map((d, i) => ({
+      ...d,
+      date: new Date(Date.UTC(2026, 9, 25 + i)).toISOString().slice(0, 10),
+    }));
+    expect(axisLabels(crossing).months).toEqual([
+      { index: 0, text: 'Oct' },
+      { index: 7, text: 'Nov' },
+    ]);
+  });
+
+  it('keeps a peak on day 0 inside the plot (start-anchored at its column, x ≥ 0)', () => {
+    const { peak } = axisLabels(fromOct31(0));
+    expect(peak).toMatchObject({ index: 0, series: 'input', value: 5000, anchor: 'start' });
+    expect(peak!.x).toBeGreaterThanOrEqual(0);
+    expect(peak!.x).toBeCloseTo(0.18 * slot, 6);
+  });
+
+  it('end-anchors a peak on the last day and centres one in between', () => {
+    expect(axisLabels(fromOct31(13)).peak).toMatchObject({ index: 13, anchor: 'end' });
+    expect(axisLabels(fromOct31(13)).peak!.x).toBeLessThanOrEqual(100);
+    const mid = axisLabels(ACTIVE_DAYS).peak!;
+    expect(mid).toMatchObject({ index: 12, series: 'input', value: 9000, anchor: 'middle' });
+    expect(mid.x).toBeCloseTo((12 + 0.18 + 0.15) * slot, 6);
+  });
+
+  it('renders those placements: one month label, the peak start-anchored', () => {
+    const { container } = render(<UsageChart days={fromOct31(0)} />);
+    expect([...container.querySelectorAll('[data-month]')].map((t) => t.textContent)).toEqual([
+      'Nov',
+    ]);
+    const peak = container.querySelector('[data-peak]')!;
+    expect(peak.textContent).toBe('5K');
+    expect(peak.getAttribute('text-anchor')).toBe('start');
+    expect(Number.parseFloat(peak.getAttribute('x')!)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('series identity and hover', () => {
+  it('the legend states the column order within a day', () => {
+    render(<UsageChart days={ACTIVE_DAYS} />);
+    const items = within(screen.getByRole('list', { name: 'Legend' })).getAllByRole('listitem');
+    expect(items.map((i) => i.textContent)).toEqual([
+      'Input tokens (left)',
+      'Output tokens (right)',
+    ]);
+  });
+
+  it('hover outlines a column in ink instead of fading it', () => {
+    const { container } = render(<UsageChart days={ACTIVE_DAYS} />);
+    const columns = [...container.querySelectorAll('[data-series]')];
+    expect(columns).toHaveLength(28);
+    for (const c of columns) {
+      expect(c.getAttribute('class')).not.toMatch(/opacity/);
+      expect(c.getAttribute('class')).toMatch(/group-hover:stroke-ink/);
+    }
+  });
+});
+
+describe('usage by project (Overview)', () => {
+  it('lists projects with links, tokens and estimated cost when ≥ 2 projects have usage', () => {
+    render(<OverviewView snapshot={SNAPSHOT} usage={{ kind: 'ready', usage: ACTIVE }} />);
+    const card = region('Token consumption');
+    expect(
+      within(card).getByRole('heading', { name: 'Usage by project (last 14 days)' }),
+    ).toBeTruthy();
+    const table = within(card)
+      .getAllByRole('table')
+      .find((t) => /per project/.test(t.querySelector('caption')!.textContent!))!;
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((c) => c.textContent),
+    ).toEqual(['Project', 'Input tokens', 'Output tokens', 'Estimated cost (USD)']);
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.map((r) => r.textContent)).toEqual(['Web App10,2005,000$3.50', 'API400800$0.02']);
+    expect(within(table).getByRole('link', { name: 'Web App' }).getAttribute('href')).toBe(
+      `/projects/${WEB_ID}`,
+    );
+    expect(within(table).getByRole('link', { name: 'API' }).getAttribute('href')).toBe(
+      `/projects/${API_ID}`,
+    );
+  });
+
+  it('is left out with a single project', () => {
+    const one = { ...ACTIVE, byProject: BY_PROJECT.slice(0, 1) };
+    render(<OverviewUsage load={{ kind: 'ready', usage: one }} />);
+    expect(screen.queryByRole('heading', { name: /Usage by project/ })).toBeNull();
+  });
+
+  it('is never shown on the project page', () => {
+    render(<ProjectUsage load={{ kind: 'ready', usage: ACTIVE }} />);
+    expect(screen.queryByRole('heading', { name: /Usage by project/ })).toBeNull();
   });
 });

@@ -31,6 +31,16 @@ export const compactTokens = (n: number) => compactFmt.format(n);
 export const formatUsd = (n: number) =>
   n > 0 && n < 0.005 ? `< ${usdFmt.format(0.01)}` : usdFmt.format(n);
 
+/**
+ * "Includes estimated token counts (3 of 8 reports)" when some usage reports carried JGR
+ * `usage_delta.estimated` (the producer could not read exact counts); null when all are exact.
+ */
+export const estimatedNote = (t: { estimatedReports: number; reports: number }) =>
+  t.estimatedReports > 0
+    ? `Includes estimated token counts (${numberFmt.format(t.estimatedReports)} of ` +
+      `${numberFmt.format(t.reports)} ${t.reports === 1 ? 'report' : 'reports'})`
+    : null;
+
 /** "28 Oct" */
 export const shortDay = (day: string) => dayFmt.format(utcDate(day));
 /** "28 Oct 2026" */

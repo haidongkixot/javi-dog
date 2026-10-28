@@ -4,5 +4,6 @@ export {
   ANALYTICS_MAX_DAYS,
   createAnalyticsReader,
   type AnalyticsReader,
+  type UsageOptions,
 } from './reader.ts';
 export type { UsageAnalytics, UsageDay, UsageTotals } from './types.ts';
