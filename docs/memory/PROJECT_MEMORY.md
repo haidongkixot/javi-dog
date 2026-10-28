@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-28 · Current sprint: **Guru G3** (closes S4). S4c budgets/alerts built 2026-10-28 (CI green on `e968421`); S4b analytics and S4a live state built. Next roadmap sprint: S5 (adapter hardening, release gate). S3 built (S3f closed). S3e — token usage via a local OTLP receiver — built, CI green on `a3e4ce8` (`docs/sprints/SPRINT-03e.md`). Last closed: S3d. Waiting on owner: S3b (`CRON_SECRET`), S3c + S3e (first real `javi init` + `javi usage on` + a Claude Code session).
+> Last updated: 2026-10-28 · Current sprint: **S5a production readiness** (`docs/sprints/SPRINT-05a.md`, ADR-0015). The production database (Neon `main`) is migrated; the cutover waits on the owner (Vercel `DATABASE_URL`). Next: the production load test and e2e smoke after cutover, then S5b (Codex and Gemini CLI collectors), then the release gate (`docs/how-to/release-checklist.md`). S4 is closed (Guru G3). Waiting on owner: cutover, `CRON_SECRET`, first real `javi init --usage` run.
 
 ## What we are building
 
@@ -32,6 +32,19 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - S4b built (2026-10-28, ADR-0013): JD-M08 `@javis-dog/analytics` (per-UTC-day tokens, estimated cost, tasks, by model/project, `estimatedReports`); migration 0004 `events_workspace_received_idx` (dev-agent: 5 migrations); Overview token chart (grouped columns + table) + usage by project, Project detail usage; absolute UTC stamps. 23 QA analytics vectors + runner (mutation-checked); Reviewer 1 major fixed red-first; 888 tests. Rendered chart layout NOT verified (screenshot budget 0).
 - S4c built (2026-10-28, ADR-0014; owner: monthly USD per project, alerts on ingest, owners at 80 %/100 %): JD-M12 `@javis-dog/resilience` (`project_budgets` with composite FK, `budget_alerts` exactly-once claims, linear forecast, budget-first claim), migration 0005 (dev-agent: 6 migrations), retention keeps the current UTC month (ADR-0008 change), JD-M09 budget email (one per owner, 10 s timeout, per-attempt idempotency key), JD-M05 `onStored` + `after()`. 25 QA budget vectors + strict runner; real-Postgres parallel-claim check; Reviewer 4 major fixed red-first; 1105 tests. Known limitation: a partial email failure can resend to owners who already got it (≤ 5 attempts).
 
+- S5a (2026-10-28, ADR-0015; owner: release-first, Neon `main` as production, no secret rotation, quotas without migration):
+  - `main` is migrated through the Neon MCP (`db:statements`) and matches `dev-agent`.
+  - Rollback plan, runbooks and release checklist are written.
+  - 52 access-boundary tests.
+  - Security review: 0 critical/high. Fixed:
+    - the organization plugin's HTTP surface is closed (404);
+    - project and token actions are owner/admin only;
+    - 20 projects per workspace and 10 tokens issued per 24 h;
+    - a nesting guard (400 instead of 503);
+    - security headers.
+  - Capped load-test and packed e2e scripts are ready for one production run.
+  - Tests run at turbo concurrency 2 (oversubscription diagnosed).
+
 ## Decisions in force
 
 | Ref | Decision |
@@ -53,6 +66,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0008 | Accepted 2026-10-23: `events` in JD-M06 (dedupe per project), 30-day raw retention, Postgres per-token rate limit (60/min), receiver codes `project_mismatch` / `privacy_class_not_allowed`, 256 KB after gzip |
 | ADR-0007 | Accepted 2026-10-22: welcome email via Resend REST from `onUserCreated`; PII-free auth logging; `errorURL` → `/sign-in` |
 | ADR-0006 | Accepted 2026-10-22: Better Auth organization plugin mapped onto `workspaces`; personal workspace (owner) on first sign-in; open sign-up; telemetry off; OAuth tokens encrypted |
+| ADR-0015 | Accepted 2026-10-28: production database = Neon `main` (the integration's production branch). Migrations go through drizzle `readMigrationFiles` and the Neon MCP, one transaction each. Cutover is an owner step. Rollback paths have stated limits: 6 h restore. The load-test budget is fixed. Accepted risk: no rotation of the exposed secrets |
 | ADR-0005 | Accepted 2026-10-22: module-owned Drizzle tables composed by JD-M06; offline `generate` + neon-http migrator on `dev-agent` only; ingest tokens `jd_it_…` stored as SHA-256; workspace-scoped repository |
 
 ## Open questions / blockers (owner)
@@ -64,7 +78,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Next actions
 
-1. Owner: rotate `neondb_owner` (pasted in chat on 2026-10-20 and 2026-10-23) and the GitHub client secret (pasted 2026-10-22); update Vercel afterwards.
+1. Owner: the cutover in `SPRINT-05a.md` "Owner steps". Optionally reset `neondb_owner` on `main` first, since the exposed password was probably copied to `main`. Then say "cutover done". After that the agent runs the bounded load test and the e2e smoke, and cleanup needs owner OK.
 2. Owner: add `CRON_SECRET` on Vercel Production (steps in `SPRINT-03b.md`) → closes S3b.
 3. Owner: first real `javi init --usage` + a Claude Code session (steps in `SPRINT-03c.md` + `javi usage on`), then `javi status` → closes S3c (exec-form hook `args`) and S3e (usage forwarded, not dropped = session ids match).
 4. Owner: review the G2 Orcasus PR proposal (`guru/WISDOM_LOG.md`, nothing opened) and the policy proposal to add "fetch before planning and before every push; one pusher per branch" to `CLAUDE.md`.

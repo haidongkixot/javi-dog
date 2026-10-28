@@ -102,7 +102,13 @@ Team log, newest first:
 
 ## Log
 
-- Placeholder — entries newest first.
+- 2026-10-28 — `bbb3b6a` deployed.
+  - `/api/health` is ok, but the DB is still `dev-agent` until cutover; it reports 6 migrations.
+  - All 5 security headers are present on `/`, `/integrations`, `/sign-in` and `/api/health`.
+  - Vercel adds HSTS (`max-age=63072000; includeSubDomains; preload`), which settles the reviewer's UNVERIFIED item.
+  - `POST /api/auth/organization/create` returns 404.
+  - CI run 40718637866: in progress.
+- 2026-10-28 — `4daa69c` (docs, ops): CI **PASS**, run 40713050537.
 
 ## Test evidence
 

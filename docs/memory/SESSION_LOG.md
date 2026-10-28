@@ -2,6 +2,25 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-28 · Session 2 (cloud), continued — S5a production readiness
+
+- Owner decisions:
+  - "Release-first". S5a covers production readiness, S5b the Codex and Gemini collectors, then the release gate. GitHub App, MCP server and L1/L2 move to S6+.
+  - "New production branch": use Neon `main`.
+  - "Accept risk, no rotation".
+  - M1 quotas "Caps, no migration".
+- ADR-0015. `main` was empty. 6 migrations went in through the Neon MCP (new `db:statements`); the ledger matches `dev-agent` and the schema diff is empty. Rollback plan, runbooks and release checklist are written.
+- Lanes:
+  - QA wrote 52 access-boundary tests; all PASS.
+  - The Developer built the capped load test and the packed end-to-end smoke, tested locally only.
+  - The Reviewer found 0 critical/high, 2 medium and 5 low.
+  - Developer B fixed M1, M2, L1, L3, L4 and I2 red-first.
+- Diagnosed CPU oversubscription in tests. The root `test` script now runs turbo at concurrency 2.
+- State: production still reads `dev-agent`. The cutover waits on the owner (Vercel env 403 for the agent). Then: production load test and e2e smoke, cleanup of the ephemeral workspace (owner OK), then S5b.
+- Pushes:
+  - `4daa69c`: CI green (run 40713050537).
+  - `bbb3b6a`: pushed; check its CI.
+
 ## 2026-10-28 · Session 2 (cloud), continued — S4c budgets and alerts
 
 - Owner decisions: monthly USD budget per project; alerts on ingest (no cron); workspace owners at 80 %/100 %. ADR-0014; retention keeps the current UTC month (31-day months).
