@@ -243,6 +243,29 @@ describe('flush', () => {
     expect(hung).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps every event on 415 (media type or encoding refused) and drops nothing', async () => {
+    const f = fakeFetch([
+      Response.json({ error: 'unsupported_media_type', message: 'm' }, { status: 415 }),
+    ]);
+    const { c, sleeps } = client({ fetch: f.fn });
+    for (let i = 0; i < 3; i++) await c.record(input());
+    const before = (await c.spool.peek(10)).map((e) => e.event_id);
+    expect(await c.flush()).toEqual({
+      status: 'failed',
+      httpStatus: 415,
+      accepted: 0,
+      duplicates: 0,
+      rejected: 0,
+      dropped: 0,
+      remaining: 3,
+    });
+    expect((await c.spool.peek(10)).map((e) => e.event_id)).toEqual(before);
+    expect(f.fn).toHaveBeenCalledTimes(1);
+    expect(sleeps).toEqual([]);
+    // Once the path is fixed, the next flush delivers the same events.
+    expect(await c.flush()).toMatchObject({ status: 'ok', accepted: 3, remaining: 0 });
+  });
+
   it('stops on unexpected statuses (e.g. 404) and keeps the spool', async () => {
     const f = fakeFetch([new Response(null, { status: 404 })]);
     const { c } = client({ fetch: f.fn });

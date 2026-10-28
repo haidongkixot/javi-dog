@@ -27,7 +27,9 @@ export interface RejectedEvent {
 
 export interface FlushResult {
   /** `ok`: spool drained · `unauthorized`: 401/403, spool kept · `retry_later`: transient
-   *  failures exhausted, spool kept · `failed`: unexpected status (e.g. 404), spool kept. */
+   *  failures exhausted, spool kept · `failed`: 415 (a proxy or the receiver rejects the media
+   *  type or encoding — the events are fine, so they are never dropped) or another unexpected
+   *  status (e.g. 404); spool kept, flush stops without retrying. */
   status: 'ok' | 'unauthorized' | 'retry_later' | 'failed';
   accepted: number;
   duplicates: number;
@@ -64,7 +66,10 @@ const MAX_BATCHES_PER_FLUSH = 1_000;
 
 type SendOutcome =
   | { kind: 'accepted'; accepted: number; duplicates: number; rejected: RejectedEvent[] }
-  | { kind: 'too_large' | 'malformed' | 'unauthorized' | 'failed'; httpStatus: number }
+  | {
+      kind: 'too_large' | 'malformed' | 'unauthorized' | 'unsupported' | 'failed';
+      httpStatus: number;
+    }
   | { kind: 'retry_later'; httpStatus?: number };
 
 const byteLength = (text: string) => new TextEncoder().encode(text).length;
@@ -142,6 +147,8 @@ export const createJgrClient = (options: JgrClientOptions) => {
           return { kind: 'unauthorized', httpStatus: res.status };
         }
         if (res.status === 413) return { kind: 'too_large', httpStatus: 413 };
+        // The request's framing was refused, not the events: pause and keep them (H4).
+        if (res.status === 415) return { kind: 'unsupported', httpStatus: 415 };
         if (res.status !== 429 && res.status < 500) {
           return { kind: 'failed', httpStatus: res.status };
         }
@@ -231,6 +238,7 @@ export const createJgrClient = (options: JgrClientOptions) => {
             break;
           case 'unauthorized':
             return finish('unauthorized', outcome.httpStatus);
+          case 'unsupported':
           case 'failed':
             return finish('failed', outcome.httpStatus);
           case 'retry_later':
