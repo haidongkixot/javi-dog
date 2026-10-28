@@ -1,0 +1,105 @@
+{
+  "$schema": "./schema.json",
+  "description": "Forecast is null while less than 24 h of the UTC month have elapsed (2026-11-01T23:59:59.999Z, 1 ms short) and linear once exactly 24 h have elapsed: 2 USD x 30 days / 1 day = 60. A report 1 ms before the month start is excluded.",
+  "contract": "ADR-0014 Decision outcome: Forecast (\"only once >= 24 h of the month have elapsed (else 'too early to forecast')\"); types.ts forecastUsd (\"null before 24 h of the month have elapsed\")",
+  "now": "2026-11-02T00:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 10
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q05",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -86400001,
+      "receivedAtUtc": "2026-10-31T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 9
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q05",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -84600000,
+      "receivedAtUtc": "2026-11-01T00:30:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.5
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q05",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -43200000,
+      "receivedAtUtc": "2026-11-01T12:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 0.5
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "atOffsetMs": -1,
+      "expect": {
+        "limitUsd": 10,
+        "month": "2026-11",
+        "spendUsd": 2,
+        "percentUsed": 20,
+        "forecastUsd": null,
+        "reports": 2
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 10,
+        "month": "2026-11",
+        "spendUsd": 2,
+        "percentUsed": 20,
+        "forecastUsd": 60,
+        "reports": 2
+      }
+    }
+  ]
+}

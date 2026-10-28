@@ -1,0 +1,178 @@
+{
+  "$schema": "./schema.json",
+  "description": "With 80 % already sent, 99.99 USD of 100 USD claims nothing; one more report of 0.01 USD reaches exactly 100 % and yields one job at 100. Afterwards alerted = [80, 100] and nothing is left to claim.",
+  "contract": "ADR-0014 Decision outcome: Thresholds; Exactly-once per (project, month, threshold)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q11a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1562400000,
+      "receivedAtUtc": "2026-10-10T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 60
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q11a",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -93600000,
+      "receivedAtUtc": "2026-10-27T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 39.99
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "month": "2026-10-01",
+      "threshold": 80,
+      "status": "sent",
+      "attempts": 1,
+      "claimedOffsetMs": -93595000,
+      "claimedAtUtc": "2026-10-27T10:00:05.000Z",
+      "sentOffsetMs": -93594000,
+      "sentAtUtc": "2026-10-27T10:00:06.000Z"
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "spendUsd": 99.99,
+        "percentUsed": 99.99,
+        "alerted": [80]
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "insertEvents",
+      "events": [
+        {
+          "workspace": "A",
+          "project": "web",
+          "thread_ref": "cc_q11b",
+          "type": "usage.reported",
+          "sequence": 1,
+          "receivedOffsetMs": -60000,
+          "receivedAtUtc": "2026-10-28T11:59:00.000Z",
+          "usage_delta": {
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 0.01
+          }
+        }
+      ]
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "spendUsd": 100,
+        "percentUsed": 100,
+        "reports": 3
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 100,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j1",
+      "outcome": "sent",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "alerted": [80, 100]
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "sent",
+            "attempts": 1
+          },
+          {
+            "month": "2026-10-01",
+            "threshold": 100,
+            "status": "sent",
+            "attempts": 1
+          }
+        ]
+      }
+    }
+  ]
+}

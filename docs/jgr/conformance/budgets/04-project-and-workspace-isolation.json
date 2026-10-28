@@ -1,0 +1,151 @@
+{
+  "$schema": "./schema.json",
+  "description": "Spend is per project: another project of the same workspace (api, 60 USD) and a project with the same slug in another workspace (B/web, 70 USD) never leak into A/web. Each status is computed for its own project; api has no budget.",
+  "contract": "ADR-0014 Decision outcome: Budget (\"one optional monthly limit per project\"); Month-to-date spend (\"the project's usage.reported events\"); TEST_PLAN §S4c Isolation",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    },
+    "bo": {
+      "email": "ownerb.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    },
+    "B": {
+      "name": "Workspace B",
+      "members": [
+        {
+          "user": "bo",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web B",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q04a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1562400000,
+      "receivedAtUtc": "2026-10-10T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 10
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_q04b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1476000000,
+      "receivedAtUtc": "2026-10-11T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 60
+      }
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_q04c",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1389600000,
+      "receivedAtUtc": "2026-10-12T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 70
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "spendUsd": 10,
+        "percentUsed": 10,
+        "reports": 1,
+        "alerted": []
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "api",
+      "expect": {
+        "limitUsd": null,
+        "percentUsed": null,
+        "spendUsd": 60,
+        "reports": 1,
+        "alerted": []
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "B",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "spendUsd": 70,
+        "percentUsed": 70,
+        "reports": 1
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "B",
+      "project": "web",
+      "expect": null
+    }
+  ]
+}

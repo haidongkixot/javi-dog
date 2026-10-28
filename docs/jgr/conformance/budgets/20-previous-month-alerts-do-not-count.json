@@ -1,0 +1,153 @@
+{
+  "$schema": "./schema.json",
+  "description": "Rows for September (80 and 100 sent) and 500 USD of September spend do not affect October: alerted starts empty and 85 USD in October yields a new 80 job keyed by month 2026-10-01; September rows stay untouched.",
+  "contract": "ADR-0014 Decision outcome: Exactly-once per (project, month, threshold); tables.ts month (\"First day of the UTC month\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q20",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -3290400000,
+      "receivedAtUtc": "2026-09-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 500
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q20",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -698400000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 85
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "month": "2026-09-01",
+      "threshold": 100,
+      "status": "sent",
+      "attempts": 1,
+      "claimedOffsetMs": -3290395000,
+      "claimedAtUtc": "2026-09-20T10:00:05.000Z",
+      "sentOffsetMs": -3290394000,
+      "sentAtUtc": "2026-09-20T10:00:06.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "month": "2026-09-01",
+      "threshold": 80,
+      "status": "covered",
+      "attempts": 1,
+      "claimedOffsetMs": -3290395000,
+      "claimedAtUtc": "2026-09-20T10:00:05.000Z"
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "month": "2026-10",
+        "spendUsd": 85,
+        "percentUsed": 85,
+        "reports": 1,
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j1",
+      "outcome": "sent",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "alerted": [80]
+      }
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-09-01",
+            "threshold": 80,
+            "status": "covered"
+          },
+          {
+            "month": "2026-09-01",
+            "threshold": 100,
+            "status": "sent",
+            "attempts": 1
+          },
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "sent",
+            "attempts": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "$schema": "./schema.json",
+  "description": "Month-to-date spend covers the current UTC calendar month only: a report 1 ms before 2026-10-01T00:00:00.000Z and an older September report are excluded, the report at exactly 00:00:00.000 is included.",
+  "contract": "ADR-0014 Decision outcome: Month-to-date spend (\"received in the current UTC calendar month\"); Forecast (\"spend x month length / elapsed\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q01",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -3722400000,
+      "receivedAtUtc": "2026-09-15T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 9
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q01",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -2376000001,
+      "receivedAtUtc": "2026-09-30T23:59:59.999Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 5
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q01",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -2376000000,
+      "receivedAtUtc": "2026-10-01T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.25
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q01",
+      "type": "usage.reported",
+      "sequence": 4,
+      "receivedOffsetMs": -1137600000,
+      "receivedAtUtc": "2026-10-15T08:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 2.75
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "month": "2026-10",
+        "spendUsd": 4,
+        "percentUsed": 4,
+        "forecastUsd": 4.509091,
+        "reports": 2,
+        "estimatedReports": 0,
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    }
+  ]
+}

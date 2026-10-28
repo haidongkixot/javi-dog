@@ -1,0 +1,157 @@
+{
+  "$schema": "./schema.json",
+  "description": "A pending claim older than 10 min (11 min, the sender presumably died) is reclaimed with attempts + 1; a pending claim 9 min old is still in flight and is not reclaimed. Pending is not alerted.",
+  "contract": "ADR-0014 Decision outcome: Exactly-once (\"a later ingest may reclaim it (failed, or pending older than 10 min)\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        },
+        {
+          "slug": "api",
+          "name": "API",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q18a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -3600000,
+      "receivedAtUtc": "2026-10-28T11:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 85
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_q18b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -3600000,
+      "receivedAtUtc": "2026-10-28T11:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 85
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "month": "2026-10-01",
+      "threshold": 80,
+      "status": "pending",
+      "attempts": 1,
+      "claimedOffsetMs": -660000,
+      "claimedAtUtc": "2026-10-28T11:49:00.000Z"
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "month": "2026-10-01",
+      "threshold": 80,
+      "status": "pending",
+      "attempts": 1,
+      "claimedOffsetMs": -540000,
+      "claimedAtUtc": "2026-10-28T11:51:00.000Z"
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "alerted": []
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "api",
+      "expect": {
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "pending",
+            "attempts": 2
+          }
+        ]
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "api",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "api",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "pending",
+            "attempts": 1
+          }
+        ]
+      }
+    }
+  ]
+}

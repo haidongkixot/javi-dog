@@ -1,0 +1,112 @@
+{
+  "$schema": "./schema.json",
+  "description": "A project id from workspace B used in workspace A: status is null and setBudget is refused. B's budget stays 100, and A's own project with the same slug gets no budget.",
+  "contract": "ADR-0014 Decision outcome: Budget (project_budgets workspace_id; set by the workspace's owners and admins); TEST_PLAN §S4c (\"status/set/clear only within the workspace\"; \"foreign project -> null / refused\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    },
+    "bo": {
+      "email": "ownerb.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    },
+    "B": {
+      "name": "Workspace B",
+      "members": [
+        {
+          "user": "bo",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web B",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_q24",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -698400000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 30
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "foreignProject": {
+        "workspace": "B",
+        "slug": "web"
+      },
+      "expect": null
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "foreignProject": {
+        "workspace": "B",
+        "slug": "web"
+      },
+      "limitUsd": 5,
+      "by": "o1",
+      "expect": {
+        "ok": false,
+        "errorKind": "not_found"
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "B",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "spendUsd": 30,
+        "percentUsed": 30
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": null,
+        "spendUsd": 0,
+        "reports": 0
+      }
+    }
+  ]
+}

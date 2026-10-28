@@ -1,0 +1,76 @@
+{
+  "$schema": "./schema.json",
+  "description": "AMBIGUOUS A5. The only owner is unverified; a verified admin and member exist. Nobody may be emailed: the claim is either null or a job at 80 with an empty recipient list. Never an admin or member address.",
+  "contract": "ADR-0014 Decision outcome: Thresholds (\"emails the workspace owners (verified users.email ...)\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o2": {
+      "email": "owner-unverified.q3@example.com",
+      "emailVerified": false
+    },
+    "ad": {
+      "email": "admin.q3@example.com",
+      "emailVerified": true
+    },
+    "mb": {
+      "email": "member.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o2",
+          "role": "owner"
+        },
+        {
+          "user": "ad",
+          "role": "admin"
+        },
+        {
+          "user": "mb",
+          "role": "member"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q22",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -698400000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 90
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "threshold": 80,
+        "recipients": [],
+        "acceptNull": true
+      }
+    }
+  ]
+}

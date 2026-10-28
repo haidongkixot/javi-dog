@@ -1,0 +1,79 @@
+{
+  "$schema": "./schema.json",
+  "description": "Day 31 of a 31-day month: the report received at 2026-10-01T00:00:00.000Z still counts (no purge is run here), and the forecast is linear over 31 days: 743 USD after 743 h -> 743 x 744 h / 743 h = 744.",
+  "contract": "ADR-0014 Decision outcome: Month-to-date spend; Forecast (\"spend x month length / elapsed\"); Retention change; SPRINT-04c Review focus (\"Day 31 of a 31-day month -> spend still includes day 1\")",
+  "now": "2026-10-31T23:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 1000
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q06",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -2674800000,
+      "receivedAtUtc": "2026-10-01T00:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 400
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q06",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -997200000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 343
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 1000,
+        "month": "2026-10",
+        "spendUsd": 743,
+        "percentUsed": 74.3,
+        "forecastUsd": 744,
+        "reports": 2,
+        "estimatedReports": 0,
+        "alerted": []
+      }
+    }
+  ]
+}

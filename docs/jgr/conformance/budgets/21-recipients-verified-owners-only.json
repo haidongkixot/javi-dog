@@ -1,0 +1,155 @@
+{
+  "$schema": "./schema.json",
+  "description": "Recipients are the verified owners of the project's workspace only. A: verified owners o1, o3 receive; unverified owner o2, admin, member, and bo (owner of B but only a member of A) do not. B: its owners bo and bx receive; nobody from A does.",
+  "contract": "ADR-0014 Decision outcome: Thresholds (\"emails the workspace owners (verified users.email via workspace_members.role = 'owner')\"); types.ts recipients (\"Verified emails of the workspace owners\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    },
+    "o2": {
+      "email": "owner2-unverified.q3@example.com",
+      "emailVerified": false
+    },
+    "o3": {
+      "email": "owner3.q3@example.com",
+      "emailVerified": true
+    },
+    "ad": {
+      "email": "admin.q3@example.com",
+      "emailVerified": true
+    },
+    "mb": {
+      "email": "member.q3@example.com",
+      "emailVerified": true
+    },
+    "bo": {
+      "email": "owner-of-b.q3@example.com",
+      "emailVerified": true
+    },
+    "bx": {
+      "email": "owner-only-b.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        },
+        {
+          "user": "o2",
+          "role": "owner"
+        },
+        {
+          "user": "o3",
+          "role": "owner"
+        },
+        {
+          "user": "ad",
+          "role": "admin"
+        },
+        {
+          "user": "mb",
+          "role": "member"
+        },
+        {
+          "user": "bo",
+          "role": "member"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    },
+    "B": {
+      "name": "Workspace B",
+      "members": [
+        {
+          "user": "bo",
+          "role": "owner"
+        },
+        {
+          "user": "bx",
+          "role": "owner"
+        },
+        {
+          "user": "o1",
+          "role": "member"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web B",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q21a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -698400000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 90
+      }
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_q21b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -698400000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 95
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com", "owner3.q3@example.com"]
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "B",
+      "project": "web",
+      "label": "j2",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner-of-b.q3@example.com", "owner-only-b.q3@example.com"],
+        "projectName": "Web B"
+      }
+    }
+  ]
+}

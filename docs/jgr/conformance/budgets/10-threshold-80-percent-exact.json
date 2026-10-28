@@ -1,0 +1,147 @@
+{
+  "$schema": "./schema.json",
+  "description": "Exactly 80.00 USD of 100 USD crosses 80 %: one job at 80 for the verified owner; after markAlert sent, alerted = [80] and a second claim returns null.",
+  "contract": "ADR-0014 Decision outcome: Thresholds; Exactly-once (\"a row is claimed ... before sending; on success status = sent\"); types.ts alerted (\"sent or covered\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q10",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1562400000,
+      "receivedAtUtc": "2026-10-10T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 50
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q10",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -698400000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 30
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "spendUsd": 80,
+        "percentUsed": 80,
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com"],
+        "projectSlug": "web",
+        "projectName": "Web app",
+        "status": {
+          "limitUsd": 100,
+          "month": "2026-10",
+          "spendUsd": 80,
+          "percentUsed": 80
+        }
+      }
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "pending",
+            "attempts": 1
+          }
+        ]
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j1",
+      "outcome": "sent",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "alerted": [80]
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "sent",
+            "attempts": 1
+          }
+        ]
+      }
+    }
+  ]
+}

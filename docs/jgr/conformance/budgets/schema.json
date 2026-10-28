@@ -1,0 +1,701 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:javis-dog:jgr:conformance:budgets:vector:adr-0014",
+  "title": "JGR v0.1 budget conformance vector (ADR-0014 budgets, forecast and alerts)",
+  "description": "One black-box case for the JD-M12 budget repository: seeded users, workspaces with members and roles, projects with optional budgets, stored events and budget_alerts rows relative to a pinned now -> an ordered list of steps (status, claimAlert, markAlert, setBudget, insertEvents, alertRows) with partial expectations. Derived from ADR-0014, JGR spec v0.1 §6 and §10, SPRINT-04c and the contract types of @javis-dog/resilience. See README.md for runner semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description", "contract", "now", "users", "workspaces", "events", "steps"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contract": {
+      "description": "Contract text the expectations are derived from (ADR-0014 section, types.ts / tables.ts comment, spec section, sprint review focus).",
+      "type": "string",
+      "minLength": 1
+    },
+    "now": {
+      "description": "Pinned instant. Every offset in the vector is relative to it; a step runs at now + atOffsetMs (default 0).",
+      "$ref": "#/definitions/instant"
+    },
+    "users": {
+      "description": "Users to create, keyed by a vector-local key (o1, ad, ...).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/definitions/userKey"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/user"
+      }
+    },
+    "workspaces": {
+      "description": "Workspaces to create, keyed by a vector-local key (A, B, ...).",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[A-Z]$"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/workspace"
+      }
+    },
+    "events": {
+      "description": "Rows to insert into the event store before the first step, in any order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/event"
+      }
+    },
+    "alerts": {
+      "description": "Pre-existing budget_alerts rows, inserted before the first step.",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/alertSeed"
+      }
+    },
+    "steps": {
+      "description": "Operations run strictly in array order, each after the previous one has settled.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/step"
+      }
+    }
+  },
+  "definitions": {
+    "instant": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    },
+    "monthStart": {
+      "description": "budget_alerts.month: first day of a UTC month (tables.ts).",
+      "type": "string",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])-01$"
+    },
+    "month": {
+      "description": "BudgetStatus.month: UTC month, e.g. 2026-10 (types.ts).",
+      "type": "string",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+    },
+    "ref": {
+      "description": "Opaque identifier, spec §3.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_:-]{1,128}$"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "userKey": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{0,15}$"
+    },
+    "workspaceKey": {
+      "type": "string",
+      "pattern": "^[A-Z]$"
+    },
+    "label": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]{0,15}$"
+    },
+    "threshold": {
+      "enum": [80, 100]
+    },
+    "pastOffsetMs": {
+      "description": "Milliseconds relative to now; 0 or negative (before now).",
+      "type": "integer",
+      "maximum": 0
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "usd": {
+      "description": "A US dollar amount (number, never a string).",
+      "type": "number"
+    },
+    "email": {
+      "type": "string",
+      "pattern": "^[^@\\s]+@[^@\\s]+\\.[a-z]{2,}$"
+    },
+    "user": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["email", "emailVerified"],
+      "properties": {
+        "email": {
+          "$ref": "#/definitions/email"
+        },
+        "emailVerified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user", "role"],
+      "properties": {
+        "user": {
+          "$ref": "#/definitions/userKey"
+        },
+        "role": {
+          "enum": ["owner", "admin", "member"]
+        }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "members", "projects"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/member"
+          }
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/project"
+          }
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "name"],
+      "properties": {
+        "slug": {
+          "$ref": "#/definitions/slug"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "budget": {
+          "description": "Seeded project_budgets row (written directly, not through setBudget). Omitted: the project has no budget.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["limitUsd"],
+          "properties": {
+            "limitUsd": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000000
+            }
+          }
+        }
+      }
+    },
+    "usageDelta": {
+      "description": "Spec §6 usage_delta.",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "input_tokens": {
+          "$ref": "#/definitions/count"
+        },
+        "output_tokens": {
+          "$ref": "#/definitions/count"
+        },
+        "cache_read_tokens": {
+          "$ref": "#/definitions/count"
+        },
+        "cache_write_tokens": {
+          "$ref": "#/definitions/count"
+        },
+        "reasoning_tokens": {
+          "$ref": "#/definitions/count"
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "estimated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace",
+        "project",
+        "thread_ref",
+        "type",
+        "sequence",
+        "receivedOffsetMs",
+        "receivedAtUtc"
+      ],
+      "properties": {
+        "workspace": {
+          "$ref": "#/definitions/workspaceKey"
+        },
+        "project": {
+          "$ref": "#/definitions/slug"
+        },
+        "thread_ref": {
+          "$ref": "#/definitions/ref"
+        },
+        "type": {
+          "description": "Spec §4 core type or x.<vendor>.<name> extension.",
+          "type": "string",
+          "pattern": "^(session\\.started|session\\.ended|agent\\.started|agent\\.stopped|heartbeat|task\\.started|task\\.completed|task\\.failed|attention\\.requested|usage\\.reported|error|x\\.[a-z0-9-]+\\.[a-z0-9_.-]+)$"
+        },
+        "status": {
+          "enum": ["working", "waiting", "idle", "blocked", "failed", "completed"]
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "receivedOffsetMs": {
+          "description": "received_at = now + offset. Normative.",
+          "$ref": "#/definitions/pastOffsetMs"
+        },
+        "receivedAtUtc": {
+          "description": "Informative: now + receivedOffsetMs written out. A mismatch is a vector defect (BLOCKED).",
+          "$ref": "#/definitions/instant"
+        },
+        "occurredOffsetMs": {
+          "description": "occurred_at = now + offset. Omitted: equal to received_at. At most 5 minutes later than received_at (spec §10).",
+          "type": "integer"
+        },
+        "usage_delta": {
+          "$ref": "#/definitions/usageDelta"
+        }
+      }
+    },
+    "alertSeed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace",
+        "project",
+        "month",
+        "threshold",
+        "status",
+        "attempts",
+        "claimedOffsetMs",
+        "claimedAtUtc"
+      ],
+      "properties": {
+        "workspace": {
+          "$ref": "#/definitions/workspaceKey"
+        },
+        "project": {
+          "$ref": "#/definitions/slug"
+        },
+        "month": {
+          "$ref": "#/definitions/monthStart"
+        },
+        "threshold": {
+          "$ref": "#/definitions/threshold"
+        },
+        "status": {
+          "enum": ["pending", "sent", "failed", "covered"]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "claimedOffsetMs": {
+          "$ref": "#/definitions/pastOffsetMs"
+        },
+        "claimedAtUtc": {
+          "$ref": "#/definitions/instant"
+        },
+        "sentOffsetMs": {
+          "$ref": "#/definitions/pastOffsetMs"
+        },
+        "sentAtUtc": {
+          "$ref": "#/definitions/instant"
+        }
+      }
+    },
+    "projectRef": {
+      "description": "Exactly one of project (slug in the step's workspace) or foreignProject (a project of another workspace).",
+      "oneOf": [
+        {
+          "required": ["project"],
+          "not": {
+            "required": ["foreignProject"]
+          }
+        },
+        {
+          "required": ["foreignProject"],
+          "not": {
+            "required": ["project"]
+          }
+        }
+      ]
+    },
+    "foreignProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace", "slug"],
+      "properties": {
+        "workspace": {
+          "$ref": "#/definitions/workspaceKey"
+        },
+        "slug": {
+          "$ref": "#/definitions/slug"
+        }
+      }
+    },
+    "statusExpect": {
+      "description": "Partial BudgetStatus. Omitted keys are not checked.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limitUsd": {
+          "type": ["number", "null"]
+        },
+        "month": {
+          "$ref": "#/definitions/month"
+        },
+        "spendUsd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "percentUsed": {
+          "type": ["number", "null"]
+        },
+        "forecastUsd": {
+          "type": ["number", "null"]
+        },
+        "reports": {
+          "$ref": "#/definitions/count"
+        },
+        "estimatedReports": {
+          "$ref": "#/definitions/count"
+        },
+        "alerted": {
+          "description": "Set equality (order ignored).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/threshold"
+          }
+        }
+      }
+    },
+    "claimExpect": {
+      "description": "Partial BudgetAlertJob.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["threshold", "recipients"],
+      "properties": {
+        "threshold": {
+          "$ref": "#/definitions/threshold"
+        },
+        "recipients": {
+          "description": "Set equality with the job's recipients (order ignored, no duplicates).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/email"
+          }
+        },
+        "projectSlug": {
+          "$ref": "#/definitions/slug"
+        },
+        "projectName": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/statusExpect"
+        },
+        "acceptNull": {
+          "description": "AMBIGUOUS cases only: a null claim also passes (README A5).",
+          "const": true
+        }
+      }
+    },
+    "alertRowExpect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["month", "threshold", "status"],
+      "properties": {
+        "month": {
+          "$ref": "#/definitions/monthStart"
+        },
+        "threshold": {
+          "$ref": "#/definitions/threshold"
+        },
+        "status": {
+          "enum": ["pending", "sent", "failed", "covered"]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "step": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/statusStep"
+        },
+        {
+          "$ref": "#/definitions/claimStep"
+        },
+        {
+          "$ref": "#/definitions/markStep"
+        },
+        {
+          "$ref": "#/definitions/setBudgetStep"
+        },
+        {
+          "$ref": "#/definitions/insertEventsStep"
+        },
+        {
+          "$ref": "#/definitions/alertRowsStep"
+        }
+      ]
+    },
+    "statusStep": {
+      "description": "status(<workspace id>, <project id>, now) -> BudgetStatus | null.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "workspace", "expect"],
+      "allOf": [
+        {
+          "$ref": "#/definitions/projectRef"
+        }
+      ],
+      "properties": {
+        "op": {
+          "const": "status"
+        },
+        "workspace": {
+          "$ref": "#/definitions/workspaceKey"
+        },
+        "project": {
+          "$ref": "#/definitions/slug"
+        },
+        "foreignProject": {
+          "$ref": "#/definitions/foreignProject"
+        },
+        "atOffsetMs": {
+          "$ref": "#/definitions/pastOffsetMs"
+        },
+        "expect": {
+          "description": "null: the result is null. Object: partial BudgetStatus.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/statusExpect"
+            }
+          ]
+        }
+      }
+    },
+    "claimStep": {
+      "description": "claimAlert(<workspace id>, <project id>, now) -> BudgetAlertJob | null; with parallel n, n calls started together.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "workspace", "project", "expect"],
+      "properties": {
+        "op": {
+          "const": "claimAlert"
+        },
+        "workspace": {
+          "$ref": "#/definitions/workspaceKey"
+        },
+        "project": {
+          "$ref": "#/definitions/slug"
+        },
+        "label": {
+          "description": "Name of the (single) non-null job, referenced by a later markAlert.",
+          "$ref": "#/definitions/label"
+        },
+        "parallel": {
+          "description": "Number of concurrent claims (Promise.all). Expect: exactly one non-null result matching expect and n-1 nulls; or all null when expect is null.",
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 10
+        },
+        "atOffsetMs": {
+          "$ref": "#/definitions/pastOffsetMs"
+        },
+        "expect": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/definitions/claimExpect"
+            }
+          ]
+        }
+      }
+    },
+    "markStep": {
+      "description": "markAlert(<alertId of the labelled job>, outcome, now).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "job", "outcome"],
+      "properties": {
+        "op": {
+          "const": "markAlert"
+        },
+        "job": {
+          "$ref": "#/definitions/label"
+        },
+        "outcome": {
+          "enum": ["sent", "failed"]
+        },
+        "atOffsetMs": {
+          "$ref": "#/definitions/pastOffsetMs"
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ok"],
+          "properties": {
+            "ok": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "setBudgetStep": {
+      "description": "setBudget(<workspace id>, <project id>, limitUsd | null, <user id of by>). null clears the budget.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "workspace", "limitUsd", "expect"],
+      "allOf": [
+        {
+          "$ref": "#/definitions/projectRef"
+        }
+      ],
+      "properties": {
+        "op": {
+          "const": "setBudget"
+        },
+        "workspace": {
+          "$ref": "#/definitions/workspaceKey"
+        },
+        "project": {
+          "$ref": "#/definitions/slug"
+        },
+        "foreignProject": {
+          "$ref": "#/definitions/foreignProject"
+        },
+        "limitUsd": {
+          "type": ["number", "null"]
+        },
+        "by": {
+          "$ref": "#/definitions/userKey"
+        },
+        "atOffsetMs": {
+          "$ref": "#/definitions/pastOffsetMs"
+        },
+        "expect": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ok"],
+              "properties": {
+                "ok": {
+                  "const": true
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ok", "errorKind"],
+              "properties": {
+                "ok": {
+                  "const": false
+                },
+                "errorKind": {
+                  "description": "Informative category (README A9): invalid_limit or not_found.",
+                  "enum": ["invalid_limit", "not_found"]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "insertEventsStep": {
+      "description": "Insert more event rows (same rules as top-level events) between two steps.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "events"],
+      "properties": {
+        "op": {
+          "const": "insertEvents"
+        },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/event"
+          }
+        }
+      }
+    },
+    "alertRowsStep": {
+      "description": "Read budget_alerts rows of one project directly (tables.ts contract).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "workspace", "project", "expect"],
+      "properties": {
+        "op": {
+          "const": "alertRows"
+        },
+        "workspace": {
+          "$ref": "#/definitions/workspaceKey"
+        },
+        "project": {
+          "$ref": "#/definitions/slug"
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["exact", "rows"],
+          "properties": {
+            "exact": {
+              "description": "true: the project has exactly these rows. false: each listed row exists; others may too.",
+              "type": "boolean"
+            },
+            "rows": {
+              "description": "Each entry matches exactly one row by (month, threshold); listed fields compared.",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/alertRowExpect"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

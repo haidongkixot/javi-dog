@@ -1,0 +1,139 @@
+{
+  "$schema": "./schema.json",
+  "description": "Without a budget: limitUsd and percentUsed null, spend still reported, no claim, no row. After setBudget 100 the same spend is 90 % and claims 80. After clearing the budget (null), limitUsd is null again and nothing is claimed.",
+  "contract": "ADR-0014 Decision outcome: Budget (\"one optional monthly limit\"; \"Set or cleared\"); Thresholds (\"for a project with a budget\"); types.ts limitUsd / percentUsed (\"null when the project has no budget\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q23",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -698400000,
+      "receivedAtUtc": "2026-10-20T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 90
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": null,
+        "percentUsed": null,
+        "month": "2026-10",
+        "spendUsd": 90,
+        "reports": 1,
+        "alerted": []
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": []
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": 100,
+      "by": "o1",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "percentUsed": 90,
+        "spendUsd": 90
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j1",
+      "outcome": "sent",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": null,
+      "by": "o1",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": null,
+        "percentUsed": null,
+        "spendUsd": 90
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    }
+  ]
+}

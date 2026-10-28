@@ -1,0 +1,197 @@
+{
+  "$schema": "./schema.json",
+  "description": "80 % is sent at 85/100 USD. The owner raises the limit to 200 mid-month; spend later reaches 170 USD (85 % of the new limit): no second 80 % job. Crossing 100 % of the new limit (210 USD) still yields one job at 100.",
+  "contract": "ADR-0014 Decision outcome: Exactly-once (\"Raising a limit mid-month does not re-send a threshold already alerted this month\")",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q19a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1562400000,
+      "receivedAtUtc": "2026-10-10T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 85
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j1",
+      "outcome": "sent",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "setBudget",
+      "workspace": "A",
+      "project": "web",
+      "limitUsd": 200,
+      "by": "o1",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 200,
+        "spendUsd": 85,
+        "percentUsed": 42.5,
+        "alerted": [80]
+      }
+    },
+    {
+      "op": "insertEvents",
+      "events": [
+        {
+          "workspace": "A",
+          "project": "web",
+          "thread_ref": "cc_q19b",
+          "type": "usage.reported",
+          "sequence": 1,
+          "receivedOffsetMs": -7200000,
+          "receivedAtUtc": "2026-10-28T10:00:00.000Z",
+          "usage_delta": {
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 85
+          }
+        }
+      ]
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 200,
+        "spendUsd": 170,
+        "percentUsed": 85,
+        "alerted": [80]
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "expect": null
+    },
+    {
+      "op": "insertEvents",
+      "events": [
+        {
+          "workspace": "A",
+          "project": "web",
+          "thread_ref": "cc_q19c",
+          "type": "usage.reported",
+          "sequence": 1,
+          "receivedOffsetMs": -3600000,
+          "receivedAtUtc": "2026-10-28T11:00:00.000Z",
+          "usage_delta": {
+            "input_tokens": 100,
+            "output_tokens": 10,
+            "cost_usd": 40
+          }
+        }
+      ]
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j2",
+      "expect": {
+        "threshold": 100,
+        "recipients": ["owner1.q3@example.com"],
+        "status": {
+          "limitUsd": 200,
+          "spendUsd": 210,
+          "percentUsed": 105
+        }
+      }
+    },
+    {
+      "op": "markAlert",
+      "job": "j2",
+      "outcome": "sent",
+      "expect": {
+        "ok": true
+      }
+    },
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "alerted": [80, 100]
+      }
+    },
+    {
+      "op": "alertRows",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "exact": true,
+        "rows": [
+          {
+            "month": "2026-10-01",
+            "threshold": 80,
+            "status": "sent",
+            "attempts": 1
+          },
+          {
+            "month": "2026-10-01",
+            "threshold": 100,
+            "status": "sent",
+            "attempts": 1
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,267 @@
+{
+  "$schema": "./schema.json",
+  "description": "AMBIGUOUS A4. 64.60 + 14 x 1.10 = 80.00 USD exactly in decimal (cents), but 79.99999999999991-79.99999999999999 when summed as binary floating point in any position of the 64.60 report. Money is cents (numeric(12,2) limit), so 80 % is crossed: one job at 80.",
+  "contract": "ADR-0014 Decision outcome: Budget (\"monthly_limit_usd numeric(12,2)\"); Thresholds (\"80 % ... of the limit\"); spec §6 (cost_usd is a number)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "users": {
+    "o1": {
+      "email": "owner1.q3@example.com",
+      "emailVerified": true
+    }
+  },
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "members": [
+        {
+          "user": "o1",
+          "role": "owner"
+        }
+      ],
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app",
+          "budget": {
+            "limitUsd": 100
+          }
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -2253600000,
+      "receivedAtUtc": "2026-10-02T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 64.6
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -2167200000,
+      "receivedAtUtc": "2026-10-03T10:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -2163600000,
+      "receivedAtUtc": "2026-10-03T11:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 4,
+      "receivedOffsetMs": -2160000000,
+      "receivedAtUtc": "2026-10-03T12:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 5,
+      "receivedOffsetMs": -2156400000,
+      "receivedAtUtc": "2026-10-03T13:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 6,
+      "receivedOffsetMs": -2152800000,
+      "receivedAtUtc": "2026-10-03T14:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 7,
+      "receivedOffsetMs": -2149200000,
+      "receivedAtUtc": "2026-10-03T15:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 8,
+      "receivedOffsetMs": -2145600000,
+      "receivedAtUtc": "2026-10-03T16:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 9,
+      "receivedOffsetMs": -2142000000,
+      "receivedAtUtc": "2026-10-03T17:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 10,
+      "receivedOffsetMs": -2138400000,
+      "receivedAtUtc": "2026-10-03T18:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 11,
+      "receivedOffsetMs": -2134800000,
+      "receivedAtUtc": "2026-10-03T19:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 12,
+      "receivedOffsetMs": -2131200000,
+      "receivedAtUtc": "2026-10-03T20:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 13,
+      "receivedOffsetMs": -2127600000,
+      "receivedAtUtc": "2026-10-03T21:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 14,
+      "receivedOffsetMs": -2124000000,
+      "receivedAtUtc": "2026-10-03T22:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_q12",
+      "type": "usage.reported",
+      "sequence": 15,
+      "receivedOffsetMs": -2120400000,
+      "receivedAtUtc": "2026-10-03T23:00:00.000Z",
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 10,
+        "cost_usd": 1.1
+      }
+    }
+  ],
+  "steps": [
+    {
+      "op": "status",
+      "workspace": "A",
+      "project": "web",
+      "expect": {
+        "limitUsd": 100,
+        "spendUsd": 80,
+        "percentUsed": 80,
+        "reports": 15
+      }
+    },
+    {
+      "op": "claimAlert",
+      "workspace": "A",
+      "project": "web",
+      "label": "j1",
+      "expect": {
+        "threshold": 80,
+        "recipients": ["owner1.q3@example.com"]
+      }
+    }
+  ]
+}
