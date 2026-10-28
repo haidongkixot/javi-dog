@@ -5,6 +5,12 @@
   "status": "in-progress",
   "description": "Usage analytics (ADR-0013): per-UTC-day tokens, estimated cost and task outcomes, by model and by project, workspace-scoped from stored JGR events.",
   "owner": "platform",
-  "provides": ["createAnalyticsReader()", "UsageAnalytics", "ANALYTICS_DEFAULT_DAYS"],
+  "provides": [
+    "createAnalyticsReader()",
+    "UsageAnalytics",
+    "UsageOptions",
+    "ANALYTICS_DEFAULT_DAYS",
+    "ANALYTICS_MAX_DAYS"
+  ],
   "consumes": ["JD-M06", "JD-M04"]
 }

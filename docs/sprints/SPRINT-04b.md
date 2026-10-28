@@ -1,6 +1,6 @@
 # Sprint 04b — Usage analytics (JD-M08)
 
-- Dates: 2026-10-28 (timebox 30 min) · Status: **ACTIVE**
+- Dates: 2026-10-28 (timebox 30 min) · Status: **BUILT** — closes with CI green on the push
 - Goal: owners see 14-day token trends (with estimated cost), usage by model and by project, and task outcomes — from stored JGR events, workspace-scoped.
 - Modules touched: JD-M08 (new), JD-M06 (migration 0004), JD-APP, docs
 - Readiness gate: migration 0004 (index only) on `dev-agent` after the deploy; production has no usage events until the owner's first real run
@@ -42,7 +42,9 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
-- 2026-10-28 — Reviewer — launched on `6ed8beb..HEAD`; push held until findings are closed.
+- 2026-10-28 — Orchestrator — Merged review fixes (`3eb5852`); changeset, ADR-0013 Changes (incl. nits 6–8 documented), module provides.
+- 2026-10-28 — Developer — Review fixes 1–5, tests first: red analytics 14 / web 18 FAIL, then green (analytics 58 ×2, web 214 ×2); conformance runner unchanged and passing.
+- 2026-10-28 — Reviewer — no blockers; 1 major (usage ages freeze on an open page — rule 2), 4 minor (estimated counts ignored, month labels collide, series identity, `byProject` computed but unused), 3 nits; verified isolation, UTC bucketing in 3 time zones, cost rounding, index use (92k events), 0004 hash.
 - 2026-10-28 — Orchestrator — Runner `packages/analytics/test/analytics-conformance.test.ts`: 23/23 on first run. Mutations: bucketing by `occurred_at` → only vector 10 FAIL; workspace filters removed → only 19, 20, 23 FAIL; restored. Merged W3 (`1af5ad1`). Full gate 865 tests. Contract wording: a filtered project appears in `byProject` only with usage (A1 lane question, QA A6).
 - 2026-10-28 — Developer B — W3: grouped columns (input vs output per UTC day, one axis — dataviz: pairs compare day to day), violet + deep-mint `positive` (brand mint #A0EBC2 failed the palette validator at 1.35:1), table toggle, "Estimated cost" everywhere; 34 tests. NOT verified: rendered layout at the breakpoints (screenshot budget 0).
 - 2026-10-28 — QA — 23 vectors, A1–A12 (fractional `days` not tested: ADR silent on rounding).
@@ -67,6 +69,7 @@ Team log, newest first:
 | Mutation: workspace filters removed | 1 | — | 21 | 3 | 0 | 0 | 0 | 19, 20, 23 only |
 | `pnpm --filter @javis-dog/web test` (Developer B, 2 runs) | 0 | — | 194 | 0 | 0 | 0 | 0 | analytics 34 |
 | Full gate (`format`/`lint`/`typecheck`/`test`/`build`/`docs`) | 0 | — | 865 | 0 | 0 | 0 | 0 | before review |
+| Review fixes: new tests against the old code (red first) | 1 | — | 73 | 32 | 0 | 0 | 0 | analytics 14 + web 18 |
 | Rendered chart layout at 1150 / 850 / 560 px | — | — | — | — | — | — | 1 | screenshot budget 0; owner may approve a bounded visual check |
 
 ## Decisions and deviations
@@ -75,7 +78,9 @@ Team log, newest first:
 
 ## Retro
 
-- Pending.
+- Went well: QA vectors passed first time and mutation checks proved they bite; the Reviewer verified UTC bucketing across time zones and index use at volume.
+- Hurt: a relative "ago" on a server-rendered card repeated S4a's truthfulness bug in a new component — the rule lived in one hook, not in a shared component.
+- Change next sprint: one shared time-display component for every signal/report time; the protocol's `estimated` flag is checked whenever numbers are presented as exact.
 
 ## Guru checkpoint
 

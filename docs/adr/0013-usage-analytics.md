@@ -21,3 +21,9 @@ S4a shows the current state. Owners also need trends: how many tokens and how mu
 
 - Positive: trends without new infrastructure; one index fixes both read paths.
 - Negative: aggregation over raw events per page view (fine at current volume; rollups when needed); no hour granularity; UTC days may not match the viewer's local day (labelled UTC).
+
+## Changes
+
+- 2026-10-28 (S4b implementation): range = whole UTC days `[from 00:00, now]` bucketed by received time with `to_char(… at time zone 'UTC')` (independent of the session time zone — verified in three zones); costs summed as exact decimals and rounded to 6 places; a filtered project appears in `byProject` only with usage; a malformed or foreign `projectId` yields all zeros without a query.
+- 2026-10-28 (S4b review, merged `3eb5852`): `UsageTotals.estimatedReports` — reports whose producer set `estimated: true`; when > 0 the UI says "Includes estimated token counts (N of M reports)", so tokens are only called exact when they are; usage cards show absolute UTC stamps (date shown unless it is the viewer's current UTC date, re-checked every minute) instead of relative ages that would freeze on an open page; chart axis labels never overlap, the legend names the column order, hover keeps ≥ 3:1 contrast; Overview shows "Usage by project" when ≥ 2 projects have usage; `include.byProject: false` skips that query on the project page.
+- Documented, not changed: the 2–3 queries are separate statements (a batch committing between them can make totals and breakdowns differ by that batch until the next view); 0004 is a plain `CREATE INDEX` because drizzle's migrator runs in a transaction — a future index on a large table needs a manual `CREATE INDEX CONCURRENTLY` step; `cost_usd` has no upper bound in JGR v0.1 (proposal: cap it in the spec, S5).
