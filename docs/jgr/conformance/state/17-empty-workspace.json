@@ -1,0 +1,89 @@
+{
+  "$schema": "./schema.json",
+  "description": "A workspace with no projects yields zero counters with null lastSignalAt and empty lists, even when another workspace is busy.",
+  "contract": "ADR-0012 Decision outcome: Overview counters (each with lastSignalAt); types.ts Counter; ADR-0012 Decision outcome: Read model (workspace-scoped), Transport; SPRINT-04a Review focus",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": []
+    },
+    "B": {
+      "name": "Workspace B",
+      "projects": [
+        {
+          "slug": "busy-b17",
+          "name": "Busy B17"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "B",
+      "project": "busy-b17",
+      "thread_ref": "cc_b17_work",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -10000
+    },
+    {
+      "workspace": "B",
+      "project": "busy-b17",
+      "thread_ref": "cc_b17_work",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -5000,
+      "attributes": {
+        "tool_name": "B17_TOOL_MARKER"
+      }
+    },
+    {
+      "workspace": "B",
+      "project": "busy-b17",
+      "thread_ref": "cc_b17_work",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -3000,
+      "usage_delta": {
+        "input_tokens": 10,
+        "output_tokens": 1
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [
+      "busy-b17",
+      "Busy B17",
+      "cc_b17_work",
+      "B17_TOOL_MARKER",
+      "$PROJECT_ID:B:busy-b17"
+    ],
+    "overview": {
+      "activeProjects": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "agentsWorking": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "tokensLastHour": {
+        "value": 0,
+        "reports": 0,
+        "lastSignalOffsetMs": null
+      },
+      "tasksCompleted24h": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 0,
+    "activity": {
+      "length": 0
+    },
+    "projectCount": 0
+  }
+}

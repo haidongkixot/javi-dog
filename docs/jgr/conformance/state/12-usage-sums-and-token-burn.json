@@ -1,0 +1,125 @@
+{
+  "$schema": "./schema.json",
+  "description": "Thread tokens sum input/output of usage.reported in the 24 h window; token burn sums input + output reported in the last 60 min across the workspace. Cache and reasoning tokens are not added (AMBIGUOUS A9).",
+  "contract": "ADR-0012 Decision outcome: Thread state (input/output tokens); ADR-0012 Decision outcome: Overview counters (token burn); spec §6",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t12a",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -7200000,
+      "usage_delta": {
+        "input_tokens": 7,
+        "output_tokens": 3,
+        "model": "claude-opus-5-5",
+        "estimated": false
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t12a",
+      "type": "usage.reported",
+      "sequence": 2,
+      "receivedOffsetMs": -3660000,
+      "usage_delta": {
+        "input_tokens": 400,
+        "output_tokens": 40,
+        "model": "claude-opus-5-5",
+        "estimated": false
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t12a",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -3540000,
+      "usage_delta": {
+        "input_tokens": 100,
+        "output_tokens": 20,
+        "model": "claude-opus-5-5",
+        "estimated": false
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t12a",
+      "type": "usage.reported",
+      "sequence": 4,
+      "receivedOffsetMs": -600000,
+      "usage_delta": {
+        "input_tokens": 1000,
+        "output_tokens": 200,
+        "cache_read_tokens": 5000,
+        "cache_write_tokens": 700,
+        "reasoning_tokens": 300,
+        "cost_usd": 0.42,
+        "model": "claude-opus-5-5",
+        "estimated": false
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_t12b",
+      "type": "usage.reported",
+      "sequence": 1,
+      "receivedOffsetMs": -1800000,
+      "usage_delta": {
+        "input_tokens": 10,
+        "output_tokens": 5,
+        "model": "claude-opus-5-5",
+        "estimated": true
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "tokensLastHour": {
+        "value": 1335,
+        "reports": 3,
+        "lastSignalOffsetMs": -600000
+      }
+    },
+    "threadCount": 2,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t12a",
+        "inputTokens": 1507,
+        "outputTokens": 263,
+        "lastType": "usage.reported",
+        "status": null
+      },
+      {
+        "projectSlug": "api",
+        "threadRef": "cc_t12b",
+        "inputTokens": 10,
+        "outputTokens": 5
+      }
+    ]
+  }
+}

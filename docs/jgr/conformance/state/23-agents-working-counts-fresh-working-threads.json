@@ -1,0 +1,148 @@
+{
+  "$schema": "./schema.json",
+  "description": "agentsWorking counts fresh threads whose status is working: not stale, ended, idle, blocked or waiting threads, and a thread with several agent_refs counts once (AMBIGUOUS A11).",
+  "contract": "ADR-0012 Decision outcome: Overview counters (agents working = fresh threads whose status is working)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_w1",
+      "agent_ref": "ag_x1",
+      "type": "agent.started",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -50000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_w1",
+      "agent_ref": "ag_x2",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -25000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_w2",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -15000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_idle",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 1,
+      "receivedOffsetMs": -5000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_blocked",
+      "type": "heartbeat",
+      "status": "blocked",
+      "sequence": 1,
+      "receivedOffsetMs": -6000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_wait",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -7000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_stale",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -200000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_ended",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -100000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t23_ended",
+      "type": "session.ended",
+      "sequence": 2,
+      "receivedOffsetMs": -3000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "agentsWorking": {
+        "value": 2,
+        "lastSignalOffsetMs": -15000
+      },
+      "activeProjects": {
+        "value": 1
+      }
+    },
+    "threadCount": 7,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t23_w1",
+        "agents": 2,
+        "status": "working"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t23_blocked",
+        "status": "blocked",
+        "freshness": "fresh"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t23_stale",
+        "status": "working",
+        "freshness": "stale"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t23_ended",
+        "status": "working",
+        "freshness": "ended"
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshThreads": 5,
+        "attentionThreads": 1
+      }
+    ]
+  }
+}

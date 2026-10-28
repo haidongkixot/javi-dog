@@ -1,0 +1,61 @@
+{
+  "$schema": "./schema.json",
+  "description": "A project that never received a signal is listed with freshness never and lastSignalAt null, next to an active project.",
+  "contract": "ADR-0012 Decision outcome: Projects; types.ts ProjectFreshness",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "never-used",
+          "name": "Never used"
+        },
+        {
+          "slug": "active",
+          "name": "Active"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "active",
+      "thread_ref": "cc_t16",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -20000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 1,
+        "lastSignalOffsetMs": -20000
+      }
+    },
+    "projectCount": 2,
+    "projects": [
+      {
+        "slug": "never-used",
+        "name": "Never used",
+        "freshness": "never",
+        "lastSignalOffsetMs": null,
+        "freshThreads": 0,
+        "attentionThreads": 0
+      },
+      {
+        "slug": "active",
+        "name": "Active",
+        "freshness": "fresh",
+        "lastSignalOffsetMs": -20000,
+        "freshThreads": 1,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

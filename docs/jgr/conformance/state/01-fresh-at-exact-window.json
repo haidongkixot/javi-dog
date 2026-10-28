@@ -1,0 +1,71 @@
+{
+  "$schema": "./schema.json",
+  "description": "A thread whose last signal is exactly 180 000 ms old is fresh (window is inclusive: generatedAt - lastSignalAt <= 180 s).",
+  "contract": "ADR-0012 Decision outcome: Thread state (fresh when <= 180 s); spec §5",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t01",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -600000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t01",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -180000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 1,
+        "lastSignalOffsetMs": -180000
+      },
+      "agentsWorking": {
+        "value": 1,
+        "lastSignalOffsetMs": -180000
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t01",
+        "status": "working",
+        "freshness": "fresh",
+        "attention": false,
+        "lastType": "heartbeat",
+        "firstSignalOffsetMs": -600000,
+        "lastSignalOffsetMs": -180000
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshness": "fresh",
+        "freshThreads": 1,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

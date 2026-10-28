@@ -1,0 +1,141 @@
+{
+  "$schema": "./schema.json",
+  "description": "Both workspaces have a project with slug web; B's web activity never leaks into A's web (matched by project id, not slug).",
+  "contract": "ADR-0012 Decision outcome: Read model (workspace-scoped), Transport; SPRINT-04a Review focus",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "docs",
+          "name": "Docs"
+        }
+      ]
+    },
+    "B": {
+      "name": "Workspace B",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "docs",
+      "thread_ref": "cc_a21_docs",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -40000
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b21_web",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -30000
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b21_web",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -25000,
+      "attributes": {
+        "tool_name": "B21_TOOL_MARKER"
+      }
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b21_wait",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -20000
+    },
+    {
+      "workspace": "B",
+      "project": "web",
+      "thread_ref": "cc_b21_web",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -15000,
+      "usage_delta": {
+        "input_tokens": 999,
+        "output_tokens": 99
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": ["cc_b21_web", "cc_b21_wait", "B21_TOOL_MARKER", "$PROJECT_ID:B:web"],
+    "overview": {
+      "activeProjects": {
+        "value": 1,
+        "lastSignalOffsetMs": -40000
+      },
+      "agentsWorking": {
+        "value": 1,
+        "lastSignalOffsetMs": -40000
+      },
+      "tokensLastHour": {
+        "value": 0,
+        "reports": 0,
+        "lastSignalOffsetMs": null
+      },
+      "tasksCompleted24h": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "docs",
+        "threadRef": "cc_a21_docs",
+        "status": "working",
+        "freshness": "fresh"
+      }
+    ],
+    "activity": {
+      "length": 1,
+      "items": [
+        {
+          "index": 0,
+          "projectSlug": "docs",
+          "threadRef": "cc_a21_docs",
+          "type": "heartbeat"
+        }
+      ]
+    },
+    "projectCount": 2,
+    "projects": [
+      {
+        "slug": "web",
+        "freshness": "never",
+        "lastSignalOffsetMs": null,
+        "freshThreads": 0,
+        "attentionThreads": 0
+      },
+      {
+        "slug": "docs",
+        "freshness": "fresh",
+        "freshThreads": 1,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

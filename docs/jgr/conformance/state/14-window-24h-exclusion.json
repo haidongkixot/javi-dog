@@ -1,0 +1,159 @@
+{
+  "$schema": "./schema.json",
+  "description": "Events received more than 24 h before now are outside the window: they do not count for thread state, agents, tokens, tasks or activity; a thread with only old events is not listed.",
+  "contract": "ADR-0012 Decision outcome: Read model (24 h window); ADR-0012 Decision outcome: Thread state; ADR-0012 Decision outcome: Activity feed; Privacy",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "agent_ref": "ag_old",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -90000000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "agent_ref": "ag_old",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -89990000,
+      "attributes": {
+        "tool_name": "OLD_WINDOW_TOOL_q14"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "type": "usage.reported",
+      "sequence": 3,
+      "receivedOffsetMs": -86460000,
+      "usage_delta": {
+        "input_tokens": 900000,
+        "output_tokens": 90000
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "agent_ref": "ag_new",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 4,
+      "receivedOffsetMs": -86340000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "agent_ref": "ag_new",
+      "type": "task.completed",
+      "sequence": 5,
+      "receivedOffsetMs": -82860000,
+      "attributes": {
+        "tool_name": "Read"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14a",
+      "type": "usage.reported",
+      "sequence": 6,
+      "receivedOffsetMs": -82800000,
+      "usage_delta": {
+        "input_tokens": 40,
+        "output_tokens": 4
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t14z_gone",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -108000000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": ["OLD_WINDOW_TOOL_q14", "cc_t14z_gone"],
+    "overview": {
+      "tasksCompleted24h": {
+        "value": 1,
+        "lastSignalOffsetMs": -82860000
+      },
+      "tokensLastHour": {
+        "value": 0,
+        "reports": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t14a",
+        "status": "idle",
+        "freshness": "stale",
+        "attention": false,
+        "agents": 1,
+        "tasksCompleted": 1,
+        "inputTokens": 40,
+        "outputTokens": 4,
+        "lastType": "usage.reported",
+        "firstSignalOffsetMs": -86340000,
+        "lastSignalOffsetMs": -82800000
+      }
+    ],
+    "activity": {
+      "length": 3,
+      "items": [
+        {
+          "index": 0,
+          "type": "usage.reported",
+          "atOffsetMs": -82800000,
+          "toolName": null
+        },
+        {
+          "index": 1,
+          "type": "task.completed",
+          "atOffsetMs": -82860000,
+          "toolName": "Read"
+        },
+        {
+          "index": 2,
+          "type": "heartbeat",
+          "atOffsetMs": -86340000,
+          "status": "idle"
+        }
+      ]
+    },
+    "projects": [
+      {
+        "slug": "web",
+        "freshness": "stale",
+        "freshThreads": 0,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

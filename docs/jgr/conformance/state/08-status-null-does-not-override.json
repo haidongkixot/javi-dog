@@ -1,0 +1,99 @@
+{
+  "$schema": "./schema.json",
+  "description": "Events without a status (task.*) neither change the thread status nor clear attention; lastType still follows the newest event.",
+  "contract": "ADR-0012 Decision outcome: Thread state (last non-null status; latest status-bearing event); spec §3 status cond.",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08x",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -100000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08x",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -20000,
+      "attributes": {
+        "tool_name": "Bash"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08y",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 1,
+      "receivedOffsetMs": -50000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t08y",
+      "type": "task.started",
+      "sequence": 2,
+      "receivedOffsetMs": -10000,
+      "attributes": {
+        "tool_name": "Read"
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "agentsWorking": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "activeProjects": {
+        "value": 1
+      }
+    },
+    "threadCount": 2,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t08x",
+        "status": "waiting",
+        "freshness": "fresh",
+        "attention": true,
+        "lastType": "task.completed",
+        "lastSignalOffsetMs": -20000
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t08y",
+        "status": "idle",
+        "freshness": "fresh",
+        "attention": false,
+        "lastType": "task.started"
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshThreads": 2,
+        "attentionThreads": 1
+      }
+    ]
+  }
+}

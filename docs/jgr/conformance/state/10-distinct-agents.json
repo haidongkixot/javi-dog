@@ -1,0 +1,117 @@
+{
+  "$schema": "./schema.json",
+  "description": "agents = number of distinct non-null agent_ref values in the thread; repeats and events without agent_ref do not add (AMBIGUOUS A8).",
+  "contract": "ADR-0012 Decision outcome: Thread state (distinct agent_ref count); spec §2, §4",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10a",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -120000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10a",
+      "agent_ref": "ag_a1",
+      "type": "agent.started",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -100000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10a",
+      "agent_ref": "ag_a2",
+      "type": "agent.started",
+      "status": "working",
+      "sequence": 3,
+      "receivedOffsetMs": -90000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10a",
+      "agent_ref": "ag_a1",
+      "type": "task.completed",
+      "sequence": 4,
+      "receivedOffsetMs": -80000,
+      "attributes": {
+        "tool_name": "Edit"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10a",
+      "agent_ref": "ag_a2",
+      "type": "agent.stopped",
+      "status": "completed",
+      "sequence": 5,
+      "receivedOffsetMs": -70000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10a",
+      "agent_ref": "ag_a1",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 6,
+      "receivedOffsetMs": -60000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10b",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -50000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t10b",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -40000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "threadCount": 2,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t10a",
+        "agents": 2,
+        "status": "working"
+      },
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t10b",
+        "agents": 0,
+        "status": "working"
+      }
+    ]
+  }
+}

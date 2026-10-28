@@ -1,0 +1,67 @@
+{
+  "$schema": "./schema.json",
+  "description": "usage_delta on events other than usage.reported is ignored for thread tokens and token burn (AMBIGUOUS A10).",
+  "contract": "ADR-0012 Decision outcome: Overview counters (from usage.reported); ADR-0012 Decision outcome: Thread state; spec §3 usage_delta cond.",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -300000,
+      "usage_delta": {
+        "input_tokens": 55555,
+        "output_tokens": 5555
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t13",
+      "type": "task.completed",
+      "sequence": 2,
+      "receivedOffsetMs": -240000,
+      "usage_delta": {
+        "input_tokens": 4444,
+        "output_tokens": 444
+      },
+      "attributes": {
+        "tool_name": "Edit"
+      }
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "tokensLastHour": {
+        "value": 0,
+        "reports": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t13",
+        "inputTokens": 0,
+        "outputTokens": 0
+      }
+    ]
+  }
+}

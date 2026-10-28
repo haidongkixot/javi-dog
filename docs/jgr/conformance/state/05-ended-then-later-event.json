@@ -1,0 +1,65 @@
+{
+  "$schema": "./schema.json",
+  "description": "An event received after session.ended means the last event is no longer session.ended: the thread is judged by the 180 s rule again (AMBIGUOUS A6).",
+  "contract": "ADR-0012 Decision outcome: Thread state (ended only when the LAST event is session.ended)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t05",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -600000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t05",
+      "type": "session.ended",
+      "sequence": 2,
+      "receivedOffsetMs": -120000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t05",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 3,
+      "receivedOffsetMs": -30000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "agentsWorking": {
+        "value": 1,
+        "lastSignalOffsetMs": -30000
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t05",
+        "status": "working",
+        "freshness": "fresh",
+        "lastType": "heartbeat",
+        "lastSignalOffsetMs": -30000
+      }
+    ]
+  }
+}

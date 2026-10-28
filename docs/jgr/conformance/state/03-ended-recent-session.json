@@ -1,0 +1,77 @@
+{
+  "$schema": "./schema.json",
+  "description": "session.ended 10 s ago: the thread is ended, not fresh, and does not count as working or active.",
+  "contract": "ADR-0012 Decision outcome: Thread state (ended when the last event is session.ended); ADR-0012 Decision outcome: Overview counters",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t03",
+      "type": "session.started",
+      "sequence": 1,
+      "receivedOffsetMs": -300000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t03",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -60000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_t03",
+      "type": "session.ended",
+      "sequence": 3,
+      "receivedOffsetMs": -10000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      },
+      "agentsWorking": {
+        "value": 0,
+        "lastSignalOffsetMs": null
+      }
+    },
+    "threadCount": 1,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_t03",
+        "status": "working",
+        "freshness": "ended",
+        "attention": false,
+        "lastType": "session.ended",
+        "lastSignalOffsetMs": -10000
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshThreads": 0,
+        "attentionThreads": 0
+      }
+    ]
+  }
+}

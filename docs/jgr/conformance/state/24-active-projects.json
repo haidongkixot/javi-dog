@@ -1,0 +1,122 @@
+{
+  "$schema": "./schema.json",
+  "description": "activeProjects counts projects with at least one fresh thread; a project whose only recent event is session.ended, or whose threads are stale, is not active.",
+  "contract": "ADR-0012 Decision outcome: Overview counters (active projects = projects with >= 1 fresh thread)",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "p-fresh",
+          "name": "P fresh"
+        },
+        {
+          "slug": "p-stale",
+          "name": "P stale"
+        },
+        {
+          "slug": "p-ended",
+          "name": "P ended"
+        },
+        {
+          "slug": "p-mixed",
+          "name": "P mixed"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "p-fresh",
+      "thread_ref": "cc_t24_f",
+      "type": "heartbeat",
+      "status": "idle",
+      "sequence": 1,
+      "receivedOffsetMs": -30000
+    },
+    {
+      "workspace": "A",
+      "project": "p-stale",
+      "thread_ref": "cc_t24_s",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -600000
+    },
+    {
+      "workspace": "A",
+      "project": "p-ended",
+      "thread_ref": "cc_t24_e",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -90000
+    },
+    {
+      "workspace": "A",
+      "project": "p-ended",
+      "thread_ref": "cc_t24_e",
+      "type": "session.ended",
+      "sequence": 2,
+      "receivedOffsetMs": -20000
+    },
+    {
+      "workspace": "A",
+      "project": "p-mixed",
+      "thread_ref": "cc_t24_m1",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -90000
+    },
+    {
+      "workspace": "A",
+      "project": "p-mixed",
+      "thread_ref": "cc_t24_m2",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 1,
+      "receivedOffsetMs": -3600000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "overview": {
+      "activeProjects": {
+        "value": 2,
+        "lastSignalOffsetMs": -30000
+      },
+      "agentsWorking": {
+        "value": 1,
+        "lastSignalOffsetMs": -90000
+      }
+    },
+    "threadCount": 5,
+    "projectCount": 4,
+    "projects": [
+      {
+        "slug": "p-fresh",
+        "freshness": "fresh",
+        "freshThreads": 1
+      },
+      {
+        "slug": "p-stale",
+        "freshness": "stale",
+        "freshThreads": 0
+      },
+      {
+        "slug": "p-ended",
+        "freshThreads": 0,
+        "attentionThreads": 0
+      },
+      {
+        "slug": "p-mixed",
+        "freshness": "fresh",
+        "freshThreads": 1
+      }
+    ]
+  }
+}

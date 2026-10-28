@@ -1,0 +1,87 @@
+{
+  "$schema": "./schema.json",
+  "description": "Thread identity is (project, thread_ref): the same opaque ref in two projects is two threads with separate state.",
+  "contract": "ADR-0012 Decision outcome: Thread state (per (project, thread_ref))",
+  "now": "2026-10-28T12:00:00.000Z",
+  "workspaces": {
+    "A": {
+      "name": "Workspace A",
+      "projects": [
+        {
+          "slug": "web",
+          "name": "Web app"
+        },
+        {
+          "slug": "api",
+          "name": "API"
+        }
+      ]
+    }
+  },
+  "events": [
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_shared_25",
+      "type": "heartbeat",
+      "status": "working",
+      "sequence": 2,
+      "receivedOffsetMs": -40000
+    },
+    {
+      "workspace": "A",
+      "project": "web",
+      "thread_ref": "cc_shared_25",
+      "type": "task.completed",
+      "sequence": 3,
+      "receivedOffsetMs": -30000,
+      "attributes": {
+        "tool_name": "Edit"
+      }
+    },
+    {
+      "workspace": "A",
+      "project": "api",
+      "thread_ref": "cc_shared_25",
+      "type": "attention.requested",
+      "status": "waiting",
+      "sequence": 1,
+      "receivedOffsetMs": -400000
+    }
+  ],
+  "snapshotOf": "A",
+  "expect": {
+    "absentStrings": [],
+    "threadCount": 2,
+    "threads": [
+      {
+        "projectSlug": "web",
+        "threadRef": "cc_shared_25",
+        "status": "working",
+        "freshness": "fresh",
+        "attention": false,
+        "tasksCompleted": 1
+      },
+      {
+        "projectSlug": "api",
+        "threadRef": "cc_shared_25",
+        "status": "waiting",
+        "freshness": "stale",
+        "attention": true,
+        "tasksCompleted": 0
+      }
+    ],
+    "projects": [
+      {
+        "slug": "web",
+        "freshThreads": 1,
+        "attentionThreads": 0
+      },
+      {
+        "slug": "api",
+        "freshThreads": 0,
+        "attentionThreads": 1
+      }
+    ]
+  }
+}
