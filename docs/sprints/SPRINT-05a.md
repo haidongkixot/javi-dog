@@ -58,6 +58,20 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Orchestrator — Review triage. M2, L1, L3, L4 and I2 go to Developer B (red-first). M1 (quotas) goes to the owner, because it sets limits on product use. L2 (Vercel Firewall rate rules) and L5 (Better Auth rate limit is in memory per instance, so the ADR-0006 wording is best-effort) are logged and need owner or dashboard action or an ADR note. I1 is `CRON_SECRET`.
+- 2026-10-28 — Reviewer — Security review of the whole surface (read-only plus one PGlite probe): **0 critical, 0 high**, 2 medium, 5 low, 4 info.
+  - M1: one free sign-up can fill the 512 MiB branch. Rate limits are per token only, the token cap ignores revoked tokens, and there is no project or workspace cap.
+  - M2: the Better Auth organization plugin runs with defaults, so the organization create, invite, role, update and delete endpoints are live over HTTP (create verified 200). ADR-0006 says one personal workspace only.
+  - L1: the token and project actions have no role check. Budgets do.
+  - L2: unauthenticated database hits have no IP rate limit.
+  - L3: deeply nested JSON returns 503 instead of 400.
+  - L4: no security headers.
+  - L5: the auth rate limit is held in memory per instance.
+  - I1: the purge is inactive.
+  - I2: the integrations page still says "not live".
+  - I3–I4: minor.
+  - Verified safe: ingest order, token storage, cron auth, parameterised SQL, workspace scoping in every reader and action, open-redirect checks, cookies, log redaction, email, SSRF, caching, the collector receiver.
+
 - 2026-10-28 — Orchestrator — R1 done: `main` was empty (no `public` tables, an unused `neon_auth` schema with 0 users); 6 migrations applied through the Neon MCP, one transaction each, statements from drizzle's `readMigrationFiles` (`db:statements`); ledger identical to `dev-agent` (6 hashes, same `created_at`), schema diff empty, 13 public tables, 0 users, 0 events. No connection string entered the session.
 - 2026-10-28 — Orchestrator — Discovery: Neon `free_v3`, 6 h history retention, 512 MiB/branch, 0.25 CU, no snapshot schedule; `main` is the Vercel production branch (integration); Vercel env list/write still 403 → cutover is an owner step.
 

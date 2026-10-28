@@ -10,9 +10,9 @@ import type { ReactElement } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 // apps/web has no PGlite/drizzle dependency of its own and this lane may not add one, so the
 // in-process Postgres is taken from JD-M06's dev dependencies (same copies JD-M06 tests use).
-import { PGlite } from '../../../packages/event-store/node_modules/@electric-sql/pglite/dist/index.js';
-import { drizzle } from '../../../packages/event-store/node_modules/drizzle-orm/pglite/index.js';
-import { migrate } from '../../../packages/event-store/node_modules/drizzle-orm/pglite/migrator.js';
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 
 // S5a R5 — access boundaries of the server pages (TEST_PLAN §S5a): /, /agents, /projects and
 // /projects/[id] rendered from real SQL on PGlite with two workspaces. Only the session lookup

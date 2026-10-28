@@ -7,9 +7,9 @@ import { createBudgetRepository } from '@javis-dog/resilience';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 // apps/web has no PGlite/drizzle dependency of its own and this lane may not add one, so the
 // in-process Postgres is taken from JD-M06's dev dependencies (same copies JD-M06 tests use).
-import { PGlite } from '../../../packages/event-store/node_modules/@electric-sql/pglite/dist/index.js';
-import { drizzle } from '../../../packages/event-store/node_modules/drizzle-orm/pglite/index.js';
-import { migrate } from '../../../packages/event-store/node_modules/drizzle-orm/pglite/migrator.js';
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 
 // S5a R5 — independent access-boundary suite (TEST_PLAN §S5a). Expected behaviour comes from
 // ADR-0005/0006/0008/0009/0012/0013/0014 text, not from the implementation. Real SQL on PGlite
