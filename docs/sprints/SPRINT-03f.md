@@ -16,9 +16,9 @@
 
 | # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| P1 | Bundle | JD-C01 | `pnpm --filter @javis-dog/collector-claude-code build` → `dist/javi.mjs` | One ESM file with a `#!/usr/bin/env node` line; workspace packages and `zod` inlined; Node ≥ 22; no `node_modules` needed at runtime | Planned |
-| P2 | Tarball | JD-C01 | `pack:cli` → `dist/pkg/` manifest (`bin: { javi }`, no dependencies) → `javis-dog-javi-<version>.tgz` | Installs offline from the tarball; `javi` bin runs through the `node_modules/.bin` symlink (main detection uses the real path) | Planned |
-| P3 | Stable install path | JD-C01 | `javi init` from a bundle → copies itself to `~/.javi/bin/javi.mjs` (0700 dir) and registers hooks there | Hooks never point into an `npx` cache; re-init replaces the copy atomically; repo-checkout init unchanged | Planned |
+| P1 | Bundle | JD-C01 | `pnpm --filter @javis-dog/collector-claude-code build` → `dist/javi.mjs` | One ESM file with a `#!/usr/bin/env node` line; workspace packages and `zod` inlined; Node ≥ 22; no `node_modules` needed at runtime | Done |
+| P2 | Tarball | JD-C01 | `pack:cli` → `dist/pkg/` manifest (`bin: { javi }`, no dependencies) → `javis-dog-javi-<version>.tgz` | Installs offline from the tarball; `javi` bin runs through the `node_modules/.bin` symlink (main detection uses the real path) | Done |
+| P3 | Stable install path | JD-C01 | `javi init` from a bundle → copies itself to `~/.javi/bin/javi.mjs` (0700 dir) and registers hooks there | Hooks never point into an `npx` cache; re-init replaces the copy atomically; repo-checkout init unchanged | Done |
 | G2 | Guru checkpoint | `guru/` | S3a–S3f history → skills / wisdom log | Per `CLAUDE.md` §7; Orcasus PR proposal written, not opened | Planned |
 
 ## Review focus
@@ -40,14 +40,21 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-28 — Orchestrator — Merged P1–P3 (`2e7d23b`). Inspected the tarball: 3 files, no dependencies, one shebang, only `node:` imports, no machine paths or secret patterns. Set the generated manifest to `private: true` (owner: no npm publish; `npm publish --dry-run` does not exercise that guard — documented npm behaviour, not tested). `docs:check` failed on the generated `dist/pkg/README.md` (CI would too: `pack.test.ts` creates it before `docs:check`) → markdownlint ignores `**/dist/**`, README link made lint-clean.
+- 2026-10-28 — Developer — P1–P3; mutation: old main detection → 2 of 3 pack tests FAIL; bundle 742.6 KiB unminified (readable for privacy review), tarball 135.8 kB, deterministic build (~85 ms).
 - 2026-10-28 — Orchestrator — Found before implementation: `cli.ts` main detection compares `import.meta.url` with `argv[1]`, which is a symlink under `npx` → the CLI would do nothing. Added to P2 acceptance. Verified earlier: Node refuses type stripping under `node_modules` (a bundle is required).
 
 ## Log
 
+- 2026-10-28 — P1–P3 merged; gate 631 tests; pushing for CI.
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm --filter @javis-dog/collector-claude-code test` (Developer, 2 runs) | 0 | ~11 s | 278 | 0 | 0 | 0 | 0 | `test/pack.test.ts` 3 |
+| Mutation: old `argv[1]` main detection | 1 | — | 276 | 2 | 0 | 0 | 0 | symlinked bin did nothing; restored |
+| Tarball inspection (`tar tzf`, path/secret grep, bare-import grep) | 0 | — | 3 files, 0 hits | 0 | 0 | 0 | 0 | — |
+| Full gate `format:check` / `lint` / `typecheck` / `test` / `build` / `docs:check` | 0 | — | 631 tests | 0 | 0 | 0 | 0 | after the `dist/` markdownlint fix |
 
 ## Decisions and deviations
 

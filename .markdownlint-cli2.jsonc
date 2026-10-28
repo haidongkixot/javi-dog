@@ -10,6 +10,7 @@
   "globs": ["**/*.md"],
   "ignores": [
     "**/node_modules/**",
+    "**/dist/**",
     "docs/brand/source/**",
     "docs/agent-ops/ORCASUS_AGENT_OPERATING_CONTRACT.md",
     "docs/agent-ops/templates/**",

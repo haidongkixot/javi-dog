@@ -202,3 +202,5 @@ Written before implementation. Risk: **MEDIUM** — a broken install path silent
 | `init` from the bundle copies itself to `~/.javi/bin/javi.mjs` and hooks point there | High | Process (temp `JAVI_HOME`, temp project dir, `--no-verify`) | settings `args[0]` = the stable copy; deleting the install prefix leaves a working hook (`hook` exits 0, event spooled) | No |
 | Repo-checkout `init` unchanged | Medium | Existing `cli.test.ts` | unchanged assertions | No |
 | CI builds the bundle | Low | `pnpm build` in CI | exit 0 | No |
+
+Tests: `collectors/claude-code/test/pack.test.ts` (build scan, offline tarball install via the `.bin` symlink, stable `~/.javi/bin` copy surviving removal of the install prefix).

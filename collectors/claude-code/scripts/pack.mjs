@@ -31,7 +31,7 @@ JAVI_INGEST_TOKEN='<paste token>' npx ./${NAME}-${version}.tgz init --project <p
 so they keep working after the npx cache is cleared.
 
 Commands, what is sent and how to opt in to token usage: see \`collectors/claude-code/README.md\`
-in the Javi's Dog repository, https://github.com/haidongkixot/javi-dog.
+in the Javi's Dog repository, <https://github.com/haidongkixot/javi-dog>.
 `;
 
 const manifest = {
@@ -43,7 +43,7 @@ const manifest = {
   files: ['javi.mjs', 'README.md'],
   engines: { node: '>=22' },
   license: 'UNLICENSED',
-  private: false,
+  private: true,
 };
 
 const { size } = await buildBundle();
