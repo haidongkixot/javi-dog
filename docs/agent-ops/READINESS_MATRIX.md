@@ -1,6 +1,6 @@
 # Project Readiness Matrix — Javi's Dog
 
-> Orcasus template v1.2.1. Evidence, not assumptions. Last updated: 2026-10-22 (S2c close, Guru G2-prep).
+> Orcasus template v1.2.1. Evidence, not assumptions. Last updated: 2026-10-28 (S3e/S3f, Guru G2).
 > Status vocabulary: AVAILABLE / MISSING / UNKNOWN / BLOCKED / NOT NEEDED. Secret values are never recorded.
 
 | Area | Requirement / capability | Resource / permission required | Status | Evidence / path / source | Impact if missing | Options and trade-offs | Recommended action | Owner decision? |
@@ -35,11 +35,11 @@
 | Integration | OTel exporter config scope | Claude Code settings | AVAILABLE (constraint) | 2026-10-28 `code.claude.com/docs/en/monitoring-usage.md` l. 69: exporter variables in a repo's `.claude/settings(.local).json` are ignored; `~/.claude/settings.json`, shell or managed settings only (re-fetched by orchestrator) | Usage needs a machine-wide, opt-in edit | `javi usage on` edits `~/.claude/settings.json` with backup + refusal on conflicts (ADR-0011) | Owner chose opt-in global OTel 2026-10-28 | No |
 | Integration | OTel session correlation | OTel `session.id` = hook `session_id` | UNKNOWN | Docs do not state it (Researcher, 2026-10-28) | If false, all usage is dropped locally (never misattributed) | Owner's first real run: `javi status` matched vs dropped | Verify at the first real run (with S3c) | Yes (S3e runtime) |
 | Integration | Local receiver port | `127.0.0.1:4319` | UNKNOWN per machine | 4318 is the OTLP default (avoided); `--port` override | Port taken by another program → it receives Claude Code's exports; `javi status` warns (port-conflict record, S3e review fix) | `javi usage on --port <n>` | Checked by `javi usage on` at setup | No |
-| Ops | Retention purge schedule | Vercel Cron + `CRON_SECRET` on Vercel | MISSING (S3b) | ADR-0008: 30 days; `purgeEventsBefore` implemented and tested; agent cannot write Vercel env (403) | Events accumulate until S3b | Owner adds `CRON_SECRET` in the dashboard | Do in S3b | Yes (S3b) |
+| Ops | Retention purge schedule | Vercel Cron + `CRON_SECRET` on Vercel | MISSING | ADR-0008: 30 days; bounded `purgeEventsBefore` implemented and tested (S3d); production `/api/health` 2026-10-28: `CRON_SECRET` false; agent cannot write Vercel env (403) | Events older than 30 days are never purged; the cron route answers 503 `not_configured` | Owner adds `CRON_SECRET` in the Vercel dashboard (steps in `SPRINT-03b.md`) | Owner action, open since 2026-10-23 | Yes (closes S3b) |
 
 ## Readiness decision
 
-**S2 complete** (2026-10-22): data layer, sign-in and project/token UI verified on production. **S3 (JGR ingress)** can start; it needs a retention/partitioning ADR for `events`. Open owner items: secret rotation (B1-rotate + GitHub client secret pasted in chat), release-cooldown policy, ADR-0004 review, B6 GitHub App (S5), B7 legal (S6).
+**S3 built** (2026-10-28): ingress (S3a), SDK + purge (S3b), Claude Code collector (S3c), hardening (S3d), token usage via a local OTLP receiver (S3e) and `npx` packaging (S3f) are on the branch with CI green. Open before S3 is closed: `CRON_SECRET` (S3b), the owner's first real `javi init --usage` + Claude Code run (S3c hook args, S3e session-id match), Windows packaging behaviour (UNVERIFIED). **S4 (live dashboard)** can be planned; it needs the session-id match before showing usage as attributed. Earlier: S2 complete (2026-10-22). Open owner items: secret rotation (B1-rotate + GitHub client secret pasted in chat), release-cooldown policy, ADR-0004 review, B6 GitHub App (S5), B7 legal (S6).
 
 ### Blockers and decisions
 

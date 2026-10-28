@@ -63,6 +63,7 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-28 — **Correction (found by Guru G2):** CI **FAILED** on `474427c` (run 40617386527), `a632803` (40617962893) and `92a9244` (40619197881) — `test/usage-process.test.ts:120` (`expected +0 to be <pid>`). These docs-only pushes were not checked after pushing, and `92a9244`'s message ("CI green on a3e4ce8") was true only of `a3e4ce8`. Root cause reproduced (idle window below the second instance's start-up → the first receiver had already exited); fixed in S3f with a deterministic test and a product fix for a false port conflict under load (see SPRINT-03f).
 - 2026-10-28 — CI **PASS** on `a3e4ce8` (run 40618995163); production `/api/health` ok on `a3e4ce8`.
 - 2026-10-28 — Review fixes merged; gate 628 green; pushing for CI.
 - 2026-10-28 — U0–U3 + Q1 merged locally; runner 40/40; Reviewer running. Pushed so far: `1e10741`, `222f654`, `774549e`, `ecc2c2c` (library code only; nothing calls it in production).
@@ -79,6 +80,7 @@ Team log, newest first:
 | Full gate `format:check` / `lint` / `typecheck` / `test` / `build` / `docs:check` | 0 | — | 604 tests | 0 | 0 | 0 | 0 | collector 251, sdk 32 |
 | Review fixes: new tests against the old code (red first) | 1 | — | 251 | 24 | 0 | 0 | 0 | each failed for the expected reason |
 | Full gate after review fixes | 0 | — | 628 tests | 0 | 0 | 0 | 0 | collector 275 |
+| CI on `474427c` / `a632803` / `92a9244` | 1 | — | — | 1 each | 0 | 0 | 0 | `usage-process.test.ts:120`; not noticed until G2 |
 | OTel `session.id` = hook `session_id` (runtime) | — | — | — | — | — | — | 1 | owner's first real run |
 
 ## Decisions and deviations

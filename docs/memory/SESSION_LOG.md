@@ -2,6 +2,12 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-28 · Session 2 (cloud), continued — S3f packaging, Guru G2
+
+- S3f: esbuild bundle + private, dependency-free tarball; versioned `~/.javi/bin/<version>/` copy; THIRD_PARTY_NOTICES; reviewer round fixed (2 major). Windows UNVERIFIED.
+- Guru G2 found CI red on three S3e docs pushes that had not been checked; root cause reproduced (process-test race) and fixed, plus a false port conflict under load; CI no longer cancels branch runs; stale readiness/memory refreshed.
+- Next: owner items (CRON_SECRET, first real run incl. `/clear`, secret rotation, G2 proposals), then S4 planning.
+
 ## 2026-10-28 · Session 2 (cloud), continued — S3e token usage
 
 - Researcher verified the Claude Code OTel contract; the key fact (project settings cannot enable OTel) changed the plan → owner chose opt-in global OTel and bundle + tarball packaging (no npm publish).
