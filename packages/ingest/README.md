@@ -16,9 +16,10 @@ Status: **in-progress**. S3a: `POST /api/v1/events` logic (JGR v0.1 §8, ADR-000
 | Status | When |
 |---|---|
 | `202` | `{ accepted, duplicates, rejected: [{ index, event_id, issues }] }` — partial acceptance |
-| `400` | Bad JSON, content type, encoding or batch shape |
+| `400` | Bad JSON or batch shape |
+| `415` | `Content-Type` not `application/json`, or `Content-Encoding` not absent/`identity`/`gzip` (S3d) |
 | `401` | Missing, malformed, unknown or revoked token (`WWW-Authenticate: Bearer`) |
-| `413` | Over 256 KB after decompression |
+| `413` | Over 256 KB after decompression, or more than 100 events |
 | `429` | Over the rate limit (`Retry-After`) |
 | `503` | Database failure (logged as error class only) or no database (`not_configured`, from the route) |
 

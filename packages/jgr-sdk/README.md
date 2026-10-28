@@ -34,6 +34,7 @@ const result = await jgr.flush(); // { status, accepted, duplicates, rejected, d
 | `401`, `403` | Stop immediately (`unauthorized`), spool kept |
 | `413` | Batch halved and resent; a single event still too large is dropped (`dropped`) |
 | `400` | Batch dropped and counted in `dropped` (never retried unchanged) |
+| `415` | Stop (`failed`, `httpStatus: 415`), spool kept — a configuration problem, not a bad batch (S3d) |
 | Other (e.g. `404`) | Stop (`failed`), spool kept |
 
 Batches hold at most 100 events and 256 KB; bodies above 1 KB are gzip-compressed.
