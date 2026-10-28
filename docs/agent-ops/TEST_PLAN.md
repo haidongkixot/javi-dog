@@ -250,3 +250,18 @@ Written before the lanes start. Risk: **HIGH** — money-like figures, outbound 
 | Ingest hook runs only when usage was stored; never fails ingest; runs after the response | High | Unit (handler with fakes) + route test | hook calls; 202 unchanged when hook throws | No |
 | Budget UI: owners/admins edit, members read-only, validation, percent text, forecast/"too early" | High | Component (jsdom) + server action unit | role matrix; invalid values refused | No |
 | Real email to the owner on production | — | Runtime (owner's first real run with a budget) | inbox | NOT RUN until then |
+
+## S5a — Production readiness (2026-10-28)
+
+Written before the lanes start. Risk: **HIGH**. This sprint covers the first production database, tenant isolation on every entry point, and load on the shared free-tier database. Screenshot budget: **0**. No product code changes; the new tests target behaviour that already exists.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| `main` schema = committed migrations | High | Static + DB metadata (Neon MCP) | ledger hashes and `created_at` equal to `dev-agent`; schema diff empty; 13 tables | Post-cutover `/api/health` (6 migrations) |
+| Production reads `main` after cutover | High | Runtime (count query) | `users` on `main` 0 → ≥ 1 after the owner signs in | No |
+| Route handlers refuse signed-out, wrong bearer, wrong cron secret; no data or existence leak | High | Unit (route handlers with injected deps) | status codes + bodies; `no-store` where required | No |
+| Pages and server actions scope every id to the session's workspace (projects, tokens, budgets) | High | Unit/component (injected deps, two workspaces) | foreign project id → not found / refused; nothing of B rendered; member cannot set a budget | No |
+| Load script honours its caps; percentile maths; payload ≤ 256 KB gzip | Medium | Unit + local HTTP server | caps cannot be exceeded; p95 on a known sample; payload size | One bounded production run (ADR-0015 budget) |
+| Ingest p95 < 2 s (JGR hypothesis) | Medium | Runtime (production, once) | client-side p50/p95/max incl. sandbox proxy | No |
+| End-to-end: packed `javi` → ingest → stored | High | Process + local recording server | `init`, hook events, `flush` exit 0, spool empty, batches received | One production run; rows confirmed by count on `main` |
+| Rollback plan executable | Medium | Docs review + one dry check (migration down files on PGlite already in `migrations.test.ts`) | every path names its command and its limit | NOT RUN: real Vercel rollback (owner action if needed) |

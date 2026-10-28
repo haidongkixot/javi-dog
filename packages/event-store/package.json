@@ -15,7 +15,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.ts",
     "db:smoke": "node scripts/smoke.ts",
-    "db:events": "node scripts/events-summary.ts"
+    "db:events": "node scripts/events-summary.ts",
+    "db:statements": "node scripts/migration-statements.ts"
   },
   "dependencies": {
     "@javis-dog/identity": "workspace:*",
