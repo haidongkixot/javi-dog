@@ -1,0 +1,235 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:javis-dog:jgr:conformance:http:vector:adr-0008",
+  "title": "JGR v0.1 HTTP conformance vector (ADR-0008 ingress)",
+  "description": "One black-box HTTP case for POST /api/v1/events on the JD-M05 ingest gateway, derived from ADR-0008 (including its 2026-10-28 Changes) and JGR spec v0.1. See README.md for runner semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description", "contract", "setup", "request", "expect"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "description": { "type": "string", "minLength": 1 },
+    "contract": {
+      "description": "Contract text the expectation is derived from (ADR-0008 section and/or spec section).",
+      "type": "string",
+      "minLength": 1
+    },
+    "setup": { "$ref": "#/definitions/setup" },
+    "request": { "$ref": "#/definitions/request" },
+    "expect": { "$ref": "#/definitions/expect" }
+  },
+  "definitions": {
+    "privacyClass": { "enum": ["L0", "L1", "L2"] },
+    "slug": { "type": "string", "pattern": "^[A-Za-z0-9_:-]{1,128}$" },
+    "issueCode": {
+      "description": "Per-event issue codes: spec §13 plus the receiver-side codes added by ADR-0008.",
+      "enum": [
+        "schema",
+        "too_large",
+        "privacy_forbidden_attribute",
+        "privacy_unhashed_identifier",
+        "privacy_encrypted_requires_l2",
+        "privacy_l2_requires_encrypted",
+        "status_required",
+        "usage_required",
+        "clock_skew",
+        "project_mismatch",
+        "privacy_class_not_allowed"
+      ]
+    },
+    "errorCode": {
+      "description": "Batch-level error codes ADR-0008 names explicitly. Statuses for which the ADR names no code use null (value not checked).",
+      "enum": ["unsupported_media_type", "too_large", "not_configured"]
+    },
+    "storedEvent": {
+      "description": "An event the runner stores before the probe request. It MUST be a valid JGR v0.1 event for its project (placeholders allowed).",
+      "type": "object",
+      "required": [
+        "jgr",
+        "event_id",
+        "producer_id",
+        "project_ref",
+        "thread_ref",
+        "sequence",
+        "type",
+        "occurred_at"
+      ]
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "privacy_class"],
+      "properties": {
+        "slug": { "$ref": "#/definitions/slug" },
+        "privacy_class": { "$ref": "#/definitions/privacyClass" }
+      }
+    },
+    "otherProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "privacy_class", "preload"],
+      "properties": {
+        "slug": { "$ref": "#/definitions/slug" },
+        "privacy_class": { "$ref": "#/definitions/privacyClass" },
+        "preload": { "type": "array", "items": { "$ref": "#/definitions/storedEvent" } }
+      }
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "project", "preload", "otherProjects", "requestsAlreadyInWindow"],
+      "properties": {
+        "token": {
+          "description": "How the runner obtains $TOKEN and whether it sends Authorization: Bearer $TOKEN by default.",
+          "enum": ["valid", "revoked", "unknown", "malformed", "missing"]
+        },
+        "project": { "$ref": "#/definitions/project" },
+        "preload": { "type": "array", "items": { "$ref": "#/definitions/storedEvent" } },
+        "otherProjects": {
+          "description": "Additional projects in the SAME workspace, each with its own valid token, created before the probe.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/otherProject" }
+        },
+        "requestsAlreadyInWindow": {
+          "description": "Number of filler requests (README: Rate-limit filler) the runner sends with $TOKEN in the probe's UTC minute immediately before the probe.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "path", "headers", "gzip", "body", "rawBody", "bodyPadBytes"],
+      "properties": {
+        "method": { "const": "POST" },
+        "path": { "const": "/api/v1/events" },
+        "headers": {
+          "description": "Request headers (lower-case names), sent exactly. The runner adds Authorization and Content-Encoding: gzip by the README rules unless set here.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9-]+$" },
+          "additionalProperties": { "type": "string" }
+        },
+        "gzip": { "type": "boolean" },
+        "body": {
+          "description": "JSON body, serialized compactly by the runner. Event elements may be deliberately invalid.",
+          "type": ["object", "array", "null"]
+        },
+        "rawBody": {
+          "description": "Exact UTF-8 body string; used instead of body (malformed JSON cases).",
+          "type": ["string", "null"]
+        },
+        "bodyPadBytes": {
+          "description": "Pad the serialized body with ASCII spaces (0x20) at the end until it is at least this many bytes, before gzip.",
+          "type": ["integer", "null"],
+          "minimum": 1
+        }
+      },
+      "oneOf": [
+        { "properties": { "body": { "not": { "type": "null" } }, "rawBody": { "type": "null" } } },
+        { "properties": { "body": { "type": "null" }, "rawBody": { "type": "string" } } }
+      ]
+    },
+    "matcher": {
+      "description": "A string means exact equality (after placeholder substitution). An object combines the listed checks.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "equals": {},
+            "pattern": { "type": "string", "format": "regex" },
+            "integerMin": { "type": "integer" },
+            "integerMax": { "type": "integer" },
+            "present": { "const": true },
+            "absent": { "const": true }
+          }
+        }
+      ]
+    },
+    "rejectedEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["index", "event_id", "codes"],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "event_id": {
+          "description": "Expected event_id of the response entry: a string (exact), null (JSON null), or a matcher object.",
+          "anyOf": [{ "type": "null" }, { "$ref": "#/definitions/matcher" }]
+        },
+        "codes": {
+          "description": "Exact set of distinct issues[].code values for this entry (order-insensitive).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/issueCode" }
+        }
+      }
+    },
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "headers",
+        "errorCode",
+        "accepted",
+        "duplicates",
+        "rejected",
+        "lastSignal",
+        "equivalenceGroup"
+      ],
+      "properties": {
+        "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+        "headers": {
+          "description": "Response header matchers; names are lower-case and compared case-insensitively.",
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9-]+$" },
+          "additionalProperties": { "$ref": "#/definitions/matcher" }
+        },
+        "errorCode": {
+          "description": "For non-2xx: required value of the body's `error` string when ADR-0008 names a code; null means the value is not checked (the body must still carry an `error` string).",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/errorCode" }]
+        },
+        "accepted": { "type": ["integer", "null"], "minimum": 0 },
+        "duplicates": { "type": ["integer", "null"], "minimum": 0 },
+        "rejected": {
+          "description": "Exact list of rejected entries, ordered by index.",
+          "type": ["array", "null"],
+          "items": { "$ref": "#/definitions/rejectedEntry" }
+        },
+        "lastSignal": {
+          "description": "Store-level side effect on projects.last_signal_at of the setup project (README: Signal check); null means not checked.",
+          "enum": ["advanced", "unchanged", null]
+        },
+        "equivalenceGroup": {
+          "description": "Vectors sharing a group MUST produce identical status, matched header values and `error` value.",
+          "type": ["string", "null"]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": 202 } } },
+          "then": {
+            "properties": {
+              "errorCode": { "type": "null" },
+              "accepted": { "type": "integer" },
+              "duplicates": { "type": "integer" },
+              "rejected": { "type": "array" }
+            }
+          },
+          "else": {
+            "properties": {
+              "accepted": { "type": "null" },
+              "duplicates": { "type": "null" },
+              "rejected": { "type": "null" },
+              "lastSignal": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
