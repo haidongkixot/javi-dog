@@ -28,6 +28,17 @@ Newest first: date — what changed — commit SHA.
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
 
+## Team
+
+Roster per `docs/agent-ops/TEAM.md`.
+
+| Role | Agent | Lane / paths |
+|---|---|---|
+
+Team log (meeting log — decisions, deviations, test-plan changes, screenshot budget), newest first:
+
+- <time> — <role/agent> — <entry>
+
 ## Decisions and deviations
 
 ADRs written, owner decisions, approved deviations from plan.

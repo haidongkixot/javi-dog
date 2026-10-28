@@ -14,6 +14,7 @@
     "docs/agent-ops/ORCASUS_AGENT_OPERATING_CONTRACT.md",
     "docs/agent-ops/templates/**",
     ".claude/skills/**",
+    ".claude/worktrees/**",
     "**/CHANGELOG.md",
   ],
 }

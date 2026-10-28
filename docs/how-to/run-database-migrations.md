@@ -31,6 +31,8 @@ NODE_USE_ENV_PROXY=1 pnpm --filter @javis-dog/event-store db:smoke
 
 Then open `/api/health` and check `db.migrationsApplied`.
 
+**If a migration fails half-way:** the neon-http migrator runs statement by statement without a transaction and records the journal row only at the end, so a retry fails with "relation already exists". Run the migration's reviewed `rollback/NNNN_down.sql` (it uses `IF EXISTS`, so it clears partial state) in the Neon SQL editor, fix the cause, then migrate again.
+
 ## Rollback
 
 Run the reviewed `rollback/NNNN_down.sql` in the Neon SQL editor. For data loss, use Neon point-in-time restore on the branch.

@@ -4,3 +4,4 @@ docs/brand/source/
 *.md
 .next/
 packages/ui/src/styles/tokens.css
+.claude/worktrees/
