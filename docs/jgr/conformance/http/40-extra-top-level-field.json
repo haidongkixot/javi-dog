@@ -1,0 +1,53 @@
+{
+  "$schema": "./schema.json",
+  "description": "AMBIGUOUS (A6): a top-level field next to events is not the batch shape: 400",
+  "contract": "ADR-0008 Decision outcome (Transport handling: \"batch shape → 400\"); spec §8 body { \"events\": [ ... ] }",
+  "setup": {
+    "token": "valid",
+    "project": {
+      "slug": "demo-app",
+      "privacy_class": "L0"
+    },
+    "preload": [],
+    "otherProjects": [],
+    "requestsAlreadyInWindow": 0
+  },
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/events",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "gzip": false,
+    "body": {
+      "events": [
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000040001",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 1,
+          "type": "heartbeat",
+          "status": "working",
+          "occurred_at": "$NOW-30s"
+        }
+      ],
+      "meta": {
+        "source": "test"
+      }
+    },
+    "rawBody": null,
+    "bodyPadBytes": null
+  },
+  "expect": {
+    "status": 400,
+    "headers": {},
+    "errorCode": null,
+    "accepted": null,
+    "duplicates": null,
+    "rejected": null,
+    "lastSignal": null,
+    "equivalenceGroup": null
+  }
+}

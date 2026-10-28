@@ -1,0 +1,56 @@
+{
+  "$schema": "./schema.json",
+  "description": "occurred_at 6 minutes ahead of receipt (limit 5 min): rejected with clock_skew",
+  "contract": "Spec §10 JGR-R07, §13",
+  "setup": {
+    "token": "valid",
+    "project": {
+      "slug": "demo-app",
+      "privacy_class": "L0"
+    },
+    "preload": [],
+    "otherProjects": [],
+    "requestsAlreadyInWindow": 0
+  },
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/events",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "gzip": false,
+    "body": {
+      "events": [
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000024001",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 1,
+          "type": "heartbeat",
+          "status": "working",
+          "occurred_at": "$NOW+6m"
+        }
+      ]
+    },
+    "rawBody": null,
+    "bodyPadBytes": null
+  },
+  "expect": {
+    "status": 202,
+    "headers": {},
+    "errorCode": null,
+    "accepted": 0,
+    "duplicates": 0,
+    "rejected": [
+      {
+        "index": 0,
+        "event_id": "01JBZ4XQ800000000000024001",
+        "codes": ["clock_skew"]
+      }
+    ],
+    "lastSignal": null,
+    "equivalenceGroup": null
+  }
+}

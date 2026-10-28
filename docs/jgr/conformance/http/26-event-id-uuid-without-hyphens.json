@@ -1,0 +1,69 @@
+{
+  "$schema": "./schema.json",
+  "description": "A 32-hex event_id without hyphens is neither a ULID nor a strict UUID: rejected with schema",
+  "contract": "ADR-0008 Changes 2026-10-28 H1 (\"strict UUID shape\"); spec §3 JGR-R02, §13",
+  "setup": {
+    "token": "valid",
+    "project": {
+      "slug": "demo-app",
+      "privacy_class": "L0"
+    },
+    "preload": [],
+    "otherProjects": [],
+    "requestsAlreadyInWindow": 0
+  },
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/events",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "gzip": false,
+    "body": {
+      "events": [
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000026001",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 1,
+          "type": "heartbeat",
+          "status": "working",
+          "occurred_at": "$NOW-30s"
+        },
+        {
+          "jgr": "0.1",
+          "event_id": "0192f0c12a3b7c4d8e5f0123456789ab",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 2,
+          "type": "heartbeat",
+          "status": "working",
+          "occurred_at": "$NOW-30s"
+        }
+      ]
+    },
+    "rawBody": null,
+    "bodyPadBytes": null
+  },
+  "expect": {
+    "status": 202,
+    "headers": {},
+    "errorCode": null,
+    "accepted": 1,
+    "duplicates": 0,
+    "rejected": [
+      {
+        "index": 1,
+        "event_id": {
+          "present": true
+        },
+        "codes": ["schema"]
+      }
+    ],
+    "lastSignal": null,
+    "equivalenceGroup": null
+  }
+}

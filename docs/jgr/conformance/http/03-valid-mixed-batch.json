@@ -1,0 +1,106 @@
+{
+  "$schema": "./schema.json",
+  "description": "Session, subagent, usage, attention and extension events in one batch are all accepted",
+  "contract": "Spec §3, §4 (extensions MUST be accepted), §6, §8; ADR-0008 Storage",
+  "setup": {
+    "token": "valid",
+    "project": {
+      "slug": "demo-app",
+      "privacy_class": "L0"
+    },
+    "preload": [],
+    "otherProjects": [],
+    "requestsAlreadyInWindow": 0
+  },
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/events",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "gzip": false,
+    "body": {
+      "events": [
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000003001",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 1,
+          "type": "session.started",
+          "occurred_at": "$NOW-30s",
+          "attributes": {
+            "platform": "claude-code"
+          }
+        },
+        {
+          "jgr": "0.1",
+          "event_id": "0192f0c1-2a3b-7c4d-8e5f-000000000302",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "agent_ref": "agent_architect",
+          "sequence": 2,
+          "type": "agent.started",
+          "status": "working",
+          "occurred_at": "$NOW-30s",
+          "attributes": {
+            "platform": "claude-code",
+            "collector_version": "0.1.0",
+            "tool_name": "Task"
+          }
+        },
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000003003",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 3,
+          "type": "usage.reported",
+          "occurred_at": "$NOW-30s",
+          "usage_delta": {
+            "input_tokens": 1280,
+            "output_tokens": 462,
+            "model": "claude-opus-5-5",
+            "estimated": false
+          }
+        },
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000003004",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 4,
+          "type": "attention.requested",
+          "status": "waiting",
+          "occurred_at": "$NOW-30s"
+        },
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000003005",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 5,
+          "type": "x.cursor.composer_step",
+          "occurred_at": "$NOW-30s"
+        }
+      ]
+    },
+    "rawBody": null,
+    "bodyPadBytes": null
+  },
+  "expect": {
+    "status": 202,
+    "headers": {},
+    "errorCode": null,
+    "accepted": 5,
+    "duplicates": 0,
+    "rejected": [],
+    "lastSignal": null,
+    "equivalenceGroup": null
+  }
+}

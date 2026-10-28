@@ -1,0 +1,70 @@
+{
+  "$schema": "./schema.json",
+  "description": "Every event fails validation: still 202 with accepted 0; no valid event, so the signal is not refreshed",
+  "contract": "Spec §5 JGR-R05, §6 JGR-R08, §8 (202 partial acceptance); ADR-0008 Changes H2 (\"at least one valid event\")",
+  "setup": {
+    "token": "valid",
+    "project": {
+      "slug": "demo-app",
+      "privacy_class": "L0"
+    },
+    "preload": [],
+    "otherProjects": [],
+    "requestsAlreadyInWindow": 0
+  },
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/events",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "gzip": false,
+    "body": {
+      "events": [
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000009001",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 1,
+          "type": "heartbeat",
+          "occurred_at": "$NOW-30s"
+        },
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000009002",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 2,
+          "type": "usage.reported",
+          "occurred_at": "$NOW-30s"
+        }
+      ]
+    },
+    "rawBody": null,
+    "bodyPadBytes": null
+  },
+  "expect": {
+    "status": 202,
+    "headers": {},
+    "errorCode": null,
+    "accepted": 0,
+    "duplicates": 0,
+    "rejected": [
+      {
+        "index": 0,
+        "event_id": "01JBZ4XQ800000000000009001",
+        "codes": ["status_required"]
+      },
+      {
+        "index": 1,
+        "event_id": "01JBZ4XQ800000000000009002",
+        "codes": ["usage_required"]
+      }
+    ],
+    "lastSignal": "unchanged",
+    "equivalenceGroup": null
+  }
+}

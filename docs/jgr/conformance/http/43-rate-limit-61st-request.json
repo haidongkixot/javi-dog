@@ -1,0 +1,55 @@
+{
+  "$schema": "./schema.json",
+  "description": "61st batch in one UTC minute: 429 with Retry-After = whole seconds to the next window (1-60)",
+  "contract": "ADR-0008 Decision outcome (Rate limit: over the limit → 429 + Retry-After) + Changes H6; spec §8",
+  "setup": {
+    "token": "valid",
+    "project": {
+      "slug": "demo-app",
+      "privacy_class": "L0"
+    },
+    "preload": [],
+    "otherProjects": [],
+    "requestsAlreadyInWindow": 60
+  },
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/events",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "gzip": false,
+    "body": {
+      "events": [
+        {
+          "jgr": "0.1",
+          "event_id": "01JBZ4XQ800000000000043001",
+          "producer_id": "prod_claude-code_7f3a",
+          "project_ref": "$PROJECT_SLUG",
+          "thread_ref": "s_0123456789abcdef0123456789abcdef",
+          "sequence": 1,
+          "type": "heartbeat",
+          "status": "working",
+          "occurred_at": "$NOW-30s"
+        }
+      ]
+    },
+    "rawBody": null,
+    "bodyPadBytes": null
+  },
+  "expect": {
+    "status": 429,
+    "headers": {
+      "retry-after": {
+        "integerMin": 1,
+        "integerMax": 60
+      }
+    },
+    "errorCode": null,
+    "accepted": null,
+    "duplicates": null,
+    "rejected": null,
+    "lastSignal": null,
+    "equivalenceGroup": null
+  }
+}
