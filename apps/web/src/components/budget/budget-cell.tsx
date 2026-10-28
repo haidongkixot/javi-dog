@@ -1,3 +1,4 @@
+import type { BudgetThreshold } from '@javis-dog/resilience';
 import { StatusPill } from '@javis-dog/ui/components';
 // Type only: lib/budgets wires the server-side repository.
 import type { BudgetsLoad } from '@/lib/budgets';
@@ -8,7 +9,13 @@ import { percentOfLimit, thresholdBadge } from './format';
 
 export type BudgetCellData =
   | { kind: 'none' }
-  | { kind: 'set'; limitUsd: number; percentUsed: number }
+  | {
+      kind: 'set';
+      limitUsd: number;
+      percentUsed: number;
+      /** JD-M12 `thresholdReached` (exact), the source of the badge. */
+      threshold: BudgetThreshold | null;
+    }
   | { kind: 'not_loaded' };
 
 /** The cell for one project from the workspace's budget statuses. */
@@ -16,7 +23,12 @@ export const toBudgetCell = (load: BudgetsLoad, projectId: string): BudgetCellDa
   if (load.kind !== 'ready') return { kind: 'not_loaded' };
   const s = load.statuses.find((b) => b.projectId === projectId);
   return s && s.limitUsd !== null && s.percentUsed !== null
-    ? { kind: 'set', limitUsd: s.limitUsd, percentUsed: s.percentUsed }
+    ? {
+        kind: 'set',
+        limitUsd: s.limitUsd,
+        percentUsed: s.percentUsed,
+        threshold: s.thresholdReached,
+      }
     : { kind: 'none' };
 };
 
@@ -25,7 +37,7 @@ export function BudgetCell({ budget }: { budget: BudgetCellData | undefined }) {
   if (!budget) return <>—</>;
   if (budget.kind === 'not_loaded') return <>Not loaded</>;
   if (budget.kind === 'none') return <>No budget</>;
-  const badge = thresholdBadge(budget.percentUsed);
+  const badge = thresholdBadge(budget.threshold);
   return (
     <span className="inline-flex items-center gap-2">
       {badge ? <StatusPill tone={badge.tone}>{badge.label}</StatusPill> : null}

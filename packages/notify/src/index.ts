@@ -8,6 +8,7 @@ export {
 } from './budget.ts';
 export {
   NotifyError,
+  SEND_TIMEOUT_MS,
   sendEmail,
   type DeliveryReport,
   type EmailMessage,

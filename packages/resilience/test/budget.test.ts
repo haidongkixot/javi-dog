@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { crossedThreshold, forecastSpend, utcMonth } from '../src/index.ts';
+import { crossedThreshold, forecastSpend, percentOfLimit, utcMonth } from '../src/index.ts';
 
 const DAY = 86_400_000;
 
@@ -89,5 +89,49 @@ describe('crossedThreshold (80 % / 100 %)', () => {
     expect(() => crossedThreshold(10, Number.NaN)).toThrow(RangeError);
     expect(() => crossedThreshold(10, Number.POSITIVE_INFINITY)).toThrow(RangeError);
     expect(() => crossedThreshold(Number.NaN, 10)).toThrow(RangeError);
+  });
+});
+
+describe('percentOfLimit (exact, floored to 0.01, never rounded up)', () => {
+  it.each([
+    [79.99, 100, 79.99],
+    [79.999999, 100, 79.99],
+    [99.99, 100, 99.99],
+    [99.999999, 100, 99.99],
+    [100, 100, 100],
+    [6.2, 10, 62],
+    [8.12, 10, 81.2],
+    [0, 100, 0],
+    [12.4, 10, 124],
+    // 1 / 3 = 33.333… → 33.33; 2 / 3 = 66.666… → 66.66 (floored, not 66.67).
+    [1, 3, 33.33],
+    [2, 3, 66.66],
+    // Float traps compare exactly, like crossedThreshold.
+    [0.232, 0.29, 80],
+    [0.1 + 0.2, 0.3, 100],
+    [999_999.999999, 1_000_000, 99.99],
+  ])('spend %s of limit %s → %s %%', (spend, limit, expected) => {
+    expect(percentOfLimit(spend, limit)).toBe(expected);
+  });
+
+  it('agrees with crossedThreshold at both thresholds', () => {
+    for (const [spend, limit] of [
+      [79.999999, 100],
+      [80, 100],
+      [99.999999, 100],
+      [100, 100],
+      [0.231999, 0.29],
+      [0.232, 0.29],
+    ] as const) {
+      const pct = percentOfLimit(spend, limit);
+      const t = crossedThreshold(spend, limit);
+      expect(pct >= 100).toBe(t === 100);
+      expect(pct >= 80).toBe(t !== null);
+    }
+  });
+
+  it('refuses a limit ≤ 0 or non-finite, and a non-finite spend', () => {
+    expect(() => percentOfLimit(10, 0)).toThrow(RangeError);
+    expect(() => percentOfLimit(Number.NaN, 10)).toThrow(RangeError);
   });
 });

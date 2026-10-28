@@ -125,7 +125,11 @@ describe('status: month-to-date spend', () => {
       forecastUsd: 5.96,
       reports: 4,
       estimatedReports: 1,
+      thresholdReached: null,
       alerted: [],
+      pendingAlerts: [],
+      failedAlerts: [],
+      exhaustedAlerts: [],
       generatedAt: '2026-10-20T12:00:00.000Z',
     });
 
@@ -133,6 +137,27 @@ describe('status: month-to-date spend', () => {
     expect(await budgets.status(s.workspaceId, s.projectId, { now: NOW })).toMatchObject({
       limitUsd: 10,
       percentUsed: 37.5,
+    });
+  });
+
+  it('percentUsed is exact spend / limit floored to 0.01, never rounded up', async () => {
+    const s = await setup();
+    await budgets.setBudget(s.workspaceId, s.projectId, 100, randomUUID());
+    await spend(s, 79.999999);
+    expect(await budgets.status(s.workspaceId, s.projectId, { now: NOW })).toMatchObject({
+      spendUsd: 79.999999,
+      percentUsed: 79.99,
+      thresholdReached: null,
+    });
+    await spend(s, 20);
+    expect(await budgets.status(s.workspaceId, s.projectId, { now: NOW })).toMatchObject({
+      percentUsed: 99.99,
+      thresholdReached: 80,
+    });
+    await spend(s, 0.000001);
+    expect(await budgets.status(s.workspaceId, s.projectId, { now: NOW })).toMatchObject({
+      percentUsed: 100,
+      thresholdReached: 100,
     });
   });
 
@@ -310,7 +335,11 @@ describe('claimAlert: exactly once per (project, month, threshold)', () => {
     );
     const claimed = jobs.filter((j) => j !== null);
     expect(claimed).toHaveLength(1);
-    expect(claimed[0]).toMatchObject({ threshold: 100, status: { alerted: [80] } });
+    // Nothing has been emailed yet: the covered 80 counts only once the 100 email is sent.
+    expect(claimed[0]).toMatchObject({
+      threshold: 100,
+      status: { alerted: [], pendingAlerts: [100], failedAlerts: [] },
+    });
     expect(await alertRows(s.projectId)).toMatchObject([
       { threshold: 80, status: 'covered' },
       { threshold: 100, status: 'pending' },
@@ -413,6 +442,128 @@ describe('claimAlert: exactly once per (project, month, threshold)', () => {
       '2026-09-01',
       '2026-10-01',
     ]);
+  });
+});
+
+describe('status: alerted claims only emails that were sent', () => {
+  const budgeted = async (limit: number, cost: number) => {
+    const s = await setup();
+    await member(s.workspaceId, 'owner@example.com', 'owner');
+    await budgets.setBudget(s.workspaceId, s.projectId, limit, randomUUID());
+    await spend(s, cost);
+    return s;
+  };
+  const alerts = async (s: Scope) => {
+    const st = (await budgets.status(s.workspaceId, s.projectId, { now: NOW }))!;
+    return {
+      alerted: st.alerted,
+      pendingAlerts: st.pendingAlerts,
+      failedAlerts: st.failedAlerts,
+      exhaustedAlerts: st.exhaustedAlerts,
+    };
+  };
+
+  it('a covered 80 counts only once the 100 email was sent', async () => {
+    const s = await budgeted(10, 12);
+    const job = (await budgets.claimAlert(s, { now: NOW }))!;
+    expect(await alertRows(s.projectId)).toMatchObject([
+      { threshold: 80, status: 'covered' },
+      { threshold: 100, status: 'pending' },
+    ]);
+    expect(await alerts(s)).toEqual({
+      alerted: [],
+      pendingAlerts: [100],
+      failedAlerts: [],
+      exhaustedAlerts: [],
+    });
+
+    await budgets.markAlert(job.alertId, 'failed');
+    expect(await alerts(s)).toEqual({
+      alerted: [],
+      pendingAlerts: [],
+      failedAlerts: [100],
+      exhaustedAlerts: [],
+    });
+
+    await budgets.markAlert((await budgets.claimAlert(s, { now: NOW }))!.alertId, 'sent');
+    expect(await alerts(s)).toEqual({
+      alerted: [80, 100],
+      pendingAlerts: [],
+      failedAlerts: [],
+      exhaustedAlerts: [],
+    });
+  });
+
+  it('a failed 80 is reported as failed, then as exhausted after 5 attempts', async () => {
+    const s = await budgeted(10, 9);
+    const first = (await budgets.claimAlert(s, { now: NOW }))!;
+    await budgets.markAlert(first.alertId, 'failed');
+    expect(await alerts(s)).toEqual({
+      alerted: [],
+      pendingAlerts: [],
+      failedAlerts: [80],
+      exhaustedAlerts: [],
+    });
+    for (let attempt = 2; attempt <= 5; attempt++) {
+      const retry = await budgets.claimAlert(s, { now: NOW });
+      // The job's own status reflects its claim: pending, no longer failed.
+      expect(retry!.status).toMatchObject({ pendingAlerts: [80], failedAlerts: [] });
+      await budgets.markAlert(retry!.alertId, 'failed');
+    }
+    expect(await alertRows(s.projectId)).toMatchObject([{ status: 'failed', attempts: 5 }]);
+    expect(await alerts(s)).toEqual({
+      alerted: [],
+      pendingAlerts: [],
+      failedAlerts: [80],
+      exhaustedAlerts: [80],
+    });
+  });
+});
+
+describe('claimAlert cost', () => {
+  /** SQL text of every statement the PGlite client receives. */
+  const spyStatements = () => {
+    const query = vi.spyOn(ctx.client, 'query');
+    const exec = vi.spyOn(ctx.client, 'exec');
+    return {
+      sql: () => [...query.mock.calls, ...exec.mock.calls].map(([text]) => String(text)),
+      restore: () => {
+        query.mockRestore();
+        exec.mockRestore();
+      },
+    };
+  };
+
+  it('never aggregates spend for a project without a budget (one indexed lookup)', async () => {
+    const s = await setup();
+    await member(s.workspaceId, 'owner@example.com', 'owner');
+    await spend(s, 50);
+
+    const execute = vi.spyOn(ctx.db, 'execute');
+    const statements = spyStatements();
+    expect(await budgets.claimAlert(s, { now: NOW })).toBeNull();
+    expect(execute).toHaveBeenCalledTimes(1);
+    const sent = statements.sql();
+    execute.mockRestore();
+    statements.restore();
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatch(/from project_budgets/);
+    expect(sent[0]).not.toMatch(/\bevents\b/);
+    expect(sent[0]).not.toMatch(/sum\(/);
+  });
+
+  it('a budgeted project still gets its claim', async () => {
+    const s = await setup();
+    await member(s.workspaceId, 'owner@example.com', 'owner');
+    await budgets.setBudget(s.workspaceId, s.projectId, 10, randomUUID());
+    await spend(s, 9);
+    const statements = spyStatements();
+    const job = await budgets.claimAlert(s, { now: NOW });
+    const sent = statements.sql();
+    statements.restore();
+    expect(job).toMatchObject({ threshold: 80 });
+    expect(sent.some((q) => /\bevents\b/.test(q))).toBe(true);
   });
 });
 

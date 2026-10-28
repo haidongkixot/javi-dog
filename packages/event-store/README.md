@@ -8,8 +8,8 @@ Status: **in-progress**. S2a: Neon client over HTTP, composed schema (JD-M04 tab
 |---|---|
 | `createDb(databaseUrl)` | Drizzle over `@neondatabase/serverless` HTTP (one HTTPS request per query; no interactive transactions) |
 | `pingDb(db)` | `{ latencyMs, migrationsApplied }`; throws on failure |
-| `createEventRepository(db)` | `insertEvents` (dedupe per project, returns stored count), `hitRateWindow` (atomic per-token minute counter), `purgeEventsBefore` (30-day retention, ADR-0008), `touchSignal` (`projects.last_signal_at`) |
-| `EVENT_RETENTION_DAYS`, `retentionCutoff(now)` | 30-day raw retention (ADR-0008); used by the daily purge route (S3b) |
+| `createEventRepository(db)` | `insertEvents` (dedupe per project, returns stored count), `hitRateWindow` (atomic per-token minute counter), `purgeEventsBefore` (retention: 30 days, but the whole current UTC month is kept — ADR-0008, ADR-0014), `touchSignal` (`projects.last_signal_at`) |
+| `EVENT_RETENTION_DAYS`, `retentionCutoff(now)` | Raw retention: 30 days, but the whole current UTC month is kept (ADR-0014): cutoff = `min(now − 30 days, start of the current UTC month)`, at most 31 days; used by the daily purge route (S3b) |
 | `getMigrationsFolder()` from **`@javis-dog/event-store/migrations`** | Absolute path of the committed migrations, for scripts and other modules' PGlite tests. Separate entry point because bundlers resolve its `import.meta.url` asset; app code never imports it |
 | `schema`, `workspaces`, `projects`, `ingestTokens`, `events`, `ingestRateWindows` | Composed schema (each module owns its tables, ADR-0005) |
 | `Db`, `AnyDb`, `DbPing`, `EventRepository`, `NewEvent` | Types |

@@ -5,6 +5,7 @@ export {
   FORECAST_MIN_ELAPSED_MS,
   forecastSpend,
   MAX_MONTHLY_LIMIT_USD,
+  percentOfLimit,
   utcMonth,
   type BudgetThreshold,
 } from './budget.ts';
