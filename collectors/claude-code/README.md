@@ -14,6 +14,24 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 
 `init` stores the token in `~/.javi/credentials.json` (not in the repository), registers hooks in `.claude/settings.local.json` (git-ignored), and sends one check event. Claude Code picks up the hooks without a restart.
 
+## Install from the tarball
+
+No checkout needed: `javi` also ships as one self-contained file in a tarball (Node.js 22 or newer, no dependencies, nothing fetched from a registry). It is not published to npm. Build it from this repository:
+
+```sh
+pnpm --filter @javis-dog/collector-claude-code pack:cli   # → collectors/claude-code/dist/javis-dog-javi-<version>.tgz
+```
+
+Then, in the project's directory:
+
+```powershell
+$env:JAVI_INGEST_TOKEN = '<paste token>'
+npx ./javis-dog-javi-<version>.tgz init --project <project-slug>
+Remove-Item Env:JAVI_INGEST_TOKEN
+```
+
+`init` from the tarball copies javi to `~/.javi/bin/javi.mjs` and points the hooks there, so they keep working after the npx cache is cleared. Running `init` again replaces that copy. Use `node "$HOME/.javi/bin/javi.mjs" <command>` for `status`, `flush` and the rest. Run from a repository checkout, `init` registers `src/cli.ts` as before.
+
 | Command | What it does |
 |---|---|
 | `javi init --project <slug> [--endpoint <url>] [--dir <path>] [--no-verify]` | Token from `JAVI_INGEST_TOKEN` or stdin; https endpoints only (http for localhost) |
