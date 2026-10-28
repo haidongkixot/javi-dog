@@ -1,8 +1,10 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createServer as createHttpServer } from 'node:http';
 import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   USAGE_ENV_KEYS,
@@ -12,6 +14,10 @@ import {
   type CollectorState,
   type Io,
 } from '../src/index.ts';
+import { createUsageReceiver, isPidAlive } from '../src/receiver.ts';
+
+const CLI = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
+const DROPPED = 'dropped (unattributed session, project without token, or invalid)';
 
 // U3 (TEST_PLAN §S3e): `javi usage on|off` and the `status` usage lines, in-process, against a
 // temp JAVI_HOME and a temp Claude home (never the real ~/.claude).
@@ -59,7 +65,30 @@ const io = (env: NodeJS.ProcessEnv = {}) => {
   return { value, out, err, receivers: () => receivers };
 };
 
-/** A stand-in for a running receiver process (only its pid matters to the CLI). */
+const waitFor = async (check: () => boolean | Promise<boolean>, ms = 10_000) => {
+  const until = Date.now() + ms;
+  while (!(await check())) {
+    if (Date.now() > until) throw new Error('timed out waiting for the asserted state');
+    await new Promise((r) => setTimeout(r, 25));
+  }
+};
+
+/** A real `javi receive` child for the temp JAVI_HOME; resolves once receiver.json names it. */
+const realReceiver = async () => {
+  const child = spawn(process.execPath, [CLI, 'receive'], {
+    env: { ...process.env, JAVI_HOME: home },
+    stdio: 'ignore',
+  });
+  try {
+    await waitFor(async () => (await state.receiverInfo())?.pid === child.pid);
+  } catch (e) {
+    child.kill(); // never leave a receiver behind
+    throw e;
+  }
+  return child;
+};
+
+/** A process that is alive but is not a javi receiver (e.g. a recycled pid). */
 const sleeper = () =>
   new Promise<ChildProcess>((resolve) => {
     const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
@@ -151,6 +180,55 @@ describe('javi usage on', () => {
       expect(await main(['usage', 'on', '--port', bad], io().value)).toBe(2);
     }
   });
+
+  // S3e review #5: usage.json is saved before the settings edit, so settings never hold keys
+  // javi forgot.
+  it('does not touch the settings when usage.json cannot be saved', async () => {
+    await mkdir(join(home, 'usage.json', 'blocker'), { recursive: true });
+    await mkdir(join(claudeHome, '.claude'), { recursive: true });
+    const original = '{"model":"opus"}\n';
+    await writeFile(settings, original);
+    const t = io();
+    const code = await main(['usage', 'on', '--port', String(await freePort())], t.value).catch(
+      () => 'threw',
+    );
+    expect(code).toBe(1);
+    expect(await readFile(settings, 'utf8')).toBe(original);
+    expect(t.err.join('\n')).toContain('usage.json');
+    expect(t.receivers()).toBe(0);
+  });
+
+  it('restores the previous usage.json when the settings edit is refused or fails', async () => {
+    const first = await freePort();
+    expect(await main(['usage', 'on', '--port', String(first)], io().value)).toBe(0);
+    const before = await readFile(join(home, 'usage.json'), 'utf8');
+
+    // Refused: a foreign OTel key appeared in the settings meanwhile.
+    const edited = JSON.parse(await readFile(settings, 'utf8')) as { env: Record<string, string> };
+    edited.env.OTEL_LOGS_EXPORTER = 'otlp';
+    await writeFile(settings, JSON.stringify(edited));
+    expect(await main(['usage', 'on', '--port', String(await freePort())], io().value)).toBe(1);
+    expect(await readFile(join(home, 'usage.json'), 'utf8')).toBe(before);
+
+    // Throws: the settings path is a directory.
+    await rm(settings);
+    await mkdir(settings);
+    const code = await main(['usage', 'on', '--port', String(await freePort())], io().value).catch(
+      () => 'threw',
+    );
+    expect(code).toBe('threw');
+    expect(await readFile(join(home, 'usage.json'), 'utf8')).toBe(before);
+
+    // No previous usage.json: none is left behind.
+    await rm(join(home, 'usage.json'));
+    expect(
+      await main(['usage', 'on', '--port', String(await freePort())], io().value).catch(
+        () => 'threw',
+      ),
+    ).toBe('threw');
+    expect(await state.usageConfig()).toBeNull();
+    await expect(stat(join(home, 'usage.json'))).rejects.toMatchObject({ code: 'ENOENT' });
+  });
 });
 
 describe('javi usage off and status', () => {
@@ -171,11 +249,12 @@ describe('javi usage off and status', () => {
       expect.arrayContaining([
         `Usage: on (port ${port})`,
         'Usage receiver: not running',
-        'Usage forwarded: 0, dropped (unattributed): 0',
+        `Usage forwarded: 0, ${DROPPED}: 0`,
         'Last usage export: never',
       ]),
     );
 
+    // S3e review #2: a live pid that is not a confirmed javi receiver is "not running".
     const child = await sleeper();
     try {
       await state.saveReceiverInfo({
@@ -186,18 +265,31 @@ describe('javi usage off and status', () => {
         dropped: 2,
         lastRequestAt: '2026-10-28T10:00:00.000Z',
       });
+      const unconfirmed = io();
+      await main(['status', '--project', 'web-app'], unconfirmed.value);
+      expect(unconfirmed.out).toContain('Usage receiver: not running');
+    } finally {
+      child.kill();
+    }
+
+    // A confirmed receiver (in-process here, so its pid is this test's pid).
+    const config = (await state.usageConfig())!;
+    const receiver = createUsageReceiver({ state, port, secret: config.secret, salt: 's' });
+    await receiver.listen();
+    try {
       const running = io();
       await main(['status', '--project', 'web-app'], running.value);
       expect(running.out).toEqual(
         expect.arrayContaining([
-          `Usage receiver: running (pid ${child.pid})`,
-          'Usage forwarded: 3, dropped (unattributed): 2',
+          `Usage receiver: running (pid ${process.pid})`,
+          `Usage forwarded: 3, ${DROPPED}: 2`,
           'Last usage export: 2026-10-28T10:00:00.000Z',
         ]),
       );
-      expect(running.out.join('\n')).not.toContain((await state.usageConfig())!.secret);
+      expect(running.out.join('\n')).not.toContain(config.secret);
+      expect(running.out.join('\n')).not.toMatch(/another program/);
     } finally {
-      child.kill();
+      await receiver.close();
     }
   });
 
@@ -205,19 +297,15 @@ describe('javi usage off and status', () => {
     await mkdir(join(claudeHome, '.claude'), { recursive: true });
     await writeFile(settings, JSON.stringify({ model: 'opus', env: { FOO: 'bar' } }));
     expect(await main(['usage', 'on', '--port', String(await freePort())], io().value)).toBe(0);
-    const child = await sleeper();
+    const child = await realReceiver();
     const exited = new Promise((r) => child.once('exit', r));
-    await state.saveReceiverInfo({
-      pid: child.pid!,
-      port: 1,
-      startedAt: 'x',
-      forwarded: 0,
-      dropped: 0,
-      lastRequestAt: null,
-    });
 
     const t = io();
-    expect(await main(['usage', 'off'], t.value)).toBe(0);
+    try {
+      expect(await main(['usage', 'off'], t.value)).toBe(0);
+    } finally {
+      if (isPidAlive(child.pid)) child.kill();
+    }
     await exited;
     expect(JSON.parse(await readFile(settings, 'utf8'))).toEqual({
       model: 'opus',
@@ -248,6 +336,122 @@ describe('javi usage off and status', () => {
       env: { OTEL_METRICS_EXPORTER: 'console' },
     });
     expect(t.out.join('\n')).not.toMatch(/Removed from .*OTEL_METRICS_EXPORTER[,.]/);
+  });
+
+  // S3e review #2: the CLI never signals a pid the probe did not confirm.
+  it('usage off never signals a live pid that is not a confirmed receiver', async () => {
+    expect(await main(['usage', 'on', '--port', String(await freePort())], io().value)).toBe(0);
+    const child = await sleeper();
+    try {
+      await state.saveReceiverInfo({
+        pid: child.pid!,
+        port: (await state.usageConfig())!.port,
+        startedAt: 'x',
+        forwarded: 0,
+        dropped: 0,
+        lastRequestAt: null,
+      });
+      const t = io();
+      expect(await main(['usage', 'off'], t.value)).toBe(0);
+      expect(isPidAlive(child.pid)).toBe(true);
+      expect(t.out).toContain('No usage receiver was running.');
+      expect(await state.receiverInfo()).toBeNull();
+    } finally {
+      child.kill();
+    }
+  });
+
+  // S3e review #1: an unreadable settings file must not end in a claimed success.
+  it.each([
+    ['unparsable', (text: string) => text.replace(/}\s*$/, ',}')],
+    ['not an object', () => '[]'],
+    ['env not an object', () => '{"env":"x"}'],
+  ])(
+    'usage off on a %s settings file exits 1, keeps usage.json and says what to fix',
+    async (_name, breakIt) => {
+      expect(await main(['usage', 'on', '--port', String(await freePort())], io().value)).toBe(0);
+      const config = (await state.usageConfig())!;
+      const good = await readFile(settings, 'utf8');
+      const broken = breakIt(good);
+      await writeFile(settings, broken);
+
+      const t = io();
+      expect(await main(['usage', 'off'], t.value)).toBe(1);
+      const text = [...t.out, ...t.err].join('\n');
+      expect(text).toContain(settings);
+      expect(text).toMatch(/javi usage off/);
+      expect(text).not.toContain(config.secret);
+      expect(text).not.toMatch(/no longer export|Removed from|already off/);
+      expect(await state.usageConfig()).toEqual(config);
+      expect(await readFile(settings, 'utf8')).toBe(broken);
+
+      // Fixed by the user: running usage off again removes the keys.
+      await writeFile(settings, good);
+      const again = io();
+      expect(await main(['usage', 'off'], again.value)).toBe(0);
+      expect(JSON.parse(await readFile(settings, 'utf8'))).toEqual({});
+      expect(await state.usageConfig()).toBeNull();
+    },
+  );
+
+  // S3e review #3: a port held by another program is recorded and shown, silently for hooks.
+  it('receive records a port held by another program; status warns; usage on clears it', async () => {
+    await state.saveCredentials('web-app', {
+      endpoint: 'https://x.test/api/v1/events',
+      token: TOKEN,
+    });
+    const holder = createHttpServer((req, res) => {
+      req.resume();
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{}');
+    });
+    await new Promise<void>((r) => holder.listen(0, '127.0.0.1', r));
+    const port = (holder.address() as { port: number }).port;
+    try {
+      await state.saveUsageConfig({ port, secret: 'cli-secret-0123456789', written: {} });
+      const t = io();
+      const before = Date.now();
+      expect(await main(['receive'], t.value)).toBe(0);
+      expect([...t.out, ...t.err]).toEqual([]);
+      const info = (await state.receiverInfo())!;
+      expect(info.pid).toBe(0);
+      expect(Date.parse(info.portConflict!.at)).toBeGreaterThanOrEqual(before - 1_000);
+
+      const status = io();
+      await main(['status', '--project', 'web-app'], status.value);
+      const text = status.out.join('\n');
+      expect(text).toContain(`another program holds 127.0.0.1:${port}`);
+      expect(text).toMatch(/identity/);
+      expect(text).toContain('javi usage off');
+      expect(text).toContain('javi usage on --port <n>');
+      expect(text).not.toMatch(/\blive\b|\bsecure\b/i);
+    } finally {
+      await new Promise((r) => holder.close(r));
+    }
+    // The port is free again: usage on succeeds and forgets the conflict.
+    expect(await main(['usage', 'on', '--port', String(port)], io().value)).toBe(0);
+    expect((await state.receiverInfo())?.portConflict).toBeUndefined();
+    const status = io();
+    await main(['status', '--project', 'web-app'], status.value);
+    expect(status.out.join('\n')).not.toMatch(/another program/);
+  });
+
+  it('receive exits 0 without a conflict when our own receiver holds the port', async () => {
+    const port = await freePort();
+    const secret = 'cli-secret-0123456789';
+    await state.saveUsageConfig({ port, secret, written: {} });
+    const receiver = createUsageReceiver({ state, port, secret, salt: 's' });
+    await receiver.listen();
+    try {
+      const t = io();
+      expect(await main(['receive'], t.value)).toBe(0);
+      expect([...t.out, ...t.err]).toEqual([]);
+      const info = (await state.receiverInfo())!;
+      expect(info).toMatchObject({ pid: process.pid, port });
+      expect(info.portConflict).toBeUndefined();
+    } finally {
+      await receiver.close();
+    }
   });
 
   it('usage needs a sub-command; receive needs usage on', async () => {

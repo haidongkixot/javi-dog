@@ -51,4 +51,13 @@ node "<repo>/collectors/claude-code/src/cli.ts" usage on      # or: javi init ..
 
 **What to expect.** Claude Code exports about every 60 s, so numbers lag by up to a minute. Only sessions started after `usage on` export. A session counts once a hook has seen it, so usage of projects without `javi init` is dropped locally (counted in `javi status`) and never leaves this machine. The receiver listens on 127.0.0.1 only, accepts only requests with the local secret, starts with the next hook and stops after 30 idle minutes; usage exported while it is not running is lost. `javi status --project <slug>` shows whether usage is on, whether the receiver is running, the forwarded and dropped counts and the last export.
 
-**Turning it off.** `javi usage off` removes only the keys whose values are still the ones javi wrote, stops the receiver and forgets the local secret. Your backup stays where it is.
+**Turning it off.** `javi usage off` removes only the keys whose values are still the ones javi wrote, stops the receiver and forgets the local secret. Your backup stays where it is. If `~/.claude/settings.json` is not valid JSON at that moment (a trailing comma, say), javi removes nothing, keeps its local secret and tells you so: fix the file, then run `javi usage off` again. If the file is a symlink (dotfiles), javi edits the file it points to and the link stays a link.
+
+**Not yet verified on a real Claude Code run:** that Claude Code's OTel session id equals the hook session id. Until then, `javi status` shows whether usage is matched (forwarded) or dropped.
+
+**Good to know.**
+
+- Settings `env` may also reach programs Claude Code runs. If an app of yours exports OTel metrics from inside a Claude Code session, it may send them to javi's receiver; javi ignores everything except Claude Code's token and cost metrics of sessions it knows.
+- OTel variables from direnv or an IDE's launch environment are overridden by `~/.claude/settings.json` while usage is on.
+- Organisation-managed settings (a managed settings file, MDM or the claude.ai console) can override or turn off the export, and javi cannot see them. `javi status` then shows no forwarded usage.
+- If another program holds the usage port, it receives Claude Code's exports, identity attributes included. `javi status` warns you when that happens; run `javi usage off`, or `javi usage on --port <n>` to move to a free port.

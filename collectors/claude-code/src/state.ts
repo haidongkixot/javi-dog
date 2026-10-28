@@ -38,6 +38,11 @@ export interface ReceiverInfo {
   dropped: number;
   /** Last accepted OTLP export, or null. */
   lastRequestAt: string | null;
+  /**
+   * Set by `javi receive` when another program holds the usage port (Claude Code's exports go
+   * there); hooks back off spawning for a while. A successful listen or `usage on` clears it.
+   */
+  portConflict?: { at: string };
 }
 
 /** Session attributions older than this count as absent and are pruned (ADR-0011). */

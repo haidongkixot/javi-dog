@@ -43,13 +43,16 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
     const input = mapHook(raw, { projectRef: deps.projectRef, salt });
     if (!input) return 'ignored';
 
-    // Usage attribution (ADR-0011): the receiver forwards only sessions seen by a hook.
-    // Failures here must not cost the hook event itself.
-    const seenAt = (deps.now?.() ?? new Date()).getTime();
-    await deps.state.rememberSession(input.thread_ref, deps.projectRef, seenAt).catch(() => false);
-    if (deps.ensureReceiver) {
+    // Usage attribution (ADR-0011), only while usage is on: the receiver forwards only sessions
+    // seen by a hook. Failures here must not cost the hook event itself.
+    const usageOn = await deps.state.usageConfig().then(Boolean, () => false);
+    if (usageOn) {
+      const seenAt = (deps.now?.() ?? new Date()).getTime();
+      await deps.state
+        .rememberSession(input.thread_ref, deps.projectRef, seenAt)
+        .catch(() => false);
       try {
-        if (await deps.state.usageConfig()) await deps.ensureReceiver();
+        await deps.ensureReceiver?.();
       } catch {
         // A receiver that cannot start shows up in `javi status`, never in Claude Code.
       }

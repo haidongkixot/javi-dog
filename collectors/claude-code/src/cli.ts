@@ -23,6 +23,8 @@ import {
   claudeUserSettingsPath,
   disableUsageEnv,
   enableUsageEnv,
+  usageEnv,
+  type EnableResult,
 } from './claude-env.ts';
 import { COLLECTOR_VERSION, opaqueRef } from './mapping.ts';
 import {
@@ -31,6 +33,7 @@ import {
   ensureReceiver,
   isPidAlive,
   liveReceiver,
+  probeReceiver,
 } from './receiver.ts';
 import { runFlush, runHook } from './run.ts';
 import { installHooks, settingsPath, uninstallHooks } from './settings.ts';
@@ -109,10 +112,17 @@ const portFree = (port: number) =>
     probe.listen(port, '127.0.0.1', () => probe.close(() => done(true)));
   });
 
-/** Stops the live receiver (SIGTERM, then waits up to 5 s for it to exit). */
+/**
+ * Stops the receiver (SIGTERM, then waits up to 5 s for it to exit) — only one the probe
+ * confirmed. An unconfirmed receiver.json (stale, or a recycled pid) is just marked stopped.
+ */
 const stopReceiver = async (state: CollectorState) => {
   const live = await liveReceiver(state);
-  if (!live) return false;
+  if (!live) {
+    const info = await state.receiverInfo();
+    if (info && info.pid !== 0) await state.saveReceiverInfo({ ...info, pid: 0 });
+    return false;
+  }
   try {
     process.kill(live.pid, 'SIGTERM');
   } catch {
@@ -149,14 +159,33 @@ const usageOn = async (argv: string[], io: Io, state: CollectorState): Promise<n
   }
 
   const path = claudeSettings(io.env);
-  const result = await enableUsageEnv({
-    path,
-    port,
-    secret,
-    shellEnv: io.env,
-    ...(config?.written && { previous: config.written }),
-  });
+  // usage.json first, with the values about to be written: settings never hold keys javi has
+  // forgotten. Restored (or removed) below when the settings edit is refused or fails.
+  const next = { port, secret, written: usageEnv(port, secret) };
+  try {
+    await state.saveUsageConfig(next);
+  } catch {
+    io.err(
+      `Token usage not enabled: could not save ${join(state.home, 'usage.json')}. Nothing was changed in ${path}.`,
+    );
+    return 1;
+  }
+  const restore = () => (config ? state.saveUsageConfig(config) : state.removeUsageConfig());
+  let result: EnableResult;
+  try {
+    result = await enableUsageEnv({
+      path,
+      port,
+      secret,
+      shellEnv: io.env,
+      ...(config?.written && { previous: config.written }),
+    });
+  } catch (e) {
+    await restore();
+    throw e;
+  }
   if (!result.ok) {
+    await restore();
     if (result.reason === 'conflict') {
       // Key names only: the values can hold someone else's endpoint or credentials.
       io.err(
@@ -173,7 +202,13 @@ const usageOn = async (argv: string[], io: Io, state: CollectorState): Promise<n
 
   // A receiver still listening on the previous port would never get exports again.
   if (live && live.port !== port) await stopReceiver(state);
-  await state.saveUsageConfig({ port, secret, written: result.written });
+  // The port was free (or ours) a moment ago: an older conflict no longer applies.
+  const info = await state.receiverInfo();
+  if (info?.portConflict) {
+    const cleared = { ...info };
+    delete cleared.portConflict;
+    await state.saveReceiverInfo(cleared);
+  }
   io.out(`Token usage export enabled in ${result.path}:`);
   io.out(`  ${Object.keys(result.written).join(', ')}`);
   io.out(
@@ -195,10 +230,17 @@ const usageOff = async (io: Io, state: CollectorState): Promise<number> => {
     io.out('Token usage export is already off.');
     return 0;
   }
-  const { path, removed } = await disableUsageEnv({
+  const { path, removed, unreadable } = await disableUsageEnv({
     path: claudeSettings(io.env),
     written: config.written,
   });
+  if (unreadable) {
+    // The keys may still point Claude Code at the receiver: keep usage.json (it remembers which
+    // values are ours) and the receiver, and claim nothing. File name only, never values.
+    io.err(`Token usage is still on: javi cannot read ${path} (not valid JSON settings).`);
+    io.err('Nothing was removed. Fix that file, then run javi usage off again to remove the keys.');
+    return 1;
+  }
   const stopped = await stopReceiver(state);
   await state.removeUsageConfig();
   if (!(await liveReceiver(state))) await state.removeReceiverInfo();
@@ -219,11 +261,23 @@ const usageStatus = async (io: Io, state: CollectorState) => {
     return;
   }
   const info = await state.receiverInfo();
-  const alive = info && isPidAlive(info.pid);
+  // Running means confirmed by a probe, not just a live pid.
+  const live = await liveReceiver(state);
   io.out(`Usage: on (port ${config.port})`);
-  io.out(`Usage receiver: ${alive ? `running (pid ${info.pid})` : 'not running'}`);
-  io.out(`Usage forwarded: ${info?.forwarded ?? 0}, dropped (unattributed): ${info?.dropped ?? 0}`);
+  io.out(`Usage receiver: ${live ? `running (pid ${live.pid})` : 'not running'}`);
+  io.out(
+    `Usage forwarded: ${info?.forwarded ?? 0}, dropped (unattributed session, project without token, or invalid): ${info?.dropped ?? 0}`,
+  );
   io.out(`Last usage export: ${info?.lastRequestAt ?? 'never'}`);
+  if (info?.portConflict && !live) {
+    io.out(
+      `Warning: another program holds 127.0.0.1:${config.port} (seen ${info.portConflict.at}), so the usage receiver cannot start.`,
+    );
+    io.out(
+      '  Claude Code sends its usage exports to that program, and they include identity attributes (such as your email and organisation id).',
+    );
+    io.out('  Run javi usage off, or move to a free port: javi usage on --port <n>');
+  }
 };
 
 /** `javi receive`: the receiver in the foreground until it idles out or gets SIGTERM. */
@@ -246,9 +300,23 @@ const receive = async (io: Io, state: CollectorState): Promise<number> => {
   try {
     await receiver.listen();
   } catch (e) {
-    // Another receiver already holds the port: that one does the work.
-    if ((e as { code?: string }).code === 'EADDRINUSE') return 0;
-    throw e;
+    if ((e as { code?: string }).code !== 'EADDRINUSE') throw e;
+    // Another javi receiver already holds the port: that one does the work.
+    if ((await probeReceiver(config.port, config.secret)) !== null) return 0;
+    // Another program holds it and gets Claude Code's exports: record it for `javi status` and
+    // the hooks' back-off. Still silent and exit 0: hooks must stay neutral.
+    const previous = await state.receiverInfo();
+    await state.saveReceiverInfo({
+      forwarded: 0,
+      dropped: 0,
+      lastRequestAt: null,
+      startedAt: '',
+      ...previous,
+      pid: 0,
+      port: config.port,
+      portConflict: { at: new Date().toISOString() },
+    });
+    return 0;
   }
   let onSignal = () => {};
   const signalled = new Promise<void>((r) => (onSignal = r));
