@@ -393,11 +393,19 @@ describe('parseOtlpMetrics — malformed body', () => {
     ['string', '{"resourceMetrics":[]}'],
     ['number', 42],
     ['array', [{ resourceMetrics: [] }]],
-    ['empty object', {}],
     ['resourceMetrics not an array', { resourceMetrics: {} }],
-    ['snake_case field name', { resource_metrics: [] }],
   ])('%s → ok:false', (_name, body) => {
     const result = parseOtlpMetrics(body);
     expect(result.ok).toBe(false);
+  });
+
+  // OTLP: unknown fields are ignored and an absent repeated field is empty (QA A3).
+  it.each<[string, unknown]>([
+    ['empty object', {}],
+    ['snake_case field name (unknown field)', { resource_metrics: [{}] }],
+    ['unrelated object', { events: [] }],
+    ['resourceMetrics null (proto3 JSON default)', { resourceMetrics: null }],
+  ])('%s → an empty request', (_name, body) => {
+    expect(parseOtlpMetrics(body)).toEqual({ ok: true, points: [], ignored: 0 });
   });
 });

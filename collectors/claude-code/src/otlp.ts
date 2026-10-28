@@ -147,16 +147,19 @@ const countDataPoints = (metric: Obj) =>
 /**
  * Parses an `ExportMetricsServiceRequest` (OTLP JSON encoding). `ignored` counts data points
  * skipped (other metrics, unknown `type`, missing session id or model, negative or non-finite
- * values). `ok: false` only when the body is not an OTLP metrics request at all.
+ * values). `ok: false` only when the body is not a JSON object or `resourceMetrics` is not an
+ * array; an object without `resourceMetrics` is an empty request.
  */
 export const parseOtlpMetrics = (body: unknown): ParseResult => {
-  if (!isObj(body) || !Array.isArray(body.resourceMetrics)) {
+  // An absent `resourceMetrics` is an empty request (proto3 default; unknown fields ignored).
+  const resourceMetricsList = isObj(body) ? (body.resourceMetrics ?? []) : null;
+  if (!Array.isArray(resourceMetricsList)) {
     return { ok: false, error: 'Expected an OTLP ExportMetricsServiceRequest (resourceMetrics).' };
   }
   const points: UsagePoint[] = [];
   let ignored = 0;
 
-  for (const resourceMetrics of body.resourceMetrics) {
+  for (const resourceMetrics of resourceMetricsList) {
     if (!isObj(resourceMetrics)) continue;
     const resource = isObj(resourceMetrics.resource) ? resourceMetrics.resource : {};
     const resourceSessionId = pickAttributes(resource.attributes).sessionId;
