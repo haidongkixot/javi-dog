@@ -9,6 +9,11 @@ export interface UsageTotals {
   estimatedCostUsd: number;
   /** Number of `usage.reported` events counted. */
   reports: number;
+  /**
+   * Of `reports`, those whose `usage_delta.estimated` is the JSON boolean `true`: the producer
+   * could not read exact counts (JGR), so their token counts are estimates.
+   */
+  estimatedReports: number;
 }
 
 export interface UsageDay extends UsageTotals {
@@ -27,7 +32,8 @@ export interface UsageAnalytics {
   byModel: Array<UsageTotals & { model: string | null }>;
   /**
    * Workspace projects with usage in the range, same sort. With `projectId`, at most that project —
-   * and only if it has usage in the range (an empty list otherwise, never a zero row).
+   * and only if it has usage in the range (an empty list otherwise, never a zero row). Always
+   * empty when the caller passed `include: { byProject: false }` (the query is skipped).
    */
   byProject: Array<UsageTotals & { projectId: string; slug: string; name: string }>;
   totals: UsageTotals & { tasksCompleted: number; tasksFailed: number };

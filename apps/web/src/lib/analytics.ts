@@ -2,6 +2,7 @@ import {
   ANALYTICS_DEFAULT_DAYS,
   createAnalyticsReader,
   type UsageAnalytics,
+  type UsageOptions,
 } from '@javis-dog/analytics';
 import type { Db } from '@javis-dog/event-store';
 import { getDb } from './auth';
@@ -14,7 +15,7 @@ export const USAGE_DAYS = ANALYTICS_DEFAULT_DAYS;
 export interface UsageReader {
   usage: (
     workspaceId: string,
-    opts: { days?: number; projectId?: string },
+    opts: Pick<UsageOptions, 'days' | 'projectId' | 'include'>,
   ) => Promise<UsageAnalytics>;
 }
 
@@ -55,12 +56,13 @@ const logFailure = (error: unknown) =>
 /**
  * Workspace-scoped usage of the last 14 UTC days for the signed-in viewer (ADR-0013).
  * `projectId` narrows to one project; callers pass it only from a project they already loaded
- * scoped to the viewer's workspace (the reader also filters inside the workspace). Without a
- * database "not configured" is decided first and the session is never looked up.
+ * scoped to the viewer's workspace (the reader also filters inside the workspace). `include`
+ * is passed to the reader unchanged (e.g. `{ byProject: false }` where usage by project is not
+ * shown). Without a database "not configured" is decided first and the session is never looked up.
  */
 export const loadUsage = async <D>(
   deps: AnalyticsDeps<D>,
-  { projectId }: { projectId?: string } = {},
+  { projectId, include }: Pick<UsageOptions, 'projectId' | 'include'> = {},
 ): Promise<UsageLoad> => {
   const db = deps.getDb();
   if (!db) return { kind: 'not_configured' };
@@ -68,12 +70,11 @@ export const loadUsage = async <D>(
     // The session lookup reads the database too: its failure is "unavailable", not a crash.
     const viewer = await deps.getViewer();
     if (!viewer) return { kind: 'signed_out' };
-    const usage = await deps
-      .reader(db)
-      .usage(
-        viewer.workspaceId,
-        projectId === undefined ? { days: USAGE_DAYS } : { days: USAGE_DAYS, projectId },
-      );
+    const usage = await deps.reader(db).usage(viewer.workspaceId, {
+      days: USAGE_DAYS,
+      ...(projectId !== undefined && { projectId }),
+      ...(include !== undefined && { include }),
+    });
     return { kind: 'ready', usage };
   } catch (error) {
     logFailure(error);

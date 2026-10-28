@@ -33,7 +33,7 @@ const oneProject = async (team = 'Signal team', name = 'Web App', slug = 'web-ap
 
 const usage = (
   s: Scope | string,
-  opts: { days?: number; projectId?: string; now?: Date } = {},
+  opts: Parameters<ReturnType<typeof createAnalyticsReader>['usage']>[1] = {},
 ): Promise<UsageAnalytics> =>
   reader.usage(typeof s === 'string' ? s : s.workspaceId, { now: NOW, ...opts });
 
@@ -50,6 +50,7 @@ const ZERO = {
   cacheWriteTokens: 0,
   estimatedCostUsd: 0,
   reports: 0,
+  estimatedReports: 0,
 };
 const ZERO_DAY = { ...ZERO, tasksCompleted: 0, tasksFailed: 0 };
 
@@ -204,6 +205,7 @@ describe('sums', () => {
       cacheWriteTokens: 201,
       estimatedCostUsd: 0.3, // not 0.30000000000000004
       reports: 2,
+      estimatedReports: 0,
       tasksCompleted: 0,
       tasksFailed: 0,
     });
@@ -222,6 +224,7 @@ describe('sums', () => {
       // Rounded once from the exact range sum 0.3000008.
       estimatedCostUsd: 0.300001,
       reports: 4,
+      estimatedReports: 0,
       tasksCompleted: 0,
       tasksFailed: 0,
     });
@@ -431,6 +434,75 @@ describe('projectId filter', () => {
     for (const projectId of [theirs.projectId, randomUUID(), 'not-a-uuid', '']) {
       expect(await usage(mine, { projectId })).toEqual(empty);
     }
+  });
+});
+
+describe('estimated token counts (JGR usage_delta.estimated)', () => {
+  it('counts reports with estimated = true per day, in totals, by model and by project', async () => {
+    const ws = await seed.workspace('Signal team');
+    const web = await seed.project(ws, 'Web App', 'web-app');
+    const api = await seed.project(ws, 'API', 'api');
+    const d1 = at('2026-10-19T08:00:00.000Z');
+    const d2 = at('2026-10-20T08:00:00.000Z');
+    await seed.usage(web, d1, { input_tokens: 10, model: 'opus', estimated: true });
+    await seed.usage(web, d1, { input_tokens: 10, model: 'opus', estimated: false });
+    // Absent means exact (the JGR default is false).
+    await seed.usage(web, d2, { input_tokens: 10, model: 'haiku' });
+    await seed.usage(api, d2, { input_tokens: 100, model: 'haiku', estimated: true });
+    // Only the JSON boolean true counts; a string is not the flag.
+    await seed.usage(api, d2, { input_tokens: 1, estimated: 'true' });
+    // The flag on a non-usage event is ignored.
+    await seed.event(api, { type: 'heartbeat', receivedAt: d2, usageDelta: { estimated: true } });
+    const a = await usage(ws);
+
+    expect(dayOf(a, '2026-10-19')).toMatchObject({ reports: 2, estimatedReports: 1 });
+    expect(dayOf(a, '2026-10-20')).toMatchObject({ reports: 3, estimatedReports: 1 });
+    expect(dayOf(a, '2026-10-18')).toMatchObject({ reports: 0, estimatedReports: 0 });
+    expect(a.totals).toMatchObject({ reports: 5, estimatedReports: 2 });
+    expect(a.byModel.map((m) => [m.model, m.reports, m.estimatedReports])).toEqual([
+      ['haiku', 2, 1],
+      ['opus', 2, 1],
+      [null, 1, 0],
+    ]);
+    expect(a.byProject.map((p) => [p.slug, p.reports, p.estimatedReports])).toEqual([
+      ['api', 2, 1],
+      ['web-app', 3, 1],
+    ]);
+    const sum = (rows: Array<{ estimatedReports: number }>) =>
+      rows.reduce((s, r) => s + r.estimatedReports, 0);
+    expect(sum(a.days)).toBe(a.totals.estimatedReports);
+    expect(sum(a.byModel)).toBe(a.totals.estimatedReports);
+    expect(sum(a.byProject)).toBe(a.totals.estimatedReports);
+  });
+
+  it('a project filter narrows the estimated count too', async () => {
+    const ws = await seed.workspace('Signal team');
+    const web = await seed.project(ws, 'Web App', 'web-app');
+    const api = await seed.project(ws, 'API', 'api');
+    const t = at('2026-10-20T08:00:00.000Z');
+    await seed.usage(web, t, { input_tokens: 1, estimated: true });
+    await seed.usage(api, t, { input_tokens: 1, estimated: true });
+    await seed.usage(api, t, { input_tokens: 1, estimated: true });
+    const a = await usage(ws, { projectId: web.projectId });
+    expect(a.totals).toMatchObject({ reports: 1, estimatedReports: 1 });
+  });
+});
+
+describe('include.byProject', () => {
+  it('false skips the by-project query and returns an empty byProject; default includes it', async () => {
+    const p = await oneProject();
+    await seed.usage(p, ago(NOW, 5 * MIN), { input_tokens: 7 });
+    const spy = vi.spyOn(ctx.db, 'execute');
+    const a = await usage(p, { include: { byProject: false } });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(a.byProject).toEqual([]);
+    expect(a.totals).toMatchObject({ inputTokens: 7, reports: 1 });
+    expect(a.byModel).toHaveLength(1);
+    spy.mockClear();
+    const b = await usage(p);
+    expect(spy).toHaveBeenCalledTimes(3);
+    expect(b.byProject.map((x) => x.inputTokens)).toEqual([7]);
+    expect(await usage(p, { include: { byProject: true } })).toEqual(b);
   });
 });
 

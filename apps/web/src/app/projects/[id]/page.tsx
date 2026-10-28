@@ -24,8 +24,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   const [tokens, usage] = await Promise.all([
     viewer.projects.listTokens(viewer.workspaceId, project.id),
     // The project id comes from the workspace-scoped lookup above, never from the URL directly;
-    // the viewer is reused, so the reader is scoped to the same workspace (ADR-0013).
-    loadUsage({ ...analyticsDeps, getViewer: async () => viewer }, { projectId: project.id }),
+    // the viewer is reused, so the reader is scoped to the same workspace (ADR-0013). Usage by
+    // project is not shown here, so its query is skipped.
+    loadUsage(
+      { ...analyticsDeps, getViewer: async () => viewer },
+      { projectId: project.id, include: { byProject: false } },
+    ),
   ]);
 
   return (

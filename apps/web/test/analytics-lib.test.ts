@@ -54,6 +54,16 @@ describe('loadUsage', () => {
     expect(f.usage).toHaveBeenCalledExactlyOnceWith(WS, { days: 14, projectId: PROJECT });
   });
 
+  it('passes include through, so a page can skip the by-project query', async () => {
+    const f = fakes();
+    await loadUsage(f.deps, { projectId: PROJECT, include: { byProject: false } });
+    expect(f.usage).toHaveBeenCalledExactlyOnceWith(WS, {
+      days: 14,
+      projectId: PROJECT,
+      include: { byProject: false },
+    });
+  });
+
   it('ignores any workspace field in its input: the workspace comes from the viewer only', async () => {
     const f = fakes();
     await loadUsage(f.deps, { projectId: PROJECT, workspaceId: OTHER_WS } as never);

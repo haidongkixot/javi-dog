@@ -17,6 +17,9 @@ const usageNumber = (key: string) =>
   sql`case when jsonb_typeof(e.usage_delta -> ${key}) = 'number'
            then (e.usage_delta ->> ${key})::numeric else 0 end`;
 
+/** JGR `usage_delta.estimated`: only the JSON boolean `true` marks estimated counts. */
+const IS_ESTIMATED = sql`coalesce(e.usage_delta -> 'estimated' = 'true'::jsonb, false)`;
+
 /** Exact numeric sums leave as float8; cost is rounded to 6 decimals first (no float noise). */
 const USAGE_SUMS = sql`
   coalesce(sum(${usageNumber('input_tokens')}), 0)::float8 as input_tokens,
@@ -24,7 +27,8 @@ const USAGE_SUMS = sql`
   coalesce(sum(${usageNumber('cache_read_tokens')}), 0)::float8 as cache_read_tokens,
   coalesce(sum(${usageNumber('cache_write_tokens')}), 0)::float8 as cache_write_tokens,
   coalesce(round(sum(${usageNumber('cost_usd')}), 6), 0)::float8 as cost_usd,
-  count(*)::int as reports`;
+  count(*)::int as reports,
+  (count(*) filter (where ${IS_ESTIMATED}))::int as estimated_reports`;
 
 export interface Range {
   workspaceId: string;
@@ -63,6 +67,7 @@ export interface UsageSumsRow {
   cache_write_tokens: Num;
   cost_usd: Num;
   reports: Num;
+  estimated_reports: Num;
 }
 
 export interface DayRow extends UsageSumsRow {
@@ -90,11 +95,13 @@ export const readDays = async (db: AnyDb, r: Range): Promise<DayRow[]> =>
                as cache_write_tokens,
              coalesce(round(sum(d.cost_usd) filter (where d.is_usage), 6), 0)::float8 as cost_usd,
              (count(*) filter (where d.is_usage))::int as reports,
+             (count(*) filter (where d.is_usage and d.is_estimated))::int as estimated_reports,
              (count(*) filter (where d.type = 'task.completed'))::int as tasks_completed,
              (count(*) filter (where d.type = 'task.failed'))::int as tasks_failed,
              ${epochMs(sql`max(d.received_at) filter (where d.is_usage)`)} as last_report_ms
         from (select to_char(e.received_at at time zone 'UTC', 'YYYY-MM-DD') as day,
                      e.type, e.received_at, ${IS_USAGE} as is_usage,
+                     ${IS_ESTIMATED} as is_estimated,
                      ${usageNumber('input_tokens')} as input_tokens,
                      ${usageNumber('output_tokens')} as output_tokens,
                      ${usageNumber('cache_read_tokens')} as cache_read_tokens,

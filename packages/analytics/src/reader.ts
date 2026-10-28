@@ -38,6 +38,7 @@ const ZERO_TOTALS: UsageTotals = {
   cacheWriteTokens: 0,
   estimatedCostUsd: 0,
   reports: 0,
+  estimatedReports: 0,
 };
 
 const toTotals = (r: UsageSumsRow): UsageTotals => ({
@@ -47,6 +48,7 @@ const toTotals = (r: UsageSumsRow): UsageTotals => ({
   cacheWriteTokens: Number(r.cache_write_tokens),
   estimatedCostUsd: round6(Number(r.cost_usd)),
   reports: Number(r.reports),
+  estimatedReports: Number(r.estimated_reports),
 });
 
 const toDay = (date: string, r: DayRow | undefined): UsageDay =>
@@ -70,12 +72,28 @@ const byTokensThen =
     b.inputTokens + b.outputTokens - (a.inputTokens + a.outputTokens) ||
     compareKeys(key(a), key(b));
 
+/** Options of `AnalyticsReader.usage`. */
+export interface UsageOptions {
+  /** UTC days including today; rounded and clamped to 1–30 (default 14). */
+  days?: number;
+  /** Narrows every figure to one project inside the workspace. */
+  projectId?: string;
+  /** Pins the clock (tests); otherwise the database clock is read once. */
+  now?: Date;
+  /**
+   * Optional parts of the result. `byProject` (default `true`): `false` skips the by-project
+   * query and returns `byProject: []` — for callers that never show it (e.g. a project page).
+   */
+  include?: { byProject?: boolean };
+}
+
 export const createAnalyticsReader = (db: AnyDb) => ({
-  /** Workspace-scoped daily usage for the last `days` UTC days including today (clamped 1–30). */
-  async usage(
-    workspaceId: string,
-    opts: { days?: number; projectId?: string; now?: Date } = {},
-  ): Promise<UsageAnalytics> {
+  /**
+   * Workspace-scoped daily usage for the last `days` UTC days including today (clamped 1–30).
+   * Issues 3 queries (2 with `include.byProject: false`), plus one for the clock unless `now`
+   * is pinned.
+   */
+  async usage(workspaceId: string, opts: UsageOptions = {}): Promise<UsageAnalytics> {
     // One clock for every derivation (ADR-0013): pinned, or read once from the database.
     const nowMs = opts.now ? opts.now.getTime() : await readDbNow(db);
     if (!Number.isFinite(nowMs)) throw new Error('Analytics clock is not a valid time.');
@@ -93,9 +111,14 @@ export const createAnalyticsReader = (db: AnyDb) => ({
     // A project id that is not a UUID names no project of any workspace: all-zero, no query.
     const unknownProject = opts.projectId !== undefined && !UUID_RE.test(opts.projectId);
 
+    const withProjects = opts.include?.byProject !== false;
     const [dayRows, modelRows, projectRows] = unknownProject
       ? [[], [], []]
-      : await Promise.all([readDays(db, range), readByModel(db, range), readByProject(db, range)]);
+      : await Promise.all([
+          readDays(db, range),
+          readByModel(db, range),
+          withProjects ? readByProject(db, range) : Promise.resolve([]),
+        ]);
 
     const perDay = new Map<string, DayRow>();
     let totalRow: DayRow | undefined;
@@ -124,6 +147,7 @@ export const createAnalyticsReader = (db: AnyDb) => ({
         cacheWriteTokens: totals.cacheWriteTokens,
         estimatedCostUsd: totals.estimatedCostUsd,
         reports: totals.reports,
+        estimatedReports: totals.estimatedReports,
         tasksCompleted: totals.tasksCompleted,
         tasksFailed: totals.tasksFailed,
       },
