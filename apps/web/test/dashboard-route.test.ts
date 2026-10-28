@@ -97,6 +97,21 @@ describe('dashboardSnapshotResponse (ADR-0012)', () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain('hunter2');
   });
 
+  it('answers 503 unavailable with no-store when the session lookup fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failingViewer = async () => {
+      throw new Error('session store down: postgres://user:hunter2@host');
+    };
+    const res = await dashboardSnapshotResponse(deps({ getViewer: failingViewer }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'unavailable' });
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(JSON.stringify(log.mock.calls)).not.toContain('hunter2');
+    expect(await loadDashboard(deps({ getViewer: failingViewer }))).toEqual({
+      kind: 'unavailable',
+    });
+  });
+
   it('loadDashboard reports each state for the server pages', async () => {
     expect(await loadDashboard(deps({ getDb: () => null }))).toEqual({ kind: 'not_configured' });
     expect(await loadDashboard(deps({ getViewer: async () => null }))).toEqual({

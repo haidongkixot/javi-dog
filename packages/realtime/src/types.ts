@@ -18,6 +18,11 @@ export interface ThreadState {
   freshness: Freshness;
   /** The latest status-bearing event says `waiting`. */
   attention: boolean;
+  /**
+   * A human should look at this thread: `attention` and not `ended` (a stale waiting thread
+   * still counts). The one rule for every count, sort and label of attention.
+   */
+  needsAttention: boolean;
   agents: number;
   tasksCompleted: number;
   inputTokens: number;
