@@ -99,6 +99,7 @@ describe('thread state', () => {
       lastSignalAt: ago(NOW, 2 * MIN).toISOString(),
       freshness: 'fresh',
       attention: false,
+      needsAttention: false,
       agents: 2,
       tasksCompleted: 2,
       inputTokens: 0,
@@ -177,6 +178,7 @@ describe('thread state', () => {
         status: 'completed',
         freshness: 'ended',
         attention: false,
+        needsAttention: false,
       });
     }
   });
@@ -239,21 +241,25 @@ describe('thread state', () => {
     expect(threadOf(s.threads, 'cc_resumed')).toMatchObject({
       status: 'working',
       attention: false,
+      needsAttention: false,
       freshness: 'fresh',
     });
     expect(threadOf(s.threads, 'cc_waiting')).toMatchObject({
       status: 'waiting',
       attention: true,
+      needsAttention: true,
       freshness: 'fresh',
     });
     expect(threadOf(s.threads, 'cc_quiet')).toMatchObject({
       status: 'waiting',
       attention: true,
+      needsAttention: true,
       freshness: 'stale',
     });
     expect(threadOf(s.threads, 'cc_gone')).toMatchObject({
       status: 'waiting',
       attention: true,
+      needsAttention: false,
       freshness: 'ended',
     });
     expect(s.projects[0]).toMatchObject({

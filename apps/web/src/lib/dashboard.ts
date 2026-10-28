@@ -50,9 +50,10 @@ const logFailure = (error: unknown) =>
 export const loadDashboard = async <D>(deps: DashboardDeps<D>): Promise<DashboardLoad> => {
   const db = deps.getDb();
   if (!db) return { kind: 'not_configured' };
-  const viewer = await deps.getViewer();
-  if (!viewer) return { kind: 'signed_out' };
   try {
+    // The session lookup reads the database too: its failure is "unavailable", not a crash.
+    const viewer = await deps.getViewer();
+    if (!viewer) return { kind: 'signed_out' };
     return { kind: 'ready', snapshot: await deps.reader(db).snapshot(viewer.workspaceId) };
   } catch (error) {
     logFailure(error);
@@ -64,7 +65,8 @@ const noStore = { 'Cache-Control': 'no-store' };
 
 /**
  * `GET /api/dashboard/snapshot` (ADR-0012): 503 `not_configured` without a database,
- * 401 signed out, 503 `unavailable` when the read fails, else 200 with the snapshot.
+ * 401 signed out, 503 `unavailable` when the session lookup or the read fails, else 200 with
+ * the snapshot.
  * Always `Cache-Control: no-store`. It takes no request input, so a `?workspace=` parameter
  * cannot select another workspace.
  */

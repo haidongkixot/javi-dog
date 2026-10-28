@@ -66,7 +66,12 @@ afterEach(() => {
 describe('useDashboardSnapshot (ADR-0012 polling)', () => {
   it('starts from the server snapshot and fetches every 10 s while visible', async () => {
     const { result } = renderHook(() => useDashboardSnapshot(FIRST));
-    expect(result.current).toEqual({ snapshot: FIRST, error: null, signedOut: false });
+    expect(result.current).toEqual({
+      snapshot: FIRST,
+      now: FIRST.generatedAt,
+      error: null,
+      signedOut: false,
+    });
     expect(fetchMock).not.toHaveBeenCalled();
 
     await tick(POLL_INTERVAL_MS - 1);
@@ -130,7 +135,12 @@ describe('useDashboardSnapshot (ADR-0012 polling)', () => {
     // Recovers: the error clears and the new snapshot shows.
     fetchMock.mockResolvedValue(ok(SECOND));
     await tick(POLL_INTERVAL_MS);
-    expect(result.current).toEqual({ snapshot: SECOND, error: null, signedOut: false });
+    expect(result.current).toEqual({
+      snapshot: SECOND,
+      now: SECOND.generatedAt,
+      error: null,
+      signedOut: false,
+    });
   });
 
   it('reports a signed-out state on 401 and stops polling', async () => {
@@ -148,7 +158,66 @@ describe('useDashboardSnapshot (ADR-0012 polling)', () => {
     expect(result.current.error).not.toBeNull();
     await tick(0);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(result.current).toEqual({ snapshot: SECOND, error: null, signedOut: false });
+    expect(result.current).toEqual({
+      snapshot: SECOND,
+      now: SECOND.generatedAt,
+      error: null,
+      signedOut: false,
+    });
+  });
+
+  it('advances `now` with the client clock at least every 10 s, even without new data', async () => {
+    fetchMock.mockImplementation(() => new Promise(() => {}));
+    const { result } = renderHook(() => useDashboardSnapshot(FIRST));
+    expect(result.current.now).toBe(FIRST.generatedAt);
+    await tick(POLL_INTERVAL_MS);
+    expect(result.current.now).toBe('2026-10-28T10:00:10.000Z');
+    expect(result.current.snapshot).toBe(FIRST);
+  });
+
+  it('measures `now` from when the snapshot arrived, also across a hidden tab', async () => {
+    fetchMock.mockImplementation(() => new Promise(() => {}));
+    const { result } = renderHook(() => useDashboardSnapshot(FIRST));
+    act(() => setVisibility('hidden'));
+    await tick(10 * 60_000);
+    act(() => setVisibility('visible'));
+    expect(result.current.now).toBe('2026-10-28T10:10:00.000Z');
+  });
+
+  it('fails a request that never settles after 8 s, aborts it and polls again', async () => {
+    fetchMock.mockImplementation(() => new Promise(() => {}));
+    const { result } = renderHook(() => useDashboardSnapshot(FIRST));
+    await tick(POLL_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await tick(8_000 - 1);
+    expect(result.current.error).toBeNull();
+    await tick(1);
+    expect(result.current.error?.since).toBeInstanceOf(Date);
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal?.aborted).toBe(true);
+    await tick(POLL_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // The hung requests are abandoned; the next good answer clears the error.
+    fetchMock.mockResolvedValue(ok(SECOND));
+    await tick(8_000 + POLL_INTERVAL_MS);
+    expect(result.current.snapshot).toEqual(SECOND);
+    expect(result.current.error).toBeNull();
+  });
+
+  it('adopts a newer `initial` (router.refresh) and ignores an older one', async () => {
+    fetchMock.mockResolvedValue(status(500));
+    const THIRD = snap('2026-10-28T10:00:20.000Z');
+    const { result, rerender } = renderHook(({ initial }) => useDashboardSnapshot(initial), {
+      initialProps: { initial: SECOND },
+    });
+    await tick(POLL_INTERVAL_MS);
+    expect(result.current.error).not.toBeNull();
+    rerender({ initial: FIRST });
+    expect(result.current.snapshot).toBe(SECOND);
+    expect(result.current.error).not.toBeNull();
+    rerender({ initial: THIRD });
+    expect(result.current.snapshot).toBe(THIRD);
+    expect(result.current.now).toBe(THIRD.generatedAt);
+    expect(result.current.error).toBeNull();
   });
 
   it('stops polling after unmount', async () => {

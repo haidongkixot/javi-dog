@@ -14,8 +14,8 @@ vi.mock('@javis-dog/realtime', () => ({
 const { OverviewView } = await import('@/components/dashboard/overview-view');
 const { AgentsView } = await import('@/components/dashboard/agents-view');
 const { ProjectsTable } = await import('@/components/dashboard/projects-table');
-const { OverviewDashboard } = await import('@/components/dashboard/dashboards');
-const { clockTime } = await import('@/components/dashboard/format');
+const { OverviewDashboard, AgentsDashboard, ProjectsDashboard } =
+  await import('@/components/dashboard/dashboards');
 const { POLL_INTERVAL_MS } = await import('@/components/dashboard/use-dashboard-snapshot');
 const { default: OverviewPage } = await import('@/app/page');
 const { default: AgentsPage } = await import('@/app/agents/page');
@@ -38,6 +38,7 @@ const thread = (over: Partial<ThreadState>): ThreadState => ({
   lastSignalAt: ago(12),
   freshness: 'fresh',
   attention: false,
+  needsAttention: false,
   agents: 1,
   tasksCompleted: 2,
   inputTokens: 1200,
@@ -57,6 +58,7 @@ const WAITING_STALE = thread({
   lastSignalAt: ago(300),
   freshness: 'stale',
   attention: true,
+  needsAttention: true,
   inputTokens: 0,
   outputTokens: 0,
 });
@@ -144,6 +146,26 @@ const EMPTY: DashboardSnapshot = {
 };
 
 const LIVE = /\blive\b/i;
+// Waiting, then `session.ended` (status-less): the reader keeps `attention` but the thread is over.
+const ENDED_WAITING = thread({
+  projectId: P_GAMMA,
+  projectSlug: 'gamma',
+  projectName: 'Gamma tool',
+  threadRef: 'cc_3333333333333333333333333333dddd',
+  status: 'waiting',
+  lastType: 'session.ended',
+  lastSignalAt: ago(60),
+  freshness: 'ended',
+  attention: true,
+  needsAttention: false,
+});
+// Only a fresh, working thread: the snapshot itself claims activity.
+const FRESH_ONLY: DashboardSnapshot = {
+  ...SNAPSHOT,
+  threads: [WORKING],
+  projects: [SNAPSHOT.projects[0]!],
+};
+
 const card = (name: string) => screen.getByRole('heading', { name }).closest('article')!;
 const region = (name: string) => screen.getByRole('region', { name });
 
@@ -204,7 +226,7 @@ describe('Overview with data', () => {
   });
 
   it('lists recent activity with tool name and shortened thread ref', () => {
-    const items = within(region('Live activity')).getAllByRole('listitem');
+    const items = within(region('Recent activity')).getAllByRole('listitem');
     expect(items).toHaveLength(2);
     expect(items[0]!.textContent).toContain('tool.completed · Edit');
     const ref = within(items[0]!).getByTitle(WORKING.threadRef);
@@ -227,19 +249,28 @@ describe('Overview with data', () => {
     ).toBeTruthy();
   });
 
-  it('never calls a value live', () => {
+  it('never calls a value live, nor the title of a card that holds values', () => {
     const values = [
       screen.getByRole('region', { name: 'Key metrics' }),
-      ...['Live activity', 'Project health', 'Agent squad'].map((n) =>
+      ...['Recent activity', 'Project health', 'Agent squad'].map((n) =>
         region(n).querySelector('ol, ul')!,
       ),
     ];
     for (const v of values) expect(v.textContent).not.toMatch(LIVE);
+    const titles = [...document.querySelectorAll('section h2, article h3')];
+    expect(titles.length).toBeGreaterThanOrEqual(8);
+    for (const t of titles) expect(t.textContent).not.toMatch(LIVE);
+  });
+
+  it('gives screen readers a short thread ref; the full ref stays in the title', () => {
+    const ref = within(region('Recent activity')).getByTitle(WORKING.threadRef);
+    expect(ref.textContent).not.toContain(WORKING.threadRef);
+    expect(ref.querySelector('.sr-only')!.textContent).toBe('cc_00000');
   });
 });
 
 describe('Overview without usage reports or threads', () => {
-  it('says "No usage reports yet" instead of a measured zero', () => {
+  it('says "No usage reports in the last hour" instead of a measured zero', () => {
     render(
       <OverviewView
         snapshot={{
@@ -252,7 +283,7 @@ describe('Overview without usage reports or threads', () => {
       />,
     );
     const tokens = card('Token burn rate');
-    expect(tokens.textContent).toContain('No usage reports yet');
+    expect(tokens.textContent).toContain('No usage reports in the last hour');
     expect(tokens.textContent).not.toMatch(/\b0\b/);
   });
 
@@ -262,7 +293,7 @@ describe('Overview without usage reports or threads', () => {
       'Your pack is waiting for its first signal.',
     );
     expect(screen.getAllByText('No signal yet')).toHaveLength(3);
-    expect(card('Token burn rate').textContent).toContain('No usage reports yet');
+    expect(card('Token burn rate').textContent).toContain('No usage reports in the last hour');
     expect(screen.getByText('No signals received')).toBeTruthy();
     expect(screen.getByText('No agents connected')).toBeTruthy();
     expect(screen.getByText('No projects yet')).toBeTruthy();
@@ -272,6 +303,45 @@ describe('Overview without usage reports or threads', () => {
     render(<OverviewView snapshot={null} />);
     expect(screen.getAllByText('No signal yet')).toHaveLength(4);
     expect(document.querySelectorAll('time')).toHaveLength(0);
+  });
+});
+
+describe('ended threads never need attention', () => {
+  const ended = { ...FRESH_ONLY, threads: [WORKING, ENDED_WAITING] };
+
+  it('Overview: no attention headline and no squad entry for a waiting-then-ended thread', () => {
+    render(<OverviewView snapshot={ended} />);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your pack is in motion.');
+    const items = within(region('Agent squad')).getAllByRole('listitem');
+    expect(items).toHaveLength(1);
+    expect(items[0]!.textContent).toContain('Alpha app');
+  });
+
+  it('Live agents: not counted, not sorted first, labelled "Ended" instead of "Waiting for you"', () => {
+    render(<AgentsView snapshot={ended} inspector={null} />);
+    expect(card('Need your attention').textContent).toContain('No thread is waiting for you');
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows[0]!.textContent).toContain('Alpha app');
+    expect(rows[1]!.textContent).toContain('Gamma tool');
+    expect(rows[1]!.textContent).not.toContain('Waiting for you');
+    expect(within(rows[1]!).getAllByText('Ended')).toHaveLength(2);
+  });
+});
+
+describe('agent counts', () => {
+  const noAgents = { ...FRESH_ONLY, threads: [thread({ agents: 0 })] };
+
+  it('says "Not reported" instead of "0 agents" in the squad', () => {
+    render(<OverviewView snapshot={noAgents} />);
+    const item = within(region('Agent squad')).getByRole('listitem');
+    expect(item.textContent).not.toMatch(/\b0 agents\b/);
+    expect(item.textContent).toMatch(/not reported/i);
+  });
+
+  it('says "Not reported" instead of 0 in the thread monitor', () => {
+    render(<AgentsView snapshot={noAgents} inspector={null} />);
+    const row = within(screen.getByRole('table')).getAllByRole('row')[1]!;
+    expect(within(row).getAllByRole('cell')[3]!.textContent).toBe('Not reported');
   });
 });
 
@@ -339,6 +409,14 @@ describe('Projects table', () => {
     expect(gamma!.querySelector('time')).toBeNull();
   });
 
+  it('has a caption and a row header per project', () => {
+    render(<ProjectsTable rows={rows} snapshot={SNAPSHOT} />);
+    expect(screen.getByRole('table', { name: /projects/i })).toBeTruthy();
+    expect(
+      screen.getAllByRole('rowheader').map((h) => within(h).getByRole('link').textContent),
+    ).toEqual(['Alpha app', 'Beta service', 'Gamma tool']);
+  });
+
   it('says the freshness is not loaded when no snapshot is available', () => {
     render(<ProjectsTable rows={rows} snapshot={null} />);
     expect(screen.getAllByText('Not loaded').length).toBe(6);
@@ -365,11 +443,114 @@ describe('refresh failures (ADR-0012)', () => {
       await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
     });
     const notice = screen.getByRole('status');
-    expect(notice.textContent).toContain(`Could not refresh — showing data from ${clockTime(NOW)}`);
+    expect(notice.textContent).toContain('Could not refresh — showing data from 10:00:00 UTC');
+    expect(notice.textContent).toContain('Trying again every 10\u00a0s while this tab is visible');
     expect(notice.querySelector('time')!.getAttribute('dateTime')).toBe(NOW);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
       'One thread needs your attention.',
     );
+  });
+
+  const hang = () =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {})),
+    );
+  const failing = () =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ status: 500, ok: false, json: async () => ({}) })),
+    );
+  const advance = (ms: number) =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+
+  it('stops calling values fresh while refreshes fail: "Not current", no activity headline', async () => {
+    failing();
+    render(<OverviewDashboard initial={FRESH_ONLY} />);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Your pack is in motion.');
+    await advance(POLL_INTERVAL_MS);
+    expect(screen.getByRole('status').textContent).toContain('Could not refresh');
+    expect(document.body.textContent).not.toMatch(/Updated/);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).not.toMatch(/in motion/);
+    const member = within(region('Agent squad')).getByRole('listitem');
+    expect(member.textContent).toContain('Not current');
+    expect(member.textContent).toContain('Last confirmed 09:59:48 UTC');
+    expect(card('Active projects').textContent).toContain('Not current');
+  });
+
+  it('turns fresh pills into "Not current" in the thread monitor and projects table', async () => {
+    failing();
+    render(<AgentsDashboard initial={FRESH_ONLY} inspector={null} />);
+    await advance(POLL_INTERVAL_MS);
+    const row = within(screen.getByRole('table')).getAllByRole('row')[1]!;
+    expect(row.textContent).toContain('Not current');
+    expect(row.textContent).not.toContain('Fresh');
+    cleanup();
+    render(
+      <ProjectsDashboard
+        initial={FRESH_ONLY}
+        rows={[
+          {
+            id: P_ALPHA,
+            name: 'Alpha app',
+            slug: 'alpha',
+            platforms: ['claude-code'],
+            privacyClass: 'L0',
+            createdAt: '2026-10-20T08:00:00.000Z',
+          },
+        ]}
+      />,
+    );
+    await advance(POLL_INTERVAL_MS);
+    const projectRow = within(screen.getByRole('table')).getAllByRole('row')[1]!;
+    expect(projectRow.textContent).toContain('Not current');
+    expect(projectRow.textContent).not.toContain('Fresh');
+  });
+
+  it('ages values with the client clock even without new data', async () => {
+    hang();
+    render(<OverviewDashboard initial={FRESH_ONLY} />);
+    const member = () => within(region('Agent squad')).getByRole('listitem').textContent;
+    expect(member()).toContain('Updated 12 s ago');
+    await advance(POLL_INTERVAL_MS);
+    expect(member()).toContain('Updated 22 s ago');
+  });
+
+  it('shows a thread as stale once its client-side age passes 180 s (tab was hidden)', async () => {
+    hang();
+    render(<OverviewDashboard initial={FRESH_ONLY} />);
+    act(() => {
+      visible = 'hidden';
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await advance(10 * 60_000);
+    act(() => {
+      visible = 'visible';
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await advance(0);
+    expect(screen.getByRole('status').textContent).toBe(''); // the refresh is still in flight
+    const member = within(region('Agent squad')).queryByRole('listitem');
+    expect(member).toBeNull(); // no fresh thread is left in the squad
+    expect(screen.getByRole('heading', { level: 1 }).textContent).not.toMatch(/in motion/);
+    expect(card('Active projects').textContent).not.toMatch(/Updated/);
+    expect(document.body.textContent).not.toMatch(/Updated/);
+  });
+
+  it('times out a request that never settles after 8 s and polls again', async () => {
+    const fetchMock = vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<OverviewDashboard initial={FRESH_ONLY} />);
+    await advance(POLL_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await advance(8_000 - 1);
+    expect(screen.getByRole('status').textContent).toBe('');
+    await advance(1);
+    expect(screen.getByRole('status').textContent).toContain('Could not refresh');
+    await advance(POLL_INTERVAL_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('shows the sign-in prompt when the session ends', async () => {

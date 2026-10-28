@@ -39,12 +39,11 @@ const asStatus = (s: string | null) => s as ThreadStatus | null;
 
 const FRESHNESS_RANK: Record<Freshness, number> = { fresh: 0, stale: 1, ended: 2 };
 
-/** A thread a human should look at: waiting, and not ended (a stale waiting thread still counts). */
-const needsAttention = (t: ThreadState) => t.attention && t.freshness !== 'ended';
-
 const toThread = (row: ThreadRow, now: Date): ThreadState => {
   const last = Number(row.last_ms);
   const status = asStatus(row.status);
+  const freshness = threadFreshness(row.last_type, new Date(last), now);
+  const attention = status === 'waiting';
   return {
     projectId: row.project_id,
     projectSlug: row.project_slug,
@@ -54,8 +53,10 @@ const toThread = (row: ThreadRow, now: Date): ThreadState => {
     lastType: row.last_type,
     firstSignalAt: iso(Number(row.first_ms)),
     lastSignalAt: iso(last),
-    freshness: threadFreshness(row.last_type, new Date(last), now),
-    attention: status === 'waiting',
+    freshness,
+    attention,
+    // Waiting, and not ended: a stale waiting thread still needs a human.
+    needsAttention: attention && freshness !== 'ended',
     agents: Number(row.agents),
     tasksCompleted: Number(row.tasks_completed),
     inputTokens: Number(row.input_tokens),
@@ -65,7 +66,7 @@ const toThread = (row: ThreadRow, now: Date): ThreadState => {
 
 /** Attention first, then fresh → stale → ended, then newest signal; refs break exact ties. */
 const compareThreads = (a: ThreadState, b: ThreadState) =>
-  Number(needsAttention(b)) - Number(needsAttention(a)) ||
+  Number(b.needsAttention) - Number(a.needsAttention) ||
   FRESHNESS_RANK[a.freshness] - FRESHNESS_RANK[b.freshness] ||
   (a.lastSignalAt < b.lastSignalAt ? 1 : a.lastSignalAt > b.lastSignalAt ? -1 : 0) ||
   (a.projectSlug < b.projectSlug ? -1 : a.projectSlug > b.projectSlug ? 1 : 0) ||
@@ -127,7 +128,7 @@ export const createDashboardReader = (db: AnyDb) => ({
         lastSignalAt,
         freshness: projectFreshness(lastSignalAt, own),
         freshThreads: own.filter((t) => t.freshness === 'fresh').length,
-        attentionThreads: own.filter(needsAttention).length,
+        attentionThreads: own.filter((t) => t.needsAttention).length,
       };
     });
 

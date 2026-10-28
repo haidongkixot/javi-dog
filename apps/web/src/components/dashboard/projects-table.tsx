@@ -29,9 +29,12 @@ const dateFmt = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone
 export function ProjectsTable({
   rows,
   snapshot: s,
+  notCurrent = false,
 }: {
   rows: ProjectRow[];
   snapshot: DashboardSnapshot | null;
+  /** Refreshes are failing: nothing may read as fresh. */
+  notCurrent?: boolean;
 }) {
   const health = new Map(s?.projects.map((p) => [p.id, p]));
   return (
@@ -43,6 +46,9 @@ export function ProjectsTable({
       />
       <div className="mt-4 overflow-x-auto">
         <table className="w-full border-collapse text-left whitespace-nowrap">
+          <caption className="sr-only">
+            Projects of your workspace with the freshness of their last signal
+          </caption>
           <thead>
             <tr>
               {columns.map((c) => (
@@ -70,19 +76,22 @@ export function ProjectsTable({
                 const h = health.get(p.id);
                 return (
                   <tr key={p.id} className="border-b border-line text-sm">
-                    <td className="px-4 py-3">
+                    <th scope="row" className="px-4 py-3 text-left font-normal">
                       <Link href={`/projects/${p.id}`} className="font-bold text-ink underline">
                         {p.name}
                       </Link>
                       <span className="ml-2 font-mono text-xs text-muted">{p.slug}</span>
-                    </td>
+                    </th>
                     <td className="px-4 py-3 text-xs text-muted">{p.platforms.join(', ')}</td>
                     <td className="px-4 py-3">
                       <StatusPill tone="protocol">{p.privacyClass}</StatusPill>
                     </td>
                     <td className="px-4 py-3">
                       {s ? (
-                        <FreshnessPill freshness={h?.freshness ?? 'never'} />
+                        <FreshnessPill
+                          freshness={h?.freshness ?? 'never'}
+                          notCurrent={notCurrent}
+                        />
                       ) : (
                         <span className="text-xs text-muted">Not loaded</span>
                       )}

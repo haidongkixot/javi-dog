@@ -25,20 +25,42 @@ export function SignalTime({
   );
 }
 
+/** "Last confirmed 10:15:03 UTC": the time of the last signal, when it cannot be re-checked. */
+function LastConfirmed({ at }: { at: string }) {
+  return (
+    <span>
+      Last confirmed{' '}
+      <time dateTime={at} title={absoluteTime(at)} className="tabular-nums">
+        {clockTime(at)}
+      </time>
+    </span>
+  );
+}
+
 /**
  * Freshness in words (product rule 2): "Updated 12 s ago", a "Stale" pill with
- * "No signal for 6 min", or an "Ended" pill. Never "live".
+ * "No signal for 6 min", or an "Ended" pill. Never "live". While refreshes fail
+ * (`notCurrent`), a fresh value reads "Not current" with its last confirmed time instead.
  */
 export function FreshnessLabel({
   freshness,
   at,
   now,
+  notCurrent = false,
 }: {
   freshness: ProjectFreshness;
   at: string | null;
   now: string;
+  notCurrent?: boolean;
 }) {
   if (freshness === 'never' || !at) return <span className="text-muted">No signal yet</span>;
+  if (freshness === 'fresh' && notCurrent)
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1.5 text-muted">
+        <StatusPill tone="warn">Not current</StatusPill>
+        <LastConfirmed at={at} />
+      </span>
+    );
   if (freshness === 'fresh')
     return (
       <span className="text-muted">
@@ -67,26 +89,49 @@ export function FreshnessLabel({
 }
 
 /** Compact freshness for table cells; the time sits in its own "Last signal" column. */
-export function FreshnessPill({ freshness }: { freshness: ProjectFreshness }) {
+export function FreshnessPill({
+  freshness,
+  notCurrent = false,
+}: {
+  freshness: ProjectFreshness;
+  notCurrent?: boolean;
+}) {
+  if (freshness === 'fresh' && notCurrent) return <StatusPill tone="warn">Not current</StatusPill>;
   if (freshness === 'fresh') return <StatusPill tone="ok">Fresh</StatusPill>;
   if (freshness === 'stale') return <StatusPill tone="warn">Stale</StatusPill>;
   if (freshness === 'ended') return <StatusPill tone="info">Ended</StatusPill>;
   return <span className="text-xs text-muted">No signal yet</span>;
 }
 
-/** Opaque thread ref, shortened; the full ref is in the title and for screen readers. */
+/**
+ * Opaque thread ref, shortened; the full ref is in the title. Screen readers get the first
+ * 8 characters only — a long hash read aloud is noise.
+ */
 export function ThreadRef({ value }: { value: string }) {
   const short = shortRef(value);
+  const spoken = value.slice(0, 8);
   return (
     <span className="font-mono" title={value}>
-      <span aria-hidden={short !== value}>{short}</span>
-      {short !== value ? <span className="sr-only">{value}</span> : null}
+      <span aria-hidden={short !== spoken}>{short}</span>
+      {short !== spoken ? <span className="sr-only">{spoken}</span> : null}
     </span>
   );
 }
 
-export function ThreadStatusPill({ status }: { status: ThreadStatus | null }) {
+/**
+ * A thread's status. Pass `needsAttention` for thread state: a thread that was waiting and then
+ * ended no longer waits for anyone, so it reads "Ended" instead of "Waiting for you".
+ */
+export function ThreadStatusPill({
+  status,
+  needsAttention,
+}: {
+  status: ThreadStatus | null;
+  needsAttention?: boolean;
+}) {
   if (!status) return <span className="text-xs text-muted">No status sent</span>;
+  if (status === 'waiting' && needsAttention === false)
+    return <StatusPill tone="info">Ended</StatusPill>;
   return <StatusPill tone={statusTone[status]}>{statusLabel[status]}</StatusPill>;
 }
 
@@ -109,10 +154,12 @@ export function RefreshNotice({
               <time dateTime={snapshot.generatedAt} title={absoluteTime(snapshot.generatedAt)}>
                 {clockTime(snapshot.generatedAt)}
               </time>
-              . Trying again every 10&nbsp;s.
+              . Trying again every 10&nbsp;s while this tab is visible.
             </span>
           ) : (
-            <span>Could not load signals. Trying again every 10&nbsp;s.</span>
+            <span>
+              Could not load signals. Trying again every 10&nbsp;s while this tab is visible.
+            </span>
           )}
         </p>
       ) : null}

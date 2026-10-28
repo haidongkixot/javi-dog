@@ -25,21 +25,41 @@ const newest = (threads: ThreadState[]) =>
     null,
   );
 
-function GroupMeta({ group, now, none }: { group: ThreadState[]; now: string; none: string }) {
+function GroupMeta({
+  group,
+  now,
+  none,
+  notCurrent,
+}: {
+  group: ThreadState[];
+  now: string;
+  none: string;
+  notCurrent: boolean;
+}) {
   const t = newest(group);
   if (!t) return <>{none}</>;
-  return <FreshnessLabel freshness={t.freshness} at={t.lastSignalAt} now={now} />;
+  return (
+    <FreshnessLabel freshness={t.freshness} at={t.lastSignalAt} now={now} notCurrent={notCurrent} />
+  );
 }
 
-function Metrics({ snapshot: s }: { snapshot: DashboardSnapshot | null }) {
+function Metrics({
+  snapshot: s,
+  notCurrent,
+}: {
+  snapshot: DashboardSnapshot | null;
+  notCurrent: boolean;
+}) {
   const threads = s?.threads ?? [];
   const show = (n: number) => (s && threads.length > 0 ? formatNumber(n) : null);
   const fresh = threads.filter((t) => t.freshness === 'fresh');
-  const attention = threads.filter((t) => t.attention);
+  const attention = threads.filter((t) => t.needsAttention);
   const stale = threads.filter((t) => t.freshness === 'stale');
   const ended = threads.filter((t) => t.freshness === 'ended');
   const meta = (group: ThreadState[], none: string) =>
-    s && threads.length > 0 ? <GroupMeta group={group} now={s.generatedAt} none={none} /> : null;
+    s && threads.length > 0 ? (
+      <GroupMeta group={group} now={s.generatedAt} none={none} notCurrent={notCurrent} />
+    ) : null;
   const freshWindow = s ? windowLabel(s.freshnessWindowMs) : '';
   return (
     <section
@@ -96,7 +116,13 @@ function Tokens({ t }: { t: ThreadState }) {
   );
 }
 
-function ThreadTable({ snapshot: s }: { snapshot: DashboardSnapshot }) {
+function ThreadTable({
+  snapshot: s,
+  notCurrent,
+}: {
+  snapshot: DashboardSnapshot;
+  notCurrent: boolean;
+}) {
   const threads = [...s.threads].sort(byAttention);
   return (
     <div className="mt-4 overflow-x-auto">
@@ -123,12 +149,14 @@ function ThreadTable({ snapshot: s }: { snapshot: DashboardSnapshot }) {
                 <ThreadRef value={t.threadRef} />
               </td>
               <td className="px-4 py-3">
-                <ThreadStatusPill status={t.status} />
+                <ThreadStatusPill status={t.status} needsAttention={t.needsAttention} />
               </td>
               <td className="px-4 py-3">
-                <FreshnessPill freshness={t.freshness} />
+                <FreshnessPill freshness={t.freshness} notCurrent={notCurrent} />
               </td>
-              <td className="px-4 py-3 tabular-nums">{formatNumber(t.agents)}</td>
+              <td className={t.agents === 0 ? 'px-4 py-3 text-muted' : 'px-4 py-3 tabular-nums'}>
+                {t.agents === 0 ? 'Not reported' : formatNumber(t.agents)}
+              </td>
               <td className="px-4 py-3 tabular-nums">{formatNumber(t.tasksCompleted)}</td>
               <td className="px-4 py-3">
                 <Tokens t={t} />
@@ -149,15 +177,18 @@ export function AgentsView({
   snapshot: s,
   notice,
   inspector,
+  notCurrent = false,
 }: {
   snapshot: DashboardSnapshot | null;
   notice?: ReactNode;
   inspector: ReactNode;
+  /** Refreshes are failing: nothing may read as fresh. */
+  notCurrent?: boolean;
 }) {
   return (
     <>
       {notice}
-      <Metrics snapshot={s} />
+      <Metrics snapshot={s} notCurrent={notCurrent} />
       <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(300px,0.8fr)] gap-4 max-[850px]:grid-cols-1">
         <Card labelledBy="threads-title">
           <CardHead
@@ -170,7 +201,7 @@ export function AgentsView({
             }
           />
           {s && s.threads.length > 0 ? (
-            <ThreadTable snapshot={s} />
+            <ThreadTable snapshot={s} notCurrent={notCurrent} />
           ) : (
             <EmptyState title="No threads connected">
               Threads from Claude Code, Codex and Gemini CLI appear here once their collector is set
