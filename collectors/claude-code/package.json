@@ -2,7 +2,7 @@
   "name": "@javis-dog/collector-claude-code",
   "version": "0.1.0",
   "private": true,
-  "description": "JD-C01 \u2014 Claude Code collector: `javi` CLI and command hooks mapped to JGR (operational metadata only)",
+  "description": "JD-C01 — Claude Code collector: `javi` CLI and command hooks mapped to JGR (operational metadata only)",
   "type": "module",
   "bin": {
     "javi": "./src/cli.ts"

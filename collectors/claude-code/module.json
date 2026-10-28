@@ -3,7 +3,7 @@
   "name": "@javis-dog/collector-claude-code",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Claude Code collector. S3c: `javi` CLI (init, hook, flush, status, uninstall), exec-form async command hooks, allowlist mapping to JGR L0 with salted session/agent refs, persistent per-thread sequences, file spool with detached delivery (ADR-0010). S3e: token/cost usage from Claude Code OTel metrics via a local OTLP receiver (ADR-0011).",
+  "description": "Claude Code collector. S3c: `javi` CLI (init, hook, flush, status, uninstall), exec-form async command hooks, allowlist mapping to JGR L0 with salted session/agent refs, persistent per-thread sequences, file spool with detached delivery (ADR-0010). S3e: token/cost usage from Claude Code OTel metrics via a local OTLP receiver (ADR-0011). S3f: self-contained bundle + tarball (`npx ./javis-dog-javi-<version>.tgz`), stable copy under ~/.javi/bin.",
   "owner": "platform",
   "provides": [
     "javi CLI",
@@ -17,7 +17,8 @@
     "toUsageGroups() / toUsageRecord() / usageEventId()",
     "enableUsageEnv() / disableUsageEnv()",
     "createUsageReceiver() / ensureReceiver()",
-    "javi usage on|off, javi receive"
+    "javi usage on|off, javi receive",
+    "dist/javi.mjs bundle (pnpm build), javis-dog-javi tarball (pnpm pack:cli)"
   ],
   "consumes": ["JD-M01", "JD-M02"]
 }
