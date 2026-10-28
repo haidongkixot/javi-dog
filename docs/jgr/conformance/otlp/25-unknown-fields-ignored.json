@@ -1,0 +1,262 @@
+{
+  "$schema": "./schema.json",
+  "description": "Unknown fields at every level (request, resource, scope, metric, sum, data point) and unused known fields are ignored; the export maps as usual",
+  "contract": "OTLP §JSON Protobuf Encoding (receivers MUST ignore unknown fields); ADR-0011 Context (unknown fields ignored)",
+  "ambiguities": [],
+  "steps": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/json",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "claude-code"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "2.1.0"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "com.anthropic.claude_code",
+                    "version": "2.1.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "claude_code.token.usage",
+                      "unit": "tokens",
+                      "sum": {
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "1280",
+                            "exemplars": [],
+                            "flags": 0,
+                            "futurePointField": {
+                              "nested": "ignored"
+                            }
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "462",
+                            "exemplars": [],
+                            "flags": 0,
+                            "futurePointField": {
+                              "nested": "ignored"
+                            }
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cacheRead"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "9000",
+                            "exemplars": [],
+                            "flags": 0,
+                            "futurePointField": {
+                              "nested": "ignored"
+                            }
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cacheCreation"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "512",
+                            "exemplars": [],
+                            "flags": 0,
+                            "futurePointField": {
+                              "nested": "ignored"
+                            }
+                          }
+                        ],
+                        "futureSumField": null
+                      },
+                      "description": "described",
+                      "metadata": [],
+                      "futureMetricField": 7
+                    },
+                    {
+                      "name": "claude_code.cost.usage",
+                      "unit": "USD",
+                      "sum": {
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asDouble": 0.0421,
+                            "exemplars": [],
+                            "flags": 0,
+                            "futurePointField": {
+                              "nested": "ignored"
+                            }
+                          }
+                        ],
+                        "futureSumField": null
+                      },
+                      "description": "described",
+                      "metadata": [],
+                      "futureMetricField": 7
+                    }
+                  ],
+                  "schemaUrl": "https://opentelemetry.io/schemas/1.27.0",
+                  "futureScopeField": true
+                }
+              ],
+              "schemaUrl": "https://opentelemetry.io/schemas/1.27.0",
+              "futureResourceField": "x"
+            }
+          ],
+          "futureTopLevel": {
+            "anything": [1, 2, 3]
+          }
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": {
+            "pattern": "^application/json(\\s*;.*)?$"
+          }
+        },
+        "body": {},
+        "events": [
+          {
+            "idLabel": "u1",
+            "session": "sess-known",
+            "occurred_at": "2026-10-20T12:00:00Z",
+            "usage_delta": {
+              "input_tokens": 1280,
+              "output_tokens": 462,
+              "cache_read_tokens": 9000,
+              "cache_write_tokens": 512,
+              "cost_usd": 0.0421,
+              "model": "claude-opus-5-5",
+              "estimated": false
+            }
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "./schema.json",
+  "description": "http/protobuf is not offered locally: Content-Type application/x-protobuf gets 415 and nothing recorded",
+  "contract": "ADR-0011 Receiver (application/json, 415; http/protobuf not offered locally); ADR-0011 Consequences (spec §12 deviation)",
+  "ambiguities": [],
+  "steps": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/x-protobuf",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": null,
+        "rawBody": "",
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 415,
+        "headers": {},
+        "body": null,
+        "events": [],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "./schema.json",
+  "description": "Truncated JSON body: 400 and nothing recorded",
+  "contract": "ADR-0011 Receiver (malformed JSON, 400); OTLP §Bad Data",
+  "ambiguities": [],
+  "steps": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/json",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": null,
+        "rawBody": "{\"resourceMetrics\":[",
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 400,
+        "headers": {},
+        "body": null,
+        "events": [],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}

@@ -1,0 +1,186 @@
+{
+  "$schema": "./schema.json",
+  "description": "AMBIGUOUS: two input points of one group that differ only in non-allowlisted attributes (query_source main / subagent) are summed into one event",
+  "contract": "ADR-0011 Mapping (one event per group); Claude Code monitoring-usage (query_source attribute splits series)",
+  "ambiguities": ["A10"],
+  "steps": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/json",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "claude-code"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "2.1.0"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "com.anthropic.claude_code",
+                    "version": "2.1.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "claude_code.token.usage",
+                      "unit": "tokens",
+                      "sum": {
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              },
+                              {
+                                "key": "query_source",
+                                "value": {
+                                  "stringValue": "main"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "100"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              },
+                              {
+                                "key": "query_source",
+                                "value": {
+                                  "stringValue": "subagent"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "30"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              },
+                              {
+                                "key": "query_source",
+                                "value": {
+                                  "stringValue": "main"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "5"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": {
+            "pattern": "^application/json(\\s*;.*)?$"
+          }
+        },
+        "body": {},
+        "events": [
+          {
+            "idLabel": "u1",
+            "session": "sess-known",
+            "occurred_at": "2026-10-20T12:00:00Z",
+            "usage_delta": {
+              "input_tokens": 130,
+              "output_tokens": 5,
+              "cache_read_tokens": 0,
+              "cache_write_tokens": 0,
+              "cost_usd": 0,
+              "model": "claude-opus-5-5",
+              "estimated": false
+            }
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}

@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema.json",
+  "description": "A claude_code.token.usage metric encoded as a Gauge (not a Sum) is ignored: 200 {} and no event",
+  "contract": "ADR-0011 Parsing (\"Only ... Sum data points are read\")",
+  "ambiguities": [],
+  "steps": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/metrics",
+        "headers": {
+          "host": "127.0.0.1:$PORT",
+          "content-type": "application/json",
+          "authorization": "Bearer $SECRET"
+        },
+        "gzip": false,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "claude-code"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "2.1.0"
+                    }
+                  }
+                ],
+                "droppedAttributesCount": 0
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "com.anthropic.claude_code",
+                    "version": "2.1.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "claude_code.token.usage",
+                      "unit": "tokens",
+                      "gauge": {
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "sess-known"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1792497540000000000",
+                            "timeUnixNano": "1792497600000000000",
+                            "asInt": "999"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "headers": {
+          "content-type": {
+            "pattern": "^application/json(\\s*;.*)?$"
+          }
+        },
+        "body": {},
+        "events": [],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "forbiddenStrings": [],
+  "identityGroup": null
+}
