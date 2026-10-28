@@ -24,6 +24,18 @@ export interface IngestDeps {
   insertEvents(rows: NewEvent[]): Promise<number>;
   touchSignal(scope: { projectId: string; workspaceId: string }, at: Date): Promise<void>;
   markTokenUsed(tokenId: string, at: Date): Promise<void>;
+  /**
+   * Optional post-store hook (ADR-0014 budget alerts). Called synchronously, at most once per
+   * request, after the insert and the signal write succeeded, when the batch had ≥ 1 valid
+   * `usage.reported` event for this project — stored or duplicate, so a client retry after a
+   * failed response still triggers it (the consumer must be idempotent). It must only schedule
+   * work (e.g. Next.js `after()`); it is not awaited and a throw or rejection never changes the
+   * response.
+   */
+  onStored?(
+    scope: { workspaceId: string; projectId: string },
+    info: { usageReports: number },
+  ): void;
   now?: () => Date;
   rateLimitPerMinute?: number;
 }
@@ -61,20 +73,35 @@ const unauthorized = () =>
   );
 
 /** Logs the failure class only: driver errors can echo hosts or credentials. */
-const logFailure = (error: unknown) =>
+const logFailure = (error: unknown, msg = 'ingest failed') =>
   console.error(
     JSON.stringify({
       level: 'error',
       module: 'JD-M05',
-      msg: 'ingest failed',
+      msg,
       error: error instanceof Error ? error.name : typeof error,
     }),
   );
 
+/** Runs the post-store hook without letting it touch the response (sync throw or rejection). */
+const runOnStored = (deps: IngestDeps, scope: TokenScope, usageReports: number) => {
+  if (!deps.onStored || usageReports === 0) return;
+  const hookFailed = (error: unknown) => logFailure(error, 'ingest onStored hook failed');
+  try {
+    const result: unknown = deps.onStored(
+      { workspaceId: scope.workspaceId, projectId: scope.projectId },
+      { usageReports },
+    );
+    if (result instanceof Promise) result.catch(hookFailed);
+  } catch (error) {
+    hookFailed(error);
+  }
+};
+
 /**
  * `POST /api/v1/events` (JGR v0.1 §8, ADR-0008). Order: auth → rate limit → media type (415)
  * → bounded body (413, 415 for an unknown encoding) → JD-M01 validation → project scope and
- * privacy ceiling → idempotent insert → verified signal.
+ * privacy ceiling → idempotent insert → verified signal → optional `onStored` hook.
  */
 export const createIngestHandler =
   (deps: IngestDeps) =>
@@ -208,6 +235,7 @@ export const createIngestHandler =
           deps.markTokenUsed(scope.tokenId, now),
         ]);
       }
+      runOnStored(deps, scope, rows.filter((r) => r.type === 'usage.reported').length);
 
       return json(202, {
         accepted: stored,

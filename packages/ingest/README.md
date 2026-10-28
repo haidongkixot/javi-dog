@@ -6,7 +6,8 @@ Status: **in-progress**. S3a: `POST /api/v1/events` logic (JGR v0.1 §8, ADR-000
 
 | Export | Description |
 |---|---|
-| `createIngestHandler(deps)` | `(Request) => Promise<Response>`: bearer token → rate limit → bounded body → JD-M01 validation → project scope + privacy ceiling → idempotent insert → verified signal |
+| `createIngestHandler(deps)` | `(Request) => Promise<Response>`: bearer token → rate limit → bounded body → JD-M01 validation → project scope + privacy ceiling → idempotent insert → verified signal → optional `onStored` hook |
+| `IngestDeps.onStored?(scope, { usageReports })` | ADR-0014 budget alerts. Called once per request, after the insert and signal writes succeeded, when the batch had ≥ 1 valid `usage.reported` for the token's project — **stored or duplicate**, so a retry after a 503 still triggers it (the consumer, `claimAlert`, is idempotent). Not awaited; a throw or rejection is logged by class name and never changes the response. The app schedules work with Next.js `after()` |
 | `createIngestDeps(db)` | Wires JD-M04 `verifyToken` / `markTokenUsed` and JD-M06 event repository onto a Drizzle handle |
 | `readBoundedBody(request, maxBytes)` | Streams the body, inflating gzip, and stops as soon as `maxBytes` is passed |
 | `INGEST_RATE_LIMIT_PER_MINUTE` | 60 batches per token per UTC minute |
