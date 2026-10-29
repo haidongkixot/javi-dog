@@ -1,6 +1,6 @@
 # Sprint 05c — Codex CLI collector (hooks with user approval, logs-only usage)
 
-- Dates: 2026-10-29 (timebox 30 min, parallel lanes) · Status: **PLANNED** (design review before code)
+- Dates: 2026-10-29 (timebox 30 min, parallel lanes) · Status: **ACTIVE** (built; code-review fixes and runner in progress)
 - Goal: `javi init --platform codex-cli` and `javi usage on --platform codex-cli` let Codex CLI sessions appear in Javi's Dog with status, attention, tools, sub-agents and tokens, plus cost for API-key sign-ins only, without any prompt, response, tool I/O, path or email leaving the machine.
 - Modules touched: JD-C02 (Codex adapters), JD-C01 (`javi` wiring), docs
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows "Codex CLI surfaces (S5c)" and "Codex runtime checks"
@@ -17,15 +17,15 @@
 
 | # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| D0 | Design review | ADR-0016 C1–C6 | read-only | Findings decided before lanes start | In progress |
-| A1 | Codex hook mapper | JD-C02 | hook stdin → `mapCodexHook` | C2 mapping; `cx_` refs; `agent_ref` from `agent_id`; no content keys read | Planned |
-| A2 | Codex logs parser | JD-C02 | OTLP/HTTP JSON logs → `parseCodexLogs` | C4 allowlist only; failure variant rejected; `tool_token_count` never summed | Planned |
-| A3 | Codex delta and cost rule | JD-C02 | records → `usage_delta` | C5: input − cached; cost only for `ApiKey`; deterministic ids | Planned |
-| B1 | `javi` wiring | JD-C01 | `--platform codex-cli` | C1 append-only hooks in `.codex/hooks.json` (seconds, `commandWindows`), approval status; C3 `[otel]` TOML edit with backup and exact restore, refusal, header-env warning | Planned |
-| B2 | Receiver and attribution | JD-C01 | `/v1/logs` Codex records → spool | C4 discriminator; C6 sub-agent → parent map; unknown dropped; Gemini logs still unparsed | Planned |
-| Q1 | Conformance vectors | docs | ADR text → `docs/jgr/conformance/codex/` | Hooks and logs vectors with privacy sentinels, cost by auth mode, sub-agents | Planned (QA) |
+| D0 | Design review | ADR-0016 C1–C6 | read-only | Findings decided before lanes start | Done |
+| A1 | Codex hook mapper | JD-C02 | hook stdin → `mapCodexHook` | C2 mapping; `cx_` refs; `agent_ref` from `agent_id`; no content keys read | Done |
+| A2 | Codex logs parser | JD-C02 | OTLP/HTTP JSON logs → `parseCodexLogs` | C4 allowlist only; failure variant rejected; `tool_token_count` never summed | Done |
+| A3 | Codex delta and cost rule | JD-C02 | records → `usage_delta` | C5: input − cached; cost only for `ApiKey`; deterministic ids | Done |
+| B1 | `javi` wiring | JD-C01 | `--platform codex-cli` | C1 append-only hooks in `.codex/hooks.json` (seconds, `commandWindows`), approval status; C3 `[otel]` TOML edit with backup and exact restore, refusal, header-env warning | Done |
+| B2 | Receiver and attribution | JD-C01 | `/v1/logs` Codex records → spool | C4 discriminator; C6 sub-agent → parent map; unknown dropped; Gemini logs still unparsed | Done |
+| Q1 | Conformance vectors | docs | ADR text → `docs/jgr/conformance/codex/` | Hooks and logs vectors with privacy sentinels, cost by auth mode, sub-agents | Done (41 vectors) |
 | R1 | Runner | JD-C01 | README → `test/codex-conformance*.ts` | All vectors pass; mutation checks | Planned |
-| V1 | Code review | all | read-only | Findings fixed or logged | Planned |
+| V1 | Code review | all | read-only | Findings fixed or logged | Review done; fixes in progress |
 
 ## Review focus
 
@@ -45,6 +45,23 @@ Roster per `docs/agent-ops/TEAM.md`.
 | Reviewer | general-purpose, read-only | D0 now, V1 after the build |
 
 Team log, newest first:
+
+- 2026-10-29 — Reviewer — **V1 code review**: 2 high, 2 medium, 2 low, each traced, with compiled probes.
+  - **High:**
+    - `NO_PROXY=*` / `localhost` do not exempt `127.0.0.1` in hyper-util, which is a privacy leak through the proxy.
+    - toml_edit moves javi's end marker when Codex appends a table, so `usage off` falsely claimed the export stopped.
+  - **Medium:** macOS and Windows system proxies are not checked; the "all-or-nothing" rollback can lose data.
+  - **Low:** uninstall deleted the user's `hooks.json`; an unused id helper differed from the real formula.
+  - Decisions are in ADR-0016 Changes V1, and the fix lane (Developer E) is running.
+- 2026-10-29 — Orchestrator — Merged A (`214334e`), Q1 (`8464f27`) and B (`bcddab3`). The full gate passed with 1640 tests; `1039c02` pushed. The runner lane (R1) and V1 started in parallel.
+- 2026-10-29 — Developer B — B1/B2:
+  - stable launcher, append-only position-aware `hooks.json` splicer, smol-toml block edit, proxy and header guards, `/v1/logs/codex-cli` with a 5 MiB cap, sub-agent links;
+  - 500 collector tests (with local doubles for JD-C02);
+  - the bundle lists `smol-toml@1.9.1` in `THIRD_PARTY_NOTICES`.
+- 2026-10-29 — QA — 41 vectors (19 hook, 22 usage), validated against the official Codex hook schemas. 26 spec-silent decisions are listed (X1–X26).
+- 2026-10-29 — Developer A — A1–A3: 206 adapter tests (118 new Codex tests); 8 mutations killed.
+- 2026-10-29 — Orchestrator — D0 decisions recorded (H1–H6, M1–M5); owner chose "Add a TOML parser" (smol-toml 1.9.1), "Detect and warn" and "Stable launcher". Contract stubs `6756557`.
+- 2026-10-29 — Reviewer — **D0 design review**: 6 high (proxy redirection, statsig header leak, cache-write double count, hook shell, stdout to the model, TOML safety), 5 medium and several low.
 
 - 2026-10-29 — Orchestrator — ADR-0016 Changes "S5c design" C1–C6 written; the design review (D0) runs before any lane starts.
 - 2026-10-29 — Owner — "Logs-only", "Tokens only" for ChatGPT-plan sessions, "Attribute to parent" for sub-agents.

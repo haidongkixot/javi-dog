@@ -242,3 +242,25 @@ The roadmap's S5 needs the Codex and Gemini CLI collectors (owner priority "Clau
     - JGR §12's Codex row is updated to the logs mapping.
     - An `ApiKey` cost from a non-OpenAI provider is that provider's estimate; it is shown, labelled estimated.
   - **Still UNVERIFIED** (real run): the scope name and the JSON form of `intValue`, which shell runs the first SessionStart, Windows cmd and PowerShell, proxy behaviour in the released binary, whether a sub-agent's cost is excluded from its parent turn, and `analytics.enabled`.
+
+- 2026-10-29 (S5c code review V1: 2 high, 2 medium, 2 low; reviewer probes compiled against hyper-util 0.1.20 and toml_edit 0.24.0 from Codex's Cargo.lock; these are orchestrator decisions):
+  - **V1-H1 Loopback `NO_PROXY`.** hyper-util matches an IP host only against IP entries, so `*` and `localhost` do **not** exempt `127.0.0.1` (probe: both proxied). Only `127.0.0.1`, or an IPv4 CIDR containing it, counts as covered. Precedence is the first variable set, as in hyper-util: `NO_PROXY`, even when empty, over `no_proxy`. This supersedes the D0 wording "127.0.0.1 or localhost".
+  - **V1-H2 Codex rewrites `config.toml`.** toml_edit moves the trailing `# <<< javi` comment to the end of the file when Codex appends a table such as `[projects."…"]` or `[hooks.state."…"]`.
+    - javi's block is identified from the start marker through its last key, and a standalone end marker is removed wherever it sits.
+    - When the block was edited, `usage off` keeps javi's Codex config, does not claim the export stopped, and names only javi's keys to remove.
+  - **V1-M3 System proxies.** Codex's reqwest `system-proxy` also reads the macOS SystemConfiguration proxy and the Windows Internet Settings proxy. Their bypass lists (`<local>`, the macOS exceptions) do not match an IP.
+    - `usage on` checks `scutil --proxy` (macOS) and `reg query …\Internet Settings` (Windows), names them only, and refuses.
+    - The SessionStart re-check records a warning.
+    - The re-check runs only in folders with javi hooks; that limit is documented.
+  - **V1-M4 Rollback dropped.** All-or-nothing rollback could delete pre-existing spool files with the same deterministic id, and it races flushes. Codex never retries, so rollback only turns a partial success into a total loss. Appends are now best effort, any failure answers 503, and nothing already spooled is deleted. Replays stay harmless because of deterministic ids.
+  - **V1-L5.** `uninstall` never deletes a `.codex/hooks.json` that javi did not create.
+  - **V1-L6.** The unused `codexEventIdInput` is removed from JD-C02. JD-C01's kind-tagged ids are the single formula:
+    - tokens: `codex-cli\0tokens\0conversation\0timestamp\0counters`
+    - cost: `codex-cli\0cost\0conversation\0turn.id`
+  - **Accepted as is:**
+    - Cost `occurred_at` is receiver time. A turn finishing in the last ~150 s of a month can count toward the next month's budget; documented.
+    - `HTTPS_PROXY` alone refuses too: a safe over-refusal.
+  - **New UNVERIFIED** (real run):
+    - whether sub-agent `Stop` and `SessionStart` hooks carry the root `session_id`, which would idle or restart the root thread;
+    - whether a parent turn's cost already includes its sub-agents' costs (possible double count);
+    - macOS and Windows system-proxy behaviour at runtime.
