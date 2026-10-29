@@ -102,6 +102,13 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-29 — **R7 e2e re-run PASS** (after `183c83d`, `--no-warnings`).
+  - Pack, install and init were verified. All 6 hooks exited 0 and were silent (163–210 ms).
+  - 7/7 events delivered in 4 flushes; spool 0; privacy scan 0 hits (5 sentinels).
+  - On `dev-agent`, which production reads: e2e project 14 events (two runs), load project 5 500.
+  - The dashboard reader (`createDashboardReader.snapshot`) shows the smoke thread `cc_37c…` as `ended` / `completed`, and project `e2e-smoke` as `fresh`.
+  - **Cleanup** (owner-approved): `delete from workspaces where id = 174d497f…` (cascade). Before: 1 workspace, 2 projects, 2 tokens, 5 514 events. After: 0 / 0 / 0 / 0. The scratch token files were removed.
+  - **Purge first run:** Vercel runtime logs show only requests that wrote output, so a silent successful purge is not visible there. The database check is still inconclusive: no rate windows older than 19:00 remain, which is consistent with a run but not proof. A conclusive check is scheduled for 2026-10-30 20:20 UTC: the 2026-10-29 windows must be gone.
 - 2026-10-29 — The owner keeps production on `dev-agent` for now, which defers R2/G2. The owner approved running R6/R7 against production with cleanup afterwards. Seeded one temporary workspace (`174d497f…`) with projects `load-test` and `e2e-smoke`; the tokens were in scratch files only, never printed.
   - **R6 load test PASS** (2026-10-29 19:52 UTC).
     - 55/55 requests returned 202; 5 500 events were sent and accepted, with 0 duplicates and 0 rejected; 60.8 s; no cap hit.

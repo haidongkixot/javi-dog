@@ -6,13 +6,13 @@ The release gate (roadmap, end of S5) has four parts: working end-to-end telemet
 |---|---|---|---|---|
 | G1 | Production has its own database | `main` ledger = committed migrations (6), schema diff vs `dev-agent` empty | SPRINT-05a R1 | PASS (2026-10-28) |
 | G2 | Production reads `main` | `users` count on `main` > 0 after the owner signs in; `/api/health` ok, 6 migrations | SPRINT-05a R2 | DEFERRED (owner 2026-10-29: production stays on `dev-agent` for now) |
-| G3 | Access boundaries verified | Access-boundary suite green in CI; security review has no open critical/high finding | SPRINT-05a R5, R8 | NOT RUN |
-| G4 | Ingest performance measured | One bounded production run: p95 < 2 s (JGR hypothesis) or the miss recorded as a finding; near-limit payload (≈ 255 KiB decompressed) accepted | SPRINT-05a R6 | NOT RUN |
-| G5 | End-to-end telemetry | Packed `javi` → production → rows on `main` (count) → dashboard reader shows the thread | SPRINT-05a R7 | NOT RUN |
+| G3 | Access boundaries verified | Access-boundary suite green in CI; security review has no open critical/high finding | SPRINT-05a R5, R8 | **PASS** (52 access tests green in CI; review: 0 critical/high open) |
+| G4 | Ingest performance measured | One bounded production run: p95 < 2 s (JGR hypothesis) or the miss recorded as a finding; near-limit payload (≈ 255 KiB decompressed) accepted | SPRINT-05a R6 | **PASS** (2026-10-29, on `dev-agent`: p95 1 529 ms incl. sandbox proxy; 255 KiB batches accepted) |
+| G5 | End-to-end telemetry | Packed `javi` → production → rows on `main` (count) → dashboard reader shows the thread | SPRINT-05a R7 | **PASS** (2026-10-29, on `dev-agent` while production stays there; first run found the hook-stderr defect, fixed in `183c83d`) |
 | G6 | Real agent session | The owner's real Claude Code session with `javi init --usage`: hooks fire, usage attributed (session-id match, ADR-0011) | SPRINT-03c/03e | NOT RUN (owner) |
 | G7 | Rollback plan | `docs/how-to/roll-back-a-release.md` reviewed; down files exist for every migration | SPRINT-05a R3 | PASS (docs) / real rollback NOT RUN |
 | G8 | Runbooks | `docs/how-to/operate-production.md` | SPRINT-05a R4 | PASS (docs) |
-| G9 | Retention purge active | `env.CRON_SECRET` true on `/api/health`; one cron run returns 200 | SPRINT-03b | IN PROGRESS (`CRON_SECRET` true on 2026-10-29; first cron run pending) |
+| G9 | Retention purge active | `env.CRON_SECRET` true on `/api/health`; one cron run returns 200 | SPRINT-03b | IN PROGRESS (`CRON_SECRET` true on 2026-10-29; first cron run unverified: conclusive check 2026-10-30 20:20 UTC) |
 | G10 | Secrets | Exposed `neondb_owner` password and GitHub client secret | Readiness matrix | ACCEPTED RISK (owner, 2026-10-28) |
 | G11 | Second and third collectors | Codex and Gemini CLI collectors (S5b) with conformance tests | SPRINT-05b | NOT RUN |
 | G12 | CI green on the release commit | GitHub Actions run id on the release commit | Sprint log | NOT RUN |
