@@ -18,13 +18,36 @@ export interface ProjectCredentials {
   token: string;
 }
 
+/** What `javi usage on --platform gemini-cli` wrote into Gemini CLI's user settings (ADR-0016). */
+export interface GeminiUsageConfig {
+  /** The `~/.gemini/settings.json` javi edited (usage off edits the same file). */
+  path: string;
+  /** The `telemetry` block javi wrote (for refusal checks and a clean `usage off`). */
+  written: Record<string, unknown>;
+  /** SHA-256 (hex) of the whole file as javi wrote it: unchanged → exact restore. */
+  sha256: string;
+}
+
 /** `~/.javi/usage.json` — written by `javi usage on` (ADR-0011). Holds the local secret. */
 export interface UsageConfig {
   port: number;
-  /** Bearer secret Claude Code sends to the local receiver; never printed. */
+  /** Bearer secret the agents send to the local receiver; never printed. */
   secret: string;
-  /** The env values javi wrote into Claude's user settings (for a clean `usage off`). */
-  written: Record<string, string>;
+  /**
+   * The env values javi wrote into Claude's user settings (for a clean `usage off`). Absent
+   * when Claude Code usage is off and only another platform uses the receiver (ADR-0016).
+   */
+  written?: Record<string, string>;
+  /** Present while Gemini CLI usage export is on (ADR-0016 §3). */
+  gemini?: GeminiUsageConfig;
+}
+
+/** `~/.javi/gemini-settings.before.json` — Gemini user settings before the first `usage on`. */
+export interface GeminiSettingsBefore {
+  path: string;
+  existed: boolean;
+  /** The file's exact text (absent when it did not exist). */
+  text?: string;
 }
 
 /** `~/.javi/receiver.json` — the running (or last) usage receiver. `pid` 0 = stopped cleanly. */
@@ -51,8 +74,12 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SESSION_REFRESH_MS = 60 * 60 * 1000;
 /** Full sweeps of `sessions/` at most this often. */
 const SESSION_PRUNE_EVERY_MS = 24 * 60 * 60 * 1000;
-/** Only hashed session refs (`opaqueRef('cc', …)`) may name a file — never a raw session id. */
-const THREAD_REF = /^cc_[0-9a-f]{32}$/;
+/**
+ * Only hashed session refs (`opaqueRef('cc' | 'gm', …)`: Claude Code, Gemini CLI) may name a
+ * file — never a raw session id.
+ */
+const THREAD_REF = /^(?:cc|gm)_[0-9a-f]{32}$/;
+const SESSION_FILE = /^(?:cc|gm)_[0-9a-f]{32}\.json$/;
 
 export const javiHome = (env: NodeJS.ProcessEnv = process.env) =>
   env.JAVI_HOME?.trim() || join(homedir(), '.javi');
@@ -66,10 +93,19 @@ const readJson = async <T>(path: string): Promise<T | null> => {
 };
 
 /** Temp file + rename so a crash never leaves half a file behind. */
-export const writeJsonPrivate = async (path: string, value: unknown) => {
+export const writeJsonPrivate = async (path: string, value: unknown, mode = 0o600) =>
+  writeTextAtomic(path, `${JSON.stringify(value, null, 2)}\n`, mode);
+
+/** Writes `text` to a temp file next to `path` (with `mode`), then renames it onto `path`. */
+export const writeTextAtomic = async (path: string, text: string, mode = 0o600) => {
   const temp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
-  await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
-  await rename(temp, path);
+  try {
+    await writeFile(temp, text, { mode });
+    await rename(temp, path);
+  } catch (e) {
+    await rm(temp, { force: true }).catch(() => {});
+    throw e;
+  }
 };
 
 export const createState = (home: string) => {
@@ -227,7 +263,7 @@ export const createState = (home: string) => {
       if (atMs - pruned >= SESSION_PRUNE_EVERY_MS) {
         await writeJsonPrivate(marker, { at: atMs });
         for (const name of await readdir(dir).catch(() => [] as string[])) {
-          if (!/^cc_[0-9a-f]{32}\.json$/.test(name)) continue;
+          if (!SESSION_FILE.test(name)) continue;
           const entry = await readJson<{ at: number }>(join(dir, name));
           if (!entry || !(atMs - entry.at < SESSION_TTL_MS)) {
             await rm(join(dir, name), { force: true });
@@ -250,6 +286,34 @@ export const createState = (home: string) => {
         return null;
       }
       return entry.project;
+    },
+
+    /** Gemini CLI user settings as they were before javi's first `usage on` (ADR-0016). */
+    geminiSettingsBefore: () => readJson<GeminiSettingsBefore>(path('gemini-settings.before.json')),
+
+    saveGeminiSettingsBefore: async (before: GeminiSettingsBefore) => {
+      await ready;
+      await writeJsonPrivate(path('gemini-settings.before.json'), before);
+    },
+
+    removeGeminiSettingsBefore: () => rm(path('gemini-settings.before.json'), { force: true }),
+
+    /**
+     * Last hook event seen for a project from a platform other than Claude Code (`javi status`
+     * says "no events yet" truthfully, e.g. for an untrusted Gemini CLI folder).
+     */
+    lastHookAt: async (projectRef: string, platform: string): Promise<string | null> => {
+      const at = (
+        await readJson<{ at: unknown }>(path('last-hook', `${projectRef}.${platform}.json`))
+      )?.at;
+      return typeof at === 'string' ? at : null;
+    },
+
+    markHookSeen: async (projectRef: string, platform: string, at: Date) => {
+      await mkdir(path('last-hook'), { recursive: true, mode: 0o700 });
+      await writeJsonPrivate(path('last-hook', `${projectRef}.${platform}.json`), {
+        at: at.toISOString(),
+      });
     },
 
     receiverInfo: () => readJson<ReceiverInfo>(path('receiver.json')),

@@ -3,7 +3,7 @@
   "name": "@javis-dog/collector-claude-code",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Claude Code collector. S3c: `javi` CLI (init, hook, flush, status, uninstall), exec-form async command hooks, allowlist mapping to JGR L0 with salted session/agent refs, persistent per-thread sequences, file spool with detached delivery (ADR-0010). S3e: token/cost usage from Claude Code OTel metrics via a local OTLP receiver (ADR-0011). S3f: self-contained bundle + tarball (`npx ./javis-dog-javi-<version>.tgz`), stable copy under ~/.javi/bin.",
+  "description": "Claude Code collector. S3c: `javi` CLI (init, hook, flush, status, uninstall), exec-form async command hooks, allowlist mapping to JGR L0 with salted session/agent refs, persistent per-thread sequences, file spool with detached delivery (ADR-0010). S3e: token/cost usage from Claude Code OTel metrics via a local OTLP receiver (ADR-0011). S3f: self-contained bundle + tarball (`npx ./javis-dog-javi-<version>.tgz`), stable copy under ~/.javi/bin. S5b: `--platform gemini-cli` (ADR-0016) — Gemini CLI hooks in the project's .gemini/settings.json, opt-in user-level Gemini telemetry to the same receiver (logs/traces drained unread), Gemini token usage with estimated cost via JD-C02.",
   "owner": "platform",
   "provides": [
     "javi CLI",
@@ -18,7 +18,12 @@
     "enableUsageEnv() / disableUsageEnv()",
     "createUsageReceiver() / ensureReceiver()",
     "javi usage on|off, javi receive",
-    "dist/javi.mjs bundle (pnpm build), javis-dog-javi tarball (pnpm pack:cli)"
+    "dist/javi.mjs bundle (pnpm build), javis-dog-javi tarball (pnpm pack:cli)",
+    "javi --platform <claude-code|gemini-cli> (init, uninstall, status, hook, usage on|off)",
+    "installGeminiHooks() / uninstallGeminiHooks() / geminiHookCommand()",
+    "enableGeminiTelemetry() / disableGeminiTelemetry() / geminiTelemetryBlock()",
+    "receiver /v1/logs, /v1/traces sink (200 {}, unparsed)",
+    "usageThreadRef()"
   ],
   "consumes": ["JD-C02", "JD-M01", "JD-M02"]
 }

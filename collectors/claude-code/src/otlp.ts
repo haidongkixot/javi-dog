@@ -6,8 +6,14 @@
 export const TOKEN_METRIC = 'claude_code.token.usage';
 export const COST_METRIC = 'claude_code.cost.usage';
 
+/** `reasoning_tokens` only comes from other platforms' parsers (Gemini `thought`, ADR-0016). */
 export type UsageCounter =
-  'input_tokens' | 'output_tokens' | 'cache_read_tokens' | 'cache_write_tokens' | 'cost_usd';
+  | 'input_tokens'
+  | 'output_tokens'
+  | 'cache_read_tokens'
+  | 'cache_write_tokens'
+  | 'reasoning_tokens'
+  | 'cost_usd';
 
 export interface UsagePoint {
   /** Raw Claude Code session id — hashed before it leaves memory (`opaqueRef`). */

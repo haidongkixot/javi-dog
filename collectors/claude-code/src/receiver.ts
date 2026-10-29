@@ -2,16 +2,18 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { connect } from 'node:net';
 import { gunzip } from 'node:zlib';
+import { parseGeminiMetrics, type AdapterUsagePoint } from '@javis-dog/collector-adapters';
 import { createFileSpool, createJgrClient, type JgrClient } from '@javis-dog/jgr-sdk';
-import { opaqueRef } from './mapping.ts';
 import { parseOtlpMetrics } from './otlp.ts';
 import { runFlush } from './run.ts';
 import type { CollectorState, ReceiverInfo } from './state.ts';
-import { toUsageGroups, toUsageRecord, type CumulativeBaselines } from './usage.ts';
+import { toUsageGroups, toUsageRecord, usageThreadRef, type CumulativeBaselines } from './usage.ts';
 
-// Local OTLP/HTTP JSON metrics receiver for Claude Code token usage (ADR-0011, JD-C01).
-// Bound to 127.0.0.1 only. Request bodies, headers and the secret are never logged or stored:
-// only the allowlisted usage fields of attributed sessions reach the project's spool.
+// Local OTLP/HTTP JSON metrics receiver for Claude Code and Gemini CLI token usage (ADR-0011,
+// ADR-0016, JD-C01). Bound to 127.0.0.1 only. Request bodies, headers and the secret are never
+// logged or stored: only the allowlisted usage fields of attributed sessions reach the
+// project's spool. Gemini CLI also exports logs and traces to the same endpoint; those are
+// answered `200 {}` and drained without being parsed or kept.
 
 /** Decoded (and wire) body limit. */
 export const MAX_BODY_BYTES = 1024 * 1024;
@@ -26,6 +28,8 @@ export const RECEIVER_PORT_CONFLICT_BACKOFF_MS = 10 * 60 * 1000;
 /** On every reply to an authenticated request: the receiver's pid (its identity for the CLI). */
 export const RECEIVER_PID_HEADER = 'x-javi-receiver-pid';
 const PATHS = new Set(['/v1/metrics', '/']);
+/** Accepted and discarded unread (Gemini CLI sends all three OTLP signals; ADR-0016 §3). */
+const SINK_PATHS = new Set(['/v1/logs', '/v1/traces']);
 
 export interface UsageReceiverOptions {
   state: CollectorState;
@@ -189,6 +193,38 @@ class HttpError extends Error {
   }
 }
 
+/** Consumes the body without buffering it; rejects (413) beyond MAX_BODY_BYTES on the wire. */
+const discardBody = (req: IncomingMessage): Promise<void> =>
+  new Promise((resolve, reject) => {
+    let size = 0;
+    let over = false;
+    req.on('data', (chunk: Buffer) => {
+      if (over) return;
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        over = true;
+        reject(new HttpError(413, 'Body larger than 1 MiB.'));
+      }
+    });
+    req.on('end', () => {
+      if (!over) resolve();
+    });
+    req.on('error', () => reject(new HttpError(400, 'Request aborted.')));
+  });
+
+/**
+ * Gemini CLI points from the same body. JD-C02 is a pure parser: should it throw, Claude Code
+ * usage of the same request must not be lost, so a throw counts as "no Gemini points".
+ */
+const geminiPoints = (body: unknown): AdapterUsagePoint[] => {
+  try {
+    const parsed = parseGeminiMetrics(body);
+    return parsed.ok ? parsed.points : [];
+  } catch {
+    return [];
+  }
+};
+
 /** Reads at most MAX_BODY_BYTES from the wire; beyond that stops buffering (413). */
 const readBody = (req: IncomingMessage): Promise<Buffer> =>
   new Promise((resolve, reject) => {
@@ -232,7 +268,9 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
     ((projectRef: string) =>
       runFlush({ state, projectRef, ...(opts.fetch && { fetch: opts.fetch }) }));
   const expectedAuth = digest(`Bearer ${secret}`);
+  // One map per platform: Claude Code and Gemini CLI series can never share a baseline.
   const baselines: CumulativeBaselines = new Map();
+  const geminiBaselines: CumulativeBaselines = new Map();
 
   let port = opts.port;
   let info: ReceiverInfo | null = null;
@@ -306,19 +344,24 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
   const accept = async (body: unknown) => {
     const parsed = parseOtlpMetrics(body);
     if (!parsed.ok) throw new HttpError(400, 'Not an OTLP metrics request.');
+    const gemini = geminiPoints(body);
     // An empty request (e.g. the CLI's probe) carries no export: nothing to count or record.
-    if (!parsed.points.length) return;
+    if (!parsed.points.length && !gemini.length) return;
     // Baselines move on a copy, committed only once every record of this request is spooled:
     // after an internal error (503) the exporter's retry is computed against the same baselines.
     const working: CumulativeBaselines = new Map(baselines);
-    const groups = toUsageGroups(parsed.points, working);
+    const workingGemini: CumulativeBaselines = new Map(geminiBaselines);
+    const groups = [
+      ...toUsageGroups(parsed.points, working),
+      ...toUsageGroups(gemini, workingGemini, 'gemini-cli'),
+    ];
     const { producer_id } = await state.installation();
     const clients = new Map<string, JgrClient | null>();
     const touched = new Set<string>();
     let forwarded = 0;
     let dropped = 0;
     for (const group of groups) {
-      const threadRef = opaqueRef('cc', group.sessionId, salt);
+      const threadRef = usageThreadRef(group, salt);
       const projectRef = await state.sessionProject(threadRef);
       if (!projectRef) {
         dropped += 1; // usage of sessions no hook attributed never leaves the machine
@@ -354,6 +397,7 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
       } else dropped += 1;
     }
     for (const [key, value] of working) baselines.set(key, value);
+    for (const [key, value] of workingGemini) geminiBaselines.set(key, value);
     if (info) {
       info.forwarded += forwarded;
       info.dropped += dropped;
@@ -364,8 +408,9 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
   };
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
-    const path = (req.url ?? '').split('?')[0];
-    if (!PATHS.has(path!)) return send(res, 404, { message: 'Not found.' });
+    const path = (req.url ?? '').split('?')[0]!;
+    const sink = SINK_PATHS.has(path);
+    if (!PATHS.has(path) && !sink) return send(res, 404, { message: 'Not found.' });
     if (req.method !== 'POST') {
       return send(res, 405, { message: 'Method not allowed.' }, { allow: 'POST' });
     }
@@ -380,6 +425,16 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
     const host = (req.headers.host ?? '').toLowerCase();
     if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) {
       return send(res, 403, { message: 'Forbidden host.' });
+    }
+    if (sink) {
+      // Logs and traces carry prompts, tool arguments and responses: never parsed, decoded,
+      // stored or counted. Only the wire size is bounded; the body is drained unbuffered.
+      const declaredSink = Number(req.headers['content-length']);
+      if (Number.isFinite(declaredSink) && declaredSink > MAX_BODY_BYTES) {
+        return send(res, 413, { message: 'Body larger than 1 MiB.' }, { connection: 'close' });
+      }
+      await discardBody(req);
+      return send(res, 200, {});
     }
     const mediaType = (req.headers['content-type'] ?? '').split(';')[0]!.trim().toLowerCase();
     if (mediaType !== 'application/json') {

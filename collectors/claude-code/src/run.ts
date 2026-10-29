@@ -1,5 +1,7 @@
+import { mapGeminiHook } from '@javis-dog/collector-adapters';
 import { createFileSpool, createJgrClient, type FlushResult } from '@javis-dog/jgr-sdk';
-import { mapHook } from './mapping.ts';
+import { COLLECTOR_VERSION, mapHook } from './mapping.ts';
+import type { Platform } from './platform.ts';
 import type { CollectorState } from './state.ts';
 
 /** Above this many waiting events a hook triggers a background flush. */
@@ -15,6 +17,11 @@ export interface HookDeps {
   state: CollectorState;
   projectRef: string;
   stdin: string;
+  /**
+   * Which agent called the hook (ADR-0016): `claude-code` (default) maps with `mapHook`,
+   * `gemini-cli` with JD-C02 `mapGeminiHook` and records when a Gemini hook was last seen.
+   */
+  platform?: Platform;
   now?: () => Date;
   /** Starts `javi flush` in the background (detached in the CLI). */
   spawnFlush: () => void;
@@ -40,8 +47,21 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
       return 'ignored';
     }
     const { producer_id, salt } = await deps.state.installation();
-    const input = mapHook(raw, { projectRef: deps.projectRef, salt });
+    const gemini = deps.platform === 'gemini-cli';
+    const input = gemini
+      ? mapGeminiHook(raw, {
+          projectRef: deps.projectRef,
+          salt,
+          collectorVersion: COLLECTOR_VERSION,
+        })
+      : mapHook(raw, { projectRef: deps.projectRef, salt });
     if (!input) return 'ignored';
+    if (gemini) {
+      // For `javi status`: proof that Gemini runs our hooks (an untrusted folder never does).
+      await deps.state
+        .markHookSeen(deps.projectRef, 'gemini-cli', deps.now?.() ?? new Date())
+        .catch(() => {});
+    }
 
     // Usage attribution (ADR-0011), only while usage is on: the receiver forwards only sessions
     // seen by a hook. Failures here must not cost the hook event itself.

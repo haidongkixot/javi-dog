@@ -91,7 +91,7 @@ const load = async (path: string): Promise<Loaded> => {
  * The file a write must replace: a symlinked settings file (dotfiles) is written through, so the
  * link stays a link. A dangling link resolves to where it points.
  */
-const writeTarget = async (path: string): Promise<string> => {
+export const writeTarget = async (path: string): Promise<string> => {
   try {
     return await realpath(path);
   } catch (e) {

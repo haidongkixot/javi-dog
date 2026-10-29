@@ -14,9 +14,39 @@ export {
   javiHome,
   SESSION_TTL_MS,
   type CollectorState,
+  type GeminiSettingsBefore,
+  type GeminiUsageConfig,
   type ReceiverInfo,
   type UsageConfig,
 } from './state.ts';
+export {
+  DEFAULT_PLATFORM,
+  PLATFORMS,
+  PLATFORM_NAMES,
+  isPlatform,
+  platformFlag,
+  type Platform,
+} from './platform.ts';
+export {
+  GEMINI_HOOK_TIMEOUT_MS,
+  geminiHome,
+  geminiHookCommand,
+  geminiHookEntry,
+  geminiHooksInstalled,
+  geminiProjectSettingsPath,
+  geminiUserSettingsPath,
+  installGeminiHooks,
+  uninstallGeminiHooks,
+  type InstallGeminiResult,
+} from './gemini-settings.ts';
+export {
+  GEMINI_TELEMETRY_ENV_KEYS,
+  disableGeminiTelemetry,
+  enableGeminiTelemetry,
+  geminiTelemetryBlock,
+  type DisableGeminiResult,
+  type EnableGeminiResult,
+} from './gemini-telemetry.ts';
 export {
   createUsageReceiver,
   ensureReceiver,
@@ -43,8 +73,10 @@ export {
   toUsageGroups,
   toUsageRecord,
   usageEventId,
+  usageThreadRef,
   type CumulativeBaselines,
   type UsageGroup,
+  type UsagePlatform,
 } from './usage.ts';
 export {
   DEFAULT_USAGE_PORT,
