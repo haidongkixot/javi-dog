@@ -83,3 +83,23 @@ describe('file spool specifics', () => {
     ).rejects.toThrow(/Unsafe/);
   });
 });
+
+describe('createFileSpool directory creation', () => {
+  it('never leaves an unhandled rejection when the directory cannot be created', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      // The parent is a regular file, so mkdir(dir) fails before any method awaits it.
+      const parent = join(await mkdtemp(join(tmpdir(), 'jgr-spool-ready-')), 'file');
+      await writeFile(parent, 'x');
+      const spool = createFileSpool(join(parent, 'spool'));
+      await new Promise((r) => setTimeout(r, 50));
+      expect(unhandled).toEqual([]);
+      // Callers still see the failure when they use the spool.
+      await expect(spool.count()).rejects.toMatchObject({ code: 'ENOTDIR' });
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+});

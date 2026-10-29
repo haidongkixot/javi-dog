@@ -51,6 +51,9 @@ export const createFileSpool = (
   { maxEvents = DEFAULT_SPOOL_MAX_EVENTS } = {},
 ): Spool => {
   const ready = mkdir(dir, { recursive: true, mode: 0o700 });
+  // Handled here so a directory that cannot be created is never an unhandled rejection; every
+  // method that awaits `ready` still sees the error.
+  ready.catch(() => {});
   const file = (id: string) => {
     if (!SAFE_ID.test(id)) throw new Error('Unsafe event id for the file spool.');
     return join(dir, `${id}.json`);
