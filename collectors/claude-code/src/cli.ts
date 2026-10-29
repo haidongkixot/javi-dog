@@ -35,6 +35,8 @@ import {
   type SettingsBackup,
 } from './claude-env.ts';
 import {
+  CODEX_BLOCK_END,
+  CODEX_BLOCK_START,
   CODEX_LOGS_PATH,
   codexConfigPath,
   codexEnvRisks,
@@ -43,7 +45,11 @@ import {
   disableCodexOtel,
   enableCodexOtel,
   readCodexApproval,
+  runCommand,
+  SYSTEM_PROXY_SOURCE,
+  CODEX_OTEL_KEYS,
   type CodexBackup,
+  type SystemProxyProbe,
   type EnableCodexResult,
   type EnvFinding,
 } from './codex-config.ts';
@@ -107,6 +113,11 @@ export interface Io {
   /** Starts `javi receive` in the background (detached in the CLI). */
   spawnReceiver: () => void;
   fetch?: typeof fetch;
+  /**
+   * OS proxy settings to check for Codex CLI (S5c code review M3): the CLI passes the real
+   * `scutil` / `reg` runner; tests inject one (none means no OS check).
+   */
+  systemProxy?: SystemProxyProbe;
 }
 
 const flag = (argv: string[], name: string) => {
@@ -507,6 +518,31 @@ const receiverLine = (receiver: 'kept' | 'stopped' | 'none', rest: UsageConfig |
 const findings = (list: EnvFinding[]) =>
   list.map(({ source, keys }) => `${source}: ${keys.join(', ')}`).join('; ');
 
+/** `a, b and c` */
+const listAnd = (items: string[]) =>
+  items.length > 1 ? `${items.slice(0, -1).join(', ')} and ${items.at(-1)}` : (items[0] ?? '');
+
+/** Why a finding counts although it may look harmless (S5c code review H1, M3). */
+const proxyNotes = (list: EnvFinding[]) => {
+  const notes: string[] = [];
+  const keys = list.filter((f) => f.source !== SYSTEM_PROXY_SOURCE).flatMap((f) => f.keys);
+  const https = keys.filter((k) => k.toLowerCase() === 'https_proxy');
+  if (https.length && https.length === keys.length) {
+    notes.push(
+      `Only ${https.join(' and ')} is set: javi's endpoint is plain http, so Codex may not use it, but javi refuses to be safe.`,
+    );
+  }
+  if (list.some((f) => f.source === SYSTEM_PROXY_SOURCE)) {
+    notes.push(
+      "Codex applies the system proxy to 127.0.0.1 too: the macOS bypass list and Windows <local> do not cover 127.0.0.1, only NO_PROXY=127.0.0.1 in Codex's environment does.",
+    );
+  }
+  notes.push(
+    "NO_PROXY counts only with 127.0.0.1 or a range holding it (such as 127.0.0.0/8): '*' and 'localhost' do not cover an IP address for Codex.",
+  );
+  return notes;
+};
+
 /** `javi usage on --platform codex-cli`: javi's marked `[otel]` block in Codex's config.toml. */
 const codexUsageOn = async (
   io: Io,
@@ -519,11 +555,16 @@ const codexUsageOn = async (
   // usage off edits the file usage on edited, even if CODEX_HOME changed meanwhile.
   const path = config?.codex?.path ?? codexConfigPath(codexHome(io.env));
   // H1: a proxy not bypassed for 127.0.0.1 would carry Codex's logs and javi's bearer away.
-  const risks = await codexEnvRisks({ env: io.env, home: dirname(path) });
+  const risks = await codexEnvRisks({
+    env: io.env,
+    home: dirname(path),
+    ...(io.systemProxy && { system: io.systemProxy }),
+  });
   if (risks.proxy.length) {
     io.err(
       `Codex CLI token usage not enabled: a proxy is set and NO_PROXY does not cover 127.0.0.1 (names only): ${findings(risks.proxy)}.`,
     );
+    for (const line of proxyNotes(risks.proxy)) io.err(line);
     io.err(
       "Codex would send its logs (your email, tool arguments) and javi's receiver token through that proxy. Add 127.0.0.1 to NO_PROXY (or unset the proxy), then run javi usage on --platform codex-cli again.",
     );
@@ -801,6 +842,18 @@ const codexUsageOff = async (io: Io, state: CollectorState): Promise<number> => 
     return 0;
   }
   const { path, outcome, backupRemoved } = await disableCodexOtel(config.codex);
+  if (outcome === 'changed') {
+    // Usage stays on: Codex keeps exporting to javi until the user removes javi's lines, so
+    // usage.json, the receiver and the warnings stay as they are (S5c code review H2).
+    io.err(
+      `Codex CLI token usage is still on: javi's block in ${path} was changed since usage on, so javi left the file as it is.`,
+    );
+    io.err(
+      `Remove javi's lines yourself: the line '${CODEX_BLOCK_START}', the [otel] table header and its keys ${listAnd([...CODEX_OTEL_KEYS])}, and the line '${CODEX_BLOCK_END}' (Codex may have moved it to the end of the file). Keep every other table as it is.`,
+    );
+    io.err('Then run javi usage off --platform codex-cli again.');
+    return 1;
+  }
   await state.clearCodexEnvWarnings();
   const rest = withoutPlatform(config, 'codex-cli');
   const receiver = await releaseUsage(state, rest);
@@ -809,9 +862,7 @@ const codexUsageOff = async (io: Io, state: CollectorState): Promise<number> => 
       ? `Removed javi's [otel] block from ${path}; everything else in it is kept as it is.`
       : outcome === 'deleted'
         ? `Removed ${path}: javi had created it for usage on and nothing else is in it.`
-        : outcome === 'changed'
-          ? `javi's block in ${path} was changed since usage on, so javi left the file as it is. Remove the lines between '# >>> javi usage (do not edit)' and '# <<< javi' yourself, or Codex keeps sending its logs to that endpoint.`
-          : `Nothing to remove from ${path} (javi's block is no longer there).`,
+        : `Nothing to remove from ${path} (javi's block is no longer there).`,
   );
   if (backupRemoved) io.out(`Removed the backup ${backupRemoved}: it is no longer needed.`);
   io.out(receiverLine(receiver, rest));
@@ -989,7 +1040,15 @@ const initCodexHooks = async (
   try {
     // The launcher first: hooks.json only ever names it, never a versioned path (H4).
     launchers = await installCodexLauncher(state.home, process.execPath, cliPath);
-    result = await installCodexHooks(projectDir, launchers, projectRef);
+    const hooksPath = codexHooksPath(projectDir);
+    result = await installCodexHooks(
+      projectDir,
+      launchers,
+      projectRef,
+      await state.codexHooksOrigin(hooksPath),
+    );
+    // What the file was before javi, so uninstall restores it (L5).
+    await state.saveCodexHooksOrigin(hooksPath, result.origin);
   } catch (e) {
     io.err(`javi init failed: ${(e as Error).message} No token saved.`);
     return false;
@@ -1139,6 +1198,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         },
         env: io.env,
         cwd: io.cwd,
+        ...(io.systemProxy && { systemProxy: io.systemProxy }),
       });
     }
     return 0;
@@ -1294,9 +1354,14 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
           if (platform === 'gemini-cli')
             ({ path, removed } = await uninstallGeminiHooks(projectDir));
           else {
-            const result = await uninstallCodexHooks(projectDir);
+            const hooksPath = codexHooksPath(projectDir);
+            const result = await uninstallCodexHooks(
+              projectDir,
+              await state.codexHooksOrigin(hooksPath),
+            );
             ({ path, shifts, deleted } = result);
             removed = result.removed > 0;
+            if (removed) await state.removeCodexHooksOrigin(hooksPath);
           }
         } catch (e) {
           io.err((e as Error).message);
@@ -1379,6 +1444,7 @@ if (isEntryPoint()) {
     err: (line) => process.stderr.write(`${line}\n`),
     spawnFlush: (projectRef) => detached(['flush', '--project', projectRef, '--quiet']),
     spawnReceiver: () => detached(['receive']),
+    systemProxy: { platform: process.platform, run: runCommand },
   }).then(
     (code) => process.exit(code),
     () => process.exit(process.argv[2] === 'hook' ? 0 : 1),

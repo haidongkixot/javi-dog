@@ -1,10 +1,8 @@
-import { createHmac } from 'node:crypto';
 import { validateEvent } from '@javis-dog/jgr-spec';
 import { describe, expect, it } from 'vitest';
 import {
   CODEX_PRICED_AUTH_MODES,
   codexCostDelta,
-  codexEventIdInput,
   codexThreadRef,
   codexUsageDelta,
   parseCodexLogs,
@@ -178,45 +176,5 @@ describe('codexCostDelta — cost only for API-key auth (ADR-0016 C5)', () => {
     expect(codexCostDelta(cost({ costUsd: Number.NaN }))).toBeNull();
     expect(codexCostDelta(cost({ costUsd: Number.POSITIVE_INFINITY }))).toBeNull();
     expect(codexCostDelta(cost({ costUsd: -1 }))).toBeNull();
-  });
-});
-
-describe('codexEventIdInput — deterministic event-id key material (C5, M1)', () => {
-  it('token record: codex-cli \\0 conversation \\0 timestamp \\0 input \\0 cached \\0 cacheWrite \\0 output', () => {
-    expect(codexEventIdInput(token())).toBe(
-      ['codex-cli', CONV, '2026-10-29T19:29:00.123Z', '1000', '400', '100', '250'].join('\0'),
-    );
-  });
-
-  it('cost record: codex-cli \\0 conversation \\0 turnId', () => {
-    expect(codexEventIdInput(cost())).toBe(['codex-cli', CONV, 'turn-7'].join('\0'));
-  });
-
-  it('is stable across replays and ignores model and auth mode; any counter change differs', () => {
-    expect(codexEventIdInput(token())).toBe(codexEventIdInput({ ...token() }));
-    expect(codexEventIdInput(token({ model: 'other', authMode: null }))).toBe(
-      codexEventIdInput(token()),
-    );
-    expect(codexEventIdInput(cost({ costUsd: 9, authMode: 'Chatgpt' }))).toBe(
-      codexEventIdInput(cost()),
-    );
-    for (const change of [
-      { conversationId: 'other' },
-      { timestamp: '2026-10-29T19:29:00.124Z' },
-      { input: 1001 },
-      { cached: 401 },
-      { cacheWrite: 101 },
-      { output: 251 },
-    ]) {
-      expect(codexEventIdInput(token(change))).not.toBe(codexEventIdInput(token()));
-    }
-    expect(codexEventIdInput(cost({ turnId: 'turn-8' }))).not.toBe(codexEventIdInput(cost()));
-  });
-
-  it('feeds an HMAC like JD-C01 usageEventId (salted, so the raw ids never leave)', () => {
-    const id = (salt: string) =>
-      createHmac('sha256', salt).update(codexEventIdInput(token())).digest('hex');
-    expect(id('a')).toBe(id('a'));
-    expect(id('a')).not.toBe(id('b'));
   });
 });

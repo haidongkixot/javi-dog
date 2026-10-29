@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -290,20 +290,88 @@ describe('receiver: Codex CLI usage end to end (C4–C6, H3)', () => {
     );
   });
 
-  it('spools all or nothing per request: a failing project spool takes back the others (503)', async () => {
+  it('a failing project spool answers 503 but keeps what was appended; existing spool files are never deleted (M4)', async () => {
     await state.saveCredentials('other', { endpoint: 'http://127.0.0.1:9/never', token: TOKEN });
     await codexHook({ session_id: 'sess-a', hook_event_name: 'SessionStart' });
     await codexHook({ session_id: 'sess-b', hook_event_name: 'SessionStart' }, 'other');
+    // A spool file with the same deterministic id is already there (an earlier replay that is
+    // waiting for its flush): javi must never take it back.
+    const a = { conversationId: 'sess-a', input: 3, output: 1 };
+    const id = codexTokenEventId(
+      {
+        ...a,
+        model: 'gpt-5-codex',
+        authMode: 'ApiKey',
+        timestamp: '2026-10-29T12:00:00.000Z',
+        cached: 0,
+        cacheWrite: 0,
+      },
+      salt,
+    );
+    const existing = join(state.spoolDir('web-app'), `${id}.json`);
+    await mkdir(state.spoolDir('web-app'), { recursive: true });
+    await writeFile(existing, JSON.stringify({ event_id: id, type: 'usage.reported' }));
     // The second project's spool cannot be written: its folder is a file now.
     await rm(state.spoolDir('other'), { recursive: true, force: true });
     await writeFile(state.spoolDir('other'), 'not a folder');
     const body = logsBody([
-      tokenLog({ conversationId: 'sess-a', input: 3, output: 1 }),
+      tokenLog(a),
       tokenLog({ conversationId: 'sess-b', input: 3, output: 1 }),
     ]);
     const reply = await post(port, { body: JSON.stringify(body) });
     expect(reply.status).toBe(503);
-    expect(await usageEvents(state, 'web-app')).toEqual([]);
+    expect(JSON.parse(reply.body)).toEqual({ message: 'Temporarily unavailable, please retry.' });
+    const kept = await usageEvents(state, 'web-app');
+    expect(kept.map((e) => e.event_id)).toEqual([id]);
+    expect(await readFile(existing, 'utf8')).toContain(id);
+    expect(await state.receiverInfo()).toMatchObject({ forwarded: 1 });
+  });
+
+  it('a re-sent record or re-logged turn cost is not spooled again, across restarts; sequences stay contiguous (item 8)', async () => {
+    await codexHook({ session_id: 'sess-r', hook_event_name: 'SessionStart' });
+    const first = JSON.stringify(
+      logsBody([
+        tokenLog({ conversationId: 'sess-r', input: 10, output: 2 }),
+        costLog({ conversationId: 'sess-r', turnId: 'turn-r', usd: '0.25' }),
+      ]),
+    );
+    expect((await post(port, { body: first })).status).toBe(200);
+    expect((await post(port, { body: first })).status).toBe(200);
+    // Codex logs the same turn cost again in a later batch.
+    const cost = JSON.stringify(
+      logsBody([costLog({ conversationId: 'sess-r', turnId: 'turn-r', usd: '0.25' })]),
+    );
+    expect((await post(port, { body: cost })).status).toBe(200);
+    // The accepted ids survive a receiver restart.
+    await receiver.close();
+    receiver = createUsageReceiver({ state, port: 0, secret: SECRET, salt, flush: async () => {} });
+    port = await receiver.listen();
+    expect((await post(port, { body: first })).status).toBe(200);
+    const next = JSON.stringify(
+      logsBody([
+        tokenLog({
+          conversationId: 'sess-r',
+          input: 4,
+          output: 1,
+          timestamp: '2026-10-29T12:00:05.000Z',
+        }),
+      ]),
+    );
+    expect((await post(port, { body: next })).status).toBe(200);
+    const usage = await usageEvents(state);
+    expect(usage).toHaveLength(3);
+    expect(new Set(usage.map((e) => e.event_id)).size).toBe(3);
+    const thread = opaqueRef('cx', 'sess-r', salt);
+    const all = (await spoolText(state))
+      .map((t) => JSON.parse(t) as { thread_ref: string; sequence: number })
+      .filter((e) => e.thread_ref === thread)
+      .map((e) => e.sequence)
+      .sort((x, y) => x - y);
+    expect(all).toEqual(all.map((_, i) => i)); // session.started + 3 usage, no gap
+    expect(all).toHaveLength(4);
+    // Only HMAC-derived event ids are kept, never raw conversation or turn ids.
+    const accepted = await readFile(join(home, 'accepted', 'codex-cli.json'), 'utf8');
+    expect(accepted).not.toMatch(/sess-r|turn-r/);
   });
 
   it('a project without credentials drops its records; nothing is spooled', async () => {

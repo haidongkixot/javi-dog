@@ -28,4 +28,8 @@ describe('JD-C02 Codex contract (ADR-0016 S5c)', async () => {
     expect(codex.CODEX_THREAD_PREFIX).toBe('cx');
     expect(codex.CODEX_PRICED_AUTH_MODES).toEqual(['ApiKey']);
   });
+
+  it('has no event-id key material of its own: JD-C01 codex-usage.ts is the single id formula (S5c review L6)', () => {
+    expect(codex).not.toHaveProperty('codexEventIdInput');
+  });
 });

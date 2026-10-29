@@ -1,7 +1,7 @@
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 // Local collector state under JAVI_HOME (default ~/.javi). Files holding secrets are written
 // with mode 0600 (POSIX; on Windows the user profile ACL applies). Never inside a repository.
@@ -73,6 +73,16 @@ export interface CodexEnvWarning {
   claudeHeader: boolean;
 }
 
+/** `~/.javi/codex-hooks/<hash of the hooks.json path>.json` (S5c code review L5). */
+export interface CodexHooksOriginRecord {
+  /** javi created `.codex/hooks.json`: uninstall may delete it when nothing else is left. */
+  created: boolean;
+  /** Hook events the user's file already had (also empty ones): uninstall keeps them. */
+  events: string[];
+  /** The user's file had a `hooks` key. */
+  hooksKey: boolean;
+}
+
 /** `~/.javi/gemini-settings.before.json` — Gemini user settings before the first `usage on`. */
 export interface GeminiSettingsBefore {
   path: string;
@@ -103,6 +113,8 @@ export interface ReceiverInfo {
   dropped: number;
   /** Last accepted OTLP export, or null. */
   lastRequestAt: string | null;
+  /** Codex records skipped because their event id was already spooled (re-sent, item 8). */
+  duplicates?: number;
   /**
    * Set by `javi receive` when another program holds the usage port (Claude Code's exports go
    * there); hooks back off spawning for a while. A successful listen or `usage on` clears it.
@@ -125,6 +137,10 @@ const SESSION_FILE = /^(?:cc|gm|cx)_[0-9a-f]{32}\.json$/;
 /** Codex sub-agent links: hashed child ref → hashed parent session ref (S5c C6, M4). */
 const CODEX_REF = /^cx_[0-9a-f]{32}$/;
 const AGENT_REF = /^[A-Za-z0-9_:-]{1,128}$/;
+/** Accepted usage event ids (UUIDs) kept per platform, newest last (S5c code review item 8). */
+export const ACCEPTED_IDS_MAX = 20_000;
+const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const PLATFORM_NAME = /^[a-z][a-z-]{0,31}$/;
 const WARNING_PREFIX = 'gemini-telemetry.';
 const CODEX_WARNING_PREFIX = 'codex-env.';
 
@@ -137,6 +153,20 @@ const readJson = async <T>(path: string): Promise<T | null> => {
   } catch {
     return null;
   }
+};
+
+/** `[eventId, atMs]` pairs of an accepted-ids file; anything malformed is skipped. */
+const readAccepted = async (path: string): Promise<Array<[string, number]>> => {
+  const file = await readJson<{ ids?: unknown }>(path);
+  if (!file || !Array.isArray(file.ids)) return [];
+  return file.ids.filter(
+    (e): e is [string, number] =>
+      Array.isArray(e) &&
+      typeof e[0] === 'string' &&
+      EVENT_ID.test(e[0]) &&
+      typeof e[1] === 'number' &&
+      Number.isFinite(e[1]),
+  );
 };
 
 /** Temp file + rename so a crash never leaves half a file behind. */
@@ -162,6 +192,11 @@ export const createState = (home: string) => {
   // `ready` still sees the error.
   ready.catch(() => {});
   const path = (...parts: string[]) => join(home, ...parts);
+  const originFile = (hooksPath: string) =>
+    path(
+      'codex-hooks',
+      `${createHash('sha256').update(resolve(hooksPath)).digest('hex').slice(0, 32)}.json`,
+    );
 
   /** Runs `work` while holding a directory lock (mkdir is atomic everywhere). */
   const withLock = async <T>(name: string, work: () => Promise<T>, staleMs = 5_000) => {
@@ -460,6 +495,70 @@ export const createState = (home: string) => {
       }
       return { parent: entry.parent, agentRef: entry.agent_ref };
     },
+
+    /**
+     * Event ids the receiver already spooled for `platform` in the last 7 days (S5c code review
+     * item 8): a re-sent Codex record or re-logged turn cost has the same deterministic id and
+     * must not be spooled again with a new sequence (a JGR §9 gap). Ids are HMAC-derived UUIDs,
+     * never raw conversation or turn ids.
+     */
+    acceptedEventIds: async (platform: string, nowMs = Date.now()): Promise<Set<string>> => {
+      if (!PLATFORM_NAME.test(platform)) return new Set();
+      const entries = await readAccepted(path('accepted', `${platform}.json`));
+      return new Set(entries.filter(([, at]) => nowMs - at < SESSION_TTL_MS).map(([id]) => id));
+    },
+
+    /**
+     * Adds ids that were just spooled (after a successful append only). Keeps the newest
+     * `max` (default 20 000) ids from the last 7 days; atomic write under a lock, mode 0600.
+     */
+    recordAcceptedEventIds: async (
+      platform: string,
+      ids: string[],
+      nowMs = Date.now(),
+      max = ACCEPTED_IDS_MAX,
+    ) => {
+      if (!PLATFORM_NAME.test(platform)) throw new Error('Unknown platform for accepted ids.');
+      const fresh = ids.filter((id) => EVENT_ID.test(id));
+      if (!fresh.length) return;
+      await withLock(`accepted-${platform}`, async () => {
+        const file = path('accepted', `${platform}.json`);
+        const adding = new Set(fresh);
+        const kept = (await readAccepted(file)).filter(
+          ([id, at]) => !adding.has(id) && nowMs - at < SESSION_TTL_MS,
+        );
+        const next = [...kept, ...[...adding].map((id) => [id, nowMs] as [string, number])];
+        await mkdir(path('accepted'), { recursive: true, mode: 0o700 });
+        await writeTextAtomic(file, `${JSON.stringify({ v: 1, ids: next.slice(-max) })}\n`);
+      });
+    },
+
+    /**
+     * What a project's `.codex/hooks.json` was before javi's first init (S5c code review L5),
+     * keyed by a hash of its path (no path in a file name). Event names and flags only.
+     */
+    codexHooksOrigin: async (hooksPath: string): Promise<CodexHooksOriginRecord | null> => {
+      const entry = await readJson<CodexHooksOriginRecord>(originFile(hooksPath));
+      return entry &&
+        typeof entry.created === 'boolean' &&
+        typeof entry.hooksKey === 'boolean' &&
+        Array.isArray(entry.events) &&
+        entry.events.every((e) => typeof e === 'string')
+        ? { created: entry.created, events: entry.events, hooksKey: entry.hooksKey }
+        : null;
+    },
+
+    saveCodexHooksOrigin: async (hooksPath: string, origin: CodexHooksOriginRecord) => {
+      await ready;
+      await mkdir(path('codex-hooks'), { recursive: true, mode: 0o700 });
+      await writeJsonPrivate(originFile(hooksPath), {
+        created: origin.created,
+        events: origin.events,
+        hooksKey: origin.hooksKey,
+      });
+    },
+
+    removeCodexHooksOrigin: (hooksPath: string) => rm(originFile(hooksPath), { force: true }),
 
     saveCodexEnvWarning: async (warning: CodexEnvWarning) => {
       await mkdir(path('warnings'), { recursive: true, mode: 0o700 });

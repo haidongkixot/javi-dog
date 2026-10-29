@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createState } from '../src/index.ts';
+import { ACCEPTED_IDS_MAX, SESSION_TTL_MS, createState } from '../src/index.ts';
 
 let home: string;
 beforeEach(async () => {
@@ -100,5 +100,28 @@ describe('Codex sub-agent links (S5c C6, M4)', () => {
     const s = createState(home);
     expect(await s.rememberSession(parent, 'web-app', Date.now())).toBe(true);
     expect(await s.sessionProject(parent)).toBe('web-app');
+  });
+
+  it('accepted event ids (S5c item 8): persisted, bounded to the newest, swept after 7 days, UUIDs only', async () => {
+    const id = (n: number) => `00000000-0000-8000-8000-${String(n).padStart(12, '0')}`;
+    const s = createState(home);
+    const t0 = 1_800_000_000_000;
+    await s.recordAcceptedEventIds('codex-cli', [id(1), id(2), 'not-an-id', 'sess-raw'], t0);
+    expect([...(await createState(home).acceptedEventIds('codex-cli', t0))].sort()).toEqual([
+      id(1),
+      id(2),
+    ]);
+    expect(await s.acceptedEventIds('gemini-cli', t0)).toEqual(new Set());
+    // Newest `max` kept; an id seen again is refreshed, not duplicated.
+    await s.recordAcceptedEventIds('codex-cli', [id(3), id(1)], t0 + 1, 2);
+    expect([...(await s.acceptedEventIds('codex-cli', t0 + 1))].sort()).toEqual([id(1), id(3)]);
+    // Older than 7 days: gone on read and swept on the next write.
+    const later = t0 + 1 + SESSION_TTL_MS;
+    expect(await s.acceptedEventIds('codex-cli', later)).toEqual(new Set());
+    await s.recordAcceptedEventIds('codex-cli', [id(4)], later);
+    const file = await readFile(join(home, 'accepted', 'codex-cli.json'), 'utf8');
+    expect(JSON.parse(file).ids).toEqual([[id(4), later]]);
+    expect(ACCEPTED_IDS_MAX).toBe(20_000);
+    await expect(s.recordAcceptedEventIds('../x', [id(5)], t0)).rejects.toThrow();
   });
 });

@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process';
 import { mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -99,6 +100,70 @@ const count = (text: string, part: string) => {
   return n;
 };
 
+/** The `otel` keys javi writes, in order (what a user removes by hand after an edit). */
+export const CODEX_OTEL_KEYS = [
+  'exporter',
+  'log_user_prompt',
+  'log_agent_responses',
+  'log_guardian_assessments',
+  'log_sse_deltas',
+] as const;
+
+/**
+ * javi's block without its end marker: the start marker, `[otel]` and javi's keys, through the
+ * `log_sse_deltas = false` line. Codex rewrites `config.toml` with toml_edit, which keeps those
+ * lines together but can move the trailing `# <<< javi` comment to the end of the file when
+ * Codex appends a table (S5c code review H2), so only this part identifies javi's block.
+ */
+const blockCore = (block: string) => {
+  const end = block.lastIndexOf(`${CODEX_BLOCK_END}\n`);
+  return end >= 0 ? block.slice(0, end) : block;
+};
+
+/** [start, end) of every line that is exactly `# <<< javi` (with its line break). */
+const endMarkerLines = (text: string): Array<[number, number]> => {
+  const found: Array<[number, number]> = [];
+  for (let i = text.indexOf(CODEX_BLOCK_END); i >= 0; i = text.indexOf(CODEX_BLOCK_END, i + 1)) {
+    if (i > 0 && text[i - 1] !== '\n') continue;
+    const after = i + CODEX_BLOCK_END.length;
+    const rest = text.startsWith('\r\n', after) ? 2 : text.startsWith('\n', after) ? 1 : 0;
+    if (rest === 0 && after !== text.length) continue;
+    found.push([i, after + rest]);
+  }
+  return found;
+};
+
+/**
+ * Where javi's block is in `text`: its core (exactly once, unchanged) and one standalone end
+ * marker — right after the core when it is there, else the last one in the file (toml_edit
+ * moved it) — or null when the core is not there exactly once.
+ */
+const locateBlock = (text: string, block: string) => {
+  const core = blockCore(block);
+  if (count(text, core) !== 1) return null;
+  const at = text.indexOf(core);
+  const coreEnd = at + core.length;
+  const markers = endMarkerLines(text).filter(([s]) => s < at || s >= coreEnd);
+  const marker = markers.find(([s]) => s === coreEnd) ?? markers.at(-1) ?? null;
+  return { at, coreEnd, marker };
+};
+
+/** `text` without the end marker line and with [at, coreEnd) replaced by `replacement`. */
+const spliceBlock = (
+  text: string,
+  found: NonNullable<ReturnType<typeof locateBlock>>,
+  from: number,
+  replacement: string,
+) => {
+  const { coreEnd, marker } = found;
+  // Cut the marker first when it comes after the block, so the earlier offsets stay valid.
+  let rest = text;
+  if (marker && marker[0] >= coreEnd) rest = rest.slice(0, marker[0]) + rest.slice(marker[1]);
+  rest = rest.slice(0, from) + replacement + rest.slice(coreEnd);
+  if (marker && marker[0] < from) rest = rest.slice(0, marker[0]) + rest.slice(marker[1]);
+  return rest;
+};
+
 /**
  * What happened to `config.toml.javi-backup`: `created` holds the file as it was before this
  * change; `kept` is an earlier backup left as it is; `skipped`: the file already held javi's
@@ -146,9 +211,10 @@ export const enableCodexOtel = async (opts: {
     text = null;
   }
   const current = text ?? '';
-  const ours = previous && count(current, previous.block) === 1;
-  // The user's own text: the file without javi's earlier block.
-  const userText = ours ? current.replace(previous.block, () => '') : current;
+  const found = previous ? locateBlock(current, previous.block) : null;
+  const ours = Boolean(found);
+  // The user's own text: the file without javi's earlier block (end marker wherever it is).
+  const userText = found ? spliceBlock(current, found, found.at, '') : current;
   const parsed = tryParse(userText);
   if (!parsed) return { ok: false, reason: 'unparsable' };
   const conflicts = otelNames(parsed);
@@ -156,8 +222,9 @@ export const enableCodexOtel = async (opts: {
 
   let next: string;
   let separator: string;
-  if (ours) {
-    next = current.replace(previous.block, () => block);
+  if (found && previous) {
+    // The new block, end marker included, where the old core was; a moved marker goes.
+    next = spliceBlock(current, found, found.at, block);
     separator = previous.separator;
   } else {
     separator = current === '' ? '' : current.endsWith('\n') ? '\n' : '\n\n';
@@ -192,17 +259,18 @@ export const enableCodexOtel = async (opts: {
     backup,
     block,
     separator,
-    created: ours ? previous.created : text === null,
+    created: found && previous ? previous.created : text === null,
   };
 };
 
 export interface DisableCodexResult {
   path: string;
   /**
-   * `removed`: javi's unchanged block (and the separator javi added) is gone; everything else
-   * is kept as it is. `deleted`: javi had created the file and nothing else was left in it, so
-   * the file is gone. `changed`: javi's block was edited (its markers are still there): nothing
-   * was touched. `absent`: no block of javi's (or no file): nothing to do.
+   * `removed`: javi's unchanged block (and the separator javi added) is gone, and so is one
+   * standalone `# <<< javi` line wherever Codex's toml_edit rewrite left it; everything else is
+   * kept as it is. `deleted`: javi had created the file and nothing else was left in it, so the
+   * file is gone. `changed`: javi's block was edited (its start marker or exporter line is still
+   * there): nothing was touched, so usage stays on. `absent`: no block of javi's (or no file).
    */
   outcome: 'removed' | 'deleted' | 'changed' | 'absent';
   /** After `removed` / `deleted`: the `config.toml.javi-backup` that was removed, if any. */
@@ -224,16 +292,18 @@ export const disableCodexOtel = async (opts: {
     if ((e as { code?: string }).code !== 'ENOENT') throw e;
     return { path, outcome: 'absent' };
   }
-  if (count(text, block) !== 1) {
-    return {
-      path,
-      outcome:
-        text.includes(CODEX_BLOCK_START) || text.includes(CODEX_BLOCK_END) ? 'changed' : 'absent',
-    };
+  const found = locateBlock(text, block);
+  if (!found) {
+    // javi's start marker or its exporter line still there: the block was edited.
+    const exporterLine = block.split('\n').find((line) => line.startsWith('exporter = '));
+    const edited =
+      text.includes(CODEX_BLOCK_START) ||
+      (exporterLine !== undefined && text.includes(exporterLine));
+    return { path, outcome: edited ? 'changed' : 'absent' };
   }
-  const at = text.indexOf(block);
+  const { at } = found;
   const from = separator && text.slice(0, at).endsWith(separator) ? at - separator.length : at;
-  const next = text.slice(0, from) + text.slice(at + block.length);
+  const next = spliceBlock(text, found, from, '');
   const target = await writeTarget(path);
   let outcome: DisableCodexResult['outcome'] = 'removed';
   if (opts.created && next.trim() === '') {
@@ -299,23 +369,109 @@ export const parseDotenv = (text: string): Map<string, string> => {
   return vars;
 };
 
-/** True when a NO_PROXY value exempts 127.0.0.1 (`*`, the address, or a CIDR holding it). */
+const OCTET = '(0|[1-9]\\d{0,2})';
+const IPV4_ENTRY = new RegExp(`^${OCTET}\\.${OCTET}\\.${OCTET}\\.${OCTET}(?:/(\\d{1,2}))?$`);
+
+/**
+ * True when a NO_PROXY value exempts 127.0.0.1 for Codex's proxy matcher (hyper-util
+ * `NoProxy::from_string`, S5c code review H1): only an entry that parses as the IPv4 address
+ * `127.0.0.1` or as an IPv4 network holding it (`127.0.0.0/8`, `0.0.0.0/0`). `*`, `localhost`
+ * and every other name are domain entries there, and a domain entry never matches an IP host.
+ */
 export const noProxyCoversLoopback = (value: string | undefined): boolean => {
   if (!value) return false;
   return value
     .split(',')
     .map((entry) => entry.trim())
     .some((entry) => {
-      if (entry === '*' || entry === '127.0.0.1') return true;
-      const cidr = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/.exec(entry);
-      if (!cidr) return false;
-      const bits = Number(cidr[5]);
-      const octets = cidr.slice(1, 5).map(Number);
+      const m = IPV4_ENTRY.exec(entry);
+      if (!m) return false;
+      const octets = m.slice(1, 5).map(Number);
+      const bits = m[5] === undefined ? 32 : Number(m[5]);
       if (bits > 32 || octets.some((o) => o > 255)) return false;
-      const ip = (octets[0]! << 24) | (octets[1]! << 16) | (octets[2]! << 8) | octets[3]!;
+      const ip = (octets[0]! << 24) | (octets[1]! << 16) | (octets[2]! << 8) | octets[3]! | 0;
       const mask = bits === 0 ? 0 : (~0 << (32 - bits)) | 0;
-      return (ip & mask) === ((127 << 24) & mask);
+      return (ip & mask) === (((127 << 24) | 1) & mask);
     });
+};
+
+// --- System proxy settings (S5c code review M3) ---
+
+/** Runs a command (2 s timeout); null when it cannot run, fails or times out. */
+export type CommandRunner = (
+  command: string,
+  args: string[],
+  timeoutMs: number,
+) => Promise<{ code: number; stdout: string } | null>;
+
+/** Where Codex's reqwest/hyper-util `system-proxy` reads OS proxy settings. */
+export interface SystemProxyProbe {
+  platform: NodeJS.Platform;
+  run: CommandRunner;
+}
+
+const SYSTEM_PROBE_TIMEOUT_MS = 2_000;
+export const SYSTEM_PROXY_SOURCE = 'system settings';
+const WINDOWS_INTERNET_SETTINGS =
+  'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings';
+
+/** The real runner: `execFile` without a shell, output kept in memory only. */
+export const runCommand: CommandRunner = (command, args, timeoutMs) =>
+  new Promise((resolvePromise) => {
+    execFile(
+      command,
+      args,
+      { timeout: timeoutMs, windowsHide: true, encoding: 'utf8', maxBuffer: 1024 * 1024 },
+      (error, stdout) => {
+        resolvePromise(error ? null : { code: 0, stdout: String(stdout) });
+      },
+    );
+  });
+
+/** `key : value` lines of `scutil --proxy` (top-level dictionary only). */
+const scutilValues = (text: string) => {
+  const values = new Map<string, string>();
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^ {2}([A-Za-z]+) : (.*)$/.exec(line);
+    if (m) values.set(m[1]!, m[2]!.trim());
+  }
+  return values;
+};
+
+/**
+ * OS proxy settings Codex's HTTP client would apply to its loopback log export (names only,
+ * never values): macOS `scutil --proxy` with `HTTPEnable : 1` and an `HTTPProxy`, or proxy
+ * auto-configuration enabled; Windows Internet Settings with `ProxyEnable` non-zero and a
+ * `ProxyServer`. The macOS bypass list and Windows `<local>` never match an IP host, so they do
+ * not count as a cover. A probe that cannot run finds nothing.
+ */
+export const systemProxyFindings = async (probe: SystemProxyProbe): Promise<string[]> => {
+  try {
+    if (probe.platform === 'darwin') {
+      const out = await probe.run('scutil', ['--proxy'], SYSTEM_PROBE_TIMEOUT_MS);
+      if (!out) return [];
+      const v = scutilValues(out.stdout);
+      const found: string[] = [];
+      if (v.get('HTTPEnable') === '1' && v.get('HTTPProxy')) found.push('macOS system HTTP proxy');
+      if (v.get('ProxyAutoConfigEnable') === '1' || v.get('ProxyAutoDiscoveryEnable') === '1') {
+        found.push('macOS proxy auto-configuration');
+      }
+      return found;
+    }
+    if (probe.platform === 'win32') {
+      const query = (name: string) =>
+        probe.run('reg', ['query', WINDOWS_INTERNET_SETTINGS, '/v', name], SYSTEM_PROBE_TIMEOUT_MS);
+      const enable = await query('ProxyEnable');
+      const flag = enable && /\bProxyEnable\s+REG_DWORD\s+0x([0-9a-f]+)/i.exec(enable.stdout);
+      if (!flag || Number.parseInt(flag[1]!, 16) === 0) return [];
+      const server = await query('ProxyServer');
+      const value = server && /\bProxyServer\s+REG_SZ\s+(\S.*)$/im.exec(server.stdout);
+      return value ? ['Windows Internet Settings proxy'] : [];
+    }
+  } catch {
+    // A probe that cannot run must never block or break the caller.
+  }
+  return [];
 };
 
 /** A source (`environment` or a `.env` path) and the variable names found there. */
@@ -345,6 +501,8 @@ export const codexEnvRisks = async (opts: {
   env: NodeJS.ProcessEnv;
   home: string;
   claudeHeader?: string;
+  /** OS proxy settings to look at as well (M3); left out in tests that do not inject one. */
+  system?: SystemProxyProbe;
 }): Promise<CodexEnvRisks> => {
   const dotenvPath = join(opts.home, '.env');
   const dotenv = await readFile(dotenvPath, 'utf8').then(
@@ -352,7 +510,9 @@ export const codexEnvRisks = async (opts: {
     () => new Map<string, string>(),
   );
   const effective = (key: string) => (dotenv.has(key) ? dotenv.get(key) : opts.env[key]);
-  const noProxy = effective('NO_PROXY') || effective('no_proxy');
+  // First set wins, as hyper-util's `get_first_env(["NO_PROXY", "no_proxy"])`: a NO_PROXY that
+  // is set, even to '', hides no_proxy (H1). It applies to system proxies as well.
+  const noProxy = effective('NO_PROXY') ?? effective('no_proxy');
   const proxy: EnvFinding[] = [];
   const headers: EnvFinding[] = [];
   if (!noProxyCoversLoopback(noProxy)) {
@@ -360,6 +520,8 @@ export const codexEnvRisks = async (opts: {
     const fromFile = CODEX_PROXY_ENV_KEYS.filter((k) => set(dotenv.get(k)));
     if (fromEnv.length) proxy.push({ source: 'environment', keys: [...fromEnv] });
     if (fromFile.length) proxy.push({ source: dotenvPath, keys: [...fromFile] });
+    const fromSystem = opts.system ? await systemProxyFindings(opts.system) : [];
+    if (fromSystem.length) proxy.push({ source: SYSTEM_PROXY_SOURCE, keys: fromSystem });
   }
   const headersEnv = CODEX_HEADER_ENV_KEYS.filter((k) => !dotenv.has(k) && set(opts.env[k]));
   const headersFile = CODEX_HEADER_ENV_KEYS.filter((k) => set(dotenv.get(k)));

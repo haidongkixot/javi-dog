@@ -3,6 +3,7 @@ import { createServer, request, type IncomingMessage, type ServerResponse } from
 import { connect } from 'node:net';
 import { gunzip } from 'node:zlib';
 import {
+  CODEX_PLATFORM,
   parseCodexLogs,
   parseGeminiMetrics,
   type AdapterUsagePoint,
@@ -453,6 +454,7 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
    * (M1): every event is built and validated in memory first, then appended; when an append
    * fails, the events already appended by this request are removed again (503).
    */
+  let codexSpooling: Promise<void> = Promise.resolve();
   const acceptCodex = async (body: unknown) => {
     let parsed: CodexLogsResult;
     try {
@@ -490,10 +492,36 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
       const input = codexCostRecordInput(record, to, salt, now);
       if (input) inputs.push(input);
     }
+    // One request at a time from here on: the accepted-id check, the sequence and the append
+    // must not interleave, or two copies of a re-sent record could both pass the check.
+    const run = codexSpooling.then(() => spoolCodex(inputs, dropped));
+    codexSpooling = run.catch(() => {});
+    await run;
+  };
+
+  /**
+   * Codex inputs → the projects' spools (S5c code review M4 and item 8). An id that was already
+   * spooled (Codex re-sent the record or re-logged a turn cost) is skipped before it takes a
+   * sequence, so the thread's sequences stay contiguous. Every event is appended on its own,
+   * best effort: what was appended stays (ids are deterministic, so a later replay is
+   * harmless), nothing that is already in a spool is ever deleted, and a failed append answers
+   * 503 (Codex does not retry, so a rollback would only lose more).
+   */
+  const spoolCodex = async (
+    inputs: Array<RecordInput & { event_id: string }>,
+    droppedBefore: number,
+  ) => {
+    let dropped = droppedBefore;
+    let duplicates = 0;
+    const accepted = await state.acceptedEventIds(CODEX_PLATFORM);
     const { producer_id } = await state.installation();
     const builders = new Map<string, JgrClient | null>();
-    const events = new Map<string, JgrEvent[]>();
+    const events: Array<{ projectRef: string; event: JgrEvent }> = [];
     for (const input of inputs) {
+      if (accepted.has(input.event_id)) {
+        duplicates += 1;
+        continue;
+      }
       const projectRef = input.project_ref;
       if (!builders.has(projectRef)) {
         const creds = await state.credentials(projectRef);
@@ -514,6 +542,8 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
         dropped += 1;
         continue;
       }
+      // Within one request too: the same record twice takes one sequence.
+      accepted.add(input.event_id);
       const result = await builder.record({
         ...input,
         sequence: await state.nextSequence(input.thread_ref),
@@ -522,26 +552,41 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
         dropped += 1;
         continue;
       }
-      events.set(projectRef, [...(events.get(projectRef) ?? []), result.event]);
+      events.push({ projectRef, event: result.event });
     }
-    const appended: Array<{ spool: Spool; ids: string[] }> = [];
-    try {
-      for (const [projectRef, batch] of events) {
-        const spool = createFileSpool(state.spoolDir(projectRef));
-        await spool.append(batch);
-        appended.push({ spool, ids: batch.map((e) => e.event_id) });
+    const spools = new Map<string, Spool>();
+    const appended: string[] = [];
+    const flushed = new Set<string>();
+    let failed = false;
+    for (const { projectRef, event } of events) {
+      if (!spools.has(projectRef))
+        spools.set(projectRef, createFileSpool(state.spoolDir(projectRef)));
+      try {
+        await spools.get(projectRef)!.append([event]);
+        appended.push(event.event_id);
+        flushed.add(projectRef);
+      } catch {
+        failed = true;
       }
-    } catch (e) {
-      for (const { spool, ids } of appended) await spool.remove(ids).catch(() => {});
-      throw e;
+    }
+    // Ids are recorded only after their append succeeded.
+    let recorded = true;
+    if (appended.length) {
+      recorded = await state.recordAcceptedEventIds(CODEX_PLATFORM, appended).then(
+        () => true,
+        () => false,
+      );
     }
     if (info) {
-      info.forwarded += [...events.values()].reduce((n, batch) => n + batch.length, 0);
+      info.forwarded += appended.length;
       info.dropped += dropped;
+      if (duplicates) info.duplicates = (info.duplicates ?? 0) + duplicates;
       info.lastRequestAt = new Date().toISOString();
       await persistInfo();
     }
-    for (const projectRef of events.keys()) scheduleFlush(projectRef);
+    for (const projectRef of flushed) scheduleFlush(projectRef);
+    // A constant 503 message (the generic handler): never a path or an id.
+    if (failed || !recorded) throw new Error('Codex spool append failed.');
   };
 
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
@@ -656,6 +701,7 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
               startedAt: new Date().toISOString(),
               forwarded: count(previous?.forwarded),
               dropped: count(previous?.dropped),
+              ...(count(previous?.duplicates) && { duplicates: count(previous?.duplicates) }),
               lastRequestAt:
                 typeof previous?.lastRequestAt === 'string' ? previous.lastRequestAt : null,
             };
