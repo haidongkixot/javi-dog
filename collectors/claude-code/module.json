@@ -22,8 +22,10 @@
     "javi --platform <claude-code|gemini-cli> (init, uninstall, status, hook, usage on|off)",
     "installGeminiHooks() / uninstallGeminiHooks() / geminiHookCommand()",
     "enableGeminiTelemetry() / disableGeminiTelemetry() / geminiTelemetryBlock()",
-    "receiver /v1/logs, /v1/traces sink (200 {}, unparsed)",
-    "usageThreadRef()"
+    "receiver /v1/logs, /v1/traces sink (200 {}, unparsed, any size)",
+    "usageThreadRef()",
+    "findGeminiTelemetryOverrides() / geminiEnvFileChain() / telemetryEnvKeys()",
+    "claudeHooksInstalled()"
   ],
   "consumes": ["JD-C02", "JD-M01", "JD-M02"]
 }

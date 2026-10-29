@@ -1,8 +1,9 @@
-import { mkdir, readFile, rm } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { mkdir, readFile, realpath, rm } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { writeTarget } from './claude-env.ts';
 import {
   backupOnce,
+  backupPath,
   isPlainObject,
   loadSettings,
   sha256,
@@ -24,7 +25,10 @@ import { writeTextAtomic, type GeminiSettingsBefore } from './state.ts';
 //     appended to `otlpEndpoint` — metrics, logs and traces all go to the receiver.
 //   packages/core/src/telemetry/config.ts: the env keys below override (or merge into) these.
 
-/** Environment variables Gemini CLI reads for telemetry (config.ts ALLOWED_TELEMETRY_ENV_KEYS). */
+/**
+ * Environment variables Gemini CLI reads for telemetry (config.ts ALLOWED_TELEMETRY_ENV_KEYS).
+ * The checks use the wider families of `isGeminiTelemetryEnvKey`, which contain all of these.
+ */
 export const GEMINI_TELEMETRY_ENV_KEYS = [
   'GEMINI_TELEMETRY_ENABLED',
   'GEMINI_TELEMETRY_TRACES_ENABLED',
@@ -39,6 +43,143 @@ export const GEMINI_TELEMETRY_ENV_KEYS = [
   'GEMINI_TELEMETRY_USE_COLLECTOR',
   'GEMINI_TELEMETRY_USE_CLI_AUTH',
 ] as const;
+
+/**
+ * A telemetry variable Gemini CLI or its OTLP exporters may read (ADR-0016 Changes R1): any
+ * `GEMINI_TELEMETRY_*` or `OTEL_EXPORTER_OTLP_*` name (the exporters also merge signal-specific
+ * `OTEL_EXPORTER_OTLP_*_HEADERS`). Wider than `GEMINI_TELEMETRY_ENV_KEYS` on purpose.
+ */
+export const isGeminiTelemetryEnvKey = (key: string) =>
+  key.startsWith('GEMINI_TELEMETRY_') || key.startsWith('OTEL_EXPORTER_OTLP_');
+
+/**
+ * Names of the telemetry variables set (non-empty) in `env`, sorted. A variable whose value is
+ * exactly what javi itself wrote (`own`: the Claude Code usage env, which a Gemini CLI started
+ * inside Claude Code inherits) points at javi's receiver and is not counted. Values are
+ * compared in memory and never returned.
+ */
+export const telemetryEnvKeys = (
+  env: NodeJS.ProcessEnv,
+  own: Readonly<Record<string, string>> = {},
+): string[] =>
+  Object.keys(env)
+    .filter((key) => {
+      const value = env[key];
+      return (
+        isGeminiTelemetryEnvKey(key) &&
+        value !== undefined &&
+        value !== '' &&
+        !(Object.hasOwn(own, key) && own[key] === value)
+      );
+    })
+    .sort();
+
+/**
+ * The `.env` files Gemini CLI may load for a session started in `cwd`, in its lookup order
+ * (google-gemini/gemini-cli `packages/cli/src/config/settings.ts` `findEnvFile`, called by
+ * `loadEnvironment` with the workspace dir = cwd): from `cwd` up to the filesystem root, each
+ * folder's `.gemini/.env` (trusted folders only) then `.env` (skipped under `--ignore-env` /
+ * `advanced.ignoreLocalEnv`, except in the home); then `<home>/.gemini/.env` (trusted) and
+ * `<home>/.env`. `home` is Gemini's home (`GEMINI_CLI_HOME`, else the OS home). Gemini loads
+ * only the first file that exists, and which one that is depends on folder trust and flags javi
+ * cannot see, so the checks read every file of the chain.
+ */
+export const geminiEnvFileChain = (cwd: string, home: string): string[] => {
+  const chain: string[] = [];
+  for (let dir = resolve(cwd); ;) {
+    chain.push(join(dir, '.gemini', '.env'), join(dir, '.env'));
+    const parent = dirname(dir);
+    if (parent === dir || !parent) break;
+    dir = parent;
+  }
+  chain.push(join(home, '.gemini', '.env'), join(home, '.env'));
+  return chain;
+};
+
+/**
+ * Variable names assigned in a dotenv text (`KEY=value`, `export KEY=value`, `KEY: value`, as
+ * the `dotenv` parser Gemini uses accepts them). Values are never kept. Lines inside a quoted
+ * multi-line value may be read as names too: that can only add a refusal, never hide a key.
+ */
+export const dotenvKeys = (text: string): string[] => {
+  const keys = new Set<string>();
+  for (const line of text.split(/\r?\n/)) {
+    const match = /^\s*(?:export\s+)?([\w.-]+)(?:\s*=|:\s)/.exec(line);
+    if (match) keys.add(match[1]!);
+  }
+  return [...keys];
+};
+
+/** One place that can override javi's Gemini telemetry: a file path or `environment`. */
+export interface TelemetryOverride {
+  source: string;
+  /** Variable or setting names only (e.g. `GEMINI_TELEMETRY_OTLP_ENDPOINT`, `telemetry.target`). */
+  keys: string[];
+}
+
+/** `telemetry` setting names of a workspace settings text, or null when it has none. */
+const workspaceTelemetryKeys = (text: string): string[] | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    // Gemini strips comments before parsing (strip-json-comments); javi does not parse JSONC,
+    // so any `"telemetry":` key in such a file counts as a block.
+    return /"telemetry"\s*:/.test(text) ? ['telemetry'] : null;
+  }
+  if (!isPlainObject(parsed) || !Object.hasOwn(parsed, 'telemetry')) return null;
+  const block = parsed.telemetry;
+  const names = isPlainObject(block) ? Object.keys(block).sort() : [];
+  return names.length ? names.map((n) => `telemetry.${n}`) : ['telemetry'];
+};
+
+const readIfFile = async (path: string): Promise<string | null> => {
+  try {
+    return await readFile(path, 'utf8');
+  } catch {
+    return null; // missing, a directory or unreadable: Gemini would not load it either
+  }
+};
+
+const samePath = async (a: string, b: string) => {
+  if (resolve(a) === resolve(b)) return true;
+  const real = (p: string) => realpath(p).catch(() => resolve(p));
+  return (await real(a)) === (await real(b));
+};
+
+/**
+ * Everything javi can see that would send a Gemini CLI session started in `cwd` somewhere
+ * else (ADR-0016 Changes R1): telemetry variables in `env` (when given), in any file of the
+ * `.env` lookup chain, and a `telemetry` block in `<cwd>/.gemini/settings.json` (Gemini
+ * deep-merges a workspace block over the user's). The workspace file is skipped when it is
+ * the user settings file itself (`cwd` = Gemini's home). Names and paths only.
+ */
+export const findGeminiTelemetryOverrides = async (opts: {
+  cwd: string;
+  home: string;
+  userSettingsPath: string;
+  env?: NodeJS.ProcessEnv;
+  own?: Readonly<Record<string, string>>;
+}): Promise<TelemetryOverride[]> => {
+  const found: TelemetryOverride[] = [];
+  if (opts.env) {
+    const keys = telemetryEnvKeys(opts.env, opts.own);
+    if (keys.length) found.push({ source: 'environment', keys });
+  }
+  for (const path of geminiEnvFileChain(opts.cwd, opts.home)) {
+    const text = await readIfFile(path);
+    if (text === null) continue;
+    const keys = dotenvKeys(text).filter(isGeminiTelemetryEnvKey).sort();
+    if (keys.length) found.push({ source: path, keys });
+  }
+  const workspace = join(resolve(opts.cwd), '.gemini', 'settings.json');
+  if (!(await samePath(workspace, opts.userSettingsPath))) {
+    const text = await readIfFile(workspace);
+    const keys = text === null ? null : workspaceTelemetryKeys(text);
+    if (keys) found.push({ source: workspace, keys });
+  }
+  return found;
+};
 
 const SECRET_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
 
@@ -81,11 +222,19 @@ export const jsonEqual = (a: unknown, b: unknown): boolean => {
   );
 };
 
+/**
+ * What happened to `settings.json.javi-backup` (ADR-0016 Changes R7): `created` holds the file
+ * as it was before this change; `kept` is an earlier backup left as it is (not a copy of the
+ * file before this change); `skipped`: the file already held javi's block (and secret), so no
+ * backup was made. `null` when there was no file.
+ */
+export type GeminiBackup = { path: string; status: 'created' | 'kept' | 'skipped' } | null;
+
 export type EnableGeminiResult =
   | {
       ok: true;
       path: string;
-      backup: string | null;
+      backup: GeminiBackup;
       written: Record<string, unknown>;
       sha256: string;
     }
@@ -100,14 +249,17 @@ export type EnableGeminiResult =
  * Writes `telemetry` = `geminiTelemetryBlock(port, secret)`. Refuses, changing nothing, when
  * the file is not a plain JSON object, when a `telemetry` block exists that is not exactly the
  * one javi wrote (`previous`), or when a Gemini telemetry variable is set in `shellEnv` (it
- * would override the file). Before the first write (`previous` absent) the exact file text is
- * handed to `saveBefore`, so `usage off` can restore it; a backup is kept once next to the file.
+ * would override the file; values equal to javi's own `ownEnv` are not counted). Before the
+ * first write (`previous` absent) the exact file text is handed to `saveBefore`, so `usage off`
+ * can restore it. A backup is kept once next to the file, and only of a file without javi's
+ * block, so it never holds javi's secret (R7).
  */
 export const enableGeminiTelemetry = async (opts: {
   path: string;
   port: number;
   secret: string;
   shellEnv: NodeJS.ProcessEnv;
+  ownEnv?: Readonly<Record<string, string>>;
   previous?: Record<string, unknown>;
   saveBefore: (before: GeminiSettingsBefore) => Promise<void>;
 }): Promise<EnableGeminiResult> => {
@@ -126,10 +278,7 @@ export const enableGeminiTelemetry = async (opts: {
       conflicts.add(name ? `telemetry.${name}` : 'telemetry');
     }
   }
-  for (const key of GEMINI_TELEMETRY_ENV_KEYS) {
-    const value = shellEnv[key];
-    if (value !== undefined && value !== '') conflicts.add(key);
-  }
+  for (const key of telemetryEnvKeys(shellEnv, opts.ownEnv)) conflicts.add(key);
   if (conflicts.size) return { ok: false, reason: 'conflict', keys: [...conflicts].sort() };
 
   if (!previous) {
@@ -137,9 +286,16 @@ export const enableGeminiTelemetry = async (opts: {
       loaded.kind === 'ok' ? { path, existed: true, text: loaded.text } : { path, existed: false },
     );
   }
-  let backup: string | null = null;
-  if (loaded.kind === 'ok') backup = await backupOnce(path, loaded.text);
-  else await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  let backup: GeminiBackup = null;
+  if (loaded.kind === 'ok') {
+    // Past the conflict check, any `telemetry` block left is javi's own (with the secret).
+    if (Object.hasOwn(settings, 'telemetry')) {
+      backup = { path: backupPath(path), status: 'skipped' };
+    } else {
+      const made = await backupOnce(path, loaded.text);
+      backup = { path: made.path, status: made.created ? 'created' : 'kept' };
+    }
+  } else await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   // 0600 like Claude Code's settings edit: the file now holds the receiver secret.
   const digest = await writeSettingsFile(path, { ...settings, telemetry: block }, 0o600);
   return { ok: true, path, backup, written: block, sha256: digest };
@@ -155,6 +311,8 @@ export interface DisableGeminiResult {
    * object: nothing was touched and javi's block may still be there.
    */
   outcome: 'restored' | 'removed' | 'changed' | 'unreadable';
+  /** After `restored`: the `settings.json.javi-backup` that was removed, if there was one. */
+  backupRemoved?: string;
 }
 
 /** Undoes `enableGeminiTelemetry` as exactly as the file allows. */
@@ -180,7 +338,14 @@ export const disableGeminiTelemetry = async (opts: {
     } else {
       await rm(await writeTarget(path), { force: true });
     }
-    return { path, outcome: 'restored' };
+    // The file is exactly as it was, so its backup has done its job (R7).
+    const backup = backupPath(path);
+    const hadBackup = await readFile(backup).then(
+      () => true,
+      () => false,
+    );
+    if (hadBackup) await rm(backup, { force: true });
+    return { path, outcome: 'restored', ...(hadBackup && { backupRemoved: backup }) };
   }
 
   const loaded = await loadSettings(path);

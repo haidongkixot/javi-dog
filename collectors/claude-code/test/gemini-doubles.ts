@@ -82,7 +82,7 @@ export const parseGeminiMetrics = vi.fn((body: unknown): AdapterParseResult => {
             ignored += 1;
             continue;
           }
-          points.push({
+          const parsed: AdapterUsagePoint = {
             sessionId,
             model,
             counter,
@@ -90,7 +90,13 @@ export const parseGeminiMetrics = vi.fn((body: unknown): AdapterParseResult => {
             startNs: String(p.startTimeUnixNano),
             endNs: String(p.timeUnixNano),
             temporality: sum.aggregationTemporality === 1 ? 'delta' : 'cumulative',
-          });
+          };
+          // Contract (ADR-0016 Changes R6): an allowlisted auth_type, in memory only.
+          const authType = attr(p.attributes, 'auth_type');
+          if (authType === 'gemini-api-key' || authType === 'vertex-ai') {
+            Object.defineProperty(parsed, 'authType', { value: authType, enumerable: false });
+          }
+          points.push(parsed);
         }
       }
     }
@@ -98,19 +104,27 @@ export const parseGeminiMetrics = vi.fn((body: unknown): AdapterParseResult => {
   return { ok: true, points, ignored };
 });
 
-/** Priced model of the double: `cost_usd` = 0.000001 × every counter; others unpriced. */
+/**
+ * Priced model of the double: `cost_usd` = 0.000001 × every counter, only for a per-token-billed
+ * auth type (`gemini-api-key`, `vertex-ai`); `estimated` is always false (ADR-0016 Changes R5–R6).
+ */
 export const PRICED_MODEL = 'gemini-2.5-pro';
+/** The auth type `geminiExport` puts on every point. */
+export const EXPORT_AUTH_TYPE = 'gemini-api-key';
 
-export const geminiUsageDelta = vi.fn((delta: UsageCounters, model: string, at: Date) => {
-  void at;
-  const out: UsageCounters = { ...delta };
-  if (delta.input_tokens !== undefined) {
-    out.input_tokens = Math.max(0, delta.input_tokens - (delta.cache_read_tokens ?? 0));
-  }
-  if (model !== PRICED_MODEL) return { ...out, estimated: false };
-  const total = Object.values(out).reduce((n, v) => n + (v ?? 0), 0);
-  return { ...out, cost_usd: total / 1_000_000, estimated: true };
-});
+export const geminiUsageDelta = vi.fn(
+  (delta: UsageCounters, model: string, at: Date, authType: string | undefined) => {
+    void at;
+    const out: UsageCounters = { ...delta };
+    if (delta.input_tokens !== undefined) {
+      out.input_tokens = Math.max(0, delta.input_tokens - (delta.cache_read_tokens ?? 0));
+    }
+    const priced = authType === 'gemini-api-key' || authType === 'vertex-ai';
+    if (model !== PRICED_MODEL || !priced) return { ...out, estimated: false as const };
+    const total = Object.values(out).reduce((n, v) => n + (v ?? 0), 0);
+    return { ...out, cost_usd: total / 1_000_000, estimated: false as const };
+  },
+);
 
 export const doubles = { mapGeminiHook, parseGeminiMetrics, geminiUsageDelta };
 
@@ -142,6 +156,7 @@ export const geminiExport = (
       a('session.id', sessionId),
       a('model', opts.model ?? PRICED_MODEL),
       a('type', type),
+      a('auth_type', EXPORT_AUTH_TYPE),
       ...identity,
     ],
     startTimeUnixNano: ns(opts.startMs),

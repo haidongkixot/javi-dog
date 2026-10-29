@@ -14,6 +14,7 @@ import {
   type UsageReceiver,
 } from '../src/index.ts';
 import {
+  EXPORT_AUTH_TYPE,
   PRICED_MODEL,
   SENTINELS,
   geminiExport,
@@ -173,9 +174,32 @@ describe('receiver: Gemini CLI logs and traces sink', () => {
     }
   });
 
-  it('the 1 MiB limit still applies (declared and streamed)', async () => {
+  it('logs and traces over 1 MiB are drained, never buffered, and answered 200 {} (R9)', async () => {
+    const info = await state.receiverInfo();
     const big = Buffer.alloc(MAX_BODY_BYTES + 1, 0x20);
-    expect((await post(port, { path: '/v1/logs', body: big })).status).toBe(413);
+    const huge = Buffer.alloc(8 * MAX_BODY_BYTES, 0x20);
+    for (const path of ['/v1/logs', '/v1/traces']) {
+      for (const [body, headers] of [
+        [big, {}], // declared Content-Length over the limit
+        [huge, { 'content-length': '' }], // streamed (chunked), 8 MiB
+      ] as const) {
+        const reply = await post(port, { path, body, headers });
+        expect(reply.status, `${path} ${body.length}`).toBe(200);
+        expect(reply.body).toBe('{}');
+      }
+    }
+    expect(parseGeminiMetrics).not.toHaveBeenCalled();
+    expect(await state.receiverInfo()).toEqual(info);
+    // The bearer and Host checks still come first.
+    expect(
+      (await post(port, { path: '/v1/logs', body: big, headers: { authorization: '' } })).status,
+    ).toBe(401);
+    expect(
+      (await post(port, { path: '/v1/traces', body: big, headers: { host: 'evil.example:0' } }))
+        .status,
+    ).toBe(403);
+    // Metrics keep the 1 MiB limit.
+    expect((await post(port, { path: '/v1/metrics', body: big })).status).toBe(413);
     const gz = gzipSync(Buffer.alloc(4 * MAX_BODY_BYTES, 0x20));
     // A small gzip body is not decompressed (never parsed), so it is simply accepted.
     expect(
@@ -246,12 +270,14 @@ describe('receiver: Gemini CLI usage end to end', () => {
       }),
     );
     expect(reply.status).toBe(200);
-    // The pipeline hands JD-C02 the raw deltas (input still including cache) and the end time.
+    // The pipeline hands JD-C02 the raw deltas (input still including cache), the end time and
+    // the group's in-memory auth type (ADR-0016 Changes R6).
     expect(geminiUsageDelta).toHaveBeenCalledTimes(1);
     expect(geminiUsageDelta).toHaveBeenCalledWith(
       { input_tokens: 600, output_tokens: 60, cache_read_tokens: 300, reasoning_tokens: 30 },
       PRICED_MODEL,
       new Date(t0 + 20_000),
+      EXPORT_AUTH_TYPE,
     );
     const events = await usageEvents(state);
     expect(events).toHaveLength(1);
@@ -266,12 +292,12 @@ describe('receiver: Gemini CLI usage end to end', () => {
         reasoning_tokens: 30,
         cost_usd: 690 / 1_000_000,
         model: PRICED_MODEL,
-        estimated: true,
+        estimated: false,
       },
       attributes: { platform: 'gemini-cli' },
     });
     const raw = JSON.stringify(events);
-    for (const s of [...SENTINELS, 'gm-known']) expect(raw).not.toContain(s);
+    for (const s of [...SENTINELS, 'gm-known', EXPORT_AUTH_TYPE]) expect(raw).not.toContain(s);
     expect((await state.receiverInfo())?.forwarded).toBe(1);
   });
 
@@ -306,6 +332,18 @@ describe('receiver: Gemini CLI usage end to end', () => {
     expect(event?.usage_delta).toEqual({ output_tokens: 15, model, estimated: false });
   });
 
+  it('a series that started after the receiver counts from its first export (R2)', async () => {
+    const start = Date.now() + 1_000; // after this receiver started listening
+    const model = 'gemini-r2-model';
+    await send(
+      geminiExport('gm-known', { startMs: start, endMs: start + 10_000, output: 70, model }),
+    );
+    const event = (await usageEvents(state)).find(
+      (e) => (e.usage_delta as { model: string }).model === model,
+    );
+    expect(event?.usage_delta).toEqual({ output_tokens: 70, model, estimated: false });
+  });
+
   it('a cache series appearing mid-session counts in full, so input − cache sees it (G5)', async () => {
     geminiUsageDelta.mockClear();
     const start = t0 + 150_000;
@@ -326,6 +364,7 @@ describe('receiver: Gemini CLI usage end to end', () => {
       { input_tokens: 400, cache_read_tokens: 300 },
       model,
       new Date(start + 20_000),
+      EXPORT_AUTH_TYPE,
     );
     const event = (await usageEvents(state)).find(
       (e) => e.occurred_at === new Date(start + 20_000).toISOString(),

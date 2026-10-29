@@ -1,5 +1,7 @@
 import { mapGeminiHook } from '@javis-dog/collector-adapters';
 import { createFileSpool, createJgrClient, type FlushResult } from '@javis-dog/jgr-sdk';
+import { geminiHome } from './gemini-settings.ts';
+import { findGeminiTelemetryOverrides } from './gemini-telemetry.ts';
 import { COLLECTOR_VERSION, mapHook } from './mapping.ts';
 import type { Platform } from './platform.ts';
 import type { CollectorState } from './state.ts';
@@ -30,7 +32,47 @@ export interface HookDeps {
    * (ADR-0011). Must never throw or print; the CLI spawns a detached `javi receive`.
    */
   ensureReceiver?: () => void | Promise<void>;
+  /**
+   * Gemini CLI only: the hook process's environment (Gemini passes its own, `.env` included)
+   * and working directory (the session's folder), for the SessionStart telemetry check.
+   */
+  env?: NodeJS.ProcessEnv;
+  cwd?: string;
 }
+
+/**
+ * Gemini CLI SessionStart while Gemini usage is on (ADR-0016 Changes R1): looks for anything
+ * that would send this session's telemetry (logs with tool arguments, responses and the user's
+ * email, plus javi's bearer) elsewhere — telemetry variables in the hook's environment, in the
+ * folder's `.env` lookup chain (also covering variables Gemini redacts from hook environments)
+ * and a workspace `telemetry` block — and records a local warning with names and paths only,
+ * or clears the project's warning when there is none. Never throws.
+ */
+const checkGeminiTelemetry = async (deps: HookDeps) => {
+  try {
+    const config = await deps.state.usageConfig();
+    if (!config?.gemini) return;
+    const env = deps.env ?? {};
+    const overrides = await findGeminiTelemetryOverrides({
+      cwd: deps.cwd ?? process.cwd(),
+      home: geminiHome(env),
+      userSettingsPath: config.gemini.path,
+      env,
+      ...(config.written && { own: config.written }),
+    });
+    if (overrides.length) {
+      await deps.state.saveGeminiTelemetryWarning({
+        project: deps.projectRef,
+        at: (deps.now?.() ?? new Date()).toISOString(),
+        overrides,
+      });
+    } else {
+      await deps.state.removeGeminiTelemetryWarning(deps.projectRef);
+    }
+  } catch {
+    // A check that cannot run must never cost the hook event.
+  }
+};
 
 /**
  * One hook invocation: map → persist sequence → spool → maybe start a background flush.
@@ -61,6 +103,7 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
       await deps.state
         .markHookSeen(deps.projectRef, 'gemini-cli', deps.now?.() ?? new Date())
         .catch(() => {});
+      if (input.type === 'session.started') await checkGeminiTelemetry(deps);
     }
 
     // Usage attribution (ADR-0011), only while usage is on: the receiver forwards only sessions

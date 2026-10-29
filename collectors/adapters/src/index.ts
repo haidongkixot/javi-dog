@@ -1,6 +1,8 @@
 // JD-C02 public contract (ADR-0016).
 export {
+  GEMINI_AUTH_TYPES,
   GEMINI_HOOK_EVENTS,
+  GEMINI_PRICED_AUTH_TYPES,
   GEMINI_PLATFORM,
   GEMINI_THREAD_PREFIX,
   GEMINI_TOKEN_METRIC,
@@ -14,6 +16,7 @@ export type {
   AdapterParseResult,
   AdapterUsageCounter,
   AdapterUsagePoint,
+  GeminiAuthType,
   GeminiHookEvent,
   UsageCounters,
 } from './gemini.ts';

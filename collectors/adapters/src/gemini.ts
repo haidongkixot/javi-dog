@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import type { RecordInput } from '@javis-dog/jgr-sdk';
 import { estimateGeminiCostUsd } from './prices.ts';
 
@@ -118,7 +118,32 @@ export type AdapterUsageCounter =
   | 'reasoning_tokens'
   | 'cost_usd';
 
-/** Same shape as JD-C01's `UsagePoint`, plus `reasoning_tokens`. */
+/**
+ * gemini-cli `AuthType` values (ADR-0016 Changes R6): the only `auth_type` values the parser
+ * keeps. Any other value counts as absent.
+ */
+export const GEMINI_AUTH_TYPES = [
+  'oauth-personal',
+  'gemini-api-key',
+  'vertex-ai',
+  'cloud-shell',
+  'compute-default-credentials',
+  'gateway',
+] as const;
+export type GeminiAuthType = (typeof GEMINI_AUTH_TYPES)[number];
+
+/**
+ * Auth types billed per token, the only ones whose cost is estimated (ADR-0016 Changes R6).
+ * The table holds the Vertex AI list price; the AI Studio (API key) price can differ.
+ */
+export const GEMINI_PRICED_AUTH_TYPES: readonly GeminiAuthType[] = ['vertex-ai', 'gemini-api-key'];
+
+/**
+ * Same shape as JD-C01's `UsagePoint`, plus `reasoning_tokens`, plus two Gemini fields that
+ * exist **in memory only**: `parseGeminiMetrics` defines them as non-enumerable properties, so
+ * `JSON.stringify`, object spread and `structuredClone` never carry them into a spool, state
+ * file or batch. Read them directly (`point.seriesId`), never through a copy.
+ */
 export interface AdapterUsagePoint {
   /** Raw Gemini session id — hashed before it leaves memory. */
   sessionId: string;
@@ -128,6 +153,16 @@ export interface AdapterUsagePoint {
   startNs: string;
   endNs: string;
   temporality: 'delta' | 'cumulative';
+  /**
+   * In memory only (non-enumerable). The cumulative series this point belongs to: SHA-256 (hex)
+   * of **all** its data-point attributes (sorted by key, values as sent), its `startNs` and the
+   * resolved session id. Gemini adds `user.email`, `auth_type`, `experiments.ids` and
+   * `interactive` to every point, so one (session, model, type) can have several series
+   * (ADR-0016 Changes R4). Absent on points not produced by `parseGeminiMetrics`.
+   */
+  readonly seriesId?: string;
+  /** In memory only (non-enumerable). The point's `auth_type` when allowlisted, else absent. */
+  readonly authType?: GeminiAuthType;
 }
 
 export type AdapterParseResult =
@@ -157,9 +192,16 @@ const isObj = (value: unknown): value is Obj =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 
-/** Reads only the allowlisted string attributes; every other key is skipped unread. */
+const isAuthType = (value: string): value is GeminiAuthType =>
+  (GEMINI_AUTH_TYPES as readonly string[]).includes(value);
+
+/**
+ * Reads only the allowlisted string attributes (`session.id`, `model`, `type`, and `auth_type`
+ * when its value is a known `AuthType`); every other value is never copied.
+ */
 const pickAttributes = (attributes: unknown) => {
-  const picked: { sessionId?: string; model?: string; type?: string } = {};
+  const picked: { sessionId?: string; model?: string; type?: string; authType?: GeminiAuthType } =
+    {};
   for (const attr of list(attributes)) {
     if (!isObj(attr) || !isObj(attr.value)) continue;
     const text = attr.value.stringValue;
@@ -167,8 +209,27 @@ const pickAttributes = (attributes: unknown) => {
     if (attr.key === 'session.id') picked.sessionId ??= text;
     else if (attr.key === 'model') picked.model ??= text;
     else if (attr.key === 'type') picked.type ??= text;
+    else if (attr.key === 'auth_type' && picked.authType === undefined && isAuthType(text)) {
+      picked.authType = text;
+    }
   }
   return picked;
+};
+
+/**
+ * One-way series identity (ADR-0016 Changes R4): SHA-256 over every data-point attribute
+ * (sorted by key, each value JSON-encoded as sent), the start time and the resolved session id
+ * (which may come from the resource). The attribute values themselves are never kept.
+ */
+const seriesIdentity = (attributes: unknown, startNs: string, sessionId: string) => {
+  const entries = list(attributes)
+    .map((attr) =>
+      isObj(attr) ? JSON.stringify([String(attr.key), attr.value ?? null]) : JSON.stringify(attr),
+    )
+    .sort();
+  return createHash('sha256')
+    .update(JSON.stringify([entries, startNs, sessionId]))
+    .digest('hex');
 };
 
 /** A uint64 (`fixed64`) as a decimal string or a JSON number → bigint, or null. */
@@ -230,15 +291,25 @@ const toPoint = (
   const value = pointValue(point);
   if (value === null || value < 0 || !Number.isSafeInteger(value)) return null;
 
-  return {
+  const startNs = start.toString();
+  const parsed: AdapterUsagePoint = {
     sessionId,
     model,
     counter,
     value,
-    startNs: start.toString(),
+    startNs,
     endNs: end.toString(),
     temporality,
   };
+  // In memory only: non-enumerable, so no serialization or copy ever carries them.
+  Object.defineProperty(parsed, 'seriesId', {
+    value: seriesIdentity(point.attributes, startNs, sessionId),
+    enumerable: false,
+  });
+  if (picked.authType) {
+    Object.defineProperty(parsed, 'authType', { value: picked.authType, enumerable: false });
+  }
+  return parsed;
 };
 
 /** Data points under any metric data field — counted as ignored for unread metrics. */
@@ -250,7 +321,9 @@ const countDataPoints = (metric: Obj) =>
 
 /**
  * Allowlist parser for an OTLP/HTTP JSON metrics body: only `gemini_cli.token.usage` Sum points;
- * only `session.id` (data point, else resource), `model` and `type` attributes. `type` mapping:
+ * only `session.id` (data point, else resource), `model` and `type` attributes, plus two
+ * in-memory-only, non-enumerable fields: `authType` (allowlisted `auth_type`) and `seriesId`
+ * (a one-way hash of all data-point attributes and the start time). `type` mapping:
  * input → input_tokens (still including cached tokens; see `geminiUsageDelta`), output →
  * output_tokens, cache → cache_read_tokens, thought → reasoning_tokens; `tool` and unknown
  * types are ignored (counted in `ignored`).
@@ -302,10 +375,17 @@ export const parseGeminiMetrics = (body: unknown): AdapterParseResult => {
 export type UsageCounters = Partial<Record<Exclude<AdapterUsageCounter, 'cost_usd'>, number>>;
 
 /**
- * Final `usage_delta` counters for one (session, model, interval) group of Gemini deltas:
- * `input_tokens` = input − cache_read (clamped at 0), because Gemini's prompt count includes
- * cached tokens; cost estimated from `GEMINI_PRICES` at `at` (`estimated: true`), or no
- * `cost_usd` and `estimated: false` for a model without a price.
+ * Final `usage_delta` counters for one (session, model, auth type, export) group of Gemini
+ * deltas: `input_tokens` = input − cache_read (clamped at 0), because Gemini's prompt count
+ * includes cached tokens.
+ *
+ * - `estimated` is always `false`: Gemini's token counts are exact, and JGR §6 reserves
+ *   `estimated: true` for counts a producer cannot read exactly (ADR-0016 Changes R5). Every
+ *   cost is labelled estimated in the UI anyway (ADR-0013).
+ * - `cost_usd` is estimated from `GEMINI_PRICES` at `at` only for per-token billing
+ *   (`authType` in `GEMINI_PRICED_AUTH_TYPES`) and a model with a price. Any other or missing
+ *   auth type (e.g. a Google login, whose usage is not billed per token) or an unpriced model
+ *   gets tokens only, no `cost_usd` (ADR-0016 Changes R6). `authType` never reaches the output.
  *
  * - Only the four Gemini counters are carried (`input_tokens`, `output_tokens`,
  *   `cache_read_tokens`, `reasoning_tokens`); any other key (e.g. `cache_write_tokens`, which
@@ -321,7 +401,8 @@ export const geminiUsageDelta = (
   delta: UsageCounters,
   model: string,
   at: Date,
-): UsageCounters & { cost_usd?: number; estimated: boolean } => {
+  authType: string | undefined,
+): UsageCounters & { cost_usd?: number; estimated: false } => {
   const counters: UsageCounters = {};
   const cache = delta.cache_read_tokens;
   if (delta.input_tokens !== undefined) {
@@ -331,8 +412,10 @@ export const geminiUsageDelta = (
   if (cache !== undefined) counters.cache_read_tokens = cache;
   if (delta.reasoning_tokens !== undefined) counters.reasoning_tokens = delta.reasoning_tokens;
 
-  const cost = estimateGeminiCostUsd(model, counters, at);
+  const priced =
+    authType !== undefined && (GEMINI_PRICED_AUTH_TYPES as readonly string[]).includes(authType);
+  const cost = priced ? estimateGeminiCostUsd(model, counters, at) : null;
   return cost === null
     ? { ...counters, estimated: false }
-    : { ...counters, cost_usd: cost, estimated: true };
+    : { ...counters, cost_usd: cost, estimated: false };
 };

@@ -8,13 +8,21 @@ export {
   opaqueRef,
 } from './mapping.ts';
 export { FLUSH_BACKLOG, FLUSH_DEBOUNCE_MS, FLUSH_INTERVAL_MS, runFlush, runHook } from './run.ts';
-export { HOOK_MARKER, hookEntry, installHooks, settingsPath, uninstallHooks } from './settings.ts';
+export {
+  HOOK_MARKER,
+  claudeHooksInstalled,
+  hookEntry,
+  installHooks,
+  settingsPath,
+  uninstallHooks,
+} from './settings.ts';
 export {
   createState,
   javiHome,
   SESSION_TTL_MS,
   type CollectorState,
   type GeminiSettingsBefore,
+  type GeminiTelemetryWarning,
   type GeminiUsageConfig,
   type ReceiverInfo,
   type UsageConfig,
@@ -42,10 +50,17 @@ export {
 export {
   GEMINI_TELEMETRY_ENV_KEYS,
   disableGeminiTelemetry,
+  dotenvKeys,
   enableGeminiTelemetry,
+  findGeminiTelemetryOverrides,
+  geminiEnvFileChain,
   geminiTelemetryBlock,
+  isGeminiTelemetryEnvKey,
+  telemetryEnvKeys,
   type DisableGeminiResult,
   type EnableGeminiResult,
+  type GeminiBackup,
+  type TelemetryOverride,
 } from './gemini-telemetry.ts';
 export {
   createUsageReceiver,
@@ -74,8 +89,10 @@ export {
   toUsageRecord,
   usageEventId,
   usageThreadRef,
+  type CumulativeBaseline,
   type CumulativeBaselines,
   type UsageGroup,
+  type UsageGroupOptions,
   type UsagePlatform,
 } from './usage.ts';
 export {

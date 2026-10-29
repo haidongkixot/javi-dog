@@ -50,6 +50,17 @@ export interface GeminiSettingsBefore {
   text?: string;
 }
 
+/**
+ * `~/.javi/warnings/gemini-telemetry.<project>.json` — written by a Gemini CLI SessionStart hook
+ * that found a telemetry override (ADR-0016 Changes R1). Names, paths, project and time only:
+ * never a value.
+ */
+export interface GeminiTelemetryWarning {
+  project: string;
+  at: string;
+  overrides: Array<{ source: string; keys: string[] }>;
+}
+
 /** `~/.javi/receiver.json` — the running (or last) usage receiver. `pid` 0 = stopped cleanly. */
 export interface ReceiverInfo {
   pid: number;
@@ -80,6 +91,7 @@ const SESSION_PRUNE_EVERY_MS = 24 * 60 * 60 * 1000;
  */
 const THREAD_REF = /^(?:cc|gm)_[0-9a-f]{32}$/;
 const SESSION_FILE = /^(?:cc|gm)_[0-9a-f]{32}\.json$/;
+const WARNING_PREFIX = 'gemini-telemetry.';
 
 export const javiHome = (env: NodeJS.ProcessEnv = process.env) =>
   env.JAVI_HOME?.trim() || join(homedir(), '.javi');
@@ -314,6 +326,35 @@ export const createState = (home: string) => {
       await writeJsonPrivate(path('last-hook', `${projectRef}.${platform}.json`), {
         at: at.toISOString(),
       });
+    },
+
+    // --- Gemini CLI telemetry redirection warnings (ADR-0016 Changes R1) ---
+
+    saveGeminiTelemetryWarning: async (warning: GeminiTelemetryWarning) => {
+      await mkdir(path('warnings'), { recursive: true, mode: 0o700 });
+      await writeJsonPrivate(path('warnings', `${WARNING_PREFIX}${warning.project}.json`), warning);
+    },
+
+    removeGeminiTelemetryWarning: (projectRef: string) =>
+      rm(path('warnings', `${WARNING_PREFIX}${projectRef}.json`), { force: true }),
+
+    /** All recorded warnings, oldest project name first. */
+    geminiTelemetryWarnings: async (): Promise<GeminiTelemetryWarning[]> => {
+      const names = await readdir(path('warnings')).catch(() => [] as string[]);
+      const warnings: GeminiTelemetryWarning[] = [];
+      for (const name of names.sort()) {
+        if (!name.startsWith(WARNING_PREFIX) || !name.endsWith('.json')) continue;
+        const w = await readJson<GeminiTelemetryWarning>(path('warnings', name));
+        if (w && typeof w.project === 'string' && Array.isArray(w.overrides)) warnings.push(w);
+      }
+      return warnings;
+    },
+
+    clearGeminiTelemetryWarnings: async () => {
+      const names = await readdir(path('warnings')).catch(() => [] as string[]);
+      for (const name of names) {
+        if (name.startsWith(WARNING_PREFIX)) await rm(path('warnings', name), { force: true });
+      }
     },
 
     receiverInfo: () => readJson<ReceiverInfo>(path('receiver.json')),

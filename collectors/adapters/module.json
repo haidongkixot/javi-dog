@@ -13,7 +13,8 @@
     "estimateGeminiCostUsd()",
     "findGeminiPrice()",
     "GEMINI_PRICES",
-    "GEMINI_HOOK_EVENTS"
+    "GEMINI_HOOK_EVENTS",
+    "GEMINI_AUTH_TYPES / GEMINI_PRICED_AUTH_TYPES"
   ],
   "consumes": ["JD-M02"]
 }
