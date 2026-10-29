@@ -185,3 +185,60 @@ The roadmap's S5 needs the Codex and Gemini CLI collectors (owner priority "Clau
     Cost arrives later (Codex polls about every 150 s, best effort) as a separate `usage.reported` carrying only `cost_usd`, with event id = HMAC(salt, `codex-cli`, conversation, `turn.id`). It is produced **only when `auth_mode = ApiKey`**. `Chatgpt` or a missing auth mode means tokens only: no `cost_usd` and no budget impact, the same rule as Gemini R6. A missing cost is never zero.
   - **Attribution (C6).** `conversation.id` equals the hook `session_id` for root sessions. A sub-agent's `conversation.id` is its `agent_id`. `SubagentStart` hooks record `agent_id → parent session_id` locally (hashed refs only), and sub-agent usage counts in the parent thread with its `agent_ref`. Unknown ids are dropped locally.
   - **Still UNVERIFIED** (real run): the attribute names of the log records on the wire (`event.name` / `event.kind` as attributes), Windows `cmd.exe` quoting, and whether login-shell profile output can reach hook stdout.
+
+- 2026-10-29 (S5c design review D0, before code: 6 high, 5 medium, several low; owner decisions "Add a TOML parser", "Detect and warn", "Stable launcher"). These supersede C1–C6 where they differ.
+  - **H1 Proxy redirection, now C7 (privacy).** Codex's OTLP HTTP client uses system proxy variables, and its loopback exporter has no bypass. An `HTTP_PROXY`, `http_proxy` or `ALL_PROXY` not covered by `NO_PROXY` for `127.0.0.1` sends Codex logs (email, tool arguments) and javi's bearer to the proxy. The variable can also come from `$CODEX_HOME/.env`. Handled like Gemini R1:
+    - `usage on --platform codex-cli` refuses when such a proxy variable is set in the shell or in `$CODEX_HOME/.env` and `NO_PROXY` / `no_proxy` does not cover `127.0.0.1` or `localhost`.
+    - Every Codex SessionStart hook re-checks its own env and `.env`, writes a local warning record (names only), and `javi status` shows it first.
+  - **H2 Existing header leak (owner "Detect and warn").** javi's Claude Code usage env contains `OTEL_EXPORTER_OTLP_METRICS_HEADERS` with javi's bearer. A Codex started inside Claude Code merges that variable into its default statsig export to OpenAI. The secret only opens javi's loopback receiver, but it should not leave the machine. So:
+    - the Codex SessionStart hook detects javi's own header value in its env (compared in memory) and records a warning;
+    - `javi status` shows it;
+    - the README documents it;
+    - `metrics_exporter` stays untouched.
+  - **H3 Cache writes (money).** Codex `input` includes both cached reads and cache writes (official test: input 100 = cached 40 + cache write 60). Hence `input_tokens` = max(0, input − cached − cache_write), `cache_read_tokens` = cached, `cache_write_tokens` = cache_write. This supersedes C5's input − cached.
+  - **H4 and M3, stable launcher (owner).** Codex runs hooks in the session shell (`bash`/`zsh -c`, or PowerShell `-NoProfile -Command` on Windows). `$SHELL -lc` and `cmd /C` are only the fallback while environments start. A quoted node path breaks in PowerShell, and a versioned path makes every upgrade a re-review. So:
+    - `init --platform codex-cli` installs an **unversioned launcher**: `~/.javi/bin/javi-hook` (POSIX sh, mode 0755) or `~/.javi/bin/javi-hook.cmd` (Windows). It runs `node --no-warnings <current stable javi.mjs> hook "$@"`, and re-init rewrites only the launcher.
+    - The hook entry calls the launcher **unquoted**: `command` for POSIX and `commandWindows` with the `.cmd` path, valid in both cmd and PowerShell. Arguments are `--platform codex-cli --project <slug> --source javi-collector`.
+    - `init` refuses when the launcher path contains spaces or shell metacharacters, and names the path.
+    - The same launcher may later be used by the other platforms; this is not changed now.
+  - **H5 Plain stdout becomes model context.** On SessionStart, SubagentStart and UserPromptSubmit, Codex passes plain stdout to the model as context. On Stop, non-JSON stdout is an error every turn. `javi hook` prints nothing. Shell startup output from profile files, `.zshenv` or `BASH_ENV` can still appear, so `init` runs `$SHELL -c true` and `$SHELL -lc true` (POSIX) and warns, without refusing, when either prints anything. That output would reach the model, and the warning says so. SessionStart and SubagentStart hooks stay synchronous.
+  - **H6 TOML safety (owner: smol-toml 1.9.1, BSD-3-Clause, no dependencies, exact pin).**
+    - `usage on` parses `$CODEX_HOME/config.toml` (default `~/.codex`) and refuses when it does not parse, or when any `otel` key exists in any form (table, dotted key, inline table), naming only the reason.
+    - Otherwise it **appends** a marked block (`# >>> javi usage (do not edit)` … `# <<< javi`) holding an `[otel]` table, and parses the whole result before an atomic rename. Mode is preserved, 0600 when new.
+    - `usage off` removes exactly the marked block when it is unchanged; otherwise it leaves the file alone and says so.
+    - The backup holds the original only, mode 0600, because `config.toml` often holds MCP tokens. It is never taken when the file already contains javi's block.
+    - Codex rewrites `config.toml` itself (hook approvals), so the restore is block-based, not byte-exact.
+    - Keys written:
+      - `exporter = { otlp-http = { endpoint = "http://127.0.0.1:<port>/v1/logs/codex-cli", protocol = "json", headers = { Authorization = "Bearer …" } } }`
+      - `log_user_prompt = false`
+      - `log_agent_responses = false`
+      - `log_guardian_assessments = false`
+      - `log_sse_deltas = false`
+
+      Keys an older Codex does not know could fail `--strict-config`, which is documented.
+  - **M1 Receiver path and size.**
+    - Codex logs get their **own path**, `/v1/logs/codex-cli`. Codex uses the configured endpoint exactly. `/v1/logs` and `/v1/traces` stay unparsed sinks for Gemini.
+    - On the Codex path the body is parsed with a **5 MiB** cap. Larger bodies are answered 413 and logged without their content.
+    - Parse errors return a constant message (no body snippets).
+    - Spooling is all or nothing per request.
+    - Codex HTTP logs have no retry and no gzip, so receiver downtime or a 413 loses those deltas. That is documented, and the "OTLP retries deduplicate" rationale is dropped: ids stay deterministic for javi-side replays.
+    - Every Codex hook calls `ensureReceiver` while Codex usage is on.
+  - **M2 Wire types.**
+    - `event.name` and `event.kind` are log-record **attributes**.
+    - `input_token_count`, `output_token_count` and `tool_token_count` arrive as `stringValue` (decimal strings). `cached_token_count`, `cache_write_token_count` and `reasoning_token_count` arrive as `intValue`. The parser accepts both forms for every counter: non-negative safe integers only.
+    - `usage.estimated_usd` must match `^\d+(\.\d+)?$`; anything else is ignored.
+  - **M3 Trust churn.**
+    - `uninstall --platform codex-cli` removes javi's groups. Codex trusts by position, so the user's later groups shift and need review again. uninstall lists them by event and count, and `init` appends only.
+    - `status` reads `[hooks.state]` and `[projects."<path>"].trust_level` from `config.toml` (read-only) to tell "project not trusted", "hooks not approved" and "approved" apart.
+  - **M4 Sub-agents.**
+    - SubagentStart fires only for spawned sub-agents on startup or fork. Resumed and internal sub-agents are not attributed and are dropped: an under-count, documented.
+    - `javi hook` persists `agent_id → parent session` synchronously before exiting, with a 7-day TTL like session registration.
+    - Sub-agent tool events carry `agent_ref`.
+  - **M5 Header env.** `OTEL_EXPORTER_OTLP_LOGS_HEADERS` takes precedence over `OTEL_EXPORTER_OTLP_HEADERS`. `usage on` warns on either, from the shell or from `$CODEX_HOME/.env`, because the receiver would then reject the exports (401).
+  - **Low.**
+    - SessionStart with `source` `compact` or `resume` emits a heartbeat, not a new `session.started`.
+    - A `.codex/hooks.json` tracked by git is warned about, because it holds the launcher path with the username.
+    - A project `[hooks]` table in `.codex/config.toml` is warned about.
+    - JGR §12's Codex row is updated to the logs mapping.
+    - An `ApiKey` cost from a non-OpenAI provider is that provider's estimate; it is shown, labelled estimated.
+  - **Still UNVERIFIED** (real run): the scope name and the JSON form of `intValue`, which shell runs the first SessionStart, Windows cmd and PowerShell, proxy behaviour in the released binary, whether a sub-agent's cost is excluded from its parent turn, and `analytics.enabled`.

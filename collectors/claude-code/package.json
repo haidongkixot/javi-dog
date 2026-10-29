@@ -22,7 +22,8 @@
   "dependencies": {
     "@javis-dog/collector-adapters": "workspace:*",
     "@javis-dog/jgr-sdk": "workspace:*",
-    "@javis-dog/jgr-spec": "workspace:*"
+    "@javis-dog/jgr-spec": "workspace:*",
+    "smol-toml": "1.9.1"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
