@@ -144,3 +144,44 @@ The roadmap's S5 needs the Codex and Gemini CLI collectors (owner priority "Clau
   - **R4 series id.** The hidden, non-enumerable `seriesId` is a SHA-256 over all point attributes, `startNs` and the resolved session id. A Gemini restart is a new series, so G21 applies to it.
   - **R7 backups.** The status is reported as created, kept or skipped. The backup is removed after a `restored` outcome and kept after a `removed` one.
   - **R9.** Sink bodies of any size are drained and answered `200 {}`. Metrics keep the 1 MiB limit.
+
+- 2026-10-29 (S5c design; owner: "Logs-only", "Tokens only" for ChatGPT-plan sessions, "Attribute to parent" for sub-agents). This supersedes §5 where they differ. Facts come from S5c research on `openai/codex` at `fa4ebe8`. The orchestrator re-checked three of them: `core/src/session/session.rs:993` "session_id is equal to the root thread's ID"; `app-server/src/turn_cost_worker.rs` spawns with a logs **or** metrics OTLP exporter; `hooks/src/config_rules.rs:12-13` project layers "do not get to write user hook state". `developers.openai.com/codex/*` redirects to `learn.chatgpt.com`, which is blocked, so documentation wording stays unquoted.
+  - **Hooks (C1).** javi appends its groups to the project's `.codex/hooks.json`, creating the file when it is missing.
+    - It never reorders existing groups, because Codex trusts a hook by its **position** plus a hash of the handler.
+    - Each entry is `{ type: "command", command, commandWindows, timeout: 5 }`. The timeout is in **seconds**; SessionEnd and Interrupt are capped at 3.
+    - The command must stay stable: a new path or slug means Codex asks for review again.
+    - javi **never writes** `[hooks.state]` or `trusted_hash`. Approval is the user's decision, made in Codex's "Hooks need review" dialog or with `/hooks`. Until the first event arrives, `javi status --platform codex-cli` says "waiting for approval in Codex".
+    - Shell: `$SHELL -lc` on Unix, `cmd.exe /C` on Windows, with its own quoting. `javi hook` prints nothing.
+  - **Mapping (C2).**
+
+    | Codex hook | JGR event |
+    |---|---|
+    | `SessionStart` / `SessionEnd` | `session.*` |
+    | `UserPromptSubmit` | `heartbeat` working (prompt discarded) |
+    | `PreToolUse` / `PostToolUse` | `task.started` / `task.completed` (`tool_name` only) |
+    | `PermissionRequest` | `attention.requested` waiting |
+    | `Stop` | `heartbeat` idle (last message discarded) |
+    | `SubagentStart` / `SubagentStop` | `agent.started` / `agent.stopped` with `agent_ref` from `agent_id` |
+
+    `Interrupt`, the compact events and model-request events are dropped. Thread ref: `opaqueRef('cx', session_id, salt)`; `attributes.platform` = `codex-cli`.
+  - **Usage, logs only (C3).**
+    - `javi usage on --platform codex-cli` edits only the user-level `~/.codex/config.toml` `[otel]` section (project-level `otel` is ignored by Codex):
+      - `exporter = { otlp-http = { endpoint = "http://127.0.0.1:<port>/v1/logs", protocol = "json", headers = { Authorization = "Bearer <secret>" } } }` (full path; Codex appends none);
+      - `log_user_prompt = false`, `log_agent_responses = false`, `log_sse_deltas = false`.
+    - It leaves `metrics_exporter`, and so Codex's default statsig export, **untouched**.
+    - It refuses when `[otel]` already has an exporter it did not write, with a backup and exact restore as for Gemini.
+    - It warns when `OTEL_EXPORTER_OTLP_HEADERS` is set, because that overrides the bearer, so the receiver would reject the exports (nothing leaks).
+    - Disclosure: Codex will ask OpenAI for each turn's cost estimate, and its logs carry `user.email` and tool arguments to the local receiver, which drops them in memory.
+  - **Receiver allowlist (C4).** On `/v1/logs`, for records whose attributes say they come from Codex, read only these two records. Everything else is drained unparsed beyond the record name, as for Gemini.
+    1. `event.name = codex.sse_event`, `event.kind = response.completed`, with the token counters present and **no** `error.message`. Keep `input_token_count`, `cached_token_count`, `cache_write_token_count`, `output_token_count`, `model`, `conversation.id`, `auth_mode`, `event.timestamp`.
+    2. `event.name = codex.turn_cost`. Keep `usage.estimated_usd`, `turn.id`, `conversation.id`, `auth_mode`.
+
+    `tool_token_count` (which is `total_tokens`) and `reasoning_token_count` (a subset of output) are never added.
+  - **Token and cost mapping (C5).** Each response becomes one `usage.reported`:
+    - `input_tokens` = input − cached (clamped at 0), `cache_read_tokens` = cached, `cache_write_tokens` = cache write, `output_tokens` = output;
+    - `estimated: false`;
+    - event id = HMAC(salt, `codex-cli`, conversation, timestamp, counters), so OTLP retries deduplicate.
+
+    Cost arrives later (Codex polls about every 150 s, best effort) as a separate `usage.reported` carrying only `cost_usd`, with event id = HMAC(salt, `codex-cli`, conversation, `turn.id`). It is produced **only when `auth_mode = ApiKey`**. `Chatgpt` or a missing auth mode means tokens only: no `cost_usd` and no budget impact, the same rule as Gemini R6. A missing cost is never zero.
+  - **Attribution (C6).** `conversation.id` equals the hook `session_id` for root sessions. A sub-agent's `conversation.id` is its `agent_id`. `SubagentStart` hooks record `agent_id → parent session_id` locally (hashed refs only), and sub-agent usage counts in the parent thread with its `agent_ref`. Unknown ids are dropped locally.
+  - **Still UNVERIFIED** (real run): the attribute names of the log records on the wire (`event.name` / `event.kind` as attributes), Windows `cmd.exe` quoting, and whether login-shell profile output can reach hook stdout.

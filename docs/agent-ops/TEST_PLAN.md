@@ -282,3 +282,18 @@ Written before the lanes start. Risk: **HIGH**. This is a new platform's content
 | `javi hook --platform gemini-cli`: exit 0, empty stdout, time bound | Medium | Process | stdout empty; duration ≤ bound | No |
 | Claude Code behaviour unchanged | High | Existing JD-C01 suites | unchanged assertions | No |
 | Real Gemini CLI session | — | Runtime (owner) | events and usage appear; `/clear` behaviour | NOT RUN until owner run |
+
+## S5c — Codex CLI collector (2026-10-29)
+
+Written before the lanes start. Risk: **HIGH**: Codex logs carry email, prompts and tool arguments by design; javi edits the user-level `~/.codex/config.toml`; money-like figures differ by auth mode. Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| Hook mapping per C2; content never read | High | Unit (`mapCodexHook`) | sentinels in `prompt`, `tool_input`, `tool_response`, `last_assistant_message`, `transcript_path`, `cwd` absent | QA vectors |
+| Logs allowlist per C4; failure variant; `tool_token_count` ignored | High | Unit (`parseCodexLogs`) | bodies with `user.email`, `codex.tool_result`, `codex.user_prompt` → nothing copied | QA vectors |
+| Token mapping and cost by auth mode (C5) | High | Unit | `ApiKey` → cost; `Chatgpt`/missing → none; ids stable on retry | QA vectors |
+| Sub-agent attribution (C6) | Medium | Unit + process | known `agent_id` → parent thread; unknown → dropped | QA vectors |
+| `.codex/hooks.json` append-only, positions of user groups unchanged, timeout seconds, `commandWindows` | High | Process (temp dirs) | file before/after | No |
+| `~/.codex/config.toml` `[otel]` edit: refusal, comments, backup, exact restore | High | Process (temp home) | bytes before/after | No |
+| Gemini logs still never parsed; Claude Code and Gemini unchanged | High | Existing suites + receiver test | unchanged assertions | No |
+| Real Codex session | — | Runtime (owner) | approval flow, events, usage | NOT RUN until owner run |
