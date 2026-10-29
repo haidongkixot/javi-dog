@@ -20,5 +20,5 @@
     "javi usage on|off, javi receive",
     "dist/javi.mjs bundle (pnpm build), javis-dog-javi tarball (pnpm pack:cli)"
   ],
-  "consumes": ["JD-M01", "JD-M02"]
+  "consumes": ["JD-C02", "JD-M01", "JD-M02"]
 }

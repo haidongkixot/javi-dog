@@ -20,6 +20,7 @@
     "e2e:smoke": "node scripts/e2e-smoke.mjs"
   },
   "dependencies": {
+    "@javis-dog/collector-adapters": "workspace:*",
     "@javis-dog/jgr-sdk": "workspace:*",
     "@javis-dog/jgr-spec": "workspace:*"
   },

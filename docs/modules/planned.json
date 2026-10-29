@@ -16,14 +16,6 @@
     "description": "Envelope and end-to-end encryption (WebCrypto)"
   },
   {
-    "id": "JD-C02",
-    "name": "@javis-dog/collector-otel-bridge",
-    "path": "collectors/otel-bridge",
-    "status": "planned",
-    "sprint": "S5",
-    "description": "Codex / Gemini CLI to OTLP"
-  },
-  {
     "id": "JD-C03",
     "name": "@javis-dog/collector-mcp-server",
     "path": "collectors/mcp-server",

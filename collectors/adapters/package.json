@@ -1,0 +1,24 @@
+{
+  "name": "@javis-dog/collector-adapters",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-C02 — pure platform adapters for the javi collector: Gemini CLI (S5b) and Codex CLI (S5c) hook mappers, OTLP allowlist parsers and a dated price table (no I/O)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@javis-dog/jgr-sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@javis-dog/jgr-spec": "workspace:*",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "JD-C02",
+  "name": "@javis-dog/collector-adapters",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Pure platform adapters used by the javi collector (JD-C01), ADR-0016. S5b: Gemini CLI hook mapper, `gemini_cli.token.usage` allowlist parser, input-minus-cache delta rule and a dated Vertex AI price table for estimated cost. S5c: Codex CLI. No I/O.",
+  "owner": "platform",
+  "provides": [
+    "mapGeminiHook()",
+    "parseGeminiMetrics()",
+    "geminiUsageDelta()",
+    "estimateGeminiCostUsd()",
+    "GEMINI_PRICES",
+    "GEMINI_HOOK_EVENTS"
+  ],
+  "consumes": ["JD-M02"]
+}

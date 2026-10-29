@@ -265,3 +265,20 @@ Written before the lanes start. Risk: **HIGH**. This sprint covers the first pro
 | Ingest p95 < 2 s (JGR hypothesis) | Medium | Runtime (production, once) | client-side p50/p95/max incl. sandbox proxy | No |
 | End-to-end: packed `javi` → ingest → stored | High | Process + local recording server | `init`, hook events, `flush` exit 0, spool empty, batches received | One production run; rows confirmed by count on `main` |
 | Rollback plan executable | Medium | Docs review + one dry check (migration down files on PGlite already in `migrations.test.ts`) | every path names its command and its limit | NOT RUN: real Vercel rollback (owner action if needed) |
+
+## S5b — Gemini CLI collector (2026-10-29)
+
+Written before the lanes start. Risk: **HIGH**. This is a new platform's content-bearing hook payloads and telemetry on users' machines, editing the user-level `~/.gemini/settings.json`, and money-like estimated figures. Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| Hook mapping per ADR-0016 §2; content never read | High | Unit (`mapGeminiHook`) | per-event table; sentinel strings in every content field absent from output | QA vectors |
+| OTLP allowlist: only `gemini_cli.token.usage`, only 3 attributes; `tool` ignored | High | Unit (`parseGeminiMetrics`) | bodies with logs-like attributes and identity attributes (`user.email`, `installation.id`) → not copied | QA vectors |
+| Cumulative → delta, resets, input − cache, reasoning tokens | High | Unit (JD-C01 pipeline with JD-C02) | series tables | QA vectors |
+| Estimated cost: price × tokens, intro-price windows, unknown model → none | High | Unit (`estimateGeminiCostUsd`) | fixed table rows; `estimated` flag | QA vectors (prices from the source text independently) |
+| `.gemini/settings.json` hooks: merge, marker, backup, uninstall; trust notice | Medium | Process (temp dirs) | file contents before/after | No |
+| `~/.gemini/settings.json` telemetry: forced `logPrompts:false`, refusal on conflicts, `off` restores | High | Process (temp home) | file contents; refusal exit code | No |
+| Receiver: `/v1/logs`, `/v1/traces` → 200 `{}` without parsing; bearer and size limits unchanged | High | Process (real receiver on loopback) | body never parsed (malformed JSON still 200); 401 without bearer | No |
+| `javi hook --platform gemini-cli`: exit 0, empty stdout, time bound | Medium | Process | stdout empty; duration ≤ bound | No |
+| Claude Code behaviour unchanged | High | Existing JD-C01 suites | unchanged assertions | No |
+| Real Gemini CLI session | — | Runtime (owner) | events and usage appear; `/clear` behaviour | NOT RUN until owner run |
