@@ -1,0 +1,1175 @@
+{
+  "$schema": "./schema.json",
+  "id": "U11",
+  "kind": "usage",
+  "description": "Other Gemini metrics (session.count, api.request.count, tool.call.count, lines.changed with a type attribute, a look-alike name, gemini_cli.token.usage as a Gauge, the GenAI semconv gen_ai.client.token.usage histogram, a latency histogram) are ignored; only the gemini_cli.token.usage Sum contributes.",
+  "contract": "ADR-0016 §3 Parser (\"from metrics, only gemini_cli.token.usage Sum points are read\"); SPRINT-05b A2; Gemini telemetry doc Metrics (custom metrics, GenAI semantic convention)",
+  "ambiguities": ["G17"],
+  "clock": "2026-10-29T10:00:00Z",
+  "registerSessions": [
+    {
+      "platform": "gemini-cli",
+      "session": "gm-sess-u11"
+    }
+  ],
+  "steps": [
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.session.count",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "1"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.api.request.count",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "status_code",
+                                "value": {
+                                  "intValue": "200"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "5"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.tool.call.count",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "function_name",
+                                "value": {
+                                  "stringValue": "SENTINEL_FUNCTION_NAME_U11"
+                                }
+                              },
+                              {
+                                "key": "success",
+                                "value": {
+                                  "boolValue": true
+                                }
+                              },
+                              {
+                                "key": "decision",
+                                "value": {
+                                  "stringValue": "accept"
+                                }
+                              },
+                              {
+                                "key": "tool_type",
+                                "value": {
+                                  "stringValue": "native"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "5"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.lines.changed",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "function_name",
+                                "value": {
+                                  "stringValue": "write_file"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "added"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "50"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.token.usage.shadow",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "5000"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "gauge": {
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "3885"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gen_ai.client.token.usage",
+                      "unit": "{token}",
+                      "histogram": {
+                        "aggregationTemporality": 2,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "gen_ai.token.type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              },
+                              {
+                                "key": "gen_ai.request.model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "gen_ai.operation.name",
+                                "value": {
+                                  "stringValue": "generate_content"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "count": "5",
+                            "sum": 2500,
+                            "bucketCounts": ["0", "5"],
+                            "explicitBounds": [1000]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.tool.call.latency",
+                      "histogram": {
+                        "aggregationTemporality": 2,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "function_name",
+                                "value": {
+                                  "stringValue": "SENTINEL_FUNCTION_NAME_U11"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "count": "5",
+                            "sum": 60,
+                            "bucketCounts": ["5"],
+                            "explicitBounds": []
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "100"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "10"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.session.count",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "1"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.api.request.count",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "status_code",
+                                "value": {
+                                  "intValue": "200"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "40"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.tool.call.count",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "function_name",
+                                "value": {
+                                  "stringValue": "SENTINEL_FUNCTION_NAME_U11"
+                                }
+                              },
+                              {
+                                "key": "success",
+                                "value": {
+                                  "boolValue": true
+                                }
+                              },
+                              {
+                                "key": "decision",
+                                "value": {
+                                  "stringValue": "accept"
+                                }
+                              },
+                              {
+                                "key": "tool_type",
+                                "value": {
+                                  "stringValue": "native"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "40"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.lines.changed",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "function_name",
+                                "value": {
+                                  "stringValue": "write_file"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "added"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "400"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.token.usage.shadow",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "40000"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "gauge": {
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "31080"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gen_ai.client.token.usage",
+                      "unit": "{token}",
+                      "histogram": {
+                        "aggregationTemporality": 2,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "gen_ai.token.type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              },
+                              {
+                                "key": "gen_ai.request.model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "gen_ai.operation.name",
+                                "value": {
+                                  "stringValue": "generate_content"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "count": "40",
+                            "sum": 20000,
+                            "bucketCounts": ["0", "40"],
+                            "explicitBounds": [1000]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.tool.call.latency",
+                      "histogram": {
+                        "aggregationTemporality": 2,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "function_name",
+                                "value": {
+                                  "stringValue": "SENTINEL_FUNCTION_NAME_U11"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "count": "40",
+                            "sum": 480,
+                            "bucketCounts": ["40"],
+                            "explicitBounds": []
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "160"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u11"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U11"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "20"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u1",
+            "platform": "gemini-cli",
+            "session": "gm-sess-u11",
+            "occurred_at": "2026-10-29T09:01:00Z",
+            "usage_delta": {
+              "input_tokens": 60,
+              "output_tokens": 10,
+              "cache_read_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": 0.000175,
+              "model": "gemini-2.5-pro",
+              "estimated": true
+            },
+            "priceSource": {
+              "pageRow": "Gemini 2.5 Pro",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "priceAt": "2026-10-29T09:01:00Z",
+              "usdPerMillionTokens": {
+                "input": 1.25,
+                "cachedInput": 0.125,
+                "output": 10.0
+              },
+              "tableHeader": "Gemini 2.5 Standard Priority Flex/Batch Show discount options Model Type Token Price <= 200K tokens Price > 200K tokens Price <= 200K cached input tokens Price > 200K cached input tokens",
+              "fragment": "Gemini 2.5 Pro Input (text, image, video, audio) $1.25 $2.50 $0.125 $0.25 Text output (response and reasoning) $10.00 $15.00 N/A N/A",
+              "computation": "(60 × 1.25 + 0 × 0.125 + (10 + 0) × 10) / 1e6 = 0.000175"
+            }
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "droppedUnattributedTotal": null,
+  "absentStrings": [
+    "SENTINEL_EMAIL_U11",
+    "SENTINEL_FUNCTION_NAME_U11",
+    "SENTINEL_INSTALLATION_U11",
+    "user.email",
+    "installation.id",
+    "active_approval_mode",
+    "example.com"
+  ],
+  "identityGroup": null
+}

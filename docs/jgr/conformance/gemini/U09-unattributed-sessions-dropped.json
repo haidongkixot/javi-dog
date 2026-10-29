@@ -1,0 +1,841 @@
+{
+  "$schema": "./schema.json",
+  "id": "U09",
+  "kind": "usage",
+  "description": "Only sessions registered through a Gemini hook are forwarded. A session never seen by a hook, and a session id registered only through a Claude Code hook (cc_ ref, so no gm_ attribution), are dropped locally and counted; neither produces an event nor a misattributed one.",
+  "contract": "ADR-0016 §3 Attribution (\"sessions are attributed only through hooks ... an unknown session is dropped locally\"), §2 Refs; ADR-0011 Project attribution (dropped locally and counted)",
+  "ambiguities": ["G13"],
+  "clock": "2026-10-29T10:00:00Z",
+  "registerSessions": [
+    {
+      "platform": "gemini-cli",
+      "session": "gm-sess-u09"
+    },
+    {
+      "platform": "claude-code",
+      "session": "gm-sess-u09-claude-only"
+    }
+  ],
+  "steps": [
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "100"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "10"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-unknown"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "5000"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-unknown"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "500"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-claude-only"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "7000"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-claude-only"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "700"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "300"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "30"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-unknown"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "9000"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-unknown"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "900"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-claude-only"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "9900"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u09-claude-only"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U09"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U09@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "990"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u1",
+            "platform": "gemini-cli",
+            "session": "gm-sess-u09",
+            "occurred_at": "2026-10-29T09:01:00Z",
+            "usage_delta": {
+              "input_tokens": 200,
+              "output_tokens": 20,
+              "cache_read_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": 0.00045,
+              "model": "gemini-2.5-pro",
+              "estimated": true
+            },
+            "priceSource": {
+              "pageRow": "Gemini 2.5 Pro",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "priceAt": "2026-10-29T09:01:00Z",
+              "usdPerMillionTokens": {
+                "input": 1.25,
+                "cachedInput": 0.125,
+                "output": 10.0
+              },
+              "tableHeader": "Gemini 2.5 Standard Priority Flex/Batch Show discount options Model Type Token Price <= 200K tokens Price > 200K tokens Price <= 200K cached input tokens Price > 200K cached input tokens",
+              "fragment": "Gemini 2.5 Pro Input (text, image, video, audio) $1.25 $2.50 $0.125 $0.25 Text output (response and reasoning) $10.00 $15.00 N/A N/A",
+              "computation": "(200 × 1.25 + 0 × 0.125 + (20 + 0) × 10) / 1e6 = 0.00045"
+            }
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "droppedUnattributedTotal": {
+    "integerMin": 2,
+    "integerMax": 8
+  },
+  "absentStrings": [
+    "SENTINEL_EMAIL_U09",
+    "SENTINEL_INSTALLATION_U09",
+    "user.email",
+    "installation.id",
+    "active_approval_mode",
+    "example.com",
+    "gm-sess-u09-unknown",
+    "gm-sess-u09-claude-only"
+  ],
+  "identityGroup": null
+}

@@ -1,0 +1,139 @@
+{
+  "$schema": "./schema.json",
+  "id": "H18",
+  "kind": "hook",
+  "description": "Payload fields that look like JGR fields or L0 attributes (top-level platform, model, tool_name on a non-tool event, privacy_class, thread_ref, event_id, attributes, error_code, duration_ms, nested tool_name inside tool_input) are never copied; the mapper builds records from the allowlist only.",
+  "contract": "ADR-0016 §2 (allowlist; tool_name only for BeforeTool / AfterTool; \"no content keys read\", SPRINT-05b A1); spec §3 (unknown top-level fields), §7 (L0 allowlist)",
+  "ambiguities": ["G7"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h18",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H18_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H18_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup",
+        "tool_name": "SENTINEL_TOOLNAME_ON_SESSIONSTART_H18",
+        "platform": "SENTINEL_PLATFORM_H18",
+        "model": "SENTINEL_MODEL_H18",
+        "privacy_class": "L2",
+        "thread_ref": "SENTINEL_THREADREF_H18",
+        "event_id": "SENTINEL_EVENTID_H18",
+        "project_ref": "SENTINEL_PROJECTREF_H18",
+        "agent_id": "SENTINEL_AGENTID_H18",
+        "attributes": {
+          "platform": "SENTINEL_ATTR_PLATFORM_H18",
+          "tool_name": "SENTINEL_ATTR_TOOL_H18"
+        },
+        "api_key": "SENTINEL_APIKEY_H18",
+        "user_email": "SENTINEL_EMAIL_H18@example.com"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h18",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h18",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H18_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H18_S2/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "tool_name": "read_file",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H18_S2",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H18_S2/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H18_S2": "x",
+          "tool_name": "SENTINEL_INNER_TOOLNAME_H18",
+          "platform": "SENTINEL_INNER_PLATFORM_H18"
+        },
+        "error_code": "SENTINEL_ERRORCODE_H18",
+        "duration_ms": "SENTINEL_DURATION_H18"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h18",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "read_file"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h18",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H18_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H18_S3/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "notification_type": "ToolPermission",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H18_S3?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H18_S3",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H18_S3/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H18_S3"
+        },
+        "tool_name": "SENTINEL_TOOLNAME_ON_NOTIFICATION_H18"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "attention.requested",
+          "session": "gm-sess-h18",
+          "status": "waiting",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_AGENTID_H18",
+    "SENTINEL_APIKEY_H18",
+    "SENTINEL_ATTR_PLATFORM_H18",
+    "SENTINEL_ATTR_TOOL_H18",
+    "SENTINEL_CWD_H18_S1",
+    "SENTINEL_CWD_H18_S2",
+    "SENTINEL_CWD_H18_S3",
+    "SENTINEL_DETAILS_COMMAND_H18_S3",
+    "SENTINEL_DETAILS_PATH_H18_S3",
+    "SENTINEL_DETAILS_TOOL_H18_S3",
+    "SENTINEL_DURATION_H18",
+    "SENTINEL_EMAIL_H18",
+    "SENTINEL_ERRORCODE_H18",
+    "SENTINEL_EVENTID_H18",
+    "SENTINEL_INNER_PLATFORM_H18",
+    "SENTINEL_INNER_TOOLNAME_H18",
+    "SENTINEL_MESSAGE_H18_S3",
+    "SENTINEL_MODEL_H18",
+    "SENTINEL_PLATFORM_H18",
+    "SENTINEL_PROJECTREF_H18",
+    "SENTINEL_THREADREF_H18",
+    "SENTINEL_TOOLINPUT_H18_S2",
+    "SENTINEL_TOOLINPUT_KEY_H18_S2",
+    "SENTINEL_TOOLINPUT_PATH_H18_S2",
+    "SENTINEL_TOOLNAME_ON_NOTIFICATION_H18",
+    "SENTINEL_TOOLNAME_ON_SESSIONSTART_H18",
+    "SENTINEL_TRANSCRIPT_H18_S1",
+    "SENTINEL_TRANSCRIPT_H18_S2",
+    "SENTINEL_TRANSCRIPT_H18_S3",
+    "/home/dev",
+    "example.com"
+  ]
+}

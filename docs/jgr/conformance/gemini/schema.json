@@ -1,0 +1,354 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:javis-dog:jgr:conformance:gemini:vector:adr-0016",
+  "title": "Gemini CLI collector conformance vector (ADR-0016)",
+  "description": "One black-box case for the javi collector's Gemini CLI support: a hook vector (H*) feeds Gemini hook stdin payloads to javi hook; a usage vector (U*) posts OTLP/HTTP JSON bodies to the local receiver. Derived from ADR-0016, ADR-0011, JGR spec v0.1, the Gemini CLI hooks and telemetry docs and the Vertex AI pricing page. See README.md for runner semantics.",
+  "oneOf": [{ "$ref": "#/definitions/hookVector" }, { "$ref": "#/definitions/usageVector" }],
+  "definitions": {
+    "common": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "description",
+        "contract",
+        "ambiguities",
+        "clock",
+        "steps",
+        "absentStrings"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "description": { "type": "string", "minLength": 1 },
+        "contract": {
+          "description": "Contract text the expectation is derived from (ADR section, spec section, Gemini docs section, pricing page).",
+          "type": "string",
+          "minLength": 1
+        },
+        "ambiguities": {
+          "description": "README ambiguity ids (G1, G2, ...) whose chosen reading this vector relies on.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^G[1-9][0-9]*$" }
+        },
+        "clock": {
+          "description": "Pinned current time for the whole vector (setup, registration, hooks, receiver, JGR validation). README: Pinned clock.",
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "absentStrings": {
+          "description": "Strings that MUST NOT occur in any emitted record, spooled or delivered byte or inspectable state, in addition to the global list (README: Absent strings).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 2 }
+        }
+      }
+    },
+    "hookVector": {
+      "allOf": [{ "$ref": "#/definitions/common" }],
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {},
+        "id": { "type": "string", "pattern": "^H[0-9]{2}$" },
+        "kind": { "const": "hook" },
+        "description": {},
+        "contract": {},
+        "ambiguities": {},
+        "clock": {},
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/hookStep" } },
+        "absentStrings": {}
+      }
+    },
+    "hookStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "stdin", "rawStdin", "expect"],
+      "properties": {
+        "platform": {
+          "description": "Which hook entry receives the payload: gemini-cli (javi hook --platform gemini-cli) or claude-code (javi hook, default platform).",
+          "enum": ["gemini-cli", "claude-code"]
+        },
+        "stdin": {
+          "description": "Hook stdin payload, serialized compactly by the runner.",
+          "type": ["object", "null"]
+        },
+        "rawStdin": {
+          "description": "Exact UTF-8 stdin bytes, used instead of stdin (malformed input).",
+          "type": ["string", "null"]
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["record"],
+          "properties": {
+            "record": {
+              "description": "The one record this step produces, or null for none.",
+              "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/expectedRecord" }]
+            }
+          }
+        }
+      },
+      "oneOf": [
+        { "properties": { "stdin": { "type": "object" }, "rawStdin": { "type": "null" } } },
+        { "properties": { "stdin": { "type": "null" }, "rawStdin": { "type": "string" } } }
+      ]
+    },
+    "expectedRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "session", "attributes"],
+      "properties": {
+        "type": {
+          "enum": [
+            "session.started",
+            "session.ended",
+            "heartbeat",
+            "task.started",
+            "task.completed",
+            "task.failed",
+            "attention.requested"
+          ]
+        },
+        "session": {
+          "description": "Raw hook session_id; thread_ref MUST equal the ref of (platform, session) (README: Thread identity).",
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "description": "Exact status when listed; not checked when the key is absent.",
+          "enum": ["working", "waiting", "idle", "blocked", "failed", "completed"]
+        },
+        "attributes": {
+          "description": "Controlled-key expectation (README: Record comparison); null means attributes are not checked beyond the invariants.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  { "type": "string" },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["prefixOf", "maxLength", "optional"],
+                    "properties": {
+                      "prefixOf": { "type": "string", "minLength": 1 },
+                      "maxLength": { "type": "integer", "minimum": 1 },
+                      "optional": { "type": "boolean" }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "usageVector": {
+      "allOf": [{ "$ref": "#/definitions/common" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registerSessions", "droppedUnattributedTotal", "identityGroup"],
+      "properties": {
+        "$schema": {},
+        "id": { "type": "string", "pattern": "^U[0-9]{2}$" },
+        "kind": { "const": "usage" },
+        "description": {},
+        "contract": {},
+        "ambiguities": {},
+        "clock": {},
+        "registerSessions": {
+          "description": "Sessions registered through a SessionStart hook of that platform before step 1 (README: Session registration). No other session is registered.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["platform", "session"],
+            "properties": {
+              "platform": { "enum": ["gemini-cli", "claude-code"] },
+              "session": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/usageStep" } },
+        "droppedUnattributedTotal": {
+          "description": "Matcher on the total increase of the unattributed-drop counter over the whole vector; null means not checked.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/intMatcher" }]
+        },
+        "absentStrings": {},
+        "identityGroup": {
+          "description": "Scope of idLabel comparison across vectors; null: within this vector only.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "usageStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request", "expect"],
+      "properties": {
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "auth", "body", "rawBody"],
+          "properties": {
+            "path": { "enum": ["/v1/metrics", "/", "/v1/logs", "/v1/traces"] },
+            "auth": {
+              "description": "true: send Authorization: Bearer $SECRET; false: send no Authorization header.",
+              "type": "boolean"
+            },
+            "body": { "type": ["object", "null"] },
+            "rawBody": { "type": ["string", "null"] }
+          },
+          "oneOf": [
+            { "properties": { "body": { "type": "object" }, "rawBody": { "type": "null" } } },
+            { "properties": { "body": { "type": "null" }, "rawBody": { "type": "string" } } }
+          ]
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "events", "droppedUnattributed"],
+          "properties": {
+            "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+            "events": {
+              "description": "usage.reported events whose event_id first appears after this step. Order-insensitive.",
+              "type": "array",
+              "items": { "$ref": "#/definitions/expectedEvent" }
+            },
+            "droppedUnattributed": {
+              "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/intMatcher" }]
+            }
+          },
+          "if": { "properties": { "status": { "not": { "const": 200 } } } },
+          "then": { "properties": { "events": { "maxItems": 0 } } }
+        }
+      }
+    },
+    "intMatcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "integerMin": { "type": "integer", "minimum": 0 },
+        "integerMax": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "expectedEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["idLabel", "platform", "session", "occurred_at", "usage_delta", "priceSource"],
+      "properties": {
+        "idLabel": { "type": "string", "pattern": "^u[0-9]+$" },
+        "platform": { "enum": ["gemini-cli", "claude-code"] },
+        "session": { "type": "string", "minLength": 1 },
+        "occurred_at": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "usage_delta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input_tokens",
+            "output_tokens",
+            "cache_read_tokens",
+            "reasoning_tokens",
+            "cost_usd",
+            "model",
+            "estimated"
+          ],
+          "properties": {
+            "input_tokens": { "type": "integer", "minimum": 0 },
+            "output_tokens": { "type": "integer", "minimum": 0 },
+            "cache_read_tokens": { "type": "integer", "minimum": 0 },
+            "reasoning_tokens": { "type": "integer", "minimum": 0 },
+            "cache_write_tokens": { "type": "integer", "minimum": 0 },
+            "cost_usd": {
+              "description": "Expected cost; null means the cost_usd key MUST be absent.",
+              "type": ["number", "null"],
+              "minimum": 0
+            },
+            "model": { "type": "string", "minLength": 1 },
+            "estimated": { "type": "boolean" }
+          }
+        },
+        "priceSource": {
+          "description": "For an estimated Gemini cost: the page row, prices and quoted fragment the expected cost_usd was computed from. null otherwise.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pageRow",
+                "selection",
+                "priceAt",
+                "usdPerMillionTokens",
+                "tableHeader",
+                "fragment",
+                "computation"
+              ],
+              "properties": {
+                "pageRow": { "type": "string" },
+                "selection": { "type": "string" },
+                "priceAt": { "type": "string" },
+                "usdPerMillionTokens": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["input", "cachedInput", "output"],
+                  "properties": {
+                    "input": { "type": "number", "minimum": 0 },
+                    "cachedInput": { "type": "number", "minimum": 0 },
+                    "output": { "type": "number", "minimum": 0 }
+                  }
+                },
+                "tableHeader": { "type": "string" },
+                "fragment": { "type": "string" },
+                "computation": { "type": "string" },
+                "corroboration": { "type": "string" }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "platform": { "const": "gemini-cli" },
+              "usage_delta": { "properties": { "cost_usd": { "type": "number" } } }
+            }
+          },
+          "then": {
+            "properties": {
+              "usage_delta": { "properties": { "estimated": { "const": true } } },
+              "priceSource": { "type": "object" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "usage_delta": { "properties": { "cost_usd": { "type": "null" } } } }
+          },
+          "then": {
+            "properties": {
+              "usage_delta": { "properties": { "estimated": { "const": false } } },
+              "priceSource": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "platform": { "const": "claude-code" } } },
+          "then": {
+            "properties": {
+              "usage_delta": { "properties": { "estimated": { "const": false } } },
+              "priceSource": { "type": "null" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

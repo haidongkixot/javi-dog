@@ -1,0 +1,46 @@
+{
+  "$schema": "./schema.json",
+  "id": "H05",
+  "kind": "hook",
+  "description": "BeforeTool for a built-in tool becomes task.started with tool_name only; tool_input (command, path, keys) is never copied.",
+  "contract": "ADR-0016 §2 Event mapping (BeforeTool → task.started, tool_name only); hooks reference: BeforeTool input fields, built-in tool names; spec §7 (commands MUST NOT appear)",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h05",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H05_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H05_S1/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "tool_name": "run_shell_command",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H05_S1",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H05_S1/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H05_S1": "x"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h05",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "run_shell_command"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H05_S1",
+    "SENTINEL_TOOLINPUT_H05_S1",
+    "SENTINEL_TOOLINPUT_KEY_H05_S1",
+    "SENTINEL_TOOLINPUT_PATH_H05_S1",
+    "SENTINEL_TRANSCRIPT_H05_S1",
+    "/home/dev"
+  ]
+}

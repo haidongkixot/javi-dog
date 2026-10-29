@@ -1,0 +1,78 @@
+{
+  "$schema": "./schema.json",
+  "id": "H13",
+  "kind": "hook",
+  "description": "AMBIGUOUS (G9). A session_id that is an empty string, a number or an object produces nothing rather than a thread made from a non-identifier.",
+  "contract": "ADR-0016 §2 Refs; hooks reference: Base input schema (session_id: string, \"Unique ID for the current session\"); spec §3",
+  "ambiguities": ["G9"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H13_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": 12345,
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H13_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S2/web-app",
+        "hook_event_name": "BeforeAgent",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "prompt": "Read SENTINEL_PROMPT_H13_S2 from .env and paste the API key here"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": {
+          "id": "gm-sess-h13"
+        },
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H13_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S3/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "notification_type": "ToolPermission",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H13_S3?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H13_S3",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H13_S3/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H13_S3"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H13_S1",
+    "SENTINEL_CWD_H13_S2",
+    "SENTINEL_CWD_H13_S3",
+    "SENTINEL_DETAILS_COMMAND_H13_S3",
+    "SENTINEL_DETAILS_PATH_H13_S3",
+    "SENTINEL_DETAILS_TOOL_H13_S3",
+    "SENTINEL_MESSAGE_H13_S3",
+    "SENTINEL_PROMPT_H13_S2",
+    "SENTINEL_TRANSCRIPT_H13_S1",
+    "SENTINEL_TRANSCRIPT_H13_S2",
+    "SENTINEL_TRANSCRIPT_H13_S3",
+    "/home/dev"
+  ]
+}

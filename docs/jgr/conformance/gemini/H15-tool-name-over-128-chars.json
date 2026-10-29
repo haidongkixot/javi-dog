@@ -1,0 +1,124 @@
+{
+  "$schema": "./schema.json",
+  "id": "H15",
+  "kind": "hook",
+  "description": "AMBIGUOUS (G8). A 200-character MCP tool_name still yields task.started / task.completed that validate as JGR (attribute strings ≤ 128 chars): tool_name is either a prefix of the original of at most 128 characters or absent. A 128-character tool_name is kept exactly.",
+  "contract": "ADR-0016 §2 Event mapping (tool_name only); spec §3 attributes (\"values string (≤ 128 chars)\"); hooks reference: MCP tool naming pattern mcp_<server_name>_<tool_name>",
+  "ambiguities": ["G8"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h15",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H15_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S1/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "tool_name": "mcp_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_search_documents_by_semantic_similarity_and_metadata_filters",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H15_S1",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H15_S1/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H15_S1": "x"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h15",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": {
+              "prefixOf": "mcp_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_search_documents_by_semantic_similarity_and_metadata_filters",
+              "maxLength": 128,
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h15",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H15_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S2/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "tool_name": "mcp_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_search_documents_by_semantic_similarity_and_metadata_filters",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H15_S2",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H15_S2/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H15_S2": "x"
+        },
+        "tool_response": {
+          "llmContent": "file contents SENTINEL_TOOLRESPONSE_LLM_H15_S2",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H15_S2"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h15",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": {
+              "prefixOf": "mcp_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_enterprise_knowledge_graph_server_search_documents_by_semantic_similarity_and_metadata_filters",
+              "maxLength": 128,
+              "optional": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h15",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H15_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S3/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "tool_name": "mcp_internal_docs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H15_S3",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H15_S3/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H15_S3": "x"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h15",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_internal_docs_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H15_S1",
+    "SENTINEL_CWD_H15_S2",
+    "SENTINEL_CWD_H15_S3",
+    "SENTINEL_TOOLINPUT_H15_S1",
+    "SENTINEL_TOOLINPUT_H15_S2",
+    "SENTINEL_TOOLINPUT_H15_S3",
+    "SENTINEL_TOOLINPUT_KEY_H15_S1",
+    "SENTINEL_TOOLINPUT_KEY_H15_S2",
+    "SENTINEL_TOOLINPUT_KEY_H15_S3",
+    "SENTINEL_TOOLINPUT_PATH_H15_S1",
+    "SENTINEL_TOOLINPUT_PATH_H15_S2",
+    "SENTINEL_TOOLINPUT_PATH_H15_S3",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H15_S2",
+    "SENTINEL_TOOLRESPONSE_LLM_H15_S2",
+    "SENTINEL_TRANSCRIPT_H15_S1",
+    "SENTINEL_TRANSCRIPT_H15_S2",
+    "SENTINEL_TRANSCRIPT_H15_S3",
+    "/home/dev"
+  ]
+}

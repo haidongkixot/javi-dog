@@ -1,0 +1,121 @@
+{
+  "$schema": "./schema.json",
+  "id": "H09",
+  "kind": "hook",
+  "description": "Notification with a notification_type other than ToolPermission (unknown value, Claude Code's permission_prompt, a different case, or no type) produces nothing.",
+  "contract": "ADR-0016 §2 Event mapping (\"Everything else is dropped\"); hooks reference: Notification notification_type (\"ToolPermission\")",
+  "ambiguities": ["G19"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h09",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H09_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H09_S1/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "notification_type": "IdlePrompt",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H09_S1?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H09_S1",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H09_S1/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H09_S1"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h09",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H09_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H09_S2/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "notification_type": "permission_prompt",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H09_S2?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H09_S2",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H09_S2/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H09_S2"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h09",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H09_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H09_S3/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "notification_type": "toolpermission",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H09_S3?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H09_S3",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H09_S3/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H09_S3"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h09",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H09_S4/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H09_S4/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:04.000Z",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H09_S4?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H09_S4",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H09_S4/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H09_S4"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H09_S1",
+    "SENTINEL_CWD_H09_S2",
+    "SENTINEL_CWD_H09_S3",
+    "SENTINEL_CWD_H09_S4",
+    "SENTINEL_DETAILS_COMMAND_H09_S1",
+    "SENTINEL_DETAILS_COMMAND_H09_S2",
+    "SENTINEL_DETAILS_COMMAND_H09_S3",
+    "SENTINEL_DETAILS_COMMAND_H09_S4",
+    "SENTINEL_DETAILS_PATH_H09_S1",
+    "SENTINEL_DETAILS_PATH_H09_S2",
+    "SENTINEL_DETAILS_PATH_H09_S3",
+    "SENTINEL_DETAILS_PATH_H09_S4",
+    "SENTINEL_DETAILS_TOOL_H09_S1",
+    "SENTINEL_DETAILS_TOOL_H09_S2",
+    "SENTINEL_DETAILS_TOOL_H09_S3",
+    "SENTINEL_DETAILS_TOOL_H09_S4",
+    "SENTINEL_MESSAGE_H09_S1",
+    "SENTINEL_MESSAGE_H09_S2",
+    "SENTINEL_MESSAGE_H09_S3",
+    "SENTINEL_MESSAGE_H09_S4",
+    "SENTINEL_TRANSCRIPT_H09_S1",
+    "SENTINEL_TRANSCRIPT_H09_S2",
+    "SENTINEL_TRANSCRIPT_H09_S3",
+    "SENTINEL_TRANSCRIPT_H09_S4",
+    "/home/dev"
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "$schema": "./schema.json",
+  "id": "H02",
+  "kind": "hook",
+  "description": "SessionEnd (reason exit) becomes session.ended for the same thread_ref as the SessionStart of that session.",
+  "contract": "ADR-0016 §2 Event mapping (SessionEnd → session.ended), Refs; hooks reference: SessionEnd (best effort, reason enum)",
+  "ambiguities": ["G7"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h02",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H02_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H02_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h02",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h02",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H02_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H02_S2/web-app",
+        "hook_event_name": "SessionEnd",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "reason": "exit"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.ended",
+          "session": "gm-sess-h02",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H02_S1",
+    "SENTINEL_CWD_H02_S2",
+    "SENTINEL_TRANSCRIPT_H02_S1",
+    "SENTINEL_TRANSCRIPT_H02_S2",
+    "/home/dev"
+  ]
+}

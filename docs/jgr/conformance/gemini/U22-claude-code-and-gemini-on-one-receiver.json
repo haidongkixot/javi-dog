@@ -1,0 +1,550 @@
+{
+  "$schema": "./schema.json",
+  "id": "U22",
+  "kind": "usage",
+  "description": "One receiver serves both platforms: a body carrying Claude Code delta points (cc_ session) and Gemini cumulative points (gm_ session) yields the Claude Code event unchanged (exact counts and reported cost, estimated: false) and the Gemini baseline only; the next Gemini export yields a Gemini event. Neither platform's points reach the other's thread.",
+  "contract": "ADR-0016 Consequences (\"One install and one receiver for three agents\"), §1 (Claude Code installs unchanged), §3; SPRINT-05b B2 (\"/v1/metrics → both parsers\"); ADR-0011 Parsing, Temporality (delta used as-is), Mapping → JGR",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "registerSessions": [
+    {
+      "platform": "gemini-cli",
+      "session": "gm-sess-u22"
+    },
+    {
+      "platform": "claude-code",
+      "session": "cc-sess-u22"
+    }
+  ],
+  "steps": [
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "claude-code"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "2.1.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "com.anthropic.claude_code",
+                    "version": "2.1.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "claude_code.token.usage",
+                      "unit": "tokens",
+                      "sum": {
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "cc-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264340000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "1280"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "cc-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264340000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "462"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "cc-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cacheRead"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264340000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "9000"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "cc-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cacheCreation"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264340000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "512"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "claude_code.cost.usage",
+                      "unit": "USD",
+                      "sum": {
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "cc-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264340000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asDouble": 0.0421
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U22"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "100"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U22"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "10"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u1",
+            "platform": "claude-code",
+            "session": "cc-sess-u22",
+            "occurred_at": "2026-10-29T09:00:00Z",
+            "usage_delta": {
+              "input_tokens": 1280,
+              "output_tokens": 462,
+              "cache_read_tokens": 9000,
+              "reasoning_tokens": 0,
+              "cache_write_tokens": 512,
+              "cost_usd": 0.0421,
+              "model": "claude-opus-5-5",
+              "estimated": false
+            },
+            "priceSource": null
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U22"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "400"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u22"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U22"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U22@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "40"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u2",
+            "platform": "gemini-cli",
+            "session": "gm-sess-u22",
+            "occurred_at": "2026-10-29T09:01:00Z",
+            "usage_delta": {
+              "input_tokens": 300,
+              "output_tokens": 30,
+              "cache_read_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": 0.000675,
+              "model": "gemini-2.5-pro",
+              "estimated": true
+            },
+            "priceSource": {
+              "pageRow": "Gemini 2.5 Pro",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "priceAt": "2026-10-29T09:01:00Z",
+              "usdPerMillionTokens": {
+                "input": 1.25,
+                "cachedInput": 0.125,
+                "output": 10.0
+              },
+              "tableHeader": "Gemini 2.5 Standard Priority Flex/Batch Show discount options Model Type Token Price <= 200K tokens Price > 200K tokens Price <= 200K cached input tokens Price > 200K cached input tokens",
+              "fragment": "Gemini 2.5 Pro Input (text, image, video, audio) $1.25 $2.50 $0.125 $0.25 Text output (response and reasoning) $10.00 $15.00 N/A N/A",
+              "computation": "(300 × 1.25 + 0 × 0.125 + (30 + 0) × 10) / 1e6 = 0.000675"
+            }
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "droppedUnattributedTotal": null,
+  "absentStrings": [
+    "SENTINEL_CC_EMAIL_U22",
+    "SENTINEL_EMAIL_U22",
+    "SENTINEL_INSTALLATION_U22",
+    "user.email",
+    "installation.id",
+    "active_approval_mode",
+    "example.com"
+  ],
+  "identityGroup": null
+}

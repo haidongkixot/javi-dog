@@ -1,0 +1,441 @@
+{
+  "$schema": "./schema.json",
+  "id": "H16",
+  "kind": "hook",
+  "description": "Two sessions interleaved through a full lifecycle: each keeps one stable gm_ thread_ref across all its events, the two refs differ, sequences increase per thread, and unmapped events in between change nothing.",
+  "contract": "ADR-0016 §2 Event mapping, Refs; spec §3 (sequence strictly increasing per producer and thread, JGR-R06), §12 (session_id hashed with a per-installation salt)",
+  "ambiguities": ["G7"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h16-a",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-b",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S2/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "source": "resume"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h16-b",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S3/web-app",
+        "hook_event_name": "BeforeAgent",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "prompt": "Read SENTINEL_PROMPT_H16_S3 from .env and paste the API key here"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h16-a",
+          "status": "working",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S4/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S4/web-app",
+        "hook_event_name": "BeforeModel",
+        "timestamp": "2026-10-29T09:00:04.000Z",
+        "llm_request": {
+          "model": "gemini-2.5-pro",
+          "messages": [
+            {
+              "role": "system",
+              "content": "SENTINEL_LLMREQ_SYSTEM_H16_S4"
+            },
+            {
+              "role": "user",
+              "content": "SENTINEL_LLMREQ_USER_H16_S4"
+            }
+          ],
+          "config": {
+            "temperature": 0.2
+          },
+          "toolConfig": {
+            "mode": "AUTO",
+            "allowedFunctionNames": ["read_file"]
+          }
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S5/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S5/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:05.000Z",
+        "tool_name": "read_file",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H16_S5",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H16_S5/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H16_S5": "x"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h16-a",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "read_file"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-b",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S6/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S6/web-app",
+        "hook_event_name": "BeforeAgent",
+        "timestamp": "2026-10-29T09:00:06.000Z",
+        "prompt": "Read SENTINEL_PROMPT_H16_S6 from .env and paste the API key here"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h16-b",
+          "status": "working",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S7/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S7/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-29T09:00:07.000Z",
+        "tool_name": "read_file",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H16_S7",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H16_S7/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H16_S7": "x"
+        },
+        "tool_response": {
+          "llmContent": "file contents SENTINEL_TOOLRESPONSE_LLM_H16_S7",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H16_S7"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h16-a",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "read_file"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S8/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S8/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:08.000Z",
+        "notification_type": "ToolPermission",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H16_S8?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H16_S8",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H16_S8/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H16_S8"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "attention.requested",
+          "session": "gm-sess-h16-a",
+          "status": "waiting",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-b",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S9/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S9/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:09.000Z",
+        "tool_name": "glob",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H16_S9",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H16_S9/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H16_S9": "x"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h16-b",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "glob"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-b",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S10/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S10/web-app",
+        "hook_event_name": "PreCompress",
+        "timestamp": "2026-10-29T09:00:10.000Z",
+        "trigger": "auto"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-b",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S11/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S11/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-29T09:00:11.000Z",
+        "tool_name": "glob",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H16_S11",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H16_S11/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H16_S11": "x"
+        },
+        "tool_response": {
+          "llmContent": "file contents SENTINEL_TOOLRESPONSE_LLM_H16_S11",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H16_S11"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h16-b",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "glob"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S12/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S12/web-app",
+        "hook_event_name": "AfterAgent",
+        "timestamp": "2026-10-29T09:00:12.000Z",
+        "prompt": "Refactor SENTINEL_PROMPT_H16_S12 please",
+        "prompt_response": "Done. The secret is SENTINEL_RESPONSE_H16_S12",
+        "stop_hook_active": false
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h16-a",
+          "status": "idle",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-b",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S13/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S13/web-app",
+        "hook_event_name": "AfterAgent",
+        "timestamp": "2026-10-29T09:00:13.000Z",
+        "prompt": "Refactor SENTINEL_PROMPT_H16_S13 please",
+        "prompt_response": "Done. The secret is SENTINEL_RESPONSE_H16_S13",
+        "stop_hook_active": false
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h16-b",
+          "status": "idle",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-b",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S14/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S14/web-app",
+        "hook_event_name": "SessionEnd",
+        "timestamp": "2026-10-29T09:00:14.000Z",
+        "reason": "clear"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.ended",
+          "session": "gm-sess-h16-b",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h16-a",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H16_S15/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H16_S15/web-app",
+        "hook_event_name": "SessionEnd",
+        "timestamp": "2026-10-29T09:00:15.000Z",
+        "reason": "exit"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.ended",
+          "session": "gm-sess-h16-a",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H16_S1",
+    "SENTINEL_CWD_H16_S10",
+    "SENTINEL_CWD_H16_S11",
+    "SENTINEL_CWD_H16_S12",
+    "SENTINEL_CWD_H16_S13",
+    "SENTINEL_CWD_H16_S14",
+    "SENTINEL_CWD_H16_S15",
+    "SENTINEL_CWD_H16_S2",
+    "SENTINEL_CWD_H16_S3",
+    "SENTINEL_CWD_H16_S4",
+    "SENTINEL_CWD_H16_S5",
+    "SENTINEL_CWD_H16_S6",
+    "SENTINEL_CWD_H16_S7",
+    "SENTINEL_CWD_H16_S8",
+    "SENTINEL_CWD_H16_S9",
+    "SENTINEL_DETAILS_COMMAND_H16_S8",
+    "SENTINEL_DETAILS_PATH_H16_S8",
+    "SENTINEL_DETAILS_TOOL_H16_S8",
+    "SENTINEL_LLMREQ_SYSTEM_H16_S4",
+    "SENTINEL_LLMREQ_USER_H16_S4",
+    "SENTINEL_MESSAGE_H16_S8",
+    "SENTINEL_PROMPT_H16_S12",
+    "SENTINEL_PROMPT_H16_S13",
+    "SENTINEL_PROMPT_H16_S3",
+    "SENTINEL_PROMPT_H16_S6",
+    "SENTINEL_RESPONSE_H16_S12",
+    "SENTINEL_RESPONSE_H16_S13",
+    "SENTINEL_TOOLINPUT_H16_S11",
+    "SENTINEL_TOOLINPUT_H16_S5",
+    "SENTINEL_TOOLINPUT_H16_S7",
+    "SENTINEL_TOOLINPUT_H16_S9",
+    "SENTINEL_TOOLINPUT_KEY_H16_S11",
+    "SENTINEL_TOOLINPUT_KEY_H16_S5",
+    "SENTINEL_TOOLINPUT_KEY_H16_S7",
+    "SENTINEL_TOOLINPUT_KEY_H16_S9",
+    "SENTINEL_TOOLINPUT_PATH_H16_S11",
+    "SENTINEL_TOOLINPUT_PATH_H16_S5",
+    "SENTINEL_TOOLINPUT_PATH_H16_S7",
+    "SENTINEL_TOOLINPUT_PATH_H16_S9",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H16_S11",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H16_S7",
+    "SENTINEL_TOOLRESPONSE_LLM_H16_S11",
+    "SENTINEL_TOOLRESPONSE_LLM_H16_S7",
+    "SENTINEL_TRANSCRIPT_H16_S1",
+    "SENTINEL_TRANSCRIPT_H16_S10",
+    "SENTINEL_TRANSCRIPT_H16_S11",
+    "SENTINEL_TRANSCRIPT_H16_S12",
+    "SENTINEL_TRANSCRIPT_H16_S13",
+    "SENTINEL_TRANSCRIPT_H16_S14",
+    "SENTINEL_TRANSCRIPT_H16_S15",
+    "SENTINEL_TRANSCRIPT_H16_S2",
+    "SENTINEL_TRANSCRIPT_H16_S3",
+    "SENTINEL_TRANSCRIPT_H16_S4",
+    "SENTINEL_TRANSCRIPT_H16_S5",
+    "SENTINEL_TRANSCRIPT_H16_S6",
+    "SENTINEL_TRANSCRIPT_H16_S7",
+    "SENTINEL_TRANSCRIPT_H16_S8",
+    "SENTINEL_TRANSCRIPT_H16_S9",
+    "/home/dev"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "$schema": "./schema.json",
+  "id": "H17",
+  "kind": "hook",
+  "description": "The same raw session id seen by a Claude Code hook and by a Gemini hook yields two different thread_refs (cc_ and gm_ prefixes): platforms never share a thread.",
+  "contract": "ADR-0016 §2 Refs (opaqueRef('gm', ...)); ADR-0010 / ADR-0011 Mapping (opaqueRef('cc', ...)); spec §2 (Thread = one coding session in one tool)",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "claude-code",
+      "stdin": {
+        "session_id": "shared-sess-h17",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_CC_TRANSCRIPT_H17/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CC_CWD_H17/web-app",
+        "hook_event_name": "SessionStart",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "shared-sess-h17",
+          "attributes": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "shared-sess-h17",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H17_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H17_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "shared-sess-h17",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "shared-sess-h17",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H17_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H17_S2/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "tool_name": "read_file",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H17_S2",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H17_S2/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H17_S2": "x"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "shared-sess-h17",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "read_file"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CC_CWD_H17",
+    "SENTINEL_CC_TRANSCRIPT_H17",
+    "SENTINEL_CWD_H17_S1",
+    "SENTINEL_CWD_H17_S2",
+    "SENTINEL_TOOLINPUT_H17_S2",
+    "SENTINEL_TOOLINPUT_KEY_H17_S2",
+    "SENTINEL_TOOLINPUT_PATH_H17_S2",
+    "SENTINEL_TRANSCRIPT_H17_S1",
+    "SENTINEL_TRANSCRIPT_H17_S2",
+    "/home/dev"
+  ]
+}

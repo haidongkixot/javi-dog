@@ -1,0 +1,48 @@
+{
+  "$schema": "./schema.json",
+  "id": "H08",
+  "kind": "hook",
+  "description": "Notification ToolPermission becomes attention.requested waiting; message and details (including a tool name and a file path inside details) are discarded, so no tool_name attribute.",
+  "contract": "ADR-0016 §2 Event mapping (Notification ToolPermission → attention.requested waiting); hooks reference: Notification (notification_type \"ToolPermission\", message, details); spec §4, §7",
+  "ambiguities": ["G19"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h08",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H08_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H08_S1/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "notification_type": "ToolPermission",
+        "message": "Allow run_shell_command: rm -rf SENTINEL_MESSAGE_H08_S1?",
+        "details": {
+          "tool_name": "SENTINEL_DETAILS_TOOL_H08_S1",
+          "file_path": "/home/dev/SENTINEL_DETAILS_PATH_H08_S1/.env",
+          "command": "SENTINEL_DETAILS_COMMAND_H08_S1"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "attention.requested",
+          "session": "gm-sess-h08",
+          "status": "waiting",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H08_S1",
+    "SENTINEL_DETAILS_COMMAND_H08_S1",
+    "SENTINEL_DETAILS_PATH_H08_S1",
+    "SENTINEL_DETAILS_TOOL_H08_S1",
+    "SENTINEL_MESSAGE_H08_S1",
+    "SENTINEL_TRANSCRIPT_H08_S1",
+    "/home/dev"
+  ]
+}

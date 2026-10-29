@@ -1,0 +1,122 @@
+{
+  "$schema": "./schema.json",
+  "id": "H11",
+  "kind": "hook",
+  "description": "PreCompress, Claude Code event names (PreToolUse, Stop, UserPromptSubmit), an unknown name and a payload without hook_event_name produce nothing.",
+  "contract": "ADR-0016 §2 Event mapping (allowlist; \"Everything else is dropped\"); hooks reference: PreCompress, hook event table",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h11",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H11_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S1/web-app",
+        "hook_event_name": "PreCompress",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "trigger": "auto"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h11",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H11_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S2/web-app",
+        "hook_event_name": "PreToolUse",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "tool_name": "Edit",
+        "tool_input": {
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_H11/a.ts"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h11",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H11_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S3/web-app",
+        "hook_event_name": "Stop",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "last_assistant_message": "SENTINEL_LAST_MESSAGE_H11"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h11",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H11_S4/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S4/web-app",
+        "hook_event_name": "UserPromptSubmit",
+        "timestamp": "2026-10-29T09:00:04.000Z",
+        "prompt": "SENTINEL_PROMPT_H11"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h11",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H11_S5/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S5/web-app",
+        "hook_event_name": "AfterSomethingNew",
+        "timestamp": "2026-10-29T09:00:05.000Z",
+        "payload": "SENTINEL_PAYLOAD_H11"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h11",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H11_S6/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S6/web-app",
+        "timestamp": "2026-10-29T09:00:06.000Z",
+        "tool_name": "read_file"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H11_S1",
+    "SENTINEL_CWD_H11_S2",
+    "SENTINEL_CWD_H11_S3",
+    "SENTINEL_CWD_H11_S4",
+    "SENTINEL_CWD_H11_S5",
+    "SENTINEL_CWD_H11_S6",
+    "SENTINEL_LAST_MESSAGE_H11",
+    "SENTINEL_PAYLOAD_H11",
+    "SENTINEL_PROMPT_H11",
+    "SENTINEL_TOOLINPUT_H11",
+    "SENTINEL_TRANSCRIPT_H11_S1",
+    "SENTINEL_TRANSCRIPT_H11_S2",
+    "SENTINEL_TRANSCRIPT_H11_S3",
+    "SENTINEL_TRANSCRIPT_H11_S4",
+    "SENTINEL_TRANSCRIPT_H11_S5",
+    "SENTINEL_TRANSCRIPT_H11_S6",
+    "/home/dev"
+  ]
+}
