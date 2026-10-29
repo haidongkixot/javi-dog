@@ -1,7 +1,7 @@
 // Agent platforms `javi` collects from (ADR-0016 §1). Claude Code is the default, so every
 // command without `--platform` behaves exactly as before.
 
-export const PLATFORMS = ['claude-code', 'gemini-cli'] as const;
+export const PLATFORMS = ['claude-code', 'gemini-cli', 'codex-cli'] as const;
 export type Platform = (typeof PLATFORMS)[number];
 export const DEFAULT_PLATFORM: Platform = 'claude-code';
 
@@ -9,6 +9,7 @@ export const DEFAULT_PLATFORM: Platform = 'claude-code';
 export const PLATFORM_NAMES: Readonly<Record<Platform, string>> = {
   'claude-code': 'Claude Code',
   'gemini-cli': 'Gemini CLI',
+  'codex-cli': 'Codex CLI',
 };
 
 export const isPlatform = (value: unknown): value is Platform =>

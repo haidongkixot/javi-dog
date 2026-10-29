@@ -1,8 +1,15 @@
-import { mapGeminiHook } from '@javis-dog/collector-adapters';
+import {
+  codexSubagentLink,
+  mapCodexHook,
+  mapGeminiHook,
+  type AdapterContext,
+} from '@javis-dog/collector-adapters';
 import { createFileSpool, createJgrClient, type FlushResult } from '@javis-dog/jgr-sdk';
+import { codexEnvRisks, codexHome } from './codex-config.ts';
+import { codexThreadRef } from './codex-usage.ts';
 import { geminiHome } from './gemini-settings.ts';
 import { findGeminiTelemetryOverrides } from './gemini-telemetry.ts';
-import { COLLECTOR_VERSION, mapHook } from './mapping.ts';
+import { COLLECTOR_VERSION, mapHook, opaqueRef } from './mapping.ts';
 import type { Platform } from './platform.ts';
 import type { CollectorState } from './state.ts';
 
@@ -33,8 +40,8 @@ export interface HookDeps {
    */
   ensureReceiver?: () => void | Promise<void>;
   /**
-   * Gemini CLI only: the hook process's environment (Gemini passes its own, `.env` included)
-   * and working directory (the session's folder), for the SessionStart telemetry check.
+   * Gemini CLI and Codex CLI: the hook process's environment (the agent passes its own, `.env`
+   * included) and working directory (the session's folder), for the SessionStart checks.
    */
   env?: NodeJS.ProcessEnv;
   cwd?: string;
@@ -75,6 +82,63 @@ const checkGeminiTelemetry = async (deps: HookDeps) => {
 };
 
 /**
+ * Codex CLI SessionStart (ADR-0016 Changes H1, H2, M5): looks in the hook's environment (Codex
+ * passes its own, `$CODEX_HOME/.env` included) and in `$CODEX_HOME/.env` for a proxy that would
+ * carry Codex's logs and javi's bearer off the loopback, for header variables that replace the
+ * bearer (both while Codex usage is on), and for javi's own Claude Code header value, which
+ * Codex would merge into its default metrics export to OpenAI (while Claude Code usage is on).
+ * Records a local warning with names and paths only, or clears the project's warning. Never
+ * throws.
+ */
+const checkCodexEnv = async (deps: HookDeps) => {
+  try {
+    const config = await deps.state.usageConfig();
+    if (!config) {
+      await deps.state.removeCodexEnvWarning(deps.projectRef);
+      return;
+    }
+    const env = deps.env ?? {};
+    const risks = await codexEnvRisks({
+      env,
+      home: codexHome(env),
+      ...(config.written?.OTEL_EXPORTER_OTLP_METRICS_HEADERS && {
+        claudeHeader: config.written.OTEL_EXPORTER_OTLP_METRICS_HEADERS,
+      }),
+    });
+    const proxy = config.codex ? risks.proxy : [];
+    const headers = config.codex ? risks.headers : [];
+    if (proxy.length || headers.length || risks.claudeHeader) {
+      await deps.state.saveCodexEnvWarning({
+        project: deps.projectRef,
+        at: (deps.now?.() ?? new Date()).toISOString(),
+        proxy,
+        headers,
+        claudeHeader: risks.claudeHeader,
+      });
+    } else {
+      await deps.state.removeCodexEnvWarning(deps.projectRef);
+    }
+  } catch {
+    // A check that cannot run must never cost the hook event.
+  }
+};
+
+/** The JGR record for a hook, by platform (JD-C02 adapters for Gemini CLI and Codex CLI). */
+const mapForPlatform = (raw: unknown, deps: HookDeps, salt: string) => {
+  const ctx: AdapterContext = {
+    projectRef: deps.projectRef,
+    salt,
+    collectorVersion: COLLECTOR_VERSION,
+  };
+  if (deps.platform === 'gemini-cli') return mapGeminiHook(raw, ctx);
+  if (deps.platform === 'codex-cli') return mapCodexHook(raw, ctx);
+  return mapHook(raw, { projectRef: deps.projectRef, salt });
+};
+
+const hookEventName = (raw: unknown) =>
+  raw && typeof raw === 'object' ? (raw as { hook_event_name?: unknown }).hook_event_name : null;
+
+/**
  * One hook invocation: map → persist sequence → spool → maybe start a background flush.
  * Never throws and never writes to stdout: a hook must not change Claude Code's behaviour.
  */
@@ -90,13 +154,15 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
     }
     const { producer_id, salt } = await deps.state.installation();
     const gemini = deps.platform === 'gemini-cli';
-    const input = gemini
-      ? mapGeminiHook(raw, {
-          projectRef: deps.projectRef,
-          salt,
-          collectorVersion: COLLECTOR_VERSION,
-        })
-      : mapHook(raw, { projectRef: deps.projectRef, salt });
+    const codex = deps.platform === 'codex-cli';
+    if (codex) {
+      // For `javi status`: proof that Codex runs our hooks (project trusted, hooks approved).
+      await deps.state
+        .markHookSeen(deps.projectRef, 'codex-cli', deps.now?.() ?? new Date())
+        .catch(() => {});
+      if (hookEventName(raw) === 'SessionStart') await checkCodexEnv(deps);
+    }
+    const input = mapForPlatform(raw, deps, salt);
     if (!input) return 'ignored';
     if (gemini) {
       // For `javi status`: proof that Gemini runs our hooks (an untrusted folder never does).
@@ -114,6 +180,22 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
       await deps.state
         .rememberSession(input.thread_ref, deps.projectRef, seenAt)
         .catch(() => false);
+      if (codex && hookEventName(raw) === 'SubagentStart') {
+        // C6/M4: the sub-agent's usage arrives under its own id; stored before the hook exits.
+        try {
+          const link = codexSubagentLink(raw);
+          if (link) {
+            await deps.state.rememberSubagent(
+              codexThreadRef(link.agentId, salt),
+              codexThreadRef(link.sessionId, salt),
+              input.agent_ref ?? opaqueRef('ag', link.agentId, salt),
+              seenAt,
+            );
+          }
+        } catch {
+          // A link that cannot be stored only means that sub-agent's usage is dropped.
+        }
+      }
       try {
         await deps.ensureReceiver?.();
       } catch {

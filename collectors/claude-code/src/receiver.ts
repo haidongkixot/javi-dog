@@ -2,8 +2,28 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import { connect } from 'node:net';
 import { gunzip } from 'node:zlib';
-import { parseGeminiMetrics, type AdapterUsagePoint } from '@javis-dog/collector-adapters';
-import { createFileSpool, createJgrClient, type JgrClient } from '@javis-dog/jgr-sdk';
+import {
+  parseCodexLogs,
+  parseGeminiMetrics,
+  type AdapterUsagePoint,
+  type CodexLogsResult,
+} from '@javis-dog/collector-adapters';
+import {
+  createFileSpool,
+  createJgrClient,
+  createMemorySpool,
+  type JgrClient,
+  type RecordInput,
+  type Spool,
+} from '@javis-dog/jgr-sdk';
+import type { JgrEvent } from '@javis-dog/jgr-spec';
+import { CODEX_LOGS_PATH } from './codex-config.ts';
+import {
+  codexCostRecordInput,
+  codexThreadRef,
+  codexTokenRecordInput,
+  type CodexAttribution,
+} from './codex-usage.ts';
 import { parseOtlpMetrics } from './otlp.ts';
 import { runFlush } from './run.ts';
 import type { CollectorState, ReceiverInfo } from './state.ts';
@@ -13,10 +33,14 @@ import { toUsageGroups, toUsageRecord, usageThreadRef, type CumulativeBaselines 
 // ADR-0016, JD-C01). Bound to 127.0.0.1 only. Request bodies, headers and the secret are never
 // logged or stored: only the allowlisted usage fields of attributed sessions reach the
 // project's spool. Gemini CLI also exports logs and traces to the same endpoint; those are
-// answered `200 {}` and drained without being parsed or kept.
+// answered `200 {}` and drained without being parsed or kept. Codex CLI logs have their own
+// path (`/v1/logs/codex-cli`, ADR-0016 Changes M1): parsed with a 5 MiB cap by JD-C02's
+// allowlist, which keeps token counts and cost only.
 
 /** Decoded (and wire) body limit. */
 export const MAX_BODY_BYTES = 1024 * 1024;
+/** Decoded (and wire) body limit on the Codex logs path (M1). */
+export const CODEX_MAX_BODY_BYTES = 5 * 1024 * 1024;
 /** The receiver exits after this long without requests. */
 export const RECEIVER_IDLE_MS = 30 * 60 * 1000;
 /** Minimum gap between two flushes of the same project. */
@@ -218,8 +242,11 @@ const geminiPoints = (body: unknown): AdapterUsagePoint[] => {
   }
 };
 
-/** Reads at most MAX_BODY_BYTES from the wire; beyond that stops buffering (413). */
-const readBody = (req: IncomingMessage): Promise<Buffer> =>
+const tooLarge = (limit: number, what = 'Body') =>
+  `${what} larger than ${limit / (1024 * 1024)} MiB.`;
+
+/** Reads at most `limit` bytes from the wire; beyond that stops buffering (413). */
+const readBody = (req: IncomingMessage, limit = MAX_BODY_BYTES): Promise<Buffer> =>
   new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
@@ -227,10 +254,10 @@ const readBody = (req: IncomingMessage): Promise<Buffer> =>
     req.on('data', (chunk: Buffer) => {
       if (over) return; // drained, never buffered
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
+      if (size > limit) {
         over = true;
         chunks.length = 0;
-        reject(new HttpError(413, 'Body larger than 1 MiB.'));
+        reject(new HttpError(413, tooLarge(limit)));
         return;
       }
       chunks.push(chunk);
@@ -241,13 +268,13 @@ const readBody = (req: IncomingMessage): Promise<Buffer> =>
     req.on('error', () => reject(new HttpError(400, 'Request aborted.')));
   });
 
-const gunzipCapped = (raw: Buffer): Promise<Buffer> =>
+const gunzipCapped = (raw: Buffer, limit = MAX_BODY_BYTES): Promise<Buffer> =>
   new Promise((resolve, reject) => {
     // maxOutputLength caps the decompressed size: a gzip bomb fails fast instead of filling memory.
-    gunzip(raw, { maxOutputLength: MAX_BODY_BYTES }, (error, out) => {
+    gunzip(raw, { maxOutputLength: limit }, (error, out) => {
       if (!error) resolve(out);
       else if ((error as { code?: string }).code === 'ERR_BUFFER_TOO_LARGE') {
-        reject(new HttpError(413, 'Decoded body larger than 1 MiB.'));
+        reject(new HttpError(413, tooLarge(limit, 'Decoded body')));
       } else reject(new HttpError(400, 'Invalid gzip body.'));
     });
   });
@@ -408,10 +435,120 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
     for (const projectRef of touched) scheduleFlush(projectRef);
   };
 
+  /** Codex hook-attributed thread of a conversation id: its session, or a sub-agent's parent. */
+  const codexAttribution = async (conversationId: string): Promise<CodexAttribution | null> => {
+    const own = codexThreadRef(conversationId, salt);
+    const project = await state.sessionProject(own);
+    if (project) return { projectRef: project, threadRef: own };
+    const link = await state.subagentParent(own);
+    if (!link) return null; // e.g. usage that arrives before its SubagentStart hook (C6)
+    const parentProject = await state.sessionProject(link.parent);
+    return parentProject
+      ? { projectRef: parentProject, threadRef: link.parent, agentRef: link.agentRef }
+      : null;
+  };
+
+  /**
+   * Codex token and cost records → the attributed projects' spools, all or nothing per request
+   * (M1): every event is built and validated in memory first, then appended; when an append
+   * fails, the events already appended by this request are removed again (503).
+   */
+  const acceptCodex = async (body: unknown) => {
+    let parsed: CodexLogsResult;
+    try {
+      parsed = parseCodexLogs(body);
+    } catch {
+      parsed = { ok: false, error: 'parser failed' };
+    }
+    // A constant message: never a snippet of the body.
+    if (!parsed.ok) throw new HttpError(400, 'Not an OTLP logs request.');
+    if (!parsed.tokens.length && !parsed.costs.length) return;
+    const now = new Date();
+    const seen = new Map<string, CodexAttribution | null>();
+    const attribute = async (conversationId: string) => {
+      if (!seen.has(conversationId))
+        seen.set(conversationId, await codexAttribution(conversationId));
+      return seen.get(conversationId)!;
+    };
+    const inputs: Array<RecordInput & { event_id: string }> = [];
+    let dropped = 0;
+    for (const record of parsed.tokens) {
+      const to = await attribute(record.conversationId);
+      if (!to) {
+        dropped += 1; // unknown ids never leave the machine
+        continue;
+      }
+      const input = codexTokenRecordInput(record, to, salt, now);
+      if (input) inputs.push(input);
+    }
+    for (const record of parsed.costs) {
+      const to = await attribute(record.conversationId);
+      if (!to) {
+        dropped += 1;
+        continue;
+      }
+      const input = codexCostRecordInput(record, to, salt, now);
+      if (input) inputs.push(input);
+    }
+    const { producer_id } = await state.installation();
+    const builders = new Map<string, JgrClient | null>();
+    const events = new Map<string, JgrEvent[]>();
+    for (const input of inputs) {
+      const projectRef = input.project_ref;
+      if (!builders.has(projectRef)) {
+        const creds = await state.credentials(projectRef);
+        builders.set(
+          projectRef,
+          creds
+            ? createJgrClient({
+                endpoint: creds.endpoint,
+                token: creds.token,
+                producerId: producer_id,
+                spool: createMemorySpool(),
+              })
+            : null,
+        );
+      }
+      const builder = builders.get(projectRef);
+      if (!builder) {
+        dropped += 1;
+        continue;
+      }
+      const result = await builder.record({
+        ...input,
+        sequence: await state.nextSequence(input.thread_ref),
+      });
+      if (!result.ok) {
+        dropped += 1;
+        continue;
+      }
+      events.set(projectRef, [...(events.get(projectRef) ?? []), result.event]);
+    }
+    const appended: Array<{ spool: Spool; ids: string[] }> = [];
+    try {
+      for (const [projectRef, batch] of events) {
+        const spool = createFileSpool(state.spoolDir(projectRef));
+        await spool.append(batch);
+        appended.push({ spool, ids: batch.map((e) => e.event_id) });
+      }
+    } catch (e) {
+      for (const { spool, ids } of appended) await spool.remove(ids).catch(() => {});
+      throw e;
+    }
+    if (info) {
+      info.forwarded += [...events.values()].reduce((n, batch) => n + batch.length, 0);
+      info.dropped += dropped;
+      info.lastRequestAt = new Date().toISOString();
+      await persistInfo();
+    }
+    for (const projectRef of events.keys()) scheduleFlush(projectRef);
+  };
+
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     const path = (req.url ?? '').split('?')[0]!;
     const sink = SINK_PATHS.has(path);
-    if (!PATHS.has(path) && !sink) return send(res, 404, { message: 'Not found.' });
+    const codex = path === CODEX_LOGS_PATH;
+    if (!PATHS.has(path) && !sink && !codex) return send(res, 404, { message: 'Not found.' });
     if (req.method !== 'POST') {
       return send(res, 405, { message: 'Method not allowed.' }, { allow: 'POST' });
     }
@@ -442,20 +579,22 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
     if (encoding !== 'identity' && encoding !== 'gzip') {
       return send(res, 415, { message: 'Only gzip or identity encoding is accepted.' });
     }
+    const limit = codex ? CODEX_MAX_BODY_BYTES : MAX_BODY_BYTES;
     const declared = Number(req.headers['content-length']);
-    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
-      return send(res, 413, { message: 'Body larger than 1 MiB.' }, { connection: 'close' });
+    if (Number.isFinite(declared) && declared > limit) {
+      return send(res, 413, { message: tooLarge(limit) }, { connection: 'close' });
     }
-    const raw = await readBody(req);
-    const decoded = encoding === 'gzip' ? await gunzipCapped(raw) : raw;
-    if (decoded.length > MAX_BODY_BYTES) throw new HttpError(413, 'Body larger than 1 MiB.');
+    const raw = await readBody(req, limit);
+    const decoded = encoding === 'gzip' ? await gunzipCapped(raw, limit) : raw;
+    if (decoded.length > limit) throw new HttpError(413, tooLarge(limit));
     let body: unknown;
     try {
       body = JSON.parse(decoded.toString('utf8'));
     } catch {
       throw new HttpError(400, 'Invalid JSON.');
     }
-    await accept(body);
+    if (codex) await acceptCodex(body);
+    else await accept(body);
     send(res, 200, {});
   };
 

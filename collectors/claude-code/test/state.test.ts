@@ -78,3 +78,27 @@ describe('createState home creation', () => {
     }
   });
 });
+
+describe('Codex sub-agent links (S5c C6, M4)', () => {
+  const child = `cx_${'a'.repeat(32)}`;
+  const parent = `cx_${'b'.repeat(32)}`;
+  const agent = `ag_${'c'.repeat(32)}`;
+  it('stores hashed refs only, with the 7-day session TTL', async () => {
+    const s = createState(home);
+    const day = 24 * 60 * 60 * 1000;
+    expect(await s.rememberSubagent('raw-agent-id', parent, agent, 0)).toBe(false);
+    expect(await s.rememberSubagent(child, 'raw-session-id', agent, 0)).toBe(false);
+    expect(await s.rememberSubagent(child, parent, 'has/slash', 0)).toBe(false);
+    expect(await s.rememberSubagent(child, parent, agent, 1_000)).toBe(true);
+    expect(await s.subagentParent(child, 1_000 + 6 * day)).toEqual({ parent, agentRef: agent });
+    expect(await s.subagentParent(`cx_${'d'.repeat(32)}`)).toBeNull();
+    expect(await s.subagentParent(child, 1_000 + 7 * day)).toBeNull();
+    expect(await s.subagentParent(child, 1_000)).toBeNull(); // expired entries are removed
+  });
+
+  it('sessions accept cx_ refs', async () => {
+    const s = createState(home);
+    expect(await s.rememberSession(parent, 'web-app', Date.now())).toBe(true);
+    expect(await s.sessionProject(parent)).toBe('web-app');
+  });
+});
