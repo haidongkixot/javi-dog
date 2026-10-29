@@ -1,0 +1,102 @@
+{
+  "$schema": "./schema.json",
+  "id": "H07",
+  "kind": "hook",
+  "description": "BeforeTool / AfterTool for an MCP tool keep the tool_name (mcp_<server>_<tool>) and discard mcp_context and original_request_name.",
+  "contract": "ADR-0016 §2 Event mapping (tool_name only); hooks reference: Matchers and tool names (MCP pattern), BeforeTool / AfterTool mcp_context and original_request_name",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S1/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "tool_name": "mcp_github_create_issue",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H07_S1",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H07_S1/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H07_S1": "x"
+        },
+        "mcp_context": {
+          "server_name": "SENTINEL_MCP_SERVER_H07_S1",
+          "url": "https://SENTINEL_MCP_URL_H07_S1.example.com/mcp",
+          "token": "SENTINEL_MCP_TOKEN_H07_S1"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H07_S1"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h07",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_github_create_issue"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S2/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "tool_name": "mcp_github_create_issue",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H07_S2",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H07_S2/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H07_S2": "x"
+        },
+        "tool_response": {
+          "llmContent": "file contents SENTINEL_TOOLRESPONSE_LLM_H07_S2",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S2"
+        },
+        "mcp_context": {
+          "server_name": "SENTINEL_MCP_SERVER_H07_S2",
+          "url": "https://SENTINEL_MCP_URL_H07_S2.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H07_S2"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_github_create_issue"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H07_S1",
+    "SENTINEL_CWD_H07_S2",
+    "SENTINEL_MCP_SERVER_H07_S1",
+    "SENTINEL_MCP_SERVER_H07_S2",
+    "SENTINEL_MCP_TOKEN_H07_S1",
+    "SENTINEL_MCP_URL_H07_S1",
+    "SENTINEL_MCP_URL_H07_S2",
+    "SENTINEL_ORIGINAL_REQUEST_H07_S1",
+    "SENTINEL_ORIGINAL_REQUEST_H07_S2",
+    "SENTINEL_TOOLINPUT_H07_S1",
+    "SENTINEL_TOOLINPUT_H07_S2",
+    "SENTINEL_TOOLINPUT_KEY_H07_S1",
+    "SENTINEL_TOOLINPUT_KEY_H07_S2",
+    "SENTINEL_TOOLINPUT_PATH_H07_S1",
+    "SENTINEL_TOOLINPUT_PATH_H07_S2",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S2",
+    "SENTINEL_TOOLRESPONSE_LLM_H07_S2",
+    "SENTINEL_TRANSCRIPT_H07_S1",
+    "SENTINEL_TRANSCRIPT_H07_S2",
+    "/home/dev"
+  ]
+}

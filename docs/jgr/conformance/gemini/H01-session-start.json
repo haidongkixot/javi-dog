@@ -1,0 +1,33 @@
+{
+  "$schema": "./schema.json",
+  "id": "H01",
+  "kind": "hook",
+  "description": "SessionStart (source startup) becomes session.started with a gm_ thread_ref and platform gemini-cli; transcript_path and cwd are never copied.",
+  "contract": "ADR-0016 §2 Event mapping (SessionStart → session.started), Refs (opaqueRef('gm', session_id, salt), attributes.platform = gemini-cli); hooks reference: Base input schema, SessionStart; spec §3 (thread_ref never a path), §12 (session_id hashed)",
+  "ambiguities": ["G7"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h01",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H01_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h01",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": ["SENTINEL_CWD_H01_S1", "SENTINEL_TRANSCRIPT_H01_S1", "/home/dev"]
+}

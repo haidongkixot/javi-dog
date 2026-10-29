@@ -1,0 +1,143 @@
+{
+  "$schema": "./schema.json",
+  "id": "H10",
+  "kind": "hook",
+  "description": "BeforeModel, AfterModel and BeforeToolSelection (llm_request / llm_response with messages and model output) produce nothing.",
+  "contract": "ADR-0016 §2 Event mapping (\"Everything else is dropped\"); hooks reference: Model hooks, Stable Model API",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h10",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H10_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H10_S1/web-app",
+        "hook_event_name": "BeforeModel",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "llm_request": {
+          "model": "gemini-2.5-pro",
+          "messages": [
+            {
+              "role": "system",
+              "content": "SENTINEL_LLMREQ_SYSTEM_H10_S1"
+            },
+            {
+              "role": "user",
+              "content": "SENTINEL_LLMREQ_USER_H10_S1"
+            }
+          ],
+          "config": {
+            "temperature": 0.2
+          },
+          "toolConfig": {
+            "mode": "AUTO",
+            "allowedFunctionNames": ["read_file"]
+          }
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h10",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H10_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H10_S2/web-app",
+        "hook_event_name": "AfterModel",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "llm_request": {
+          "model": "gemini-2.5-pro",
+          "messages": [
+            {
+              "role": "system",
+              "content": "SENTINEL_LLMREQ_SYSTEM_H10_S2"
+            },
+            {
+              "role": "user",
+              "content": "SENTINEL_LLMREQ_USER_H10_S2"
+            }
+          ],
+          "config": {
+            "temperature": 0.2
+          },
+          "toolConfig": {
+            "mode": "AUTO",
+            "allowedFunctionNames": ["read_file"]
+          }
+        },
+        "llm_response": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": ["SENTINEL_LLMRESP_H10_S2"]
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "totalTokenCount": 1234
+          }
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h10",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H10_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H10_S3/web-app",
+        "hook_event_name": "BeforeToolSelection",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "llm_request": {
+          "model": "gemini-2.5-pro",
+          "messages": [
+            {
+              "role": "system",
+              "content": "SENTINEL_LLMREQ_SYSTEM_H10_S3"
+            },
+            {
+              "role": "user",
+              "content": "SENTINEL_LLMREQ_USER_H10_S3"
+            }
+          ],
+          "config": {
+            "temperature": 0.2
+          },
+          "toolConfig": {
+            "mode": "AUTO",
+            "allowedFunctionNames": ["read_file"]
+          }
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H10_S1",
+    "SENTINEL_CWD_H10_S2",
+    "SENTINEL_CWD_H10_S3",
+    "SENTINEL_LLMREQ_SYSTEM_H10_S1",
+    "SENTINEL_LLMREQ_SYSTEM_H10_S2",
+    "SENTINEL_LLMREQ_SYSTEM_H10_S3",
+    "SENTINEL_LLMREQ_USER_H10_S1",
+    "SENTINEL_LLMREQ_USER_H10_S2",
+    "SENTINEL_LLMREQ_USER_H10_S3",
+    "SENTINEL_LLMRESP_H10_S2",
+    "SENTINEL_TRANSCRIPT_H10_S1",
+    "SENTINEL_TRANSCRIPT_H10_S2",
+    "SENTINEL_TRANSCRIPT_H10_S3",
+    "/home/dev"
+  ]
+}

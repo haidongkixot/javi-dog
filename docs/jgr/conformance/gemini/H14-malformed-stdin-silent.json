@@ -1,0 +1,44 @@
+{
+  "$schema": "./schema.json",
+  "id": "H14",
+  "kind": "hook",
+  "description": "Stdin that is not a JSON object (truncated JSON, an array, the literal null, an empty body) produces nothing, and javi hook still exits 0 with empty stdout.",
+  "contract": "ADR-0016 §2 \"Hooks are synchronous, so javi hook keeps its contract: spool the event, start a detached flush, exit 0 with empty stdout\"; ADR-0010 Neutral hooks (\"prints nothing and exits 0 in every case (bad input ...)\"); hooks reference: Global hook mechanics (exit codes, \"Silence is Mandatory\")",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": null,
+      "rawStdin": "{\"session_id\":\"gm-sess-h14\",\"hook_event_name\":\"BeforeTool\",\"tool_name\":\"read_file\",\"tool_input\":{\"path\":\"SENTINEL_TOOLINPUT_H14\"",
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": null,
+      "rawStdin": "[{\"session_id\":\"gm-sess-h14\",\"hook_event_name\":\"SessionStart\"}]",
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": null,
+      "rawStdin": "null",
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": null,
+      "rawStdin": "",
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": ["SENTINEL_TOOLINPUT_H14"]
+}

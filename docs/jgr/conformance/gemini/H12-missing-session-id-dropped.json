@@ -1,0 +1,71 @@
+{
+  "$schema": "./schema.json",
+  "id": "H12",
+  "kind": "hook",
+  "description": "A mapped event without session_id (absent, or JSON null) produces nothing: there is no thread to attribute it to.",
+  "contract": "ADR-0016 §2 Refs (thread_ref = opaqueRef('gm', session_id, salt)); hooks reference: Base input schema (session_id: string); spec §3 (thread_ref MUST)",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H12_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S2/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "tool_name": "read_file",
+        "tool_input": {
+          "command": "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H12_S2",
+          "file_path": "/home/dev/SENTINEL_TOOLINPUT_PATH_H12_S2/main.ts",
+          "SENTINEL_TOOLINPUT_KEY_H12_S2": "x"
+        }
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": null,
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H12_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H12_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S3/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H12_S1",
+    "SENTINEL_CWD_H12_S2",
+    "SENTINEL_CWD_H12_S3",
+    "SENTINEL_TOOLINPUT_H12_S2",
+    "SENTINEL_TOOLINPUT_KEY_H12_S2",
+    "SENTINEL_TOOLINPUT_PATH_H12_S2",
+    "SENTINEL_TRANSCRIPT_H12_S1",
+    "SENTINEL_TRANSCRIPT_H12_S2",
+    "SENTINEL_TRANSCRIPT_H12_S3",
+    "/home/dev"
+  ]
+}

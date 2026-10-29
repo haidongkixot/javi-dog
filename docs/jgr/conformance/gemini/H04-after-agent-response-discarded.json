@@ -1,0 +1,42 @@
+{
+  "$schema": "./schema.json",
+  "id": "H04",
+  "kind": "hook",
+  "description": "AfterAgent becomes heartbeat idle; prompt and prompt_response are discarded; stop_hook_active is not copied.",
+  "contract": "ADR-0016 §2 Event mapping (AfterAgent → heartbeat idle, prompt and response discarded); hooks reference: AfterAgent input fields; spec §7, §12 (assistant response bodies dropped)",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h04",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H04_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H04_S1/web-app",
+        "hook_event_name": "AfterAgent",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "prompt": "Refactor SENTINEL_PROMPT_H04_S1 please",
+        "prompt_response": "Done. The secret is SENTINEL_RESPONSE_H04_S1",
+        "stop_hook_active": false
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h04",
+          "status": "idle",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H04_S1",
+    "SENTINEL_PROMPT_H04_S1",
+    "SENTINEL_RESPONSE_H04_S1",
+    "SENTINEL_TRANSCRIPT_H04_S1",
+    "/home/dev"
+  ]
+}

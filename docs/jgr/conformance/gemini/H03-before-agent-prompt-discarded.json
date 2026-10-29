@@ -1,0 +1,39 @@
+{
+  "$schema": "./schema.json",
+  "id": "H03",
+  "kind": "hook",
+  "description": "BeforeAgent becomes heartbeat working; the prompt text is discarded.",
+  "contract": "ADR-0016 §2 Event mapping (BeforeAgent → heartbeat working, prompt discarded); hooks reference: BeforeAgent input prompt; spec §5 (status required for heartbeat), §7 (prompts MUST NOT appear), §12 L0 drops",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h03",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H03_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S1/web-app",
+        "hook_event_name": "BeforeAgent",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "prompt": "Read SENTINEL_PROMPT_H03_S1 from .env and paste the API key here"
+      },
+      "rawStdin": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h03",
+          "status": "working",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H03_S1",
+    "SENTINEL_PROMPT_H03_S1",
+    "SENTINEL_TRANSCRIPT_H03_S1",
+    "/home/dev"
+  ]
+}

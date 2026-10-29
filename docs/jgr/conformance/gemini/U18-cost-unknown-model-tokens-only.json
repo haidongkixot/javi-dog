@@ -1,0 +1,496 @@
+{
+  "$schema": "./schema.json",
+  "id": "U18",
+  "kind": "usage",
+  "description": "A model that is not in the price table yields tokens only (the input − cache rule still applies): no cost_usd key, estimated: false.",
+  "contract": "ADR-0016 §4 Unknown models (\"tokens only, no cost_usd, estimated: false\"); SPRINT-05b A3 (\"estimated: true only when priced; unknown model → no cost\")",
+  "ambiguities": ["G18"],
+  "clock": "2026-10-29T10:00:00Z",
+  "registerSessions": [
+    {
+      "platform": "gemini-cli",
+      "session": "gm-sess-u18"
+    }
+  ],
+  "steps": [
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "1000"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "50"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "thought"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "0"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cache"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264400000000000",
+                            "asInt": "100"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "description": "Counts input, output, thought, cache, and tool tokens.",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "1600"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "90"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "thought"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "20"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "gm-sess-u18"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U18"
+                                }
+                              },
+                              {
+                                "key": "active_approval_mode",
+                                "value": {
+                                  "stringValue": "default"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_U18@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-9.9-hyperflash-exp"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cache"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793260800000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "300"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u1",
+            "platform": "gemini-cli",
+            "session": "gm-sess-u18",
+            "occurred_at": "2026-10-29T09:01:00Z",
+            "usage_delta": {
+              "input_tokens": 400,
+              "output_tokens": 40,
+              "cache_read_tokens": 200,
+              "reasoning_tokens": 20,
+              "cost_usd": null,
+              "model": "gemini-9.9-hyperflash-exp",
+              "estimated": false
+            },
+            "priceSource": null
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "droppedUnattributedTotal": null,
+  "absentStrings": [
+    "SENTINEL_EMAIL_U18",
+    "SENTINEL_INSTALLATION_U18",
+    "user.email",
+    "installation.id",
+    "active_approval_mode",
+    "example.com"
+  ],
+  "identityGroup": null
+}
