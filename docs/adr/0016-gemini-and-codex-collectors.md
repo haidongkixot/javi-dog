@@ -133,3 +133,14 @@ The roadmap's S5 needs the Codex and Gemini CLI collectors (owner priority "Clau
   - **R7 — the backup never holds javi's own secret.** The backup is taken only when the file has no javi block, and a successful `usage off` restore removes it.
   - **R8 — `uninstall --forget-token`** keeps the project token, with a notice, while the other platform's hooks for the same project are still installed.
   - **R9 — logs and traces over 1 MiB** are drained and answered `200 {}`. They are never buffered, so this is safe. The bearer and Host checks still apply.
+- 2026-10-29 (S5b review fixes, Developer D `5e2bd33`):
+  - **R1 detection.**
+    - The `.env` chain follows gemini-cli `findEnvFile`: for each folder from cwd up to the root, `<dir>/.gemini/.env` then `<dir>/.env`; then `<home>/.gemini/.env` and `<home>/.env`. Home is `GEMINI_CLI_HOME` or the OS home.
+    - javi checks **every** file in the chain, because which file Gemini loads depends on folder trust and flags javi cannot see. This can cause extra refusals but never a miss.
+    - Keys: any `GEMINI_TELEMETRY_*` or `OTEL_EXPORTER_OTLP_*`, except a value identical to what javi itself set for Claude Code (a Gemini CLI started inside Claude Code inherits those). The comparison happens in memory only.
+    - The SessionStart check also reads the `.env` chain, because Gemini redacts the hook env in strict or GitHub mode. The warning file `~/.javi/warnings/gemini-telemetry.<project>.json` holds `{project, at, overrides:[{source, keys}]}` and no values. A clean SessionStart clears it, and so does `usage off`.
+    - Not visible to javi: `--telemetry-*` command-line flags, system settings files, and folders without javi hooks.
+  - **R3/R6 grouping.** The Gemini group key is (session, model, auth type, endNs). The event id hashes `gemini-cli\0session\0model\0authType\0endNs`.
+  - **R4 series id.** The hidden, non-enumerable `seriesId` is a SHA-256 over all point attributes, `startNs` and the resolved session id. A Gemini restart is a new series, so G21 applies to it.
+  - **R7 backups.** The status is reported as created, kept or skipped. The backup is removed after a `restored` outcome and kept after a `removed` one.
+  - **R9.** Sink bodies of any size are drained and answered `200 {}`. Metrics keep the 1 MiB limit.
