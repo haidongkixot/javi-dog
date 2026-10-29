@@ -264,3 +264,9 @@ The roadmap's S5 needs the Codex and Gemini CLI collectors (owner priority "Clau
     - whether sub-agent `Stop` and `SessionStart` hooks carry the root `session_id`, which would idle or restart the root thread;
     - whether a parent turn's cost already includes its sub-agents' costs (possible double count);
     - macOS and Windows system-proxy behaviour at runtime.
+- 2026-10-29 (S5c review fixes, Developer E `ffd1bdd`; runner R1 `4f4b42f`):
+  - **Re-sent records.** The Codex conformance runner found that a re-sent `response.completed` or a re-logged `codex.turn_cost` was spooled again with the same `event_id` and a new `sequence`. The server deduplicated it, which left a sequence gap that JGR §9 shows as possible signal loss.
+    - The receiver now persists recently accepted Codex event ids in `~/.javi/accepted/codex-cli.json`. It keeps only the HMAC-derived UUIDs: the newest 20 000, swept after 7 days, written atomically under a lock.
+    - Ids already accepted are skipped before they get a sequence, counted as duplicates, and recorded only after a successful append.
+  - **`hooks.json` origin.** `init` records whether javi created the file, which events it already had, and whether it had a `hooks` key, in `~/.javi/codex-hooks/<hash>.json`. Uninstall restores the user's file from that record and never deletes a file without one.
+  - **Accepted.** A user `hooks.json` with duplicate `"hooks"` keys falls back to full re-serialization (the last key wins, as in JSON parsers). It is not restored byte for byte, and this is documented. An env `NO_PROXY` that covers `127.0.0.1` also clears an OS-proxy finding, because hyper-util applies it to system proxies too.
