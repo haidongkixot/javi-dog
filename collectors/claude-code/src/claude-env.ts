@@ -1,4 +1,4 @@
-import { mkdir, readFile, readlink, realpath, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { writeJsonPrivate } from './state.ts';
 
@@ -47,8 +47,16 @@ export const usageEnv = (port: number, secret: string): Record<string, string> =
   };
 };
 
+/**
+ * What happened to `settings.json.javi-backup` (R7 twin of ADR-0016 Changes R7): `created`
+ * holds the file as it was before this change; `kept` is an earlier backup left as it is (not
+ * a copy of the file before this change); `skipped`: the file already held javi's keys (and
+ * secret), so no backup was made. `null` when there was no file.
+ */
+export type SettingsBackup = { path: string; status: 'created' | 'kept' | 'skipped' } | null;
+
 export type EnableResult =
-  | { ok: true; path: string; backup: string | null; written: Record<string, string> }
+  | { ok: true; path: string; backup: SettingsBackup; written: Record<string, string> }
   | { ok: false; reason: 'unparsable' | 'not_object' | 'conflict'; keys?: string[] };
 
 type JsonObject = Record<string, unknown>;
@@ -142,14 +150,22 @@ export const enableUsageEnv = async (opts: {
   }
   if (conflicts.size) return { ok: false, reason: 'conflict', keys: [...conflicts].sort() };
 
-  let backup: string | null = null;
+  let backup: SettingsBackup = null;
   if (loaded.kind === 'ok') {
-    backup = `${path}${BACKUP_SUFFIX}`;
-    try {
-      // `wx`: the first backup is the user's original; never overwrite it.
-      await writeFile(backup, loaded.text, { mode: 0o600, flag: 'wx' });
-    } catch (e) {
-      if ((e as { code?: string }).code !== 'EEXIST') throw e;
+    const backupFile = `${path}${BACKUP_SUFFIX}`;
+    // Past the conflict check, every telemetry key left in `env` is javi's own (with the
+    // secret): such a file is never copied into a backup.
+    if (Object.keys(env).some(isTelemetryKey)) {
+      backup = { path: backupFile, status: 'skipped' };
+    } else {
+      try {
+        // `wx`: the first backup is the user's original; never overwrite it.
+        await writeFile(backupFile, loaded.text, { mode: 0o600, flag: 'wx' });
+        backup = { path: backupFile, status: 'created' };
+      } catch (e) {
+        if ((e as { code?: string }).code !== 'EEXIST') throw e;
+        backup = { path: backupFile, status: 'kept' };
+      }
     }
   } else {
     await mkdir(dirname(path), { recursive: true, mode: 0o700 });
@@ -167,9 +183,18 @@ export interface DisableResult {
    * was removed, and the keys javi wrote may still be there until the user fixes the file.
    */
   unreadable?: true;
+  /**
+   * Every key javi wrote was removed, so the file is back to having none of javi's settings:
+   * its `settings.json.javi-backup` (if any) was removed too.
+   */
+  backupRemoved?: string;
 }
 
-/** Removes the keys in `written` whose value is unchanged; returns the removed keys. */
+/**
+ * Removes the keys in `written` whose value is unchanged; returns the removed keys. When all
+ * of them were removed (a full restore), the backup next to the file is removed too; after a
+ * partial removal (the user changed a javi key) it is kept.
+ */
 export const disableUsageEnv = async (opts: {
   path: string;
   written: Record<string, string>;
@@ -194,5 +219,12 @@ export const disableUsageEnv = async (opts: {
   if (Object.keys(env).length) settings.env = env;
   else delete settings.env;
   await writeSettings(path, settings);
-  return { path, removed };
+  if (removed.length < Object.keys(written).length) return { path, removed };
+  const backup = `${path}${BACKUP_SUFFIX}`;
+  const hadBackup = await stat(backup).then(
+    () => true,
+    () => false,
+  );
+  if (hadBackup) await rm(backup, { force: true });
+  return { path, removed, ...(hadBackup && { backupRemoved: backup }) };
 };

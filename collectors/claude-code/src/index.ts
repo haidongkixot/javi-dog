@@ -104,4 +104,5 @@ export {
   usageEnv,
   type DisableResult,
   type EnableResult,
+  type SettingsBackup,
 } from './claude-env.ts';
