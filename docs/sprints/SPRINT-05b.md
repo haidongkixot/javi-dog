@@ -92,6 +92,9 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-29 — CI **FAIL** on `d4f2710` (run 40867278461). `gemini-hook-process.test.ts` "full path (stub mapper)" failed with `expected 1522 to be less than or equal to 1500`.
+  - Diagnosis: in the same CI run the stub-mapper hooks took 784–1522 ms, while the real JD-C02 path took 425–540 ms. The extra time came from the test's own `--import` stub loader, which was scaffolding from before JD-C02 existed. The bound was measuring the harness, not javi. `0cff148` was green only by margin (run 40876190084).
+  - Fix: the stub run is removed. The full-path checks (spooled or delivered types, privacy sentinels) now run on the real adapters, with the same 1500 ms bound. The bound was not raised and no test was skipped. The collector suite passed 440/440 twice under parallel load.
 - 2026-10-29 — `0cff148` pushed: the review fixes, 53 vectors and the runner. CI: pending at write time.
 - 2026-10-29 — `8e8c5a9` pushed after the full gate passed. CI on `8c8c864` (40858390962) and `8baec90` (40859738459): **PASS**.
 
