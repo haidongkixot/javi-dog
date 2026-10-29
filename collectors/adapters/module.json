@@ -7,9 +7,11 @@
   "owner": "platform",
   "provides": [
     "mapGeminiHook()",
+    "geminiThreadRef()",
     "parseGeminiMetrics()",
     "geminiUsageDelta()",
     "estimateGeminiCostUsd()",
+    "findGeminiPrice()",
     "GEMINI_PRICES",
     "GEMINI_HOOK_EVENTS"
   ],

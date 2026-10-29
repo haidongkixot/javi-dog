@@ -4,6 +4,7 @@ export {
   GEMINI_PLATFORM,
   GEMINI_THREAD_PREFIX,
   GEMINI_TOKEN_METRIC,
+  geminiThreadRef,
   geminiUsageDelta,
   mapGeminiHook,
   parseGeminiMetrics,
@@ -16,5 +17,5 @@ export type {
   GeminiHookEvent,
   UsageCounters,
 } from './gemini.ts';
-export { GEMINI_PRICES, estimateGeminiCostUsd } from './prices.ts';
+export { GEMINI_PRICES, estimateGeminiCostUsd, findGeminiPrice } from './prices.ts';
 export type { ModelPrice, PriceTable } from './prices.ts';
