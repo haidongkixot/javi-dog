@@ -29,6 +29,7 @@ import {
   enableUsageEnv,
   usageEnv,
   type EnableResult,
+  type SettingsBackup,
 } from './claude-env.ts';
 import {
   geminiHome,
@@ -327,11 +328,7 @@ const usageOn = async (
   await afterUsageOn(state, live, port);
   io.out(`Token usage export enabled in ${result.path}:`);
   io.out(`  ${Object.keys(result.written).join(', ')}`);
-  io.out(
-    result.backup
-      ? `Your previous settings are backed up in ${result.backup}.`
-      : 'There was no settings file before, so there was nothing to back up.',
-  );
+  io.out(backupLine(result.path, result.backup, "javi's usage keys"));
   io.out(
     `Claude Code sessions started from now on export token usage to 127.0.0.1:${port} about once a minute; sessions already running are not affected.`,
   );
@@ -425,7 +422,7 @@ const geminiUsageOn = async (
   io.out(`Gemini CLI telemetry export enabled in ${result.path} (user-wide):`);
   io.out(`  telemetry: ${Object.keys(result.written).join(', ')}`);
   io.out('Prompt logging is off (logPrompts: false) and so are traces (traces: false).');
-  io.out(geminiBackupLine(result.path, result.backup));
+  io.out(backupLine(result.path, result.backup, "javi's telemetry block"));
   io.out(
     'This is user-wide: every Gemini CLI session of this user started from now on, in any folder, exports metrics, logs and traces about every 10 seconds; sessions already running are not affected.',
   );
@@ -448,8 +445,11 @@ const geminiUsageOn = async (
   return 0;
 };
 
-/** What `usage on --platform gemini-cli` did with the backup (ADR-0016 Changes R7). */
-const geminiBackupLine = (path: string, backup: GeminiBackup) => {
+/**
+ * What `usage on` (either platform) did with the settings backup (ADR-0016 Changes R7 and its
+ * Claude Code twin); `ours` names what javi writes into that file.
+ */
+const backupLine = (path: string, backup: GeminiBackup | SettingsBackup, ours: string) => {
   if (!backup) return 'There was no settings file before, so there was nothing to back up.';
   if (backup.status === 'created') {
     return `A copy of ${path} as it was before this change is in ${backup.path}.`;
@@ -457,7 +457,7 @@ const geminiBackupLine = (path: string, backup: GeminiBackup) => {
   if (backup.status === 'kept') {
     return `An earlier backup in ${backup.path} was kept as it is; it is not a copy of the file before this change.`;
   }
-  return `No new backup: ${path} already holds javi's telemetry block.`;
+  return `No new backup: ${path} already holds ${ours}.`;
 };
 
 /**
@@ -507,7 +507,7 @@ const usageOff = async (
     io.out('Token usage export for Claude Code is already off.');
     return 0;
   }
-  const { path, removed, unreadable } = await disableUsageEnv({
+  const { path, removed, unreadable, backupRemoved } = await disableUsageEnv({
     path: claudeSettings(io.env),
     written: config.written,
   });
@@ -529,6 +529,7 @@ const usageOff = async (
       ? `Removed from ${path}: ${removed.join(', ')}.`
       : `Nothing to remove from ${path} (those keys were already changed or removed).`,
   );
+  if (backupRemoved) io.out(`Removed the backup ${backupRemoved}: it is no longer needed.`);
   io.out(
     receiver === 'kept'
       ? 'The usage receiver keeps running for Gemini CLI.'

@@ -140,6 +140,46 @@ describe('javi usage on', () => {
     expect((await state.usageConfig())!).toMatchObject({ port, secret: config.secret });
   });
 
+  it('the backup never holds javi’s secret, the messages say what happened, a full off removes it (R7 twin)', async () => {
+    const port = await freePort();
+    const backup = `${settings}.javi-backup`;
+    // No settings file: usage on creates it, then runs again (same or new port).
+    const first = io();
+    expect(await main(['usage', 'on', '--port', String(port)], first.value)).toBe(0);
+    expect(first.out).toContain(
+      'There was no settings file before, so there was nothing to back up.',
+    );
+    const again = io();
+    expect(await main(['usage', 'on'], again.value)).toBe(0);
+    expect(
+      await stat(backup).then(
+        () => true,
+        () => false,
+      ),
+    ).toBe(false);
+    expect(again.out.join('\n')).not.toMatch(/backed up|A copy of/);
+    expect(again.out).toContain(`No new backup: ${settings} already holds javi's usage keys.`);
+    expect(await main(['usage', 'off'], io().value)).toBe(0);
+
+    // An existing file: one copy before the change; a full usage off removes it.
+    await writeFile(settings, '{"theme":"dark"}\n');
+    const on = io();
+    expect(await main(['usage', 'on', '--port', String(port)], on.value)).toBe(0);
+    expect(on.out).toContain(`A copy of ${settings} as it was before this change is in ${backup}.`);
+    expect(await readFile(backup, 'utf8')).toBe('{"theme":"dark"}\n');
+    expect(await readFile(backup, 'utf8')).not.toContain((await state.usageConfig())!.secret);
+    const off = io();
+    expect(await main(['usage', 'off'], off.value)).toBe(0);
+    expect(off.out).toContain(`Removed the backup ${backup}: it is no longer needed.`);
+    expect(
+      await stat(backup).then(
+        () => true,
+        () => false,
+      ),
+    ).toBe(false);
+    expect(JSON.parse(await readFile(settings, 'utf8'))).toEqual({ theme: 'dark' });
+  });
+
   it('refuses a foreign OTEL_ key in the settings: prints only the key name, bytes unchanged', async () => {
     await mkdir(join(claudeHome, '.claude'), { recursive: true });
     const original = `{\n  "env": { "OTEL_EXPORTER_OTLP_ENDPOINT": "https://collector.corp.example/tenant-s3cr3t" }\n}\n`;

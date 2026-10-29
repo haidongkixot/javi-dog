@@ -127,15 +127,15 @@ describe('enableUsageEnv', () => {
     const original = '{ "model": "opus" ,\n  "env": {} }\n';
     await seed(original);
     const first = await enable();
-    expect(first).toMatchObject({ ok: true, backup: backupPath() });
+    expect(first).toMatchObject({ ok: true, backup: { path: backupPath(), status: 'created' } });
     expect(await readFile(backupPath(), 'utf8')).toBe(original);
     if (process.platform !== 'win32') {
       expect((await stat(backupPath())).mode & 0o777).toBe(0o600);
     }
 
-    // A second enable (new port) must keep the first backup, not the modified file.
+    // A second enable (new port) keeps the first backup: the file now holds javi's keys.
     const second = await enable({ port: 5000, previous: ours });
-    expect(second).toMatchObject({ ok: true, backup: backupPath() });
+    expect(second).toMatchObject({ ok: true, backup: { path: backupPath(), status: 'skipped' } });
     expect(await readFile(backupPath(), 'utf8')).toBe(original);
     expect((await load()).env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT).toBe(
       'http://127.0.0.1:5000/v1/metrics',
@@ -148,8 +148,35 @@ describe('enableUsageEnv', () => {
     if (!first.ok) throw new Error('first enable refused');
     const afterFirst = await readFile(path, 'utf8');
     const second = await enable({ previous: first.written });
-    expect(second).toEqual({ ok: true, path, backup: backupPath(), written: ours });
+    expect(second).toEqual({
+      ok: true,
+      path,
+      backup: { path: backupPath(), status: 'skipped' },
+      written: ours,
+    });
     expect(await readFile(path, 'utf8')).toBe(afterFirst);
+  });
+
+  it('never backs up a file that holds javi’s own keys and secret (R7 twin)', async () => {
+    // usage on created the file; a second usage on must not copy javi's secret into a backup.
+    expect(await enable()).toMatchObject({ ok: true, backup: null });
+    const second = await enable({ port: 5000, previous: ours });
+    expect(second).toMatchObject({ ok: true, backup: { path: backupPath(), status: 'skipped' } });
+    expect(await exists(backupPath())).toBe(false);
+    // Other edits since do not make javi's keys worth a backup either.
+    const s = await load();
+    await writeFile(path, JSON.stringify({ ...s, model: 'opus' }));
+    expect(await enable({ previous: usageEnv(5000, SECRET) })).toMatchObject({ ok: true });
+    expect(await exists(backupPath())).toBe(false);
+  });
+
+  it('reports an earlier backup it kept, which is not a copy of the file before this change', async () => {
+    // A backup left from an earlier usage on whose keys the user had partly edited.
+    await seed('{"model":"sonnet"}');
+    await writeFile(backupPath(), '{"model":"opus"}');
+    const again = await enable();
+    expect(again).toMatchObject({ ok: true, backup: { path: backupPath(), status: 'kept' } });
+    expect(await readFile(backupPath(), 'utf8')).toBe('{"model":"opus"}');
   });
 
   describe('refusals leave the file byte-identical and write no backup', () => {
@@ -278,16 +305,20 @@ describe('disableUsageEnv', () => {
     const after = await load();
     expect(Object.keys(after)).toEqual(['model', 'env', 'theme']);
     expect(after.env).toEqual({ FOO: 'bar', OTEL_METRICS_EXPORTER: 'console' });
-    // The backup is never deleted.
+    // Not fully restored (a javi key is still there): the backup is kept.
     expect(await exists(backupPath())).toBe(true);
+    expect(out).not.toHaveProperty('backupRemoved');
   });
 
-  it('deletes env when it becomes empty', async () => {
+  it('deletes env when it becomes empty; a full restore removes the backup (R7 twin)', async () => {
     await seed('{"model":"opus"}');
     await enable();
+    expect(await exists(backupPath())).toBe(true);
     const out = await disableUsageEnv({ path, written: ours });
     expect(out.removed.sort()).toEqual([...USAGE_ENV_KEYS].sort());
+    expect(out.backupRemoved).toBe(backupPath());
     expect(await load()).toEqual({ model: 'opus' });
+    expect(await exists(backupPath())).toBe(false);
   });
 
   it('does not write when nothing matches', async () => {
@@ -316,7 +347,7 @@ describe('symlinked settings', () => {
     await symlink(dotfile, path);
 
     const r = await enable();
-    expect(r).toMatchObject({ ok: true, path, backup: backupPath() });
+    expect(r).toMatchObject({ ok: true, path, backup: { path: backupPath(), status: 'created' } });
     expect((await lstat(path)).isSymbolicLink()).toBe(true);
     expect(JSON.parse(await readFile(dotfile, 'utf8'))).toEqual({ model: 'opus', env: ours });
     expect(await readFile(backupPath(), 'utf8')).toBe('{"model":"opus"}\n');
