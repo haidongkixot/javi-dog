@@ -23,17 +23,27 @@ export type {
 export { GEMINI_PRICES, estimateGeminiCostUsd, findGeminiPrice } from './prices.ts';
 export type { ModelPrice, PriceTable } from './prices.ts';
 export {
+  CODEX_AGENT_PREFIX,
+  CODEX_AUTH_MODES,
   CODEX_HOOK_EVENTS,
+  CODEX_LOGS_PARSE_ERROR,
   CODEX_PLATFORM,
   CODEX_PRICED_AUTH_MODES,
+  CODEX_RESPONSE_COMPLETED,
+  CODEX_SSE_EVENT,
   CODEX_THREAD_PREFIX,
+  CODEX_TURN_COST_EVENT,
+  codexAgentRef,
   codexCostDelta,
+  codexEventIdInput,
   codexSubagentLink,
+  codexThreadRef,
   codexUsageDelta,
   mapCodexHook,
   parseCodexLogs,
 } from './codex.ts';
 export type {
+  CodexAuthMode,
   CodexCostRecord,
   CodexHookEvent,
   CodexLogsResult,
