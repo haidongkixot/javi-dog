@@ -20,3 +20,12 @@ describe('JD-C02 contract (ADR-0016)', () => {
     expect(GEMINI_PRICES.pricedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
+
+describe('JD-C02 Codex contract (ADR-0016 S5c)', async () => {
+  const codex = await import('../src/index.ts');
+  it('registers the allowlisted Codex hook events and prices only API-key auth', () => {
+    expect(codex.CODEX_HOOK_EVENTS).toContain('PermissionRequest');
+    expect(codex.CODEX_THREAD_PREFIX).toBe('cx');
+    expect(codex.CODEX_PRICED_AUTH_MODES).toEqual(['ApiKey']);
+  });
+});
