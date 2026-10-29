@@ -3,9 +3,10 @@
   "id": "U22",
   "kind": "usage",
   "description": "One receiver serves both platforms: a body carrying Claude Code delta points (cc_ session) and Gemini cumulative points (gm_ session) yields the Claude Code event unchanged (exact counts and reported cost, estimated: false) and the Gemini baseline only; the next Gemini export yields a Gemini event. Neither platform's points reach the other's thread.",
-  "contract": "ADR-0016 Consequences (\"One install and one receiver for three agents\"), §1 (Claude Code installs unchanged), §3; SPRINT-05b B2 (\"/v1/metrics → both parsers\"); ADR-0011 Parsing, Temporality (delta used as-is), Mapping → JGR",
+  "contract": "ADR-0016 Consequences (\"One install and one receiver for three agents\"), §1 (Claude Code installs unchanged), §3; SPRINT-05b B2 (\"/v1/metrics → both parsers\"); ADR-0011 Parsing, Temporality (delta used as-is), Mapping → JGR; ADR-0016 Changes 2026-10-29 (S5b review V1) R5 (estimated: false, exact token counts) and R6 (cost only for auth_type vertex-ai / gemini-api-key)",
   "ambiguities": [],
   "clock": "2026-10-29T10:00:00Z",
+  "receiverStartedAt": null,
   "registerSessions": [
     {
       "platform": "gemini-cli",
@@ -272,6 +273,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -315,6 +322,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -340,7 +353,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -430,6 +444,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -473,6 +493,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -498,7 +524,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -515,11 +542,11 @@
               "reasoning_tokens": 0,
               "cost_usd": 0.000675,
               "model": "gemini-2.5-pro",
-              "estimated": true
+              "estimated": false
             },
             "priceSource": {
               "pageRow": "Gemini 2.5 Pro",
-              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column. Priced because every point of the group carries auth_type \"gemini-api-key\" (ADR-0016 Changes R6).",
               "priceAt": "2026-10-29T09:01:00Z",
               "usdPerMillionTokens": {
                 "input": 1.25,
@@ -544,7 +571,9 @@
     "user.email",
     "installation.id",
     "active_approval_mode",
-    "example.com"
+    "example.com",
+    "auth_type",
+    "gemini-api-key"
   ],
   "identityGroup": null
 }

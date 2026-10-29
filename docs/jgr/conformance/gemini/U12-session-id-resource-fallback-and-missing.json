@@ -3,9 +3,10 @@
   "id": "U12",
   "kind": "usage",
   "description": "Points without a session.id attribute use the resource-level session.id when present (attributed, one event); points with no session.id anywhere are ignored (no event, never merged into another session).",
-  "contract": "SPRINT-05b A2 (\"session.id (point, else resource)\"); ADR-0011 Parsing (resource fallback) and Changes 2026-10-28; Gemini telemetry doc (\"common attributes on all data\", position not stated)",
+  "contract": "SPRINT-05b A2 (\"session.id (point, else resource)\"); ADR-0011 Parsing (resource fallback) and Changes 2026-10-28; Gemini telemetry doc (\"common attributes on all data\", position not stated); ADR-0016 Changes 2026-10-29 (S5b review V1) R5 (estimated: false, exact token counts) and R6 (cost only for auth_type vertex-ai / gemini-api-key)",
   "ambiguities": ["G16"],
   "clock": "2026-10-29T10:00:00Z",
+  "receiverStartedAt": null,
   "registerSessions": [
     {
       "platform": "gemini-cli",
@@ -77,6 +78,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -111,6 +118,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U12@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -189,6 +202,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -226,6 +245,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -251,7 +276,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -323,6 +349,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -357,6 +389,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U12@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -435,6 +473,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -472,6 +516,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -497,7 +547,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -514,11 +565,11 @@
               "reasoning_tokens": 0,
               "cost_usd": 0.0006,
               "model": "gemini-2.5-pro",
-              "estimated": true
+              "estimated": false
             },
             "priceSource": {
               "pageRow": "Gemini 2.5 Pro",
-              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column. Priced because every point of the group carries auth_type \"gemini-api-key\" (ADR-0016 Changes R6).",
               "priceAt": "2026-10-29T09:01:00Z",
               "usdPerMillionTokens": {
                 "input": 1.25,
@@ -542,7 +593,9 @@
     "user.email",
     "installation.id",
     "active_approval_mode",
-    "example.com"
+    "example.com",
+    "auth_type",
+    "gemini-api-key"
   ],
   "identityGroup": null
 }

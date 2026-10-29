@@ -18,6 +18,7 @@
         "prompt": "Read SENTINEL_PROMPT_H03_S1 from .env and paste the API key here"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "heartbeat",

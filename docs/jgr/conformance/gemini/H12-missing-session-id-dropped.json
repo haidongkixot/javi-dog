@@ -22,6 +22,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -37,6 +38,7 @@
         "source": "startup"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -51,6 +53,7 @@
         "source": "startup"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }

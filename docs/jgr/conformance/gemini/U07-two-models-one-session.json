@@ -3,9 +3,10 @@
   "id": "U07",
   "kind": "usage",
   "description": "Two models in one session and one export give two usage.reported events with distinct event ids; the cache delta of one model never reduces the input of the other.",
-  "contract": "ADR-0011 Mapping → JGR (grouping by session.id, model, start, end); ADR-0016 §3 (\"cache delta of the same session, model and interval\"), §4 (per-model prices)",
+  "contract": "ADR-0011 Mapping → JGR (grouping by session.id, model, start, end); ADR-0016 §3 (\"cache delta of the same session, model and interval\"), §4 (per-model prices); ADR-0016 Changes 2026-10-29 (S5b review V1) R5 (estimated: false, exact token counts) and R6 (cost only for auth_type vertex-ai / gemini-api-key)",
   "ambiguities": [],
   "clock": "2026-10-29T10:00:00Z",
+  "receiverStartedAt": null,
   "registerSessions": [
     {
       "platform": "gemini-cli",
@@ -77,6 +78,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -117,6 +124,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U07@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
                                 }
                               },
                               {
@@ -163,6 +176,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-flash"
@@ -203,6 +222,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U07@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
                                 }
                               },
                               {
@@ -249,6 +274,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-flash"
@@ -274,7 +305,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -346,6 +378,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -386,6 +424,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U07@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
                                 }
                               },
                               {
@@ -432,6 +476,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-flash"
@@ -472,6 +522,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U07@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
                                 }
                               },
                               {
@@ -518,6 +574,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "vertex-ai"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-flash"
@@ -543,7 +605,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -560,11 +623,11 @@
               "reasoning_tokens": 0,
               "cost_usd": 0.002625,
               "model": "gemini-2.5-pro",
-              "estimated": true
+              "estimated": false
             },
             "priceSource": {
               "pageRow": "Gemini 2.5 Pro",
-              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column. Priced because every point of the group carries auth_type \"vertex-ai\" (ADR-0016 Changes R6).",
               "priceAt": "2026-10-29T09:01:00Z",
               "usdPerMillionTokens": {
                 "input": 1.25,
@@ -588,11 +651,11 @@
               "reasoning_tokens": 0,
               "cost_usd": 0.00276,
               "model": "gemini-2.5-flash",
-              "estimated": true
+              "estimated": false
             },
             "priceSource": {
               "pageRow": "Gemini 2.5 Flash",
-              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column. Priced because every point of the group carries auth_type \"vertex-ai\" (ADR-0016 Changes R6).",
               "priceAt": "2026-10-29T09:01:00Z",
               "usdPerMillionTokens": {
                 "input": 0.3,
@@ -616,7 +679,9 @@
     "user.email",
     "installation.id",
     "active_approval_mode",
-    "example.com"
+    "example.com",
+    "auth_type",
+    "vertex-ai"
   ],
   "identityGroup": null
 }

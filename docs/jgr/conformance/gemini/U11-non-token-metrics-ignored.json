@@ -3,9 +3,10 @@
   "id": "U11",
   "kind": "usage",
   "description": "Other Gemini metrics (session.count, api.request.count, tool.call.count, lines.changed with a type attribute, a look-alike name, gemini_cli.token.usage as a Gauge, the GenAI semconv gen_ai.client.token.usage histogram, a latency histogram) are ignored; only the gemini_cli.token.usage Sum contributes.",
-  "contract": "ADR-0016 §3 Parser (\"from metrics, only gemini_cli.token.usage Sum points are read\"); SPRINT-05b A2; Gemini telemetry doc Metrics (custom metrics, GenAI semantic convention)",
+  "contract": "ADR-0016 §3 Parser (\"from metrics, only gemini_cli.token.usage Sum points are read\"); SPRINT-05b A2; Gemini telemetry doc Metrics (custom metrics, GenAI semantic convention); ADR-0016 Changes 2026-10-29 (S5b review V1) R5 (estimated: false, exact token counts) and R6 (cost only for auth_type vertex-ai / gemini-api-key)",
   "ambiguities": ["G17"],
   "clock": "2026-10-29T10:00:00Z",
+  "receiverStartedAt": null,
   "registerSessions": [
     {
       "platform": "gemini-cli",
@@ -74,6 +75,12 @@
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
                                 }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
                               }
                             ],
                             "startTimeUnixNano": "1793260800000000000",
@@ -113,6 +120,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -165,6 +178,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -232,6 +251,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "function_name",
                                 "value": {
                                   "stringValue": "write_file"
@@ -281,6 +306,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -334,6 +365,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -383,6 +420,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -446,6 +489,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "function_name",
                                 "value": {
                                   "stringValue": "SENTINEL_FUNCTION_NAME_U11"
@@ -496,6 +545,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -539,6 +594,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -564,7 +625,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -633,6 +695,12 @@
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
                                 }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
                               }
                             ],
                             "startTimeUnixNano": "1793260800000000000",
@@ -672,6 +740,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -724,6 +798,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -791,6 +871,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "function_name",
                                 "value": {
                                   "stringValue": "write_file"
@@ -840,6 +926,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -893,6 +985,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -942,6 +1040,12 @@
                                 "key": "user.email",
                                 "value": {
                                   "stringValue": "SENTINEL_EMAIL_U11@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
                                 }
                               },
                               {
@@ -1005,6 +1109,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "function_name",
                                 "value": {
                                   "stringValue": "SENTINEL_FUNCTION_NAME_U11"
@@ -1055,6 +1165,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -1098,6 +1214,12 @@
                                 }
                               },
                               {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "gemini-api-key"
+                                }
+                              },
+                              {
                                 "key": "model",
                                 "value": {
                                   "stringValue": "gemini-2.5-pro"
@@ -1123,7 +1245,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -1140,11 +1263,11 @@
               "reasoning_tokens": 0,
               "cost_usd": 0.000175,
               "model": "gemini-2.5-pro",
-              "estimated": true
+              "estimated": false
             },
             "priceSource": {
               "pageRow": "Gemini 2.5 Pro",
-              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
+              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column. Priced because every point of the group carries auth_type \"gemini-api-key\" (ADR-0016 Changes R6).",
               "priceAt": "2026-10-29T09:01:00Z",
               "usdPerMillionTokens": {
                 "input": 1.25,
@@ -1169,7 +1292,9 @@
     "user.email",
     "installation.id",
     "active_approval_mode",
-    "example.com"
+    "example.com",
+    "auth_type",
+    "gemini-api-key"
   ],
   "identityGroup": null
 }

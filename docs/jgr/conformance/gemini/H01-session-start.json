@@ -18,6 +18,7 @@
         "source": "startup"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.started",

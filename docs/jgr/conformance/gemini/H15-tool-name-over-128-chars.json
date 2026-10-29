@@ -23,6 +23,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.started",
@@ -58,6 +59,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.completed",
@@ -89,6 +91,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.started",

@@ -17,6 +17,7 @@
         "source": "startup"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.started",
@@ -36,6 +37,7 @@
         "source": "startup"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.started",
@@ -62,6 +64,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.started",

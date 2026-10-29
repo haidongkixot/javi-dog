@@ -1,0 +1,99 @@
+{
+  "$schema": "./schema.json",
+  "id": "H19",
+  "kind": "hook",
+  "description": "A Gemini session whose hook processes run with OTEL_EXPORTER_OTLP_ENDPOINT in their environment (Gemini passes the loaded .env to hooks; telemetry could be redirected): SessionStart still yields exactly one session.started, later hooks map as usual, every hook exits 0 with empty stdout, and the endpoint value appears nowhere (records, spool, batches, ~/.javi). The local warning record itself is not observed here.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5b review V1) R1 (\"Each Gemini SessionStart hook checks its own process env … A hit writes a local warning record (key names, project slug, time; never values)\"); ADR-0016 §2 Event mapping, hooks are synchronous (exit 0, empty stdout); ADR-0010 Neutral hooks; hooks reference \"Silence is Mandatory\"",
+  "ambiguities": ["G7", "G25"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h19",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H19_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H19_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": {
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://SENTINEL-H19-redirect.example.com:4318"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h19",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h19",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H19_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H19_S2/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "tool_name": "read_file",
+        "tool_input": {
+          "absolute_path": "/home/dev/SENTINEL_TOOLINPUT_H19_S2/a.ts"
+        }
+      },
+      "rawStdin": null,
+      "env": {
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://SENTINEL-H19-redirect.example.com:4318"
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h19",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "read_file"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h19",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H19_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H19_S3/web-app",
+        "hook_event_name": "SessionEnd",
+        "timestamp": "2026-10-29T09:00:03.000Z",
+        "reason": "exit"
+      },
+      "rawStdin": null,
+      "env": {
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://SENTINEL-H19-redirect.example.com:4318"
+      },
+      "expect": {
+        "record": {
+          "type": "session.ended",
+          "session": "gm-sess-h19",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H19_S1",
+    "SENTINEL_CWD_H19_S2",
+    "SENTINEL_CWD_H19_S3",
+    "SENTINEL_TRANSCRIPT_H19_S1",
+    "SENTINEL_TRANSCRIPT_H19_S2",
+    "SENTINEL_TRANSCRIPT_H19_S3",
+    "SENTINEL_TOOLINPUT_H19_S2",
+    "SENTINEL-H19-redirect",
+    "example.com",
+    "/home/dev"
+  ]
+}

@@ -18,6 +18,7 @@
         "trigger": "auto"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -36,6 +37,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -51,6 +53,7 @@
         "last_assistant_message": "SENTINEL_LAST_MESSAGE_H11"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -66,6 +69,7 @@
         "prompt": "SENTINEL_PROMPT_H11"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -81,6 +85,7 @@
         "payload": "SENTINEL_PAYLOAD_H11"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -95,6 +100,7 @@
         "tool_name": "read_file"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }

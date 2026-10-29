@@ -1,0 +1,74 @@
+{
+  "$schema": "./schema.json",
+  "id": "H20",
+  "kind": "hook",
+  "description": "SessionStart (source resume) with a full set of Gemini telemetry env keys, including header values that carry a bearer token: still exactly one session.started, exit 0, empty stdout, and no env value (endpoint, header tokens) appears anywhere. A second session started without those keys (control) maps the same way and gets its own thread.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5b review V1) R1 (GEMINI_TELEMETRY_*, OTEL_EXPORTER_OTLP_* keys; \"reports names and paths only\"; warning \"never values\"); ADR-0016 §2 Event mapping (SessionStart → session.started), Refs; Gemini telemetry doc (environment variables GEMINI_TELEMETRY_ENABLED … GEMINI_TELEMETRY_OTLP_HEADERS); hooks reference SessionStart source enum",
+  "ambiguities": ["G7", "G25"],
+  "clock": "2026-10-29T10:00:00Z",
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h20",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H20_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H20_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:01.000Z",
+        "source": "resume"
+      },
+      "rawStdin": null,
+      "env": {
+        "GEMINI_TELEMETRY_ENABLED": "true",
+        "GEMINI_TELEMETRY_TARGET": "local",
+        "GEMINI_TELEMETRY_OTLP_ENDPOINT": "https://SENTINEL-H20-otlp.example.com:4318",
+        "GEMINI_TELEMETRY_OTLP_PROTOCOL": "http",
+        "GEMINI_TELEMETRY_OTLP_HEADERS": "Authorization=Bearer SENTINEL_H20_GEMINI_HEADER_TOKEN",
+        "GEMINI_TELEMETRY_LOG_PROMPTS": "true",
+        "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Bearer SENTINEL_H20_OTEL_HEADER_TOKEN"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h20",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "gm-sess-h20-control",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H20_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H20_S2/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h20-control",
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H20_S1",
+    "SENTINEL_CWD_H20_S2",
+    "SENTINEL_TRANSCRIPT_H20_S1",
+    "SENTINEL_TRANSCRIPT_H20_S2",
+    "SENTINEL-H20-otlp",
+    "SENTINEL_H20_GEMINI_HEADER_TOKEN",
+    "SENTINEL_H20_OTEL_HEADER_TOKEN",
+    "example.com",
+    "/home/dev"
+  ]
+}

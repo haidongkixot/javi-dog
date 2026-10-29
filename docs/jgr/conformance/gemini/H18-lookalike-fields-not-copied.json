@@ -32,6 +32,7 @@
         "user_email": "SENTINEL_EMAIL_H18@example.com"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.started",
@@ -62,6 +63,7 @@
         "duration_ms": "SENTINEL_DURATION_H18"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.started",
@@ -91,6 +93,7 @@
         "tool_name": "SENTINEL_TOOLNAME_ON_NOTIFICATION_H18"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "attention.requested",
