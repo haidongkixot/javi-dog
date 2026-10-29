@@ -2,6 +2,22 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-29 · Session 2 (cloud), continued — S5b Gemini CLI collector
+
+- **Owner decisions.**
+  - Codex: opt-in logs with an allowlist (S5c).
+  - Gemini cost from a price table, estimated, then narrowed to API-key and Vertex auth only.
+  - Gemini OTel as a user-level opt-in.
+  - Slicing: S5b Gemini, then S5c Codex.
+  - Telemetry redirection: "detect, refuse, warn".
+- **Built.**
+  - Research (primary sources, 3 facts spot-checked) and ADR-0016.
+  - JD-C02 adapters and the `javi` Gemini wiring.
+  - 53 QA vectors and a runner.
+- **Review round.** 1 high and 5 medium findings, fixed red-first, plus the Claude Code backup twin. 1461 tests; `0cff148` pushed.
+- **Process.** One ungated push (`8baec90`), re-verified as harmless; later pushes are chained with `&&`. Pushes were held back while vectors were ahead of the runner.
+- **Next.** S5c Codex; the owner's S5a cutover and `CRON_SECRET`; real Claude Code and Gemini runs; the release gate and Guru G4.
+
 ## 2026-10-28 · Session 2 (cloud), continued — S5a production readiness
 
 - Owner decisions:

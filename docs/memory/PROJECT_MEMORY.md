@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-28 · Current sprint: **S5a production readiness** (`docs/sprints/SPRINT-05a.md`, ADR-0015). The production database (Neon `main`) is migrated; the cutover waits on the owner (Vercel `DATABASE_URL`). Next: the production load test and e2e smoke after cutover, then S5b (Codex and Gemini CLI collectors), then the release gate (`docs/how-to/release-checklist.md`). S4 is closed (Guru G3). Waiting on owner: cutover, `CRON_SECRET`, first real `javi init --usage` run.
+> Last updated: 2026-10-29 · Current sprint: **S5b Gemini CLI collector — built** (`docs/sprints/SPRINT-05b.md`, ADR-0016). Next: S5c Codex collector, then the release gate (`docs/how-to/release-checklist.md`) and Guru G4. **S5a** (production readiness) is done except for owner steps: the Vercel `DATABASE_URL` cutover to Neon `main`, then the production load test and e2e smoke; and `CRON_SECRET`. Real runs still pending (owner): Claude Code with usage, and Gemini CLI.
 
 ## What we are building
 
@@ -45,6 +45,11 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
   - Capped load-test and packed e2e scripts are ready for one production run.
   - Tests run at turbo concurrency 2 (oversubscription diagnosed).
 
+- S5b (2026-10-29, ADR-0016). Owner decisions: Gemini OTel is a user-level opt-in; cost is estimated from a dated price table and only for API-key/Vertex auth; Codex uses opt-in logs with an allowlist (S5c); "detect, refuse, warn" for telemetry redirection.
+  - **JD-C02** `@javis-dog/collector-adapters` (pure): Gemini hook mapper, OTLP parser (hidden series id and auth type), delta rule (input − cache), and a 13-row Vertex price table.
+  - **JD-C01** `javi --platform gemini-cli`: hooks in `.gemini/settings.json`; a telemetry block in `~/.gemini/settings.json` with exact restore; the logs and traces sink; a `.env` redirection guard at setup and at every session start.
+  - **Tests:** 53 QA vectors and a runner (30 of 32 mutations killed). The review round fixed 1 high and 5 medium findings red-first. 1461 tests.
+
 ## Decisions in force
 
 | Ref | Decision |
@@ -66,6 +71,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0008 | Accepted 2026-10-23: `events` in JD-M06 (dedupe per project), 30-day raw retention, Postgres per-token rate limit (60/min), receiver codes `project_mismatch` / `privacy_class_not_allowed`, 256 KB after gzip |
 | ADR-0007 | Accepted 2026-10-22: welcome email via Resend REST from `onUserCreated`; PII-free auth logging; `errorURL` → `/sign-in` |
 | ADR-0006 | Accepted 2026-10-22: Better Auth organization plugin mapped onto `workspaces`; personal workspace (owner) on first sign-in; open sign-up; telemetry off; OAuth tokens encrypted |
+| ADR-0016 | Accepted 2026-10-29: one `javi` CLI with pure platform adapters (JD-C02). For Gemini: hooks per project, OTel as a user opt-in with forced `logPrompts:false` and a redirection guard; cost estimated only for per-token auth; `estimated:false` because the tokens are exact. Codex follows in S5c (opt-in logs allowlist) |
 | ADR-0015 | Accepted 2026-10-28: production database = Neon `main` (the integration's production branch). Migrations go through drizzle `readMigrationFiles` and the Neon MCP, one transaction each. Cutover is an owner step. Rollback paths have stated limits: 6 h restore. The load-test budget is fixed. Accepted risk: no rotation of the exposed secrets |
 | ADR-0005 | Accepted 2026-10-22: module-owned Drizzle tables composed by JD-M06; offline `generate` + neon-http migrator on `dev-agent` only; ingest tokens `jd_it_…` stored as SHA-256; workspace-scoped repository |
 
