@@ -1,6 +1,6 @@
 # Sprint 05c — Codex CLI collector (hooks with user approval, logs-only usage)
 
-- Dates: 2026-10-29 (timebox 30 min, parallel lanes) · Status: **ACTIVE** (built; code-review fixes and runner in progress)
+- Dates: 2026-10-29 (timebox 30 min, parallel lanes) · Status: **BUILT** 2026-10-29. Waiting on a real Codex CLI run by the owner (UNVERIFIED items in ADR-0016 and the readiness matrix).
 - Goal: `javi init --platform codex-cli` and `javi usage on --platform codex-cli` let Codex CLI sessions appear in Javi's Dog with status, attention, tools, sub-agents and tokens, plus cost for API-key sign-ins only, without any prompt, response, tool I/O, path or email leaving the machine.
 - Modules touched: JD-C02 (Codex adapters), JD-C01 (`javi` wiring), docs
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows "Codex CLI surfaces (S5c)" and "Codex runtime checks"
@@ -24,8 +24,8 @@
 | B1 | `javi` wiring | JD-C01 | `--platform codex-cli` | C1 append-only hooks in `.codex/hooks.json` (seconds, `commandWindows`), approval status; C3 `[otel]` TOML edit with backup and exact restore, refusal, header-env warning | Done |
 | B2 | Receiver and attribution | JD-C01 | `/v1/logs` Codex records → spool | C4 discriminator; C6 sub-agent → parent map; unknown dropped; Gemini logs still unparsed | Done |
 | Q1 | Conformance vectors | docs | ADR text → `docs/jgr/conformance/codex/` | Hooks and logs vectors with privacy sentinels, cost by auth mode, sub-agents | Done (41 vectors) |
-| R1 | Runner | JD-C01 | README → `test/codex-conformance*.ts` | All vectors pass; mutation checks | Planned |
-| V1 | Code review | all | read-only | Findings fixed or logged | Review done; fixes in progress |
+| R1 | Runner | JD-C01 | README → `test/codex-conformance*.ts` | All vectors pass; mutation checks | Done (41/41 after fixes; 14/14 mutations killed) |
+| V1 | Code review | all | read-only | Findings fixed or logged | Done: V1 2 high, 2 medium, 2 low fixed red-first, plus the re-send defect found by R1 |
 
 ## Review focus
 
@@ -45,6 +45,10 @@ Roster per `docs/agent-ops/TEAM.md`.
 | Reviewer | general-purpose, read-only | D0 now, V1 after the build |
 
 Team log, newest first:
+
+- 2026-10-29 — Orchestrator — Merged Developer E (`ffd1bdd`, which includes the runner `4f4b42f`). The full gate passed with 1698 tests and 0 failed packages; `5574c55` pushed. Unreleased changesets were corrected: the never-released `codexEventIdInput` is not described as a breaking removal.
+- 2026-10-29 — Developer E — Fixed V1-H1 through V1-L6 red-first, plus R1's re-send defect (persisted accepted ids). New integration test through the real adapters. Collector 561, adapters 203, Codex conformance 41/41. A baseline flake (1 of 500, unidentified, passed on re-run) was noted and is being watched.
+- 2026-10-29 — Developer C — R1 runner: 39/41 against the code before the fixes. The 2 failures (U01, U11) were a **product defect**: a re-sent record was re-spooled with a new sequence, which shows a false signal-loss gap. 14/14 mutations killed. Runtime about 65 s.
 
 - 2026-10-29 — Reviewer — **V1 code review**: 2 high, 2 medium, 2 low, each traced, with compiled probes.
   - **High:**
@@ -69,12 +73,19 @@ Team log, newest first:
 
 ## Log
 
-- Placeholder — entries newest first.
+- 2026-10-29 — `5574c55` pushed after the full gate. CI: checked in the next entry.
 
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `collectors/adapters` tests (A + E) | 0 | — | 203 | 0 | 0 | 0 | 0 | 8 mutations killed (A) |
+| Codex conformance runner, before the fixes | 1 | ~65 s | 39 | 2 | 0 | 0 | 0 | U01, U11: re-send re-spooled (product defect) |
+| Codex conformance runner, after E | 0 | ~65 s | 41 | 0 | 0 | 0 | 0 | mapper layer NOT RUN (optional) |
+| Runner mutation checks | — | 3–7 s each | 14 killed | 0 survived | — | — | — | — |
+| `collectors/claude-code` tests (after E) | 0 | ~2 min | 561 | 0 | 0 | 0 | 0 | incl. `codex-integration.test.ts` (real adapters) |
+| Forced full gate on `5574c55` | 0 | — | 1698 | 0 | 0 | 0 | 0 | — |
+| Real Codex CLI session | — | — | — | — | — | — | NOT RUN | owner |
 
 ## Decisions and deviations
 
@@ -83,8 +94,14 @@ Team log, newest first:
 ## Retro
 
 - Went well:
+  - Reviewing the design before code (D0) caught 6 high issues before a line was written.
+  - V1 used compiled probes against Codex's exact dependency versions, which turned "probably" into evidence: `NO_PROXY=*` does not exempt IPs, and toml_edit moves the end marker.
+  - The independent runner caught a defect that neither the developers nor the reviewer saw: the re-send sequence gap.
 - Hurt:
-- Change next sprint:
+  - Developer B tested against local doubles while A was in progress, so the end-to-end path was only proven at merge.
+  - The design still carried two wrong assumptions, about `NO_PROXY` and the marker, that only probes revealed.
+  - The lanes ran long: the timebox was exceeded, recorded as a deviation.
+- Change next sprint: for a third-party integration, write a probe of the target's real parser or matcher behaviour as part of the research, not only during review.
 
 ## Guru checkpoint
 

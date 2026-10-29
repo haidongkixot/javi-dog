@@ -14,7 +14,7 @@ The release gate (roadmap, end of S5) has four parts: working end-to-end telemet
 | G8 | Runbooks | `docs/how-to/operate-production.md` | SPRINT-05a R4 | PASS (docs) |
 | G9 | Retention purge active | `env.CRON_SECRET` true on `/api/health`; one cron run returns 200 | SPRINT-03b | IN PROGRESS (`CRON_SECRET` true on 2026-10-29; first cron run unverified: conclusive check 2026-10-30 20:20 UTC) |
 | G10 | Secrets | Exposed `neondb_owner` password and GitHub client secret | Readiness matrix | ACCEPTED RISK (owner, 2026-10-28) |
-| G11 | Second and third collectors | Codex and Gemini CLI collectors (S5b) with conformance tests | SPRINT-05b | NOT RUN |
+| G11 | Second and third collectors | Codex and Gemini CLI collectors (S5b) with conformance tests | SPRINT-05b, SPRINT-05c | **PASS** (code level: Gemini 53 and Codex 41 vectors green, mutation-checked; real runs pending, G6) |
 | G12 | CI green on the release commit | GitHub Actions run id on the release commit | Sprint log | NOT RUN |
 | G13 | Plans and terms | Free tiers. Vercel Hobby is for non-commercial use only, so a commercial beta needs paid plans | Readiness matrix (Budget) | OPEN (owner) |
 | G14 | Guru G4 | `guru/WISDOM_LOG.md` G4 entry; Orcasus PR proposal written, not opened | `guru/` | NOT RUN |

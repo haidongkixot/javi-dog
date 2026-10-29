@@ -2,6 +2,20 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-29 · Session 2 (cloud), continued — S5a on production, S5c Codex collector
+
+- **Owner.** Production stays on `dev-agent`; `CRON_SECRET` is set; the load test and its cleanup were approved; `developers.openai.com` is allowed.
+- **Owner decisions for S5c.** Logs-only usage, tokens only for ChatGPT plans, sub-agent usage attributed to the parent, a TOML parser (smol-toml 1.9.1), detect and warn about the header leak, stable launcher.
+- **S5a on production.** Load test p95 1 529 ms. The e2e run found hook stderr under a proxy env, fixed with `--no-warnings`; the re-run passed. Cleanup counts are recorded. The purge check is scheduled for 2026-10-30.
+- **S5c.**
+  - Research, with 3 facts re-checked in source.
+  - Design review D0: 6 high.
+  - Lanes A, B and QA (41 vectors).
+  - Runner: found the re-send defect.
+  - Code review V1: 2 high, with probes.
+  - Fix lane E. 1698 tests; `5574c55` pushed.
+- **Next.** Release gate and G4; owner real runs (now including Codex).
+
 ## 2026-10-29 · Session 2 (cloud), continued — S5b Gemini CLI collector
 
 - **Owner decisions.**

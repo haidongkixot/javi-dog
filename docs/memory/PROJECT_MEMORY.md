@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-29 · Current sprint: **S5b Gemini CLI collector — built** (`docs/sprints/SPRINT-05b.md`, ADR-0016). Next: S5c Codex collector, then the release gate (`docs/how-to/release-checklist.md`) and Guru G4. **S5a** (production readiness) is done except for owner steps: the Vercel `DATABASE_URL` cutover to Neon `main`, then the production load test and e2e smoke; and `CRON_SECRET`. Real runs still pending (owner): Claude Code with usage, and Gemini CLI.
+> Last updated: 2026-10-29 · Current sprint: **S5c Codex CLI collector — built** (`docs/sprints/SPRINT-05c.md`, ADR-0016 S5c entries). Next: the S5 release gate (`docs/how-to/release-checklist.md`) and Guru G4. Owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); production stays on `dev-agent` (cutover deferred); the first purge run is checked 2026-10-30 20:20 UTC.
 
 ## What we are building
 
@@ -49,6 +49,18 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
   - **JD-C02** `@javis-dog/collector-adapters` (pure): Gemini hook mapper, OTLP parser (hidden series id and auth type), delta rule (input − cache), and a 13-row Vertex price table.
   - **JD-C01** `javi --platform gemini-cli`: hooks in `.gemini/settings.json`; a telemetry block in `~/.gemini/settings.json` with exact restore; the logs and traces sink; a `.env` redirection guard at setup and at every session start.
   - **Tests:** 53 QA vectors and a runner (30 of 32 mutations killed). The review round fixed 1 high and 5 medium findings red-first. 1461 tests.
+
+- S5a was completed on production (`dev-agent`):
+  - load test p95 1 529 ms;
+  - packed e2e smoke PASS, after fixing hook stderr under `NODE_USE_ENV_PROXY` (`--no-warnings`);
+  - `CRON_SECRET` set (purge answers 401 without the secret);
+  - cleanup done.
+- S5c (2026-10-29). Owner decisions: logs-only usage, tokens only for ChatGPT plans, sub-agent usage attributed to the parent, smol-toml 1.9.1, detect and warn about the header leak, stable launcher. Built:
+  - JD-C02 Codex adapters;
+  - JD-C01 `--platform codex-cli`: launcher, append-only `hooks.json`, a TOML-validated `config.toml` block, proxy, system-proxy and header guards, `/v1/logs/codex-cli`, persisted accepted ids;
+  - 41 QA vectors with a runner (14/14 mutations).
+
+  The design review (6 high) ran before any code, and the code review (2 high) was fixed red-first. 1698 tests.
 
 ## Decisions in force
 
