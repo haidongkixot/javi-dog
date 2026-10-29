@@ -86,6 +86,8 @@ interface HookStep {
   platform: Platform;
   stdin: unknown;
   rawStdin: string | null;
+  /** R1: entries added to this step's hook process only (null: none). */
+  env: Record<string, string> | null;
   expect: { record: ExpectedRecord | null };
 }
 interface IntMatcher {
@@ -105,7 +107,14 @@ interface ExpectedEvent {
   };
 }
 interface UsageStep {
-  request: { path: string; auth: boolean; body: unknown; rawBody: string | null };
+  request: {
+    path: string;
+    auth: boolean;
+    body: unknown;
+    rawBody: string | null;
+    /** R9: pad the serialized body with ASCII spaces to at least this many bytes. */
+    bodyPadBytes: number | null;
+  };
   expect: { status: number; events: ExpectedEvent[]; droppedUnattributed: IntMatcher | null };
 }
 interface VectorBase {
@@ -123,6 +132,8 @@ interface UsageVector extends VectorBase {
   registerSessions: Array<{ platform: Platform; session: string }>;
   steps: UsageStep[];
   droppedUnattributedTotal: IntMatcher | null;
+  /** R2: the receiver's own start time; null = `clock`. */
+  receiverStartedAt: string | null;
   identityGroup: string | null;
 }
 type Vector = HookVector | UsageVector;
@@ -235,10 +246,10 @@ const checkThread = (platform: Platform, session: string, ref: string, where: st
 };
 
 describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)', () => {
-  it('has the vectors the README lists (18 hook, 22 usage)', () => {
-    expect(vectors.length).toBe(40);
-    expect(vectors.filter(([, v]) => v.kind === 'hook').length).toBe(18);
-    expect(vectors.filter(([, v]) => v.kind === 'usage').length).toBe(22);
+  it('has the vectors the README lists (20 hook, 33 usage)', () => {
+    expect(vectors.length).toBe(53);
+    expect(vectors.filter(([, v]) => v.kind === 'hook').length).toBe(20);
+    expect(vectors.filter(([, v]) => v.kind === 'usage').length).toBe(33);
   });
 
   it.for(vectors)('%s', { timeout: 180_000 }, async ([file, vector], ctx: TestContext) => {
@@ -407,9 +418,8 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
           expect(Number.isFinite(cost) && cost >= 0, `${at} I4 cost_usd`).toBe(true);
         }
         if (e.thread_ref.startsWith('gm_')) {
-          expect(u.cost_usd !== undefined, `${at} I5 cost_usd iff estimated`).toBe(
-            u.estimated === true,
-          );
+          // I5 (R5): Gemini counts are exact, so `estimated` is never true.
+          expect(u.estimated === true, `${at} I5 estimated must not be true`).toBe(false);
           expect(u.cache_write_tokens ?? 0, `${at} I5 cache_write_tokens`).toBe(0);
         }
       }
@@ -437,10 +447,17 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
     > = {};
 
     /** One collector-layer hook step (README "Hook steps"); returns its non-x.* records. */
-    const hookStep = async (platform: Platform, stdin: Buffer, where: string) => {
+    const hookStep = async (
+      platform: Platform,
+      stdin: Buffer,
+      where: string,
+      stepEnv: Record<string, string> | null = null,
+    ) => {
       const argv = hookArgv[platform];
       if (!argv) return blocked(`no javi-collector hook entry for ${platform}`);
-      const result = await runProcess(argv, stdin, { cwd: project, env: childEnv });
+      // R1: a step's `env` is added to that hook process only (registration steps carry none).
+      const env = stepEnv ? { ...childEnv, ...stepEnv } : childEnv;
+      const result = await runProcess(argv, stdin, { cwd: project, env });
       expect(result.timedOut, `${where}: hook still running after 10 s`).toBe(false);
       expect(result.code, `${where} I8 exit code (stderr: ${result.stderr})`).toBe(0);
       expect(result.stdout.length, `${where} I8 stdout bytes: ${result.stdout}`).toBe(0);
@@ -536,7 +553,7 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
             step.rawStdin !== null ? step.rawStdin : JSON.stringify(step.stdin),
             'utf8',
           );
-          const records = await hookStep(step.platform, bytes, where);
+          const records = await hookStep(step.platform, bytes, where, step.env);
           const want = step.expect.record;
           if (want === null) {
             expect(
@@ -597,6 +614,13 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
       }
       // A free port per vector: vitest runs other test files in parallel workers.
       const port = await freePort();
+      // R2 (README "Pinned clock" → Receiver start): the clock reads `receiverStartedAt` from
+      // just before `javi usage on` until the receiver listens, then `clock` again.
+      const receiverStart = new Date(vector.receiverStartedAt ?? vector.clock);
+      vi.setSystemTime(receiverStart);
+      if (Date.now() !== receiverStart.getTime()) {
+        blocked('cannot pin the clock to receiverStartedAt');
+      }
       const on = await main(
         ['usage', 'on', '--platform', 'gemini-cli', '--port', String(port)],
         io,
@@ -622,6 +646,7 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
       });
       const bound = await receiver.listen().catch((e: Error) => blocked(`receiver: ${e.message}`));
       expect(bound).toBe(config.port);
+      vi.setSystemTime(clock);
 
       const registrations = new Map<string, { thread_ref: string; sequence: number }>();
       for (const reg of vector.registerSessions) {
@@ -691,6 +716,8 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
         }
         if (xu.cost_usd === null) {
           if ('cost_usd' in u) d.push(`cost_usd ${String(u.cost_usd)} must be absent`);
+        } else if (x.platform === 'claude-code' && xu.cost_usd === 0 && !('cost_usd' in u)) {
+          // Claude Code: an expected 0 also matches an absent key (otlp suite convention, U32).
         } else if (
           typeof u.cost_usd !== 'number' ||
           !(Math.abs(u.cost_usd - xu.cost_usd) <= COST_TOLERANCE_USD)
@@ -698,8 +725,10 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
           d.push(`cost_usd ${String(u.cost_usd)} ≠ ${xu.cost_usd} (±${COST_TOLERANCE_USD})`);
         }
         if (u.model !== xu.model) d.push(`model ${String(u.model)} ≠ ${xu.model}`);
+        // R5: every expectation is false; produced false or absent, `true` fails any event.
         if (
-          xu.estimated ? u.estimated !== true : u.estimated !== false && u.estimated !== undefined
+          u.estimated === true ||
+          (xu.estimated ? u.estimated !== true : u.estimated !== false && u.estimated !== undefined)
         ) {
           d.push(`estimated ${String(u.estimated)} ≠ ${xu.estimated}`);
         }
@@ -711,10 +740,15 @@ describe('Gemini CLI collector conformance vectors (docs/jgr/conformance/gemini)
       for (const [i, step] of vector.steps.entries()) {
         const where = `${file} step ${i + 1} (${step.request.path})`;
         const droppedBefore = (await state.receiverInfo())?.dropped ?? 0;
-        const body = Buffer.from(
+        let body = Buffer.from(
           step.request.rawBody !== null ? step.request.rawBody : JSON.stringify(step.request.body),
           'utf8',
         );
+        // R9: trailing ASCII spaces up to bodyPadBytes; content-length is the padded length.
+        const pad = step.request.bodyPadBytes;
+        if (pad !== null && body.length < pad) {
+          body = Buffer.concat([body, Buffer.alloc(pad - body.length, 0x20)]);
+        }
         const reply = await rawPost(
           config.port,
           step.request.path,
