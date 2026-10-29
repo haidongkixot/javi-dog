@@ -35,7 +35,6 @@ export {
   CODEX_TURN_COST_EVENT,
   codexAgentRef,
   codexCostDelta,
-  codexEventIdInput,
   codexSubagentLink,
   codexThreadRef,
   codexUsageDelta,

@@ -48,7 +48,6 @@ Statuses match JD-C01's Claude Code equivalents. Only `session_id`, `hook_event_
 | `parseCodexLogs(body)` | OTLP/HTTP JSON logs → token records (`codex.sse_event` `response.completed`) and cost records (`codex.turn_cost`) only |
 | `codexUsageDelta(record)` | H3 counters: input − cached − cache write (clamped), `estimated: false` |
 | `codexCostDelta(record)` | `{ cost_usd, estimated: false }` only for `ApiKey` auth, else `null` |
-| `codexEventIdInput(record)` | Deterministic key material for JD-C01's salted event id |
 | `CODEX_HOOK_EVENTS`, `CODEX_PLATFORM`, `CODEX_THREAD_PREFIX`, `CODEX_AGENT_PREFIX`, `CODEX_AUTH_MODES`, `CODEX_PRICED_AUTH_MODES`, `CODEX_SSE_EVENT`, `CODEX_RESPONSE_COMPLETED`, `CODEX_TURN_COST_EVENT`, `CODEX_LOGS_PARSE_ERROR` | Constants |
 
 ### Hook mapping (C2, review Low, M4)
@@ -82,6 +81,4 @@ Statuses match JD-C01's Claude Code equivalents. Only `session_id`, `hook_event_
 
 - `codexUsageDelta`: `input_tokens` = max(0, input − cached − cache write), because Codex's input includes both (official test: 100 = 40 + 60); `cache_read_tokens` = cached; `cache_write_tokens` = cache write; `output_tokens` = output; `model`; `estimated: false`. Zero counters are kept; dropping empty records is the caller's job.
 - `codexCostDelta`: only `auth_mode` `ApiKey` (`CODEX_PRICED_AUTH_MODES`) → `{ cost_usd, estimated: false }`, rounded to 1e-9 USD. `Chatgpt`, missing or any other auth mode → `null`: tokens only, no budget impact. A missing cost is never zero; a parsed `"0"` is a real zero. The figure is OpenAI's (or the provider's) estimate, labelled estimated in the UI (ADR-0013).
-- `codexEventIdInput`: NUL-separated key material for JD-C01's HMAC event id (as `usageEventId`):
-  - token record: `codex-cli \0 conversationId \0 timestamp \0 input \0 cached \0 cacheWrite \0 output` (raw counters);
-  - cost record: `codex-cli \0 conversationId \0 turnId`.
+- Event ids are not computed here: JD-C01 (`codex-usage.ts`, `codexTokenEventId` / `codexCostEventId`) derives them from the records with a record-kind tag, so that formula has a single source.

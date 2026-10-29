@@ -5,7 +5,7 @@ import {
   type AdapterContext,
 } from '@javis-dog/collector-adapters';
 import { createFileSpool, createJgrClient, type FlushResult } from '@javis-dog/jgr-sdk';
-import { codexEnvRisks, codexHome } from './codex-config.ts';
+import { codexEnvRisks, codexHome, type SystemProxyProbe } from './codex-config.ts';
 import { codexThreadRef } from './codex-usage.ts';
 import { geminiHome } from './gemini-settings.ts';
 import { findGeminiTelemetryOverrides } from './gemini-telemetry.ts';
@@ -45,6 +45,11 @@ export interface HookDeps {
    */
   env?: NodeJS.ProcessEnv;
   cwd?: string;
+  /**
+   * Codex CLI SessionStart: OS proxy settings to check as well (S5c code review M3); the CLI
+   * passes the real `scutil` / `reg` runner (2 s timeout), tests inject one.
+   */
+  systemProxy?: SystemProxyProbe;
 }
 
 /**
@@ -87,7 +92,9 @@ const checkGeminiTelemetry = async (deps: HookDeps) => {
  * carry Codex's logs and javi's bearer off the loopback, for header variables that replace the
  * bearer (both while Codex usage is on), and for javi's own Claude Code header value, which
  * Codex would merge into its default metrics export to OpenAI (while Claude Code usage is on).
- * Records a local warning with names and paths only, or clears the project's warning. Never
+ * NO_PROXY counts with hyper-util's rules (S5c code review H1), and OS proxy settings (macOS
+ * `scutil --proxy`, Windows Internet Settings, M3) count as a proxy too. Runs only in folders
+ * with javi's Codex hooks. Records a local warning with names and paths only, or clears the project's warning. Never
  * throws.
  */
 const checkCodexEnv = async (deps: HookDeps) => {
@@ -101,6 +108,8 @@ const checkCodexEnv = async (deps: HookDeps) => {
     const risks = await codexEnvRisks({
       env,
       home: codexHome(env),
+      // OS proxy settings only matter while Codex usage is on (they redirect its log export).
+      ...(config.codex && deps.systemProxy && { system: deps.systemProxy }),
       ...(config.written?.OTEL_EXPORTER_OTLP_METRICS_HEADERS && {
         claudeHeader: config.written.OTEL_EXPORTER_OTLP_METRICS_HEADERS,
       }),

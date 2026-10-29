@@ -411,8 +411,29 @@ const shiftsOf = (groups: unknown[], removed: number[]) => {
   return groups.filter((g, i) => i > first && !removed.includes(i) && !isCodexJaviGroup(g)).length;
 };
 
+/**
+ * What `.codex/hooks.json` was before javi's first init (S5c code review L5), kept in javi's
+ * state so uninstall restores the user's file instead of guessing: `created` (javi created the
+ * file), the hook `events` the user's file already had (also empty ones) and whether it had a
+ * `hooks` key at all. Event names only, never commands.
+ */
+export interface CodexHooksOrigin {
+  created: boolean;
+  events: string[];
+  hooksKey: boolean;
+}
+
+const isOrigin = (value: unknown): value is CodexHooksOrigin =>
+  isPlainObject(value) &&
+  typeof value.created === 'boolean' &&
+  typeof value.hooksKey === 'boolean' &&
+  Array.isArray(value.events) &&
+  value.events.every((e) => typeof e === 'string');
+
 export interface InstallCodexResult {
   path: string;
+  /** The file before javi's first init (to save in javi's state for uninstall). */
+  origin: CodexHooksOrigin;
   /** Events where javi's group was appended (new), kept as it was, or updated in place. */
   appended: string[];
   kept: string[];
@@ -431,11 +452,38 @@ export const installCodexHooks = async (
   projectDir: string,
   launchers: { posix: string; windows: string },
   projectRef: string,
+  /** The origin saved at an earlier init, if any: kept while javi's groups are in the file. */
+  previous?: CodexHooksOrigin | null,
 ): Promise<InstallCodexResult> => {
   const path = codexHooksPath(projectDir);
   const loaded = await load(path, 'javi init --platform codex-cli');
-  const result: InstallCodexResult = { path, appended: [], kept: [], updated: [], shifts: [] };
   const hooks: Record<string, unknown[]> = loaded.kind === 'ok' ? { ...loaded.hooks } : {};
+  const javiThere = Object.values(hooks).some((groups) => groups.some(isCodexJaviGroup));
+  let origin: CodexHooksOrigin;
+  if (loaded.kind === 'missing') origin = { created: true, events: [], hooksKey: false };
+  else if (!javiThere) {
+    origin = {
+      created: false,
+      events: Object.keys(loaded.hooks),
+      hooksKey: Object.hasOwn(loaded.file, 'hooks'),
+    };
+  } else if (isOrigin(previous)) origin = previous;
+  else {
+    // javi's groups are there but the record is lost: the safe guess (never deleted later).
+    origin = {
+      created: false,
+      events: Object.keys(hooks).filter((e) => hooks[e]!.some((g) => !isCodexJaviGroup(g))),
+      hooksKey: true,
+    };
+  }
+  const result: InstallCodexResult = {
+    path,
+    origin,
+    appended: [],
+    kept: [],
+    updated: [],
+    shifts: [],
+  };
   for (const event of CODEX_HOOK_EVENTS) {
     const desired = codexHookGroup(event, launchers, projectRef);
     const groups = [...(hooks[event] ?? [])];
@@ -475,8 +523,17 @@ export interface UninstallCodexResult {
   deleted: boolean;
 }
 
-/** Removes only javi's groups; reports which of the user's groups change position. */
-export const uninstallCodexHooks = async (projectDir: string): Promise<UninstallCodexResult> => {
+/**
+ * Removes only javi's groups; reports which of the user's groups change position. With the
+ * `origin` saved at init, the user's file comes back as it was (empty events and the `hooks`
+ * key included) and the file is deleted only when javi created it and nothing else is left.
+ * Without one, the file is never deleted (S5c code review L5).
+ */
+export const uninstallCodexHooks = async (
+  projectDir: string,
+  origin?: CodexHooksOrigin | null,
+): Promise<UninstallCodexResult> => {
+  const known = isOrigin(origin) ? origin : null;
   const path = codexHooksPath(projectDir);
   const loaded = await load(path, 'javi uninstall --platform codex-cli');
   const result: UninstallCodexResult = { path, removed: 0, shifts: [], deleted: false };
@@ -488,13 +545,13 @@ export const uninstallCodexHooks = async (projectDir: string): Promise<Uninstall
     const shifted = shiftsOf(groups, ours);
     if (shifted) result.shifts.push({ event, groups: shifted });
     const kept = groups.filter((g) => !isCodexJaviGroup(g));
-    // An event javi emptied goes; one the user left empty stays as it was.
-    if (kept.length || !ours.length) hooks[event] = kept;
+    // An event javi emptied goes, unless the user's file had it; one the user left empty stays.
+    if (kept.length || !ours.length || known?.events.includes(event)) hooks[event] = kept;
   }
   if (!result.removed) return result;
   const target: Record<string, unknown> = { ...loaded.file, hooks };
-  if (!Object.keys(hooks).length) delete target.hooks;
-  if (!Object.keys(target).length) {
+  if (!Object.keys(hooks).length && known && !known.hooksKey) delete target.hooks;
+  if (known?.created && !Object.keys(target).length) {
     await rm(await writeTarget(path), { force: true });
     return { ...result, deleted: true };
   }

@@ -285,10 +285,40 @@ describe('.codex/hooks.json (C1, M3)', () => {
     expect(await readFile(path(), 'utf8')).toBe(user);
 
     await rm(path());
-    await installCodexHooks(project, LAUNCHERS, 'web-app');
-    expect(await uninstallCodexHooks(project)).toMatchObject({ deleted: true });
+    const created = await installCodexHooks(project, LAUNCHERS, 'web-app');
+    expect(created.origin).toEqual({ created: true, events: [], hooksKey: false });
+    expect(await uninstallCodexHooks(project, created.origin)).toMatchObject({ deleted: true });
     await expect(stat(path())).rejects.toThrow();
     expect(await uninstallCodexHooks(project)).toMatchObject({ removed: 0 });
+  });
+
+  it("uninstall never deletes a hooks.json javi did not create; the user's empty events stay (review L5)", async () => {
+    const user = '{ "hooks": { "Stop": [] } }\n';
+    await seed(user);
+    const first = await installCodexHooks(project, LAUNCHERS, 'web-app');
+    expect(first.origin).toEqual({ created: false, events: ['Stop'], hooksKey: true });
+    // Re-init keeps the record of what was the user's.
+    const again = await installCodexHooks(project, LAUNCHERS, 'web-app', first.origin);
+    expect(again.origin).toEqual(first.origin);
+    expect(await uninstallCodexHooks(project, first.origin)).toMatchObject({
+      removed: CODEX_HOOK_EVENTS.length,
+      deleted: false,
+    });
+    expect(await readFile(path(), 'utf8')).toBe(user);
+
+    // Without a record (lost state), javi treats the file as the user's: it is never deleted.
+    await installCodexHooks(project, LAUNCHERS, 'web-app');
+    expect(await uninstallCodexHooks(project)).toMatchObject({ deleted: false });
+    expect(await read()).toEqual({ hooks: {} });
+
+    // A file javi created that the user then added to keeps the user's part.
+    await rm(path());
+    const mine = await installCodexHooks(project, LAUNCHERS, 'web-app');
+    const file = await read();
+    file.x = 1;
+    await writeFile(path(), `${JSON.stringify(file, null, 2)}\n`);
+    expect(await uninstallCodexHooks(project, mine.origin)).toMatchObject({ deleted: false });
+    expect(await read()).toEqual({ x: 1 });
   });
 });
 

@@ -20,7 +20,6 @@
     "parseCodexLogs()",
     "codexUsageDelta()",
     "codexCostDelta()",
-    "codexEventIdInput()",
     "codexThreadRef() / codexAgentRef()",
     "CODEX_HOOK_EVENTS",
     "CODEX_AUTH_MODES / CODEX_PRICED_AUTH_MODES",

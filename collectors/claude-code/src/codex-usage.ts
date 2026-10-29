@@ -12,8 +12,13 @@ import { COLLECTOR_VERSION, opaqueRef } from './mapping.ts';
 
 // Codex CLI log records → `usage.reported` (ADR-0016 Changes "S5c design" C5–C6 and "S5c
 // design review" H3, M1, M4). JD-C02 parses the allowlisted records and computes the deltas;
-// this module attributes them to a thread and gives them deterministic event ids. Raw
-// conversation, turn and agent ids stay in memory: only their keyed hashes leave it.
+// this module attributes them to a thread and gives them deterministic event ids. It is the
+// single source of the Codex event-id formula (JD-C02 has none, S5c review L6): HMAC-SHA-256
+// with the installation salt over NUL-separated, kind-tagged key material —
+//   tokens: `codex-cli \0 tokens \0 conversation \0 timestamp \0 input \0 cached \0 cache_write \0 output`
+//   cost:   `codex-cli \0 cost \0 conversation \0 turn.id`
+// (raw counters, before the H3 rule), laid out as a version-8 UUID. Raw conversation, turn and
+// agent ids stay in memory: only their keyed hashes leave it.
 
 /** Canonical lowercase UUID (version 8 layout) from HMAC-SHA-256(salt, key). */
 export const hmacUuid = (salt: string, key: string): string => {

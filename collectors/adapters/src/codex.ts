@@ -401,26 +401,3 @@ export const codexCostDelta = (
   if (!Number.isFinite(record.costUsd) || record.costUsd < 0) return null;
   return { cost_usd: Math.round(record.costUsd * 1e9) / 1e9, estimated: false };
 };
-
-/**
- * Deterministic key material for JD-C01's `usage.reported` event id (HMAC with the salt, as
- * `usageEventId`), NUL-separated so it never collides with a Claude Code or Gemini key:
- * - token record: `codex-cli \0 conversationId \0 timestamp \0 input \0 cached \0 cacheWrite \0
- *   output` (raw counters, before the H3 rule);
- * - cost record: `codex-cli \0 conversationId \0 turnId`.
- *
- * The parser rejects ids containing NUL, so the two shapes cannot collide either. The raw ids
- * are in the key only; JD-C01 hashes it and never stores it.
- */
-export const codexEventIdInput = (record: CodexTokenRecord | CodexCostRecord): string =>
-  'turnId' in record
-    ? [CODEX_PLATFORM, record.conversationId, record.turnId].join('\0')
-    : [
-        CODEX_PLATFORM,
-        record.conversationId,
-        record.timestamp,
-        record.input,
-        record.cached,
-        record.cacheWrite,
-        record.output,
-      ].join('\0');

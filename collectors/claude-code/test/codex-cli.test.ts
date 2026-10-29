@@ -15,7 +15,21 @@ import {
   main,
   type CollectorState,
   type Io,
+  type SystemProxyProbe,
 } from '../src/index.ts';
+
+/** A macOS whose system settings have an HTTP proxy on (scutil output; values never shown). */
+const MAC_PROXY: SystemProxyProbe = {
+  platform: 'darwin',
+  run: async (command) =>
+    command === 'scutil'
+      ? {
+          code: 0,
+          stdout:
+            '<dictionary> {\n  HTTPEnable : 1\n  HTTPPort : 3128\n  HTTPProxy : sys-proxy.corp.example\n}\n',
+        }
+      : null,
+};
 
 // S5c B1–B2 (TEST_PLAN §S5c): `javi … --platform codex-cli` in-process against temp JAVI_HOME,
 // Codex home and project dirs (never the real ~/.codex). JD-C02 is replaced by local test
@@ -60,7 +74,14 @@ const freePort = () =>
     });
   });
 
-const io = (opts: { env?: NodeJS.ProcessEnv; stdin?: string; cwd?: string } = {}) => {
+const io = (
+  opts: {
+    env?: NodeJS.ProcessEnv;
+    stdin?: string;
+    cwd?: string;
+    systemProxy?: SystemProxyProbe;
+  } = {},
+) => {
   const out: string[] = [];
   const err: string[] = [];
   const value: Io = {
@@ -77,6 +98,7 @@ const io = (opts: { env?: NodeJS.ProcessEnv; stdin?: string; cwd?: string } = {}
     err: (l) => err.push(l),
     spawnFlush: () => {},
     spawnReceiver: () => {},
+    ...(opts.systemProxy && { systemProxy: opts.systemProxy }),
   };
   return { value, out, err };
 };
@@ -161,13 +183,20 @@ describe('javi init --platform codex-cli', () => {
 });
 
 describe('javi usage on|off --platform codex-cli', () => {
-  const on = async (extra: string[] = [], env: NodeJS.ProcessEnv = {}) => {
+  const on = async (
+    extra: string[] = [],
+    env: NodeJS.ProcessEnv = {},
+    systemProxy?: SystemProxyProbe,
+  ) => {
     // A free port unless one is given or another platform already fixed it.
     const port =
       extra.includes('--port') || (await state.usageConfig())
         ? []
         : ['--port', String(await freePort())];
-    return run(['usage', 'on', '--platform', 'codex-cli', ...port, ...extra], { env });
+    return run(['usage', 'on', '--platform', 'codex-cli', ...port, ...extra], {
+      env,
+      ...(systemProxy && { systemProxy }),
+    });
   };
   const off = () => run(['usage', 'off', '--platform', 'codex-cli']);
 
@@ -275,13 +304,59 @@ describe('javi usage on|off --platform codex-cli', () => {
     expect(await readFile(config, 'utf8')).toBe('model = ');
   });
 
-  it('usage off leaves a changed block alone and says so', async () => {
+  it('refuses on an OS proxy setting Codex would use (names only); NO_PROXY=127.0.0.1 lets it through', async () => {
+    const r = await on([], {}, MAC_PROXY);
+    expect(r.code).toBe(1);
+    const text = r.err.join('\n');
+    expect(text).toContain('system settings: macOS system HTTP proxy');
+    expect(text).toMatch(/bypass list and Windows <local> do not cover 127\.0\.0\.1/);
+    expect(text).not.toMatch(/corp\.example|3128/);
+    expect(await exists(config)).toBe(false);
+    expect(await state.usageConfig()).toBeNull();
+    expect((await on([], { NO_PROXY: '127.0.0.1' }, MAC_PROXY)).code).toBe(0);
+  });
+
+  it('HTTPS_PROXY alone still refuses, and the message names that variable and why', async () => {
+    const r = await on([], { HTTPS_PROXY: 'http://proxy:3128' });
+    expect(r.code).toBe(1);
+    const text = r.err.join('\n');
+    expect(text).toContain('environment: HTTPS_PROXY');
+    expect(text).toMatch(/HTTPS_PROXY.*plain http.*to be safe/);
+  });
+
+  it('usage off after Codex rewrote config.toml (toml_edit moved the end marker): only javi lines go; usage on works again', async () => {
+    await writeFile(config, 'model = "gpt-5-codex"\n');
     expect((await on()).code).toBe(0);
+    const usage = (await state.usageConfig())!;
+    const block = usage.codex!.block;
+    const core = block.replace('# <<< javi\n', '');
+    const appended =
+      '\n[projects."/home/u/proj"]\ntrust_level = "trusted"\n\n[hooks.state."/home/u/proj/.codex/hooks.json:stop:0:0"]\ntrusted_hash = "sha256:abc"\n';
+    // As toml_edit 0.24.0 writes it after Codex appended two tables.
+    await writeFile(config, `model = "gpt-5-codex"\n\n${core}${appended}# <<< javi\n`);
+    const o = await off();
+    expect(o.code).toBe(0);
+    expect(await readFile(config, 'utf8')).toBe(`model = "gpt-5-codex"\n${appended}`);
+    expect(await state.usageConfig()).toBeNull();
+    expect((await on()).code).toBe(0);
+    expect((await readFile(config, 'utf8')).match(/# <<< javi/g)).toHaveLength(1);
+  });
+
+  it('usage off on an edited block keeps usage on and names exactly the javi keys to remove', async () => {
+    expect((await on()).code).toBe(0);
+    const before = await state.usageConfig();
     const text = await readFile(config, 'utf8');
     await writeFile(config, text.replace('log_sse_deltas = false', 'log_sse_deltas = true'));
     const o = await off();
-    expect(o.code).toBe(0);
-    expect(o.out.join('\n')).toMatch(/was changed since usage on, so javi left the file as it is/);
+    expect(o.code).toBe(1);
+    const said = [...o.out, ...o.err].join('\n');
+    expect(said).toMatch(/was changed since usage on, so javi left the file as it is/);
+    expect(said).toContain(
+      "the line '# >>> javi usage (do not edit)', the [otel] table header and its keys exporter, log_user_prompt, log_agent_responses, log_guardian_assessments and log_sse_deltas, and the line '# <<< javi'",
+    );
+    expect(said).not.toMatch(/lines between/);
+    expect(said).not.toMatch(/no longer export logs|receiver stopped/i);
+    expect(await state.usageConfig()).toEqual(before);
     expect(await readFile(config, 'utf8')).toContain(CODEX_BLOCK_START);
   });
 });
@@ -368,6 +443,26 @@ describe('javi hook / status --platform codex-cli', () => {
     expect(await state.codexEnvWarnings()).toEqual([]);
   });
 
+  it('SessionStart records an OS proxy setting as a warning (names only)', async () => {
+    expect((await init()).code).toBe(0);
+    const port = String(await freePort());
+    expect((await run(['usage', 'on', '--platform', 'codex-cli', '--port', port])).code).toBe(0);
+    const h = await run(
+      ['hook', '--platform', 'codex-cli', '--project', 'web-app', '--source', 'javi-collector'],
+      {
+        stdin: JSON.stringify({ session_id: 's1', hook_event_name: 'SessionStart' }),
+        systemProxy: MAC_PROXY,
+      },
+    );
+    expect(h).toMatchObject({ code: 0, out: [], err: [] });
+    expect((await state.codexEnvWarnings())[0]).toMatchObject({
+      proxy: [{ source: 'system settings', keys: ['macOS system HTTP proxy'] }],
+    });
+    const s = await status();
+    expect(s.out[0]).toMatch(/^WARNING: Codex CLI logs can bypass javi in project web-app/);
+    expect(s.out.join('\n')).not.toMatch(/corp\.example/);
+  });
+
   it('SubagentStart stores the link before the hook exits; other hooks stay silent', async () => {
     expect((await init()).code).toBe(0);
     const port = String(await freePort());
@@ -390,6 +485,25 @@ describe('javi hook / status --platform codex-cli', () => {
 });
 
 describe('javi uninstall --platform codex-cli', () => {
+  it("restores a user's hooks.json (empty events included) and deletes only a file javi created (review L5)", async () => {
+    const path = codexHooksPath(project);
+    await mkdir(join(project, '.codex'), { recursive: true });
+    const user = '{ "hooks": { "Stop": [] } }\n';
+    await writeFile(path, user);
+    expect((await init()).code).toBe(0);
+    expect((await init()).code).toBe(0); // re-init keeps what the file was before javi
+    const u = await run(['uninstall', '--project', 'web-app', '--platform', 'codex-cli']);
+    expect(u.code).toBe(0);
+    expect(u.out.join('\n')).not.toMatch(/the file was removed/);
+    expect(await readFile(path, 'utf8')).toBe(user);
+
+    await rm(path);
+    expect((await init()).code).toBe(0);
+    const d = await run(['uninstall', '--project', 'web-app', '--platform', 'codex-cli']);
+    expect(d.out).toContain(`${path} held only javi's hooks, so the file was removed.`);
+    expect(await exists(path)).toBe(false);
+  });
+
   it("removes javi's groups, lists the user's groups that shift, keeps the token for Claude Code hooks", async () => {
     expect((await init()).code).toBe(0);
     const path = codexHooksPath(project);
