@@ -1,6 +1,6 @@
 # JD-C01 · `@javis-dog/collector-claude-code` — Claude Code collector (`javi`)
 
-Status: **in-progress** (S3c, ADR-0010). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage is opt-in (see below).
+Status: **in-progress** (S3c, ADR-0010; Gemini CLI since S5b, ADR-0016). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. The same `javi` also collects from Gemini CLI with `--platform gemini-cli` ([below](#gemini-cli-s5b-adr-0016)). **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage is opt-in (see below).
 
 ## Set up a project
 
@@ -45,6 +45,7 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 | `javi hook --project <slug>` | Called by Claude Code; silent, always exit 0 |
 | `javi usage on [--port <n>]` / `javi usage off` | Opt in to / out of token usage (below); no `--project` needed |
 | `javi receive` | The local usage receiver; hooks start it for you |
+| `--platform <claude-code\|gemini-cli>` | On `init`, `uninstall`, `status`, `hook`, `usage on\|off`; default `claude-code` (unchanged behaviour) |
 
 ## What is sent
 
@@ -83,3 +84,50 @@ node "<repo>/collectors/claude-code/src/cli.ts" usage on      # or: javi init ..
 - OTel variables from direnv or an IDE's launch environment are overridden by `~/.claude/settings.json` while usage is on.
 - Organisation-managed settings (a managed settings file, MDM or the claude.ai console) can override or turn off the export, and javi cannot see them. `javi status` then shows no forwarded usage.
 - If another program holds the usage port, it receives Claude Code's exports, identity attributes included. `javi status` warns you when that happens; run `javi usage off`, or `javi usage on --port <n>` to move to a free port.
+
+## Gemini CLI (S5b, ADR-0016)
+
+The same `javi` collects from [Gemini CLI](https://github.com/google-gemini/gemini-cli) with `--platform gemini-cli`. One token per project, one receiver per machine; the Gemini adapter logic (hook mapping, metrics allowlist, price table) lives in JD-C02 `@javis-dog/collector-adapters`.
+
+```sh
+JAVI_INGEST_TOKEN='<paste token>' node "<repo>/collectors/claude-code/src/cli.ts" init --project <project-slug> --platform gemini-cli
+```
+
+**Hooks.** `init` adds one hook per event (`SessionStart`, `SessionEnd`, `BeforeAgent`, `AfterAgent`, `BeforeTool`, `AfterTool`, `Notification`) to the project's `.gemini/settings.json`, merged with your settings and hooks. Each entry is marked `"name": "javi-collector"`, has `"timeout": 5000` and no matcher, and runs a shell command (Gemini runs hooks through `bash -c`, or PowerShell on Windows), with every path quoted:
+
+```json
+{ "hooks": [{ "name": "javi-collector", "type": "command", "timeout": 5000,
+  "command": "/usr/bin/node /home/you/.javi/bin/0.1.0/javi.mjs hook --platform gemini-cli --project web-app --source javi-collector" }] }
+```
+
+The token is never in that file. An existing file is backed up once as `.gemini/settings.json.javi-backup` (added to `.git/info/exclude`). A file javi cannot parse as plain JSON — including one with comments, which Gemini allows — is refused before the token is saved. Re-running `init` replaces only javi's entries; `javi uninstall --project <slug> --platform gemini-cli` removes only them. If you commit `.gemini/settings.json`, javi's entries (paths on this machine) go with it.
+
+**What is sent.** `SessionStart`/`SessionEnd` → `session.started`/`session.ended`; `BeforeAgent`/`AfterAgent` → `heartbeat` working/idle; `BeforeTool`/`AfterTool` → `task.started`/`task.completed` with `tool_name`; `Notification` `ToolPermission` → `attention.requested`. Prompts, responses, tool input and output, `cwd`, transcript paths and notification details are never read into events. Sessions become `gm_…` refs (`attributes.platform: gemini-cli`). Tool failures are not visible (Gemini only reports them inside tool output).
+
+**Good to know.**
+
+- Gemini CLI loads `.gemini/settings.json` **only in a trusted folder**. In an untrusted folder no hook runs; `javi status --project <slug> --platform gemini-cli` then says "no events yet" instead of guessing. It shows whether javi's hooks are in the file and when Gemini last ran one.
+- Gemini may warn before it runs new or changed project hooks.
+- Gemini hooks are **synchronous**: Gemini waits for `javi hook`, so it only spools the event, starts a detached flush and exits 0 with empty stdout and stderr (Gemini parses stdout as JSON and falls back to stderr). Measured from the TypeScript source on the dev container: about 0.2–0.4 s per hook; the bundle starts faster. Gemini does not wait for `SessionEnd`, so session end is best effort.
+
+**Token usage (opt-in, user level).** `javi usage on --platform gemini-cli` edits `~/.gemini/settings.json` (or `$GEMINI_CLI_HOME/.gemini/settings.json`) and adds:
+
+```json
+"telemetry": {
+  "enabled": true, "target": "local", "otlpProtocol": "http",
+  "otlpEndpoint": "http://127.0.0.1:4319",
+  "otlpHeaders": { "Authorization": "Bearer <local secret from ~/.javi/usage.json>" },
+  "logPrompts": false, "traces": false
+}
+```
+
+- `logPrompts` is forced off (Gemini's default is on). With `otlpProtocol: "http"`, Gemini sends metrics, logs and traces to the receiver; `/v1/logs` and `/v1/traces` are answered `200 {}` and drained **without being parsed or stored** (bearer, Host and 1 MiB limits still apply). From `/v1/metrics` only `gemini_cli.token.usage` points are read, with `session.id`, `model` and `type`.
+- Counters are cumulative: the first export of a series only sets a baseline, as for Claude Code (ADR-0011). Baselines are kept per platform, so the two never mix. `input` minus `cache` → `input_tokens`, `cache` → `cache_read_tokens`, `output` → `output_tokens`, `thought` → `reasoning_tokens`; `tool` is ignored.
+- Gemini reports no cost: `cost_usd` is **estimated** from JD-C02's dated price table (`estimated: true`); a model without a price gets tokens only.
+- A session counts only once one of its hooks ran in a project with `javi init --platform gemini-cli`; other usage is dropped on this machine.
+- Refusals: javi changes nothing when `~/.gemini/settings.json` already has a `telemetry` block it did not write, when a Gemini telemetry variable (`GEMINI_TELEMETRY_*`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_HEADERS`) is set in your shell (it would override the file), or when the file is not plain JSON. It names the keys, never their values.
+- Claude Code and Gemini CLI share one receiver, port and secret. `--port` cannot move the port while the other platform's usage is on.
+- `javi usage off --platform gemini-cli` restores the file byte for byte when it is exactly as javi left it (and deletes it if javi created it). If you changed other settings since, it removes only javi's unchanged `telemetry` block; if you changed that block, it leaves the file alone and says so. The receiver keeps running while Claude Code usage is still on.
+- A project's own `.gemini/settings.json` `telemetry` block overrides the user file in that folder; `init` warns when it finds one.
+
+**Not yet verified on a real Gemini CLI run** (ADR-0016): that Gemini accepts empty hook output without a warning (its source treats empty stdout and stderr with exit 0 as success), whether `/clear` starts a new session id, and Windows (PowerShell quoting).

@@ -307,7 +307,8 @@ describe('usage receiver over real HTTP', () => {
     ],
     [
       'other path',
-      () => post(port, { path: '/v1/traces', body: json(otlpExport('sess-known')) }),
+      // /v1/logs and /v1/traces are Gemini CLI sinks since S5b (receiver-gemini.test.ts).
+      () => post(port, { path: '/v1/other', body: json(otlpExport('sess-known')) }),
       404,
     ],
   ];
@@ -413,7 +414,7 @@ describe('usage receiver over real HTTP', () => {
     for (const reply of [
       await post(port, { headers: { authorization: '' }, body: '{}' }),
       await post(port, { headers: { authorization: 'Bearer nope-nope-nope-nope' }, body: '{}' }),
-      await post(port, { path: '/v1/traces', body: '{}' }),
+      await post(port, { path: '/v1/other', body: '{}' }),
       await post(port, { method: 'GET' }),
     ]) {
       expect(reply.status).toBeGreaterThanOrEqual(400);
