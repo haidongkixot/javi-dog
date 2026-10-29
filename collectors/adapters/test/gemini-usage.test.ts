@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   estimateGeminiCostUsd,
   findGeminiPrice,
+  GEMINI_AUTH_TYPES,
+  GEMINI_PRICED_AUTH_TYPES,
   GEMINI_PRICES,
   geminiUsageDelta,
 } from '../src/index.ts';
@@ -11,6 +13,52 @@ const OCT_2026 = new Date('2026-10-29T12:00:00Z');
 const LAST_INTRO_MS = new Date('2026-12-31T23:59:59.999Z');
 const FIRST_LATER_MS = new Date('2027-01-01T00:00:00.000Z');
 
+describe('geminiUsageDelta — estimated flag and auth-gated cost (ADR-0016 Changes R5, R6)', () => {
+  const delta = {
+    input_tokens: 1000,
+    cache_read_tokens: 300,
+    output_tokens: 200,
+    reasoning_tokens: 50,
+  };
+  const tokens = { ...delta, input_tokens: 700 };
+
+  it.each(['vertex-ai', 'gemini-api-key'])(
+    '%s (per-token billing): estimated cost, estimated: false (token counts are exact)',
+    (authType) => {
+      expect(geminiUsageDelta(delta, 'gemini-2.5-pro', OCT_2026, authType)).toEqual({
+        ...tokens,
+        cost_usd: 0.0034125,
+        estimated: false,
+      });
+    },
+  );
+
+  it.each([
+    'oauth-personal',
+    'cloud-shell',
+    'compute-default-credentials',
+    'gateway',
+    'something-else',
+    undefined,
+  ])('auth %s: tokens only, no cost_usd, estimated: false', (authType) => {
+    const usage = geminiUsageDelta(delta, 'gemini-2.5-pro', OCT_2026, authType);
+    expect(usage).toEqual({ ...tokens, estimated: false });
+    expect(usage).not.toHaveProperty('cost_usd');
+  });
+
+  it('exports the auth allowlist and the per-token-billed subset', () => {
+    expect(GEMINI_AUTH_TYPES).toEqual([
+      'oauth-personal',
+      'gemini-api-key',
+      'vertex-ai',
+      'cloud-shell',
+      'compute-default-credentials',
+      'gateway',
+    ]);
+    expect(GEMINI_PRICED_AUTH_TYPES).toEqual(['vertex-ai', 'gemini-api-key']);
+  });
+});
+
 describe('geminiUsageDelta — input − cache rule (ADR-0016 §3, spec §14 2026-10-29)', () => {
   it('subtracts cached tokens from input and keeps the other counters as is', () => {
     expect(
@@ -18,6 +66,7 @@ describe('geminiUsageDelta — input − cache rule (ADR-0016 §3, spec §14 202
         { input_tokens: 1000, cache_read_tokens: 300, output_tokens: 200, reasoning_tokens: 50 },
         'unpriced-model',
         OCT_2026,
+        undefined,
       ),
     ).toEqual({
       input_tokens: 700,
@@ -30,16 +79,23 @@ describe('geminiUsageDelta — input − cache rule (ADR-0016 §3, spec §14 202
 
   it('clamps input at 0 when the cache delta is larger', () => {
     expect(
-      geminiUsageDelta({ input_tokens: 100, cache_read_tokens: 300 }, 'unpriced-model', OCT_2026),
+      geminiUsageDelta(
+        { input_tokens: 100, cache_read_tokens: 300 },
+        'unpriced-model',
+        OCT_2026,
+        undefined,
+      ),
     ).toEqual({ input_tokens: 0, cache_read_tokens: 300, estimated: false });
   });
 
   it('keeps zeros, leaves absent counters absent and copies no other key', () => {
-    expect(geminiUsageDelta({ input_tokens: 500 }, 'unpriced-model', OCT_2026)).toEqual({
+    expect(geminiUsageDelta({ input_tokens: 500 }, 'unpriced-model', OCT_2026, undefined)).toEqual({
       input_tokens: 500,
       estimated: false,
     });
-    expect(geminiUsageDelta({ cache_read_tokens: 40 }, 'unpriced-model', OCT_2026)).toEqual({
+    expect(
+      geminiUsageDelta({ cache_read_tokens: 40 }, 'unpriced-model', OCT_2026, undefined),
+    ).toEqual({
       cache_read_tokens: 40,
       estimated: false,
     });
@@ -48,6 +104,7 @@ describe('geminiUsageDelta — input − cache rule (ADR-0016 §3, spec §14 202
         { input_tokens: 0, output_tokens: 0, cache_write_tokens: 9 },
         'unpriced-model',
         OCT_2026,
+        undefined,
       ),
     ).toEqual({ input_tokens: 0, output_tokens: 0, estimated: false });
   });
@@ -61,6 +118,7 @@ describe('geminiUsageDelta — estimated cost from the dated table', () => {
         { input_tokens: 1000, cache_read_tokens: 300, output_tokens: 200, reasoning_tokens: 50 },
         'gemini-2.5-pro',
         OCT_2026,
+        'vertex-ai',
       ),
     ).toEqual({
       input_tokens: 700,
@@ -68,7 +126,7 @@ describe('geminiUsageDelta — estimated cost from the dated table', () => {
       output_tokens: 200,
       reasoning_tokens: 50,
       cost_usd: 0.0034125,
-      estimated: true,
+      estimated: false,
     });
   });
 
@@ -78,15 +136,20 @@ describe('geminiUsageDelta — estimated cost from the dated table', () => {
       { input_tokens: 2_000_000, cache_read_tokens: 500_000, output_tokens: 100_000 },
       'gemini-3.5-flash',
       OCT_2026,
+      'vertex-ai',
     );
-    expect(usage).toMatchObject({ input_tokens: 1_500_000, cost_usd: 3.225, estimated: true });
+    expect(usage).toMatchObject({ input_tokens: 1_500_000, cost_usd: 3.225, estimated: false });
   });
 
   it('gemini-3.8-flash: introductory price through 2026-12-31, later price from 2027-01-01', () => {
     const delta = { input_tokens: 1_000_000, output_tokens: 1_000_000 };
-    expect(geminiUsageDelta(delta, 'gemini-3.8-flash', OCT_2026).cost_usd).toBe(4.5);
-    expect(geminiUsageDelta(delta, 'gemini-3.8-flash', LAST_INTRO_MS).cost_usd).toBe(4.5);
-    expect(geminiUsageDelta(delta, 'gemini-3.8-flash', FIRST_LATER_MS).cost_usd).toBe(9);
+    expect(geminiUsageDelta(delta, 'gemini-3.8-flash', OCT_2026, 'vertex-ai').cost_usd).toBe(4.5);
+    expect(geminiUsageDelta(delta, 'gemini-3.8-flash', LAST_INTRO_MS, 'vertex-ai').cost_usd).toBe(
+      4.5,
+    );
+    expect(geminiUsageDelta(delta, 'gemini-3.8-flash', FIRST_LATER_MS, 'vertex-ai').cost_usd).toBe(
+      9,
+    );
     expect(findGeminiPrice('gemini-3.8-flash', LAST_INTRO_MS)).toMatchObject({
       inputPerM: 0.75,
       cachedInputPerM: 0.075,
@@ -111,7 +174,12 @@ describe('geminiUsageDelta — estimated cost from the dated table', () => {
       'gemini-3.1-pro',
       '',
     ]) {
-      const usage = geminiUsageDelta({ input_tokens: 10, output_tokens: 5 }, model, OCT_2026);
+      const usage = geminiUsageDelta(
+        { input_tokens: 10, output_tokens: 5 },
+        model,
+        OCT_2026,
+        'vertex-ai',
+      );
       expect(usage, model).toEqual({ input_tokens: 10, output_tokens: 5, estimated: false });
       expect(usage).not.toHaveProperty('cost_usd');
     }
@@ -137,10 +205,14 @@ describe('geminiUsageDelta — estimated cost from the dated table', () => {
       { input_tokens: 1200, cache_read_tokens: 200, output_tokens: 30, reasoning_tokens: 12 },
       'gemini-3.1-pro-preview',
       OCT_2026,
+      'vertex-ai',
     );
     for (const usage_delta of [
       { ...usage, model: 'gemini-3.1-pro-preview' },
-      { ...geminiUsageDelta({ input_tokens: 5 }, 'unknown', OCT_2026), model: 'unknown' },
+      {
+        ...geminiUsageDelta({ input_tokens: 5 }, 'unknown', OCT_2026, 'vertex-ai'),
+        model: 'unknown',
+      },
     ]) {
       const event = {
         jgr: '0.1',

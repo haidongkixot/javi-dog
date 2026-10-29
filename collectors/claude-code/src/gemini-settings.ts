@@ -78,15 +78,25 @@ export const writeSettingsFile = async (path: string, value: unknown, mode: numb
   return sha256(settingsText(value));
 };
 
-/** `settings.json.javi-backup` once: the first backup is the user's original, never replaced. */
-export const backupOnce = async (path: string, text: string): Promise<string> => {
-  const backup = `${path}${BACKUP_SUFFIX}`;
+/** `settings.json.javi-backup` next to a settings file. */
+export const backupPath = (path: string) => `${path}${BACKUP_SUFFIX}`;
+
+/**
+ * `settings.json.javi-backup` once: the first backup is the user's original, never replaced.
+ * `created` is false when an earlier backup was already there (and kept as it is).
+ */
+export const backupOnce = async (
+  path: string,
+  text: string,
+): Promise<{ path: string; created: boolean }> => {
+  const backup = backupPath(path);
   try {
     await writeFile(backup, text, { mode: 0o600, flag: 'wx' });
+    return { path: backup, created: true };
   } catch (e) {
     if ((e as { code?: string }).code !== 'EEXIST') throw e;
+    return { path: backup, created: false };
   }
-  return backup;
 };
 
 // --- Project hooks (ADR-0016 §2) ---
@@ -212,7 +222,7 @@ export const installGeminiHooks = async (
     hooks[event] = [...(existing as unknown[]), geminiHookEntry(command)];
   }
   let backup: string | null = null;
-  if (loaded.kind === 'ok') backup = await backupOnce(path, loaded.text);
+  if (loaded.kind === 'ok') backup = (await backupOnce(path, loaded.text)).path;
   else await mkdir(dirname(path), { recursive: true });
   await writeSettingsFile(path, { ...settings, hooks }, loaded.kind === 'ok' ? loaded.mode : 0o644);
   return { path, backup, projectTelemetry: Object.hasOwn(settings, 'telemetry') };
@@ -234,9 +244,35 @@ export const uninstallGeminiHooks = async (projectDir: string) => {
   return { path, removed: true };
 };
 
-/** True when the project's `.gemini/settings.json` holds at least one javi hook. */
-export const geminiHooksInstalled = async (projectDir: string): Promise<boolean> => {
+/** True when a javi hook command names `--project <projectRef>` (POSIX or PowerShell form). */
+const forProject = (hook: unknown, projectRef: string) => {
+  const command = isPlainObject(hook) ? (hook as HookCommand).command : undefined;
+  return (
+    typeof command === 'string' &&
+    (command.includes(` --project ${posixQuote(projectRef)} `) ||
+      command.includes(` '--project' ${powershellQuote(projectRef)} `))
+  );
+};
+
+/**
+ * True when the project's `.gemini/settings.json` holds at least one javi hook (with
+ * `projectRef`: one registered for that project).
+ */
+export const geminiHooksInstalled = async (
+  projectDir: string,
+  projectRef?: string,
+): Promise<boolean> => {
   const loaded = await loadSettings(geminiProjectSettingsPath(projectDir)).catch(() => null);
   if (loaded?.kind !== 'ok' || !isPlainObject(loaded.settings.hooks)) return false;
-  return withoutOurs(loaded.settings.hooks).removed > 0;
+  if (projectRef === undefined) return withoutOurs(loaded.settings.hooks).removed > 0;
+  return Object.values(loaded.settings.hooks).some(
+    (groups) =>
+      Array.isArray(groups) &&
+      groups.some(
+        (group) =>
+          isPlainObject(group) &&
+          Array.isArray(group.hooks) &&
+          group.hooks.some((h) => ours(h) && forProject(h, projectRef)),
+      ),
+  );
 };

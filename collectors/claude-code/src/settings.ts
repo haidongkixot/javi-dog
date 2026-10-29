@@ -105,6 +105,28 @@ export const installHooks = async (
   return path;
 };
 
+/**
+ * True when the project's `.claude/settings.local.json` holds a javi hook for `projectRef`.
+ * A missing or unreadable file counts as none.
+ */
+export const claudeHooksInstalled = async (
+  projectDir: string,
+  projectRef: string,
+): Promise<boolean> => {
+  const settings = await read(settingsPath(projectDir)).catch(() => ({}) as Settings);
+  return Object.values(settings.hooks ?? {}).some(
+    (groups) =>
+      Array.isArray(groups) &&
+      groups.some((g) =>
+        (Array.isArray(g?.hooks) ? g.hooks : []).some((h) => {
+          if (!h || !ours(h) || !Array.isArray(h.args)) return false;
+          const i = h.args.indexOf('--project');
+          return i >= 0 && h.args[i + 1] === projectRef;
+        }),
+      ),
+  );
+};
+
 export const uninstallHooks = async (projectDir: string) => {
   const path = settingsPath(projectDir);
   const settings = await read(path);

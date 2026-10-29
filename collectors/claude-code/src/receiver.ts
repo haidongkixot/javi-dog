@@ -193,22 +193,15 @@ class HttpError extends Error {
   }
 }
 
-/** Consumes the body without buffering it; rejects (413) beyond MAX_BODY_BYTES on the wire. */
+/**
+ * Consumes the body to its end without keeping a single chunk, whatever its size (ADR-0016
+ * Changes R9): Gemini CLI log batches can exceed 1 MiB, and answering 413 would only make the
+ * exporter retry. The server's request timeout still bounds how long a body may stream.
+ */
 const discardBody = (req: IncomingMessage): Promise<void> =>
   new Promise((resolve, reject) => {
-    let size = 0;
-    let over = false;
-    req.on('data', (chunk: Buffer) => {
-      if (over) return;
-      size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
-        over = true;
-        reject(new HttpError(413, 'Body larger than 1 MiB.'));
-      }
-    });
-    req.on('end', () => {
-      if (!over) resolve();
-    });
+    req.on('data', () => {}); // each chunk is dropped as it arrives
+    req.on('end', () => resolve());
     req.on('error', () => reject(new HttpError(400, 'Request aborted.')));
   });
 
@@ -271,6 +264,12 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
   // One map per platform: Claude Code and Gemini CLI series can never share a baseline.
   const baselines: CumulativeBaselines = new Map();
   const geminiBaselines: CumulativeBaselines = new Map();
+  /**
+   * When this receiver started listening (Unix ns). A Gemini series that started at or after it
+   * counts from its first export, because every export since then reached this receiver
+   * (ADR-0016 Changes R2). Until `listen()` resolves, no series qualifies.
+   */
+  let startedNs: string | undefined;
 
   let port = opts.port;
   let info: ReceiverInfo | null = null;
@@ -353,7 +352,9 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
     const workingGemini: CumulativeBaselines = new Map(geminiBaselines);
     const groups = [
       ...toUsageGroups(parsed.points, working),
-      ...toUsageGroups(gemini, workingGemini, 'gemini-cli'),
+      ...toUsageGroups(gemini, workingGemini, 'gemini-cli', {
+        ...(startedNs !== undefined && { receiverStartNs: startedNs }),
+      }),
     ];
     const { producer_id } = await state.installation();
     const clients = new Map<string, JgrClient | null>();
@@ -428,11 +429,8 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
     }
     if (sink) {
       // Logs and traces carry prompts, tool arguments and responses: never parsed, decoded,
-      // stored or counted. Only the wire size is bounded; the body is drained unbuffered.
-      const declaredSink = Number(req.headers['content-length']);
-      if (Number.isFinite(declaredSink) && declaredSink > MAX_BODY_BYTES) {
-        return send(res, 413, { message: 'Body larger than 1 MiB.' }, { connection: 'close' });
-      }
+      // stored or counted. The body is drained unbuffered at any size (R9), only after the
+      // bearer and Host checks above.
       await discardBody(req);
       return send(res, 200, {});
     }
@@ -507,6 +505,7 @@ export const createUsageReceiver = (opts: UsageReceiverOptions): UsageReceiver =
         server.listen(opts.port, '127.0.0.1', () => {
           server.off('error', reject);
           port = (server.address() as { port: number }).port;
+          startedNs = String(BigInt(Date.now()) * 1_000_000n);
           void (async () => {
             // Counters carry over restarts so `javi status` keeps the totals since `usage on`.
             const previous = await state.receiverInfo();

@@ -306,3 +306,69 @@ describe('parseGeminiMetrics — malformed bodies', () => {
     });
   });
 });
+
+describe('parseGeminiMetrics — series identity and auth type (ADR-0016 Changes R4, R6)', () => {
+  const at = (extra: Record<string, string>, times?: Record<string, unknown>) =>
+    parse(
+      request([
+        metric(GEMINI_TOKEN_METRIC, [point({ asInt: '7' }, { type: 'output', ...extra }, times)]),
+      ]),
+    ).points[0]!;
+  const withAttributes = (attributes: unknown[]) =>
+    parse(
+      request([
+        metric(GEMINI_TOKEN_METRIC, [{ ...point({ asInt: '9' }, { type: 'output' }), attributes }]),
+      ]),
+    ).points[0]!;
+
+  it('gives every point a series id: a hash of all its attributes plus startNs', () => {
+    const a = at({});
+    expect(a.seriesId).toMatch(/^[0-9a-f]{64}$/);
+    // Same attributes (in any order) and the same start → the same series.
+    expect(withAttributes(attrs({ type: 'output' }).reverse()).seriesId).toBe(a.seriesId);
+    // Another attribute value, an extra attribute or another start time → another series.
+    expect(at({ 'user.email': 'other@example.com' }).seriesId).not.toBe(a.seriesId);
+    expect(at({ 'experiments.ids': '42' }).seriesId).not.toBe(a.seriesId);
+    expect(
+      at({}, { startTimeUnixNano: '1761730000000000001', timeUnixNano: END }).seriesId,
+    ).not.toBe(a.seriesId);
+    // Non-string attribute values (`interactive` is a bool, `experiments.ids` an array) count.
+    const withBool = (value: boolean) =>
+      withAttributes([
+        ...attrs({ type: 'output' }),
+        { key: 'interactive', value: { boolValue: value } },
+      ]).seriesId;
+    expect(withBool(true)).not.toBe(withBool(false));
+    expect(withBool(true)).not.toBe(a.seriesId);
+  });
+
+  it('keeps an allowlisted auth_type in memory; any other value is absent', () => {
+    for (const authType of [
+      'oauth-personal',
+      'gemini-api-key',
+      'vertex-ai',
+      'cloud-shell',
+      'compute-default-credentials',
+      'gateway',
+    ]) {
+      expect(at({ auth_type: authType }).authType, authType).toBe(authType);
+    }
+    for (const bad of ['Vertex-AI', 'api-key', 'SENTINEL-auth']) {
+      expect(at({ auth_type: bad }).authType, bad).toBeUndefined();
+    }
+    expect(at({}).authType).toBeUndefined(); // IDENTITY carries an unknown auth_type
+  });
+
+  it('series id and auth type are never serialized (non-enumerable, in memory only)', () => {
+    const p = at({ auth_type: 'vertex-ai' });
+    expect(p.seriesId).toBeDefined();
+    expect(p.authType).toBe('vertex-ai');
+    const json = JSON.stringify(p);
+    expect(json).not.toContain(p.seriesId!);
+    expect(json).not.toContain('vertex-ai');
+    expect(json).not.toMatch(/seriesId|authType/);
+    expect(Object.keys(p)).not.toContain('seriesId');
+    expect(Object.keys({ ...p })).not.toContain('authType');
+    expect(JSON.stringify(structuredClone(p))).not.toContain('vertex-ai');
+  });
+});

@@ -134,19 +134,29 @@ describe('javi usage on|off --platform gemini-cli', () => {
     expect(await exists(claudeUserSettingsPath(claudeHome))).toBe(false);
   });
 
-  it('usage off restores the previous file byte for byte; the backup keeps the original', async () => {
+  it('usage off restores the previous file byte for byte and removes the backup (R7)', async () => {
     const original =
       '{\n    "model": { "name": "gemini-2.5-pro" },\n    "ui": { "theme": "GitHub" }\n}';
     await seedUser(original);
-    expect((await usageOn(['--port', String(await freePort())])).code).toBe(0);
+    const on = await usageOn(['--port', String(await freePort())]);
+    expect(on.code).toBe(0);
+    expect(on.out).toContain(
+      `A copy of ${userSettings} as it was before this change is in ${userSettings}.javi-backup.`,
+    );
     const edited = JSON.parse(await readFile(userSettings, 'utf8'));
     expect(edited.model).toEqual({ name: 'gemini-2.5-pro' });
     expect(edited.ui).toEqual({ theme: 'GitHub' });
     expect(await readFile(`${userSettings}.javi-backup`, 'utf8')).toBe(original);
-    // Re-running is idempotent: same secret, same block, still restorable.
+    // Re-running is idempotent: same secret, same block, still restorable, no new backup.
     const secret = (await state.usageConfig())!.secret;
-    expect((await usageOn()).code).toBe(0);
+    const again = await usageOn();
+    expect(again.code).toBe(0);
     expect((await state.usageConfig())!.secret).toBe(secret);
+    expect(again.out.join('\n')).not.toMatch(/backed up|A copy of/);
+    expect(again.out).toContain(
+      `No new backup: ${userSettings} already holds javi's telemetry block.`,
+    );
+    expect(await readFile(`${userSettings}.javi-backup`, 'utf8')).toBe(original);
 
     const off = await usageOff();
     expect(off.code).toBe(0);
@@ -154,7 +164,22 @@ describe('javi usage on|off --platform gemini-cli', () => {
     expect(await readFile(userSettings, 'utf8')).toBe(original);
     expect(await state.usageConfig()).toBeNull();
     expect(await exists(join(home, 'gemini-settings.before.json'))).toBe(false);
-    expect(await readFile(`${userSettings}.javi-backup`, 'utf8')).toBe(original);
+    expect(await exists(`${userSettings}.javi-backup`)).toBe(false);
+  });
+
+  it('the backup never holds javi’s block or secret, even when usage on runs twice (R7)', async () => {
+    expect((await usageOn(['--port', String(await freePort())])).code).toBe(0); // no file before
+    const again = await usageOn();
+    expect(again.code).toBe(0);
+    const backup = `${userSettings}.javi-backup`;
+    // The file only ever held javi's block: there is nothing of the user's to back up.
+    expect(await exists(backup)).toBe(false);
+    expect(again.out.join('\n')).not.toContain('backed up');
+    // An edit elsewhere in the file does not make a copy of javi's block worth keeping either.
+    const s = JSON.parse(await readFile(userSettings, 'utf8'));
+    await writeFile(userSettings, JSON.stringify({ ...s, ui: { theme: 'GitHub' } }));
+    expect((await usageOn()).code).toBe(0);
+    expect(await exists(backup)).toBe(false);
   });
 
   it('usage off removes a settings file javi created', async () => {
@@ -415,6 +440,47 @@ describe('javi init|status|hook|uninstall --platform gemini-cli', () => {
     const sessions = (await readdir(join(home, 'sessions'))).filter((f) => !f.startsWith('.'));
     expect(sessions).toEqual([expect.stringMatching(/^gm_[0-9a-f]{32}\.json$/)]);
     expect(hook.receivers()).toBe(1);
+  });
+
+  it('uninstall --forget-token keeps the token while the other platform’s hooks remain (R8)', async () => {
+    await init();
+    const claudeInit = io({ env: { JAVI_INGEST_TOKEN: TOKEN } });
+    expect(await main(['init', '--project', 'web-app', '--no-verify'], claudeInit.value)).toBe(0);
+
+    const gm = io();
+    expect(
+      await main(
+        ['uninstall', '--project', 'web-app', '--platform', 'gemini-cli', '--forget-token'],
+        gm.value,
+      ),
+    ).toBe(0);
+    expect(await state.credentials('web-app')).not.toBeNull();
+    expect(gm.out.join('\n')).toMatch(
+      /Token kept: Claude Code hooks for web-app are still installed in .*settings\.local\.json/,
+    );
+    expect(gm.out.join('\n')).not.toMatch(/Token removed/);
+
+    // The last platform's uninstall forgets it.
+    const cc = io();
+    expect(await main(['uninstall', '--project', 'web-app', '--forget-token'], cc.value)).toBe(0);
+    expect(cc.out).toContain('Token removed from this machine.');
+    expect(await state.credentials('web-app')).toBeNull();
+  });
+
+  it('uninstall --forget-token for Claude Code keeps the token while Gemini hooks remain (R8)', async () => {
+    await init();
+    const cc = io();
+    expect(await main(['uninstall', '--project', 'web-app', '--forget-token'], cc.value)).toBe(0);
+    expect(cc.out.join('\n')).toMatch(
+      /Token kept: Gemini CLI hooks for web-app are still installed in .*\.gemini\/settings\.json/,
+    );
+    expect(await state.credentials('web-app')).not.toBeNull();
+    // Hooks of another project in the same folder do not hold this project's token.
+    const other = io();
+    expect(await main(['uninstall', '--project', 'other-app', '--forget-token'], other.value)).toBe(
+      0,
+    );
+    expect(other.out).toContain('Token removed from this machine.');
   });
 
   it('uninstall removes only the Gemini hooks; an unknown platform is refused', async () => {

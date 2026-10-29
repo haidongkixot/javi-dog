@@ -41,8 +41,10 @@ import {
 import {
   disableGeminiTelemetry,
   enableGeminiTelemetry,
+  findGeminiTelemetryOverrides,
   geminiTelemetryBlock,
   type EnableGeminiResult,
+  type GeminiBackup,
 } from './gemini-telemetry.ts';
 import { COLLECTOR_VERSION, opaqueRef } from './mapping.ts';
 import { PLATFORM_NAMES, PLATFORMS, platformFlag, type Platform } from './platform.ts';
@@ -55,7 +57,7 @@ import {
   probeReceiver,
 } from './receiver.ts';
 import { runFlush, runHook } from './run.ts';
-import { installHooks, settingsPath, uninstallHooks } from './settings.ts';
+import { claudeHooksInstalled, installHooks, settingsPath, uninstallHooks } from './settings.ts';
 import { createState, javiHome, type CollectorState, type UsageConfig } from './state.ts';
 
 /** Replaced with `true` by scripts/build.mjs (esbuild define); undeclared when run from .ts. */
@@ -349,6 +351,24 @@ const geminiUsageOn = async (
 ): Promise<number> => {
   // usage off edits the file usage on edited, even if GEMINI_CLI_HOME changed meanwhile.
   const path = config?.gemini?.path ?? geminiUserSettingsPath(geminiHome(io.env));
+  // R1: a .env of this folder's lookup chain or its workspace telemetry block would send
+  // Gemini's logs and javi's bearer elsewhere. Refuse before anything is written.
+  const overrides = await findGeminiTelemetryOverrides({
+    cwd: io.cwd,
+    home: geminiHome(io.env),
+    userSettingsPath: path,
+  });
+  if (overrides.length) {
+    io.err(
+      'Gemini CLI token usage not enabled: Gemini telemetry settings that override the user settings were found (names only):',
+    );
+    for (const { source, keys } of overrides) io.err(`  ${source}: ${keys.join(', ')}`);
+    io.err(
+      "With them, Gemini CLI would send its logs (tool arguments, response text, your email) and javi's receiver token wherever they point. Remove them, then run javi usage on --platform gemini-cli again.",
+    );
+    io.err(`Nothing was changed in ${path}.`);
+    return 1;
+  }
   const pending: UsageConfig = {
     port,
     secret,
@@ -372,6 +392,7 @@ const geminiUsageOn = async (
       port,
       secret,
       shellEnv: io.env,
+      ...(config?.written && { ownEnv: config.written }),
       ...(config?.gemini && { previous: config.gemini.written }),
       saveBefore: (before) => state.saveGeminiSettingsBefore(before),
     });
@@ -401,29 +422,62 @@ const geminiUsageOn = async (
     .catch(() => {});
 
   await afterUsageOn(state, live, port);
-  io.out(`Gemini CLI telemetry export enabled in ${result.path}:`);
+  io.out(`Gemini CLI telemetry export enabled in ${result.path} (user-wide):`);
   io.out(`  telemetry: ${Object.keys(result.written).join(', ')}`);
   io.out('Prompt logging is off (logPrompts: false) and so are traces (traces: false).');
+  io.out(geminiBackupLine(result.path, result.backup));
   io.out(
-    result.backup
-      ? `Your previous settings are backed up in ${result.backup}.`
-      : 'There was no settings file before, so there was nothing to back up.',
+    'This is user-wide: every Gemini CLI session of this user started from now on, in any folder, exports metrics, logs and traces about every 10 seconds; sessions already running are not affected.',
   );
   io.out(
-    `Gemini CLI sessions started from now on send metrics, logs and traces to 127.0.0.1:${port} about every 10 seconds; sessions already running are not affected.`,
+    `They go to javi at 127.0.0.1:${port} unless that folder overrides it: a GEMINI_TELEMETRY_* or OTEL_EXPORTER_OTLP_* variable (in the shell, a .env or .gemini/.env in the folder or above, ~/.gemini/.env, ~/.env) or a telemetry block in its .gemini/settings.json.`,
+  );
+  io.out(
+    'javi checked this folder just now and re-checks folders with javi hooks at every Gemini CLI session start (javi status shows a warning), but it cannot stop Gemini CLI from following an override.',
   );
   io.out(
     'javi reads only token counts from the metrics; logs and traces are answered and dropped unread.',
   );
-  io.out('Gemini CLI reports no cost: javi estimates it from a dated price table (estimated).');
+  io.out(
+    'Gemini CLI reports no cost: javi estimates it from a dated price table (estimated), only for API-key and Vertex AI sign-ins.',
+  );
   io.out(
     'Usage of projects without javi init --platform gemini-cli stays on this machine and is dropped.',
   );
-  io.out(
-    "A project's own .gemini/settings.json telemetry block and GEMINI_TELEMETRY_* variables override this file.",
-  );
   if (!(await liveReceiver(state))) io.spawnReceiver();
   return 0;
+};
+
+/** What `usage on --platform gemini-cli` did with the backup (ADR-0016 Changes R7). */
+const geminiBackupLine = (path: string, backup: GeminiBackup) => {
+  if (!backup) return 'There was no settings file before, so there was nothing to back up.';
+  if (backup.status === 'created') {
+    return `A copy of ${path} as it was before this change is in ${backup.path}.`;
+  }
+  if (backup.status === 'kept') {
+    return `An earlier backup in ${backup.path} was kept as it is; it is not a copy of the file before this change.`;
+  }
+  return `No new backup: ${path} already holds javi's telemetry block.`;
+};
+
+/**
+ * `javi status`, first lines: Gemini CLI sessions whose telemetry can bypass javi (R1), from the
+ * SessionStart checks. Only while Gemini CLI usage is on.
+ */
+const geminiTelemetryWarnings = async (io: Io, state: CollectorState) => {
+  if (!(await state.usageConfig())?.gemini) return;
+  for (const warning of await state.geminiTelemetryWarnings()) {
+    io.out(
+      `WARNING: Gemini CLI telemetry can bypass javi in project ${warning.project} (seen at session start ${warning.at}):`,
+    );
+    for (const { source, keys } of warning.overrides) io.out(`  ${source}: ${keys.join(', ')}`);
+    io.out(
+      "  Gemini CLI then sends its logs (tool arguments, response text, your email) and javi's receiver token to that endpoint instead of javi.",
+    );
+    io.out(
+      '  Fix: remove those variables and that telemetry block, or run javi usage off --platform gemini-cli.',
+    );
+  }
 };
 
 /** Stops the receiver and forgets the secret, unless another platform still uses them. */
@@ -494,7 +548,12 @@ const geminiUsageOff = async (io: Io, state: CollectorState): Promise<number> =>
   }
   const { path, written, sha256 } = config.gemini;
   const before = await state.geminiSettingsBefore();
-  const { outcome } = await disableGeminiTelemetry({ path, written, sha256, before });
+  const { outcome, backupRemoved } = await disableGeminiTelemetry({
+    path,
+    written,
+    sha256,
+    before,
+  });
   if (outcome === 'unreadable') {
     // javi's block may still point Gemini CLI at the receiver: keep usage.json and the receiver.
     io.err(
@@ -506,6 +565,7 @@ const geminiUsageOff = async (io: Io, state: CollectorState): Promise<number> =>
     return 1;
   }
   await state.removeGeminiSettingsBefore();
+  await state.clearGeminiTelemetryWarnings();
   let rest: UsageConfig | null = null;
   if (config.written) {
     rest = { ...config };
@@ -521,6 +581,7 @@ const geminiUsageOff = async (io: Io, state: CollectorState): Promise<number> =>
         ? `Removed javi's telemetry block from ${path}; your other changes since usage on are kept.`
         : `Nothing to remove from ${path} (its telemetry block was changed or removed since javi wrote it).`,
   );
+  if (backupRemoved) io.out(`Removed the backup ${backupRemoved}: it is no longer needed.`);
   io.out(
     receiver === 'kept'
       ? 'The usage receiver keeps running for Claude Code.'
@@ -701,6 +762,8 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         ensureReceiver: async () => {
           await ensureReceiver({ state, spawnReceiver: io.spawnReceiver });
         },
+        env: io.env,
+        cwd: io.cwd,
       });
     }
     return 0;
@@ -820,6 +883,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
     }
 
     case 'status': {
+      await geminiTelemetryWarnings(io, state);
       const creds = await state.credentials(projectRef);
       if (!creds) {
         io.out(`Project ${projectRef}: not configured (run javi init).`);
@@ -853,8 +917,27 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       }
       io.out(removed ? `Removed javi hooks from ${path}.` : `No hooks found in ${path}.`);
       if (argv.includes('--forget-token')) {
-        await state.removeCredentials(projectRef);
-        io.out('Token removed from this machine.');
+        // R8: both platforms' hooks of one project share its token; keep it for the other one.
+        const other: Platform = platform === 'gemini-cli' ? 'claude-code' : 'gemini-cli';
+        const otherInstalled =
+          other === 'gemini-cli'
+            ? await geminiHooksInstalled(projectDir, projectRef)
+            : await claudeHooksInstalled(projectDir, projectRef);
+        if (otherInstalled) {
+          const otherPath =
+            other === 'gemini-cli'
+              ? geminiProjectSettingsPath(projectDir)
+              : settingsPath(projectDir);
+          io.out(
+            `Token kept: ${PLATFORM_NAMES[other]} hooks for ${projectRef} are still installed in ${otherPath} and need it.`,
+          );
+          io.out(
+            `To remove it, run javi uninstall --project ${projectRef} --platform ${other} --forget-token.`,
+          );
+        } else {
+          await state.removeCredentials(projectRef);
+          io.out('Token removed from this machine.');
+        }
       }
       return 0;
     }
