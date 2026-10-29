@@ -122,6 +122,10 @@ export const writeTextAtomic = async (path: string, text: string, mode = 0o600) 
 
 export const createState = (home: string) => {
   const ready = mkdir(home, { recursive: true, mode: 0o700 });
+  // Handled here so a home that cannot be created is never an unhandled rejection (which
+  // would print to stderr and change the exit code of a hook); every method that awaits
+  // `ready` still sees the error.
+  ready.catch(() => {});
   const path = (...parts: string[]) => join(home, ...parts);
 
   /** Runs `work` while holding a directory lock (mkdir is atomic everywhere). */

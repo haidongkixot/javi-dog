@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -56,5 +56,25 @@ describe('collector state', () => {
     release();
     expect(await first).toBe('first');
     expect(await s.tryFlushLock('web-app', async () => 'third')).toBe('third');
+  });
+});
+
+describe('createState home creation', () => {
+  it('never leaves an unhandled rejection when the home cannot be created', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      // The parent is a regular file, so mkdir(home) fails before any method awaits it.
+      const parent = join(await mkdtemp(join(tmpdir(), 'javi-state-ready-')), 'file');
+      await writeFile(parent, 'x');
+      const state = createState(join(parent, 'home'));
+      await new Promise((r) => setTimeout(r, 50));
+      expect(unhandled).toEqual([]);
+      // Callers still see the failure when they use the state.
+      await expect(state.installation()).rejects.toMatchObject({ code: 'ENOTDIR' });
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
   });
 });
