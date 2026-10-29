@@ -110,7 +110,7 @@ const posixQuote = (arg: string) =>
 const powershellQuote = (arg: string) => `'${arg.replaceAll("'", "''")}'`;
 
 /**
- * The shell command for one hook: `<node> <javi> hook --platform gemini-cli --project <ref>
+ * The shell command for one hook: `<node> --no-warnings <javi> hook --platform gemini-cli --project <ref>
  * --source javi-collector`. POSIX shells get single-quoted words; PowerShell (Windows) gets
  * the call operator and single-quoted strings. Throws for a path Gemini or a shell would
  * rewrite (`$GEMINI_…` placeholders, NUL, line breaks).
@@ -123,6 +123,8 @@ export const geminiHookCommand = (
 ): string => {
   const words = [
     nodePath,
+    // Startup warnings (NODE_USE_ENV_PROXY=1, …) would reach stderr, which Gemini shows.
+    '--no-warnings',
     cliPath,
     'hook',
     '--platform',

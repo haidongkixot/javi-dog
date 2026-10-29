@@ -419,7 +419,7 @@ try {
   const eventsWithPaths = events.filter((e) => e.path).length;
 
   // 5. flush and 6. status, with the stable copy the hooks run (README: node ~/.javi/bin/…).
-  const stable = hookFor('SessionStart')?.args?.[0];
+  const stable = hookFor('SessionStart')?.args?.find((arg) => arg.endsWith('.mjs'));
   const flush = await run(process.execPath, [stable, 'flush', '--project', projectRef], {
     cwd: projectDir,
     env: javiEnv,

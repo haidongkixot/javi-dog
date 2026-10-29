@@ -102,6 +102,19 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-29 — The owner keeps production on `dev-agent` for now, which defers R2/G2. The owner approved running R6/R7 against production with cleanup afterwards. Seeded one temporary workspace (`174d497f…`) with projects `load-test` and `e2e-smoke`; the tokens were in scratch files only, never printed.
+  - **R6 load test PASS** (2026-10-29 19:52 UTC).
+    - 55/55 requests returned 202; 5 500 events were sent and accepted, with 0 duplicates and 0 rejected; 60.8 s; no cap hit.
+    - Client-side latency, including the sandbox proxy: p50 130 ms, **p95 1 529 ms** (target < 2 s), max 1 533 ms.
+    - The slow tail is the first concurrent burst, plausibly cold starts.
+    - Near-limit batches: 261 120 B raw / 177 200 B gzip, all 5 accepted, p95 756 ms.
+  - **R7 e2e first run FAIL → product defect found.**
+    - Delivery worked: 7/7 events recorded and delivered, spool 0, 0 content leaks.
+    - But every hook wrote to stderr. Diagnosis: with `NODE_USE_ENV_PROXY=1`, which the sandbox needs and proxy users set, Node prints the `UNDICI-EHPA` experimental warning at startup, before javi runs. Reproduced directly: 177 B on stderr with the variable set, 0 B without it.
+    - Gemini shows hook stderr, so this breaks hook silence for every proxy user.
+    - Fix, red first (3 tests in `hook-silence.test.ts`): the registered hook commands (Claude Code exec args and the Gemini shell command) start Node with `--no-warnings`.
+    - `e2e-smoke.mjs` now finds the javi path by its `.mjs` argument instead of `args[0]`.
+    - Collector suite: 444/444.
 - 2026-10-28 — `bbb3b6a` deployed.
   - `/api/health` is ok, but the DB is still `dev-agent` until cutover; it reports 6 migrations.
   - All 5 security headers are present on `/`, `/integrations`, `/sign-in` and `/api/health`.

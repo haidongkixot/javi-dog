@@ -31,7 +31,7 @@ describe('installHooks', () => {
     expect(pre).toEqual({
       type: 'command',
       command: NODE,
-      args: [CLI, 'hook', '--project', 'web-app', '--source', HOOK_MARKER],
+      args: ['--no-warnings', CLI, 'hook', '--project', 'web-app', '--source', HOOK_MARKER],
       async: true,
     });
     expect(s.hooks.SessionEnd[0].hooks[0]).toMatchObject({ timeout: 5 });

@@ -38,7 +38,9 @@ export const hookEntry = (
   const hook: HookCommand = {
     type: 'command',
     command: nodePath,
-    args: [cliPath, 'hook', '--project', projectRef, '--source', HOOK_MARKER],
+    // --no-warnings: Node can print warnings at startup (for example with
+    // NODE_USE_ENV_PROXY=1) before javi runs; a hook must stay silent.
+    args: ['--no-warnings', cliPath, 'hook', '--project', projectRef, '--source', HOOK_MARKER],
     ...(event === 'SessionEnd' ? { timeout: SESSION_END_TIMEOUT_S } : { async: true }),
   };
   // Notification hooks only for "waiting for a human" types (fewer process starts).

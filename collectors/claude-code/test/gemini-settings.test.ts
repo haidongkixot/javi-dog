@@ -37,7 +37,7 @@ const seed = async (value: unknown) => {
 describe('geminiHookCommand', () => {
   it('quotes paths for bash and holds the platform, project and marker', () => {
     expect(geminiHookCommand(NODE, CLI, 'web-app', 'linux')).toBe(
-      `/usr/local/bin/node '/home/dev/My Tools/it'\\''s javi/javi.mjs' hook --platform gemini-cli --project web-app --source ${HOOK_MARKER}`,
+      `/usr/local/bin/node --no-warnings '/home/dev/My Tools/it'\\''s javi/javi.mjs' hook --platform gemini-cli --project web-app --source ${HOOK_MARKER}`,
     );
   });
 
@@ -50,7 +50,7 @@ describe('geminiHookCommand', () => {
         'win32',
       ),
     ).toBe(
-      `& 'C:\\Program Files\\nodejs\\node.exe' 'C:\\Users\\O''Neil\\.javi\\bin\\0.1.0\\javi.mjs' 'hook' '--platform' 'gemini-cli' '--project' 'web-app' '--source' '${HOOK_MARKER}'`,
+      `& 'C:\\Program Files\\nodejs\\node.exe' '--no-warnings' 'C:\\Users\\O''Neil\\.javi\\bin\\0.1.0\\javi.mjs' 'hook' '--platform' 'gemini-cli' '--project' 'web-app' '--source' '${HOOK_MARKER}'`,
     );
   });
 

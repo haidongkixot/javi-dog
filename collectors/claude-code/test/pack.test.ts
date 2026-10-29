@@ -261,8 +261,9 @@ describe('javi init from the bundle (P3)', () => {
       await readFile(join(projectDir, '.claude', 'settings.local.json'), 'utf8'),
     ) as { hooks: Record<string, Array<{ hooks: Array<{ command: string; args: string[] }> }>> };
     const hook = settings.hooks.SessionStart![0]!.hooks[0]!;
-    expect(hook.args[0]).toBe(stable);
-    expect(hook.args[0]!.replace(/\\/g, '/').endsWith(`/bin/${VERSION}/javi.mjs`)).toBe(true);
+    expect(hook.args[0]).toBe('--no-warnings');
+    expect(hook.args[1]).toBe(stable);
+    expect(hook.args[1]!.replace(/\\/g, '/').endsWith(`/bin/${VERSION}/javi.mjs`)).toBe(true);
 
     // The npx cache (here: the install prefix) disappears; the registered hook must still work.
     await rm(prefix, { recursive: true, force: true });
