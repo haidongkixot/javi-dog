@@ -99,3 +99,24 @@ The roadmap's S5 needs the Codex and Gemini CLI collectors (owner priority "Clau
   - **New sibling series.** Gemini exports cumulative series per (session, model, type) with a shared start time. A series that first appears for a (session, model, start) whose sibling series already have baselines counts from 0. This happens when caching starts mid-session: the full `cache` value is the delta and is subtracted from input. A (session, model) without baselines, or a different start time (a new process), still only sets a baseline (ADR-0011). This follows the ADR's preference for under-counting.
   - **Receiver paths.** `POST /v1/traces` and `/v1/logs` answer `200 {}` without parsing, which supersedes OTLP conformance vector 21 (previously 404, updated).
   - **Price selection.** The price table uses the Standard / Global / ≤ 200k text rows. Model ids match exactly; there is no prefix matching. The 3.6/3.7/3.8 Flash introductory prices are promotional ("50 % credits back"), and the table uses the listed effective price.
+- 2026-10-29 (S5b implementation, Developer B `092c0f2`):
+  - **Project hooks.** Each entry is `{ name: "javi-collector", type: "command", timeout: 5000, command }`, with no matcher, which means all events (gemini-cli `hookPlanner.ts`).
+    - The command is the stable `javi` copy plus `hook --platform gemini-cli --project <slug>`.
+    - Quoting: POSIX single quotes; PowerShell `& '…'`, which is UNVERIFIED on Windows.
+    - Paths containing `$GEMINI_*`/`$CLAUDE_PROJECT_DIR`, a NUL or a newline are refused, because Gemini expands `$GEMINI_*` even inside quotes.
+    - A one-time backup `.gemini/settings.json.javi-backup` is written and git-excluded.
+    - Hooks are written before the token is saved.
+    - Files with comments or that are not plain JSON are refused untouched.
+    - `init` warns when the project has its own `telemetry` block, because that overrides the user file.
+  - **User telemetry.** `otlpHeaders` is an object `{ "Authorization": "Bearer <secret>" }` (gemini-cli `docs/reference/configuration.md`, `telemetry/config.ts`).
+    - The home is resolved from `JAVI_GEMINI_HOME` (tests), then `GEMINI_CLI_HOME`, then the OS home.
+    - `usage on` refuses when any non-javi `telemetry` block exists, or when Gemini's telemetry env keys are set in the shell (`GEMINI_TELEMETRY_*`, `OTEL_EXPORTER_OTLP_ENDPOINT/HEADERS`). It reports key names only.
+    - The file is written with mode 0600.
+    - **Exact restore:** the original text is saved in `~/.javi/gemini-settings.before.json`.
+      - `usage off` restores the original bytes when the file's SHA-256 is unchanged.
+      - It removes only javi's block when other settings changed.
+      - It leaves the file alone, and says so, when the block itself was edited.
+  - **Receiver.** The sink paths drain the body without decoding it, so content type and encoding are not checked; the wire limit and bearer still apply. A throwing JD-C02 parser yields no Gemini points and never loses Claude Code usage in the same request.
+  - **Baselines and ids.** Baselines are kept per platform (separate maps), and the G5 sibling rule applies to Gemini only. Gemini usage event ids hash `gemini-cli\0` + the group key.
+  - **Shared receiver.** One receiver port and secret serve all platforms. `--port` is refused while another platform's usage is on, and `usage off` for one platform keeps the receiver when another still uses it.
+  - **Hook latency** in this container is 363–406 ms per hook (map, spool, sequence, detached flush), with exit 0 and empty stdout and stderr.
