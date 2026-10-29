@@ -1,6 +1,7 @@
-import { createHash, createHmac } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { RecordInput } from '@javis-dog/jgr-sdk';
 import { estimateGeminiCostUsd } from './prices.ts';
+import { opaqueRef } from './refs.ts';
 
 // Gemini CLI → JGR (ADR-0016). Pure functions: hook payloads and OTLP/HTTP JSON metrics in,
 // operational metadata out. Prompts, responses, tool inputs/outputs, paths and identity
@@ -32,14 +33,6 @@ export interface AdapterContext {
   salt: string;
   collectorVersion: string;
 }
-
-/**
- * Keyed hash with the per-installation salt → opaque ref matching JGR's REF pattern. Same
- * scheme as JD-C01's `opaqueRef` (HMAC-SHA-256, first 32 hex chars), kept local so JD-C02 does
- * not import JD-C01.
- */
-const opaqueRef = (prefix: string, value: string, salt: string) =>
-  `${prefix}_${createHmac('sha256', salt).update(value).digest('hex').slice(0, 32)}`;
 
 /** `thread_ref` for a Gemini session id: `opaqueRef('gm', sessionId, salt)`. */
 export const geminiThreadRef = (sessionId: string, salt: string) =>
