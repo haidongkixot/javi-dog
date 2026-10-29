@@ -1,0 +1,139 @@
+{
+  "$schema": "./schema.json",
+  "id": "H18",
+  "kind": "hook",
+  "description": "With Claude Code and Codex usage on, a Codex session whose hook processes run with HTTP_PROXY / http_proxy / ALL_PROXY (NO_PROXY not covering 127.0.0.1), javi's own bearer in OTEL_EXPORTER_OTLP_METRICS_HEADERS (inherited from Claude Code) and another header in OTEL_EXPORTER_OTLP_LOGS_HEADERS still yields one normal record per hook; every hook exits 0 with empty stdout; no proxy URL, header value or $SECRET appears in any record, spool file, batch or ~/.javi file (warning files included). The local warning records themselves are not observed.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design review D0) H1 / C7 (\"Every Codex SessionStart hook re-checks its own env and .env, writes a local warning record (names only)\"), H2 (\"the Codex SessionStart hook detects javi's own header value in its env (compared in memory)\"), M1 (\"Every Codex hook calls ensureReceiver while Codex usage is on\"), H5 (javi hook prints nothing); ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping",
+  "ambiguities": ["X1", "X9"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": ["claude-code", "codex-cli"],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h18",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H18_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H18_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": {
+        "HTTP_PROXY": "http://SENTINEL-H18-proxy.example.com:3128",
+        "http_proxy": "http://SENTINEL-H18-proxy-lower.example.com:3128",
+        "ALL_PROXY": "socks5://SENTINEL-H18-allproxy.example.com:1080",
+        "NO_PROXY": "intranet.example.org",
+        "OTEL_EXPORTER_OTLP_METRICS_HEADERS": "Authorization=Bearer $SECRET",
+        "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "Authorization=Bearer SENTINEL_H18_LOGS_HEADER"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h18",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h18",
+        "turn_id": "SENTINEL_TURN_H18_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H18_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H18_S2/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H18_S2"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H18_S2",
+          "SENTINEL_TOOLINPUT_KEY_H18_S2": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H18_S2"
+      },
+      "rawStdin": null,
+      "env": {
+        "HTTP_PROXY": "http://SENTINEL-H18-proxy.example.com:3128",
+        "http_proxy": "http://SENTINEL-H18-proxy-lower.example.com:3128",
+        "ALL_PROXY": "socks5://SENTINEL-H18-allproxy.example.com:1080",
+        "NO_PROXY": "intranet.example.org",
+        "OTEL_EXPORTER_OTLP_METRICS_HEADERS": "Authorization=Bearer $SECRET",
+        "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "Authorization=Bearer SENTINEL_H18_LOGS_HEADER"
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h18",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "shell"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h18",
+        "turn_id": "SENTINEL_TURN_H18_S3",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H18_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H18_S3/web-app",
+        "hook_event_name": "Stop",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "stop_hook_active": false,
+        "last_assistant_message": "Done. The API key is sk-SENTINEL_LASTMSG_H18_S3"
+      },
+      "rawStdin": null,
+      "env": {
+        "HTTP_PROXY": "http://SENTINEL-H18-proxy.example.com:3128",
+        "http_proxy": "http://SENTINEL-H18-proxy-lower.example.com:3128",
+        "ALL_PROXY": "socks5://SENTINEL-H18-allproxy.example.com:1080",
+        "NO_PROXY": "intranet.example.org",
+        "OTEL_EXPORTER_OTLP_METRICS_HEADERS": "Authorization=Bearer $SECRET",
+        "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "Authorization=Bearer SENTINEL_H18_LOGS_HEADER"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h18",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL-H18-allproxy",
+    "SENTINEL-H18-proxy",
+    "SENTINEL-H18-proxy-lower",
+    "SENTINEL_CALL_H18_S2",
+    "SENTINEL_CWD_H18_S1",
+    "SENTINEL_CWD_H18_S2",
+    "SENTINEL_CWD_H18_S3",
+    "SENTINEL_H18_LOGS_HEADER",
+    "SENTINEL_LASTMSG_H18_S3",
+    "SENTINEL_TOOLINPUT_H18_S2",
+    "SENTINEL_TOOLINPUT_KEY_H18_S2",
+    "SENTINEL_TOOLINPUT_PATH_H18_S2",
+    "SENTINEL_TRANSCRIPT_H18_S1",
+    "SENTINEL_TRANSCRIPT_H18_S2",
+    "SENTINEL_TRANSCRIPT_H18_S3",
+    "SENTINEL_TURN_H18_S2",
+    "SENTINEL_TURN_H18_S3",
+    "example.com",
+    "intranet.example.org",
+    "socks5://"
+  ]
+}

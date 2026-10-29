@@ -1,0 +1,436 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:javis-dog:jgr:conformance:codex:vector:adr-0016-s5c",
+  "title": "Codex CLI collector conformance vector (ADR-0016 S5c)",
+  "description": "One black-box case for the javi collector's Codex CLI support: a hook vector (H*) feeds Codex hook stdin payloads to javi hook; a usage vector (U*) posts OTLP/HTTP JSON logs bodies to the local receiver (and may interleave hook steps). Derived from ADR-0016 Changes (S5c design C1-C6, design review D0), ADR-0011, JGR spec v0.1 and the official Codex hook input schemas and OTel event sources. See README.md for runner semantics.",
+  "oneOf": [{ "$ref": "#/definitions/hookVector" }, { "$ref": "#/definitions/usageVector" }],
+  "definitions": {
+    "common": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "description",
+        "contract",
+        "ambiguities",
+        "clock",
+        "steps",
+        "absentStrings"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "description": { "type": "string", "minLength": 1 },
+        "contract": {
+          "description": "Contract text the expectation is derived from (ADR-0016 Changes C1-C6 / D0 ids, ADR-0011 sections, spec sections, Codex schema or source file).",
+          "type": "string",
+          "minLength": 1
+        },
+        "ambiguities": {
+          "description": "README ambiguity ids (X1, X2, ...) whose chosen reading this vector relies on.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^X[1-9][0-9]*$" }
+        },
+        "clock": {
+          "description": "Pinned current time for the whole vector (setup, hooks, receiver, JGR validation). README: Pinned clock.",
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "absentStrings": {
+          "description": "Strings that MUST NOT occur in any emitted record, spooled or delivered byte, inspectable state or error response body, in addition to the global list (README: Absent strings).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 2 }
+        }
+      }
+    },
+    "platform": { "enum": ["codex-cli", "claude-code", "gemini-cli"] },
+    "env": {
+      "description": "Extra environment variables for this hook process only, added to (and overriding) the fixed process environment; the token $SECRET inside a value is replaced by the receiver secret (only when usage is on). null: none. README: Hook steps -> Invocation.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" },
+          "additionalProperties": { "type": "string" }
+        }
+      ]
+    },
+    "hookInput": {
+      "type": "object",
+      "required": ["platform", "stdin", "rawStdin", "env"],
+      "properties": {
+        "platform": {
+          "description": "Which hook entry receives the payload: codex-cli (the javi-collector entry in .codex/hooks.json), claude-code or gemini-cli (their entries; cross-platform vectors only).",
+          "$ref": "#/definitions/platform"
+        },
+        "stdin": {
+          "description": "Hook stdin payload, serialized compactly by the runner.",
+          "type": ["object", "null"]
+        },
+        "rawStdin": {
+          "description": "Exact UTF-8 stdin bytes, used instead of stdin (malformed input).",
+          "type": ["string", "null"]
+        },
+        "env": { "$ref": "#/definitions/env" }
+      },
+      "oneOf": [
+        { "properties": { "stdin": { "type": "object" }, "rawStdin": { "type": "null" } } },
+        { "properties": { "stdin": { "type": "null" }, "rawStdin": { "type": "string" } } }
+      ]
+    },
+    "recordExpect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record"],
+      "properties": {
+        "record": {
+          "description": "The one record this step produces, or null for none.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/expectedRecord" }]
+        }
+      }
+    },
+    "hookVector": {
+      "allOf": [{ "$ref": "#/definitions/common" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["usageOn"],
+      "properties": {
+        "$schema": {},
+        "id": { "type": "string", "pattern": "^H[0-9]{2}$" },
+        "kind": { "const": "hook" },
+        "description": {},
+        "contract": {},
+        "ambiguities": {},
+        "clock": {},
+        "usageOn": {
+          "description": "Platforms whose javi usage on runs before step 1, with the usage part of the fixed environment (CODEX_HOME, receiver). [] for none. README: Fixed environment.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/definitions/platform" }
+        },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/hookStep" } },
+        "absentStrings": {}
+      }
+    },
+    "hookStep": {
+      "allOf": [{ "$ref": "#/definitions/hookInput" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expect"],
+      "properties": {
+        "platform": {},
+        "stdin": {},
+        "rawStdin": {},
+        "env": {},
+        "expect": { "$ref": "#/definitions/recordExpect" }
+      }
+    },
+    "expectedRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "session", "agent", "attributes"],
+      "properties": {
+        "type": {
+          "enum": [
+            "session.started",
+            "session.ended",
+            "heartbeat",
+            "agent.started",
+            "agent.stopped",
+            "task.started",
+            "task.completed",
+            "task.failed",
+            "attention.requested"
+          ]
+        },
+        "session": {
+          "description": "Raw hook session_id; thread_ref MUST equal the ref of (platform, session) (README: Thread identity).",
+          "type": "string",
+          "minLength": 1
+        },
+        "agent": {
+          "description": "Raw agent_id: agent_ref MUST be present and equal the agent reference of (platform, session, agent) (README: Agent identity). null: agent_ref MUST be absent.",
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "status": {
+          "description": "Exact status when listed; not checked when the key is absent.",
+          "enum": ["working", "waiting", "idle", "blocked", "failed", "completed"]
+        },
+        "attributes": {
+          "description": "Controlled-key expectation (README: Record comparison); null means attributes are not checked beyond the invariants.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": {
+                "oneOf": [
+                  { "type": "string" },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["prefixOf", "maxLength", "optional"],
+                    "properties": {
+                      "prefixOf": { "type": "string", "minLength": 1 },
+                      "maxLength": { "type": "integer", "minimum": 1 },
+                      "optional": { "type": "boolean" }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "usageVector": {
+      "allOf": [{ "$ref": "#/definitions/common" }],
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registerSessions", "droppedUnattributedTotal", "identityGroup"],
+      "properties": {
+        "$schema": {},
+        "id": { "type": "string", "pattern": "^U[0-9]{2}$" },
+        "kind": { "const": "usage" },
+        "description": {},
+        "contract": {},
+        "ambiguities": {},
+        "clock": {},
+        "registerSessions": {
+          "description": "Sessions registered through a SessionStart hook of that platform before step 1 (README: Session registration). No other session is registered before step 1.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["platform", "session"],
+            "properties": {
+              "platform": { "$ref": "#/definitions/platform" },
+              "session": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/definitions/usageRequestStep" },
+              { "$ref": "#/definitions/usageHookStep" }
+            ]
+          }
+        },
+        "droppedUnattributedTotal": {
+          "description": "Matcher on the total increase of the unattributed-drop counter over the whole vector; null means not checked.",
+          "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/intMatcher" }]
+        },
+        "absentStrings": {},
+        "identityGroup": {
+          "description": "Scope of idLabel comparison across vectors; null: within this vector only.",
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "usageHookStep": {
+      "description": "A collector-layer hook invocation inside a usage vector (sub-agent links, resumed sessions). README: Usage steps -> Hook steps in usage vectors.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hook", "expect"],
+      "properties": {
+        "hook": {
+          "allOf": [{ "$ref": "#/definitions/hookInput" }],
+          "type": "object",
+          "additionalProperties": false,
+          "properties": { "platform": {}, "stdin": {}, "rawStdin": {}, "env": {} }
+        },
+        "expect": { "$ref": "#/definitions/recordExpect" }
+      }
+    },
+    "usageRequestStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request", "expect"],
+      "properties": {
+        "request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "auth", "body", "rawBody", "bodyPadBytes"],
+          "properties": {
+            "path": {
+              "enum": ["/v1/logs/codex-cli", "/v1/logs", "/v1/traces", "/v1/metrics", "/"]
+            },
+            "auth": {
+              "description": "true: send Authorization: Bearer $SECRET; false: send no Authorization header.",
+              "type": "boolean"
+            },
+            "body": { "type": ["object", "null"] },
+            "rawBody": { "type": ["string", "null"] },
+            "bodyPadBytes": {
+              "description": "Append ASCII spaces (0x20) to the serialized body until it is at least this many bytes (insignificant JSON whitespace). null: no padding.",
+              "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 1 }]
+            }
+          },
+          "oneOf": [
+            { "properties": { "body": { "type": "object" }, "rawBody": { "type": "null" } } },
+            { "properties": { "body": { "type": "null" }, "rawBody": { "type": "string" } } }
+          ]
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "events", "droppedUnattributed"],
+          "properties": {
+            "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+            "events": {
+              "description": "usage.reported events whose event_id first appears after this step. Order-insensitive.",
+              "type": "array",
+              "items": { "$ref": "#/definitions/expectedEvent" }
+            },
+            "droppedUnattributed": {
+              "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/intMatcher" }]
+            }
+          },
+          "if": { "properties": { "status": { "not": { "const": 200 } } } },
+          "then": { "properties": { "events": { "maxItems": 0 } } }
+        }
+      }
+    },
+    "intMatcher": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "integerMin": { "type": "integer", "minimum": 0 },
+        "integerMax": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "expectedEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idLabel",
+        "platform",
+        "session",
+        "agent",
+        "occurred_at",
+        "usage_delta",
+        "derivation"
+      ],
+      "properties": {
+        "idLabel": { "type": "string", "pattern": "^u[0-9]+$" },
+        "platform": { "$ref": "#/definitions/platform" },
+        "session": {
+          "description": "Raw session id of the thread the event counts in (for a sub-agent: the parent session).",
+          "type": "string",
+          "minLength": 1
+        },
+        "agent": {
+          "description": "Raw agent_id whose agent_ref the event MUST carry; null: agent_ref MUST be absent.",
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "occurred_at": {
+          "description": "Expected instant; null: not compared (Codex cost-only reports, X16).",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            }
+          ]
+        },
+        "usage_delta": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input_tokens",
+            "output_tokens",
+            "cache_read_tokens",
+            "cache_write_tokens",
+            "reasoning_tokens",
+            "cost_usd",
+            "model",
+            "estimated"
+          ],
+          "properties": {
+            "input_tokens": { "type": "integer", "minimum": 0 },
+            "output_tokens": { "type": "integer", "minimum": 0 },
+            "cache_read_tokens": { "type": "integer", "minimum": 0 },
+            "cache_write_tokens": { "type": "integer", "minimum": 0 },
+            "reasoning_tokens": { "type": "integer", "minimum": 0 },
+            "cost_usd": {
+              "description": "Expected cost; null means the cost_usd key MUST be absent. For a claude-code event, 0 also matches an absent key (otlp suite convention).",
+              "type": ["number", "null"],
+              "minimum": 0
+            },
+            "model": {
+              "description": "Expected model; null means the model key MUST be absent (Codex cost-only reports).",
+              "type": ["string", "null"],
+              "minLength": 1
+            },
+            "estimated": { "const": false }
+          }
+        },
+        "derivation": {
+          "description": "Informative: the source attributes and the arithmetic (ADR rule ids) the expected usage_delta was computed from. The runner compares usage_delta, not this text.",
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "$comment": "Codex token report (C5): model present, no cost, occurred_at = event.timestamp, reasoning never reported.",
+          "if": {
+            "properties": {
+              "platform": { "const": "codex-cli" },
+              "usage_delta": { "properties": { "model": { "type": "string" } } }
+            }
+          },
+          "then": {
+            "properties": {
+              "occurred_at": { "type": "string" },
+              "usage_delta": {
+                "properties": { "cost_usd": { "type": "null" }, "reasoning_tokens": { "const": 0 } }
+              }
+            }
+          }
+        },
+        {
+          "$comment": "Codex cost-only report (C5): cost only, no model, no token counters, occurred_at not compared.",
+          "if": {
+            "properties": {
+              "platform": { "const": "codex-cli" },
+              "usage_delta": { "properties": { "model": { "type": "null" } } }
+            }
+          },
+          "then": {
+            "properties": {
+              "occurred_at": { "type": "null" },
+              "usage_delta": {
+                "properties": {
+                  "cost_usd": { "type": "number" },
+                  "input_tokens": { "const": 0 },
+                  "output_tokens": { "const": 0 },
+                  "cache_read_tokens": { "const": 0 },
+                  "cache_write_tokens": { "const": 0 },
+                  "reasoning_tokens": { "const": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "platform": { "enum": ["claude-code", "gemini-cli"] } } },
+          "then": {
+            "properties": {
+              "agent": { "type": "null" },
+              "occurred_at": { "type": "string" },
+              "usage_delta": { "properties": { "model": { "type": "string" } } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,99 @@
+{
+  "$schema": "./schema.json",
+  "id": "H08",
+  "kind": "hook",
+  "description": "PreToolUse and PostToolUse for an MCP tool keep the tool_name verbatim (mcp__github__create_issue, illustrative); the MCP arguments and result are discarded.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (tool_name only); spec §3 attribute strings ≤ 128 chars; Codex hook schema pre-tool-use / post-tool-use (tool_name: string)",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h08",
+        "turn_id": "SENTINEL_TURN_H08_S1",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H08_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H08_S1/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__github__create_issue",
+        "tool_input": {
+          "repo": "acme/SENTINEL_TOOLINPUT_REPO_H08_S1",
+          "body": "SENTINEL_TOOLINPUT_H08_S1"
+        },
+        "tool_use_id": "SENTINEL_CALL_H08_S1"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h08",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__github__create_issue"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h08",
+        "turn_id": "SENTINEL_TURN_H08_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H08_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H08_S2/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__github__create_issue",
+        "tool_input": {
+          "repo": "acme/SENTINEL_TOOLINPUT_REPO_H08_S2",
+          "body": "SENTINEL_TOOLINPUT_H08_S2"
+        },
+        "tool_use_id": "SENTINEL_CALL_H08_S2",
+        "tool_response": {
+          "content": [
+            {
+              "type": "text",
+              "text": "Created issue SENTINEL_TOOLRESPONSE_H08_S2"
+            }
+          ]
+        }
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "cx-sess-h08",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__github__create_issue"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CALL_H08_S1",
+    "SENTINEL_CALL_H08_S2",
+    "SENTINEL_CWD_H08_S1",
+    "SENTINEL_CWD_H08_S2",
+    "SENTINEL_TOOLINPUT_H08_S1",
+    "SENTINEL_TOOLINPUT_H08_S2",
+    "SENTINEL_TOOLINPUT_REPO_H08_S1",
+    "SENTINEL_TOOLINPUT_REPO_H08_S2",
+    "SENTINEL_TOOLRESPONSE_H08_S2",
+    "SENTINEL_TRANSCRIPT_H08_S1",
+    "SENTINEL_TRANSCRIPT_H08_S2",
+    "SENTINEL_TURN_H08_S1",
+    "SENTINEL_TURN_H08_S2",
+    "acme/"
+  ]
+}

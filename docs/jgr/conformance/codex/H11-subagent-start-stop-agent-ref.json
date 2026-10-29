@@ -1,0 +1,169 @@
+{
+  "$schema": "./schema.json",
+  "id": "H11",
+  "kind": "hook",
+  "description": "SubagentStart and SubagentStop become agent.started and agent.stopped on the parent session's thread (hook session_id is the root id) with an agent_ref derived from agent_id: the same agent gives the same agent_ref, a second agent a different one. agent_type, agent_transcript_path and last_assistant_message are discarded.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (SubagentStart / SubagentStop → agent.started / agent.stopped with agent_ref from agent_id); C6 (hashed refs only); spec §3 (agent_ref opaque), §4 (status required), §12 Claude Code row (agent_ref from hashed agent_id); Codex hook schemas subagent-start / subagent-stop",
+  "ambiguities": ["X1", "X5"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h11",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H11_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h11",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h11",
+        "turn_id": "SENTINEL_TURN_H11_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H11_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S2/web-app",
+        "hook_event_name": "SubagentStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h11-a",
+        "agent_type": "SENTINEL_AGENT_TYPE_H11_S2"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "agent.started",
+          "session": "cx-sess-h11",
+          "agent": "cx-agent-h11-a",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h11",
+        "turn_id": "SENTINEL_TURN_H11_S3",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H11_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S3/web-app",
+        "hook_event_name": "SubagentStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h11-b",
+        "agent_type": "explorer"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "agent.started",
+          "session": "cx-sess-h11",
+          "agent": "cx-agent-h11-b",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h11",
+        "turn_id": "SENTINEL_TURN_H11_S4",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H11_S4.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S4/web-app",
+        "hook_event_name": "SubagentStop",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h11-a",
+        "agent_type": "SENTINEL_AGENT_TYPE_H11_S4",
+        "agent_transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_AGENT_TRANSCRIPT_H11_S4.jsonl",
+        "stop_hook_active": false,
+        "last_assistant_message": "Found 3 call sites SENTINEL_LASTMSG_H11_S4"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "agent.stopped",
+          "session": "cx-sess-h11",
+          "agent": "cx-agent-h11-a",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h11",
+        "turn_id": "SENTINEL_TURN_H11_S5",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H11_S5.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S5/web-app",
+        "hook_event_name": "SubagentStop",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h11-b",
+        "agent_type": "explorer",
+        "agent_transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_AGENT_TRANSCRIPT_H11_S5.jsonl",
+        "stop_hook_active": false,
+        "last_assistant_message": "Found 3 call sites SENTINEL_LASTMSG_H11_S5"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "agent.stopped",
+          "session": "cx-sess-h11",
+          "agent": "cx-agent-h11-b",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_AGENT_TRANSCRIPT_H11_S4",
+    "SENTINEL_AGENT_TRANSCRIPT_H11_S5",
+    "SENTINEL_AGENT_TYPE_H11_S2",
+    "SENTINEL_AGENT_TYPE_H11_S4",
+    "SENTINEL_CWD_H11_S1",
+    "SENTINEL_CWD_H11_S2",
+    "SENTINEL_CWD_H11_S3",
+    "SENTINEL_CWD_H11_S4",
+    "SENTINEL_CWD_H11_S5",
+    "SENTINEL_LASTMSG_H11_S4",
+    "SENTINEL_LASTMSG_H11_S5",
+    "SENTINEL_TRANSCRIPT_H11_S1",
+    "SENTINEL_TRANSCRIPT_H11_S2",
+    "SENTINEL_TRANSCRIPT_H11_S3",
+    "SENTINEL_TRANSCRIPT_H11_S4",
+    "SENTINEL_TRANSCRIPT_H11_S5",
+    "SENTINEL_TURN_H11_S2",
+    "SENTINEL_TURN_H11_S3",
+    "SENTINEL_TURN_H11_S4",
+    "SENTINEL_TURN_H11_S5"
+  ]
+}

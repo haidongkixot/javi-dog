@@ -1,0 +1,370 @@
+{
+  "$schema": "./schema.json",
+  "id": "U22",
+  "kind": "usage",
+  "description": "The same raw id registered only through the Claude Code and Gemini CLI hooks does not make a Codex conversation with that id attributable: its token report and its ApiKey cost are dropped and counted, not routed to the cc_ or gm_ thread.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C6 Attribution (unknown ids dropped locally); ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (cx ref is per platform); ADR-0011 Project attribution; ADR-0016 Changes S5b implementation (per-platform state)",
+  "ambiguities": ["X12", "X20"],
+  "clock": "2026-10-29T10:00:00Z",
+  "registerSessions": [
+    {
+      "platform": "claude-code",
+      "session": "shared-sess-u22"
+    },
+    {
+      "platform": "gemini-cli",
+      "session": "shared-sess-u22"
+    }
+  ],
+  "steps": [
+    {
+      "request": {
+        "path": "/v1/logs/codex-cli",
+        "auth": true,
+        "body": {
+          "resourceLogs": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "codex_cli_rs"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.130.0"
+                    }
+                  },
+                  {
+                    "key": "host.name",
+                    "value": {
+                      "stringValue": "SENTINEL_HOST_U22"
+                    }
+                  }
+                ]
+              },
+              "scopeLogs": [
+                {
+                  "scope": {
+                    "name": "codex_otel.log_only"
+                  },
+                  "logRecords": [
+                    {
+                      "timeUnixNano": "1793264460000000000",
+                      "observedTimeUnixNano": "1793264460000000000",
+                      "severityNumber": 9,
+                      "severityText": "INFO",
+                      "attributes": [
+                        {
+                          "key": "event.name",
+                          "value": {
+                            "stringValue": "codex.sse_event"
+                          }
+                        },
+                        {
+                          "key": "event.kind",
+                          "value": {
+                            "stringValue": "response.completed"
+                          }
+                        },
+                        {
+                          "key": "input_token_count",
+                          "value": {
+                            "stringValue": "900"
+                          }
+                        },
+                        {
+                          "key": "output_token_count",
+                          "value": {
+                            "stringValue": "90"
+                          }
+                        },
+                        {
+                          "key": "cached_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "cache_write_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "reasoning_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "tool_token_count",
+                          "value": {
+                            "stringValue": "990"
+                          }
+                        },
+                        {
+                          "key": "ttft_ms",
+                          "value": {
+                            "intValue": "850"
+                          }
+                        },
+                        {
+                          "key": "model_reasoning_effort",
+                          "value": {
+                            "stringValue": "medium"
+                          }
+                        },
+                        {
+                          "key": "event.timestamp",
+                          "value": {
+                            "stringValue": "2026-10-29T09:01:00.000Z"
+                          }
+                        },
+                        {
+                          "key": "conversation.id",
+                          "value": {
+                            "stringValue": "shared-sess-u22"
+                          }
+                        },
+                        {
+                          "key": "app.version",
+                          "value": {
+                            "stringValue": "0.130.0"
+                          }
+                        },
+                        {
+                          "key": "auth_mode",
+                          "value": {
+                            "stringValue": "ApiKey"
+                          }
+                        },
+                        {
+                          "key": "originator",
+                          "value": {
+                            "stringValue": "codex_cli_rs"
+                          }
+                        },
+                        {
+                          "key": "user.account_id",
+                          "value": {
+                            "stringValue": "SENTINEL_ACCOUNT_U22"
+                          }
+                        },
+                        {
+                          "key": "user.email",
+                          "value": {
+                            "stringValue": "SENTINEL_EMAIL_U22@example.com"
+                          }
+                        },
+                        {
+                          "key": "terminal.type",
+                          "value": {
+                            "stringValue": "xterm-256color"
+                          }
+                        },
+                        {
+                          "key": "model",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        },
+                        {
+                          "key": "slug",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [],
+        "droppedUnattributed": {
+          "integerMin": 1
+        }
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/logs/codex-cli",
+        "auth": true,
+        "body": {
+          "resourceLogs": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "codex_cli_rs"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.130.0"
+                    }
+                  },
+                  {
+                    "key": "host.name",
+                    "value": {
+                      "stringValue": "SENTINEL_HOST_U22"
+                    }
+                  }
+                ]
+              },
+              "scopeLogs": [
+                {
+                  "scope": {
+                    "name": "codex_otel.log_only"
+                  },
+                  "logRecords": [
+                    {
+                      "timeUnixNano": "1793264580000000000",
+                      "observedTimeUnixNano": "1793264580000000000",
+                      "severityNumber": 9,
+                      "severityText": "INFO",
+                      "attributes": [
+                        {
+                          "key": "event.name",
+                          "value": {
+                            "stringValue": "codex.turn_cost"
+                          }
+                        },
+                        {
+                          "key": "turn.id",
+                          "value": {
+                            "stringValue": "SENTINEL_TURN_U22_1"
+                          }
+                        },
+                        {
+                          "key": "usage.estimated_usd",
+                          "value": {
+                            "stringValue": "0.25"
+                          }
+                        },
+                        {
+                          "key": "turn.interrupted",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "reasoning_effort",
+                          "value": {
+                            "stringValue": "medium"
+                          }
+                        },
+                        {
+                          "key": "event.timestamp",
+                          "value": {
+                            "stringValue": "2026-10-29T09:03:00.000Z"
+                          }
+                        },
+                        {
+                          "key": "conversation.id",
+                          "value": {
+                            "stringValue": "shared-sess-u22"
+                          }
+                        },
+                        {
+                          "key": "app.version",
+                          "value": {
+                            "stringValue": "0.130.0"
+                          }
+                        },
+                        {
+                          "key": "auth_mode",
+                          "value": {
+                            "stringValue": "ApiKey"
+                          }
+                        },
+                        {
+                          "key": "originator",
+                          "value": {
+                            "stringValue": "codex_cli_rs"
+                          }
+                        },
+                        {
+                          "key": "user.account_id",
+                          "value": {
+                            "stringValue": "SENTINEL_ACCOUNT_U22"
+                          }
+                        },
+                        {
+                          "key": "user.email",
+                          "value": {
+                            "stringValue": "SENTINEL_EMAIL_U22@example.com"
+                          }
+                        },
+                        {
+                          "key": "terminal.type",
+                          "value": {
+                            "stringValue": "xterm-256color"
+                          }
+                        },
+                        {
+                          "key": "model",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        },
+                        {
+                          "key": "slug",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [],
+        "droppedUnattributed": {
+          "integerMin": 1
+        }
+      }
+    }
+  ],
+  "droppedUnattributedTotal": {
+    "integerMin": 2,
+    "integerMax": 4
+  },
+  "absentStrings": [
+    "ApiKey",
+    "SENTINEL_ACCOUNT_U22",
+    "SENTINEL_EMAIL_U22",
+    "SENTINEL_HOST_U22",
+    "SENTINEL_TURN_U22_1",
+    "auth_mode",
+    "conversation.id",
+    "example.com",
+    "host.name",
+    "usage.estimated_usd",
+    "user.account_id",
+    "user.email"
+  ],
+  "identityGroup": null
+}

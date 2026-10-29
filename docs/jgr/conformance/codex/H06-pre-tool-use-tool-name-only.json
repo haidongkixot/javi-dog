@@ -1,0 +1,92 @@
+{
+  "$schema": "./schema.json",
+  "id": "H06",
+  "kind": "hook",
+  "description": "PreToolUse for shell and apply_patch becomes task.started with tool_name only; tool_input (command, workdir, patch text), tool_use_id and turn_id are never copied.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (PreToolUse → task.started, tool_name only); spec §7 (commands MUST NOT appear), §12 L0 drops (tool_input); Codex hook schema pre-tool-use.command.input",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h06",
+        "turn_id": "SENTINEL_TURN_H06_S1",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H06_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H06_S1/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H06_S1"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H06_S1",
+          "SENTINEL_TOOLINPUT_KEY_H06_S1": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H06_S1"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h06",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "shell"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h06",
+        "turn_id": "SENTINEL_TURN_H06_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H06_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H06_S2/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "apply_patch",
+        "tool_input": {
+          "input": "*** Begin Patch\n*** Update File: /home/dev/SENTINEL_PATCH_PATH_H06_S2/app.ts\n+const key = 'SENTINEL_PATCH_H06_S2'\n*** End Patch"
+        },
+        "tool_use_id": "SENTINEL_CALL_H06_S2"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h06",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "apply_patch"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "Begin Patch",
+    "SENTINEL_CALL_H06_S1",
+    "SENTINEL_CALL_H06_S2",
+    "SENTINEL_CWD_H06_S1",
+    "SENTINEL_CWD_H06_S2",
+    "SENTINEL_PATCH_H06_S2",
+    "SENTINEL_PATCH_PATH_H06_S2",
+    "SENTINEL_TOOLINPUT_H06_S1",
+    "SENTINEL_TOOLINPUT_KEY_H06_S1",
+    "SENTINEL_TOOLINPUT_PATH_H06_S1",
+    "SENTINEL_TRANSCRIPT_H06_S1",
+    "SENTINEL_TRANSCRIPT_H06_S2",
+    "SENTINEL_TURN_H06_S1",
+    "SENTINEL_TURN_H06_S2",
+    "id_rsa"
+  ]
+}

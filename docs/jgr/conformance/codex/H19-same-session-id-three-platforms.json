@@ -1,0 +1,127 @@
+{
+  "$schema": "./schema.json",
+  "id": "H19",
+  "kind": "hook",
+  "description": "The same raw session id through the Claude Code, Gemini CLI and Codex CLI hooks gives three different thread_refs (cc_, gm_, cx_); a later Codex event stays on the cx_ thread.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (opaqueRef('cx', session_id, salt)); ADR-0016 §2 Refs (gm); ADR-0010 (cc); spec §12 (hashed with a per-installation salt)",
+  "ambiguities": ["X1"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "claude-code",
+      "stdin": {
+        "session_id": "shared-sess-h19",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H19_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H19_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "shared-sess-h19",
+          "agent": null,
+          "attributes": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "stdin": {
+        "session_id": "shared-sess-h19",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H19_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H19_S2/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-29T09:00:02.000Z",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "shared-sess-h19",
+          "agent": null,
+          "attributes": {
+            "platform": "gemini-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "shared-sess-h19",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H19_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H19_S3/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "shared-sess-h19",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "shared-sess-h19",
+        "turn_id": "SENTINEL_TURN_H19_S4",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H19_S4.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H19_S4/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H19_S4"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H19_S4",
+          "SENTINEL_TOOLINPUT_KEY_H19_S4": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H19_S4"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "shared-sess-h19",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "shell"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CALL_H19_S4",
+    "SENTINEL_CWD_H19_S1",
+    "SENTINEL_CWD_H19_S2",
+    "SENTINEL_CWD_H19_S3",
+    "SENTINEL_CWD_H19_S4",
+    "SENTINEL_TOOLINPUT_H19_S4",
+    "SENTINEL_TOOLINPUT_KEY_H19_S4",
+    "SENTINEL_TOOLINPUT_PATH_H19_S4",
+    "SENTINEL_TRANSCRIPT_H19_S1",
+    "SENTINEL_TRANSCRIPT_H19_S2",
+    "SENTINEL_TRANSCRIPT_H19_S3",
+    "SENTINEL_TRANSCRIPT_H19_S4",
+    "SENTINEL_TURN_H19_S4"
+  ]
+}

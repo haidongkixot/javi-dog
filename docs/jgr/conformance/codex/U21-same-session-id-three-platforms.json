@@ -1,0 +1,768 @@
+{
+  "$schema": "./schema.json",
+  "id": "U21",
+  "kind": "usage",
+  "description": "The same raw session id registered through the Claude Code, Gemini CLI and Codex CLI hooks gives three threads on one receiver: the Codex record counts only in the cx_ thread, the Claude Code delta points only in the cc_ thread, and the Gemini cumulative points (baseline, then a delta) only in the gm_ thread.",
+  "contract": "ADR-0016 Consequences (\"One install and one receiver for three agents\"); ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (cx ref); ADR-0016 §2 Refs (gm), Changes S5b implementation (baselines kept per platform); ADR-0011 Mapping → JGR (Claude Code delta points as-is, cc ref); ADR-0016 Changes 2026-10-29 (S5c design) C5 Token and cost mapping; ADR-0016 Changes 2026-10-29 (S5c design) C6 Attribution",
+  "ambiguities": ["X12", "X26"],
+  "clock": "2026-10-29T10:00:00Z",
+  "registerSessions": [
+    {
+      "platform": "claude-code",
+      "session": "shared-sess-u21"
+    },
+    {
+      "platform": "gemini-cli",
+      "session": "shared-sess-u21"
+    },
+    {
+      "platform": "codex-cli",
+      "session": "shared-sess-u21"
+    }
+  ],
+  "steps": [
+    {
+      "request": {
+        "path": "/v1/logs/codex-cli",
+        "auth": true,
+        "body": {
+          "resourceLogs": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "codex_cli_rs"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.130.0"
+                    }
+                  },
+                  {
+                    "key": "host.name",
+                    "value": {
+                      "stringValue": "SENTINEL_HOST_U21"
+                    }
+                  }
+                ]
+              },
+              "scopeLogs": [
+                {
+                  "scope": {
+                    "name": "codex_otel.log_only"
+                  },
+                  "logRecords": [
+                    {
+                      "timeUnixNano": "1793264460000000000",
+                      "observedTimeUnixNano": "1793264460000000000",
+                      "severityNumber": 9,
+                      "severityText": "INFO",
+                      "attributes": [
+                        {
+                          "key": "event.name",
+                          "value": {
+                            "stringValue": "codex.sse_event"
+                          }
+                        },
+                        {
+                          "key": "event.kind",
+                          "value": {
+                            "stringValue": "response.completed"
+                          }
+                        },
+                        {
+                          "key": "input_token_count",
+                          "value": {
+                            "stringValue": "2200"
+                          }
+                        },
+                        {
+                          "key": "output_token_count",
+                          "value": {
+                            "stringValue": "330"
+                          }
+                        },
+                        {
+                          "key": "cached_token_count",
+                          "value": {
+                            "intValue": "1100"
+                          }
+                        },
+                        {
+                          "key": "cache_write_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "reasoning_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "tool_token_count",
+                          "value": {
+                            "stringValue": "2530"
+                          }
+                        },
+                        {
+                          "key": "ttft_ms",
+                          "value": {
+                            "intValue": "850"
+                          }
+                        },
+                        {
+                          "key": "model_reasoning_effort",
+                          "value": {
+                            "stringValue": "medium"
+                          }
+                        },
+                        {
+                          "key": "event.timestamp",
+                          "value": {
+                            "stringValue": "2026-10-29T09:01:00.000Z"
+                          }
+                        },
+                        {
+                          "key": "conversation.id",
+                          "value": {
+                            "stringValue": "shared-sess-u21"
+                          }
+                        },
+                        {
+                          "key": "app.version",
+                          "value": {
+                            "stringValue": "0.130.0"
+                          }
+                        },
+                        {
+                          "key": "auth_mode",
+                          "value": {
+                            "stringValue": "ApiKey"
+                          }
+                        },
+                        {
+                          "key": "originator",
+                          "value": {
+                            "stringValue": "codex_cli_rs"
+                          }
+                        },
+                        {
+                          "key": "user.account_id",
+                          "value": {
+                            "stringValue": "SENTINEL_ACCOUNT_U21"
+                          }
+                        },
+                        {
+                          "key": "user.email",
+                          "value": {
+                            "stringValue": "SENTINEL_EMAIL_U21@example.com"
+                          }
+                        },
+                        {
+                          "key": "terminal.type",
+                          "value": {
+                            "stringValue": "xterm-256color"
+                          }
+                        },
+                        {
+                          "key": "model",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        },
+                        {
+                          "key": "slug",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u1",
+            "platform": "codex-cli",
+            "session": "shared-sess-u21",
+            "agent": null,
+            "occurred_at": "2026-10-29T09:01:00Z",
+            "usage_delta": {
+              "input_tokens": 1100,
+              "output_tokens": 330,
+              "cache_read_tokens": 1100,
+              "cache_write_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": null,
+              "model": "gpt-5.5-codex",
+              "estimated": false
+            },
+            "derivation": "input_tokens = max(0, input_token_count 2200 − cached_token_count 1100 − cache_write_token_count 0) = max(0, 1100) = 1100 (D0 H3); cache_read_tokens = cached_token_count 1100; cache_write_tokens = cache_write_token_count 0; output_tokens = output_token_count 330; reasoning_token_count 0 and tool_token_count 2530 are never added (C4), so reasoning_tokens is absent or 0; no cost_usd on a token report (C5). Codex record → cx_ thread only."
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "claude-code"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "2.1.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "com.anthropic.claude_code",
+                    "version": "2.1.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "claude_code.token.usage",
+                      "unit": "tokens",
+                      "sum": {
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "1280"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "462"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cacheRead"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "9000"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_CC_EMAIL_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "cacheCreation"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "512"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "name": "claude_code.cost.usage",
+                      "unit": "USD",
+                      "sum": {
+                        "aggregationTemporality": 1,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "claude-opus-5-5"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asDouble": 0.0421
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u2",
+            "platform": "claude-code",
+            "session": "shared-sess-u21",
+            "agent": null,
+            "occurred_at": "2026-10-29T09:01:00Z",
+            "usage_delta": {
+              "input_tokens": 1280,
+              "output_tokens": 462,
+              "cache_read_tokens": 9000,
+              "cache_write_tokens": 512,
+              "reasoning_tokens": 0,
+              "cost_usd": 0.0421,
+              "model": "claude-opus-5-5",
+              "estimated": false
+            },
+            "derivation": "Claude Code delta points used as-is (ADR-0011 Temporality, Mapping): input 1280, output 462, cacheRead 9000 → cache_read_tokens, cacheCreation 512 → cache_write_tokens, claude_code.cost.usage 0.0421 → cost_usd; occurred_at = point end 09:01:00; cc_ thread only."
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_GM_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "oauth-personal"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "1000"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_GM_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "oauth-personal"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264460000000000",
+                            "asInt": "100"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/metrics",
+        "auth": true,
+        "body": {
+          "resourceMetrics": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "gemini-cli"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.34.0"
+                    }
+                  }
+                ]
+              },
+              "scopeMetrics": [
+                {
+                  "scope": {
+                    "name": "gemini-cli",
+                    "version": "0.34.0"
+                  },
+                  "metrics": [
+                    {
+                      "name": "gemini_cli.token.usage",
+                      "sum": {
+                        "aggregationTemporality": 2,
+                        "isMonotonic": true,
+                        "dataPoints": [
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_GM_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "oauth-personal"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "input"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264520000000000",
+                            "asInt": "1300"
+                          },
+                          {
+                            "attributes": [
+                              {
+                                "key": "session.id",
+                                "value": {
+                                  "stringValue": "shared-sess-u21"
+                                }
+                              },
+                              {
+                                "key": "installation.id",
+                                "value": {
+                                  "stringValue": "SENTINEL_INSTALLATION_U21"
+                                }
+                              },
+                              {
+                                "key": "user.email",
+                                "value": {
+                                  "stringValue": "SENTINEL_EMAIL_GM_U21@example.com"
+                                }
+                              },
+                              {
+                                "key": "auth_type",
+                                "value": {
+                                  "stringValue": "oauth-personal"
+                                }
+                              },
+                              {
+                                "key": "model",
+                                "value": {
+                                  "stringValue": "gemini-2.5-pro"
+                                }
+                              },
+                              {
+                                "key": "type",
+                                "value": {
+                                  "stringValue": "output"
+                                }
+                              }
+                            ],
+                            "startTimeUnixNano": "1793264400000000000",
+                            "timeUnixNano": "1793264520000000000",
+                            "asInt": "130"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u3",
+            "platform": "gemini-cli",
+            "session": "shared-sess-u21",
+            "agent": null,
+            "occurred_at": "2026-10-29T09:02:00Z",
+            "usage_delta": {
+              "input_tokens": 300,
+              "output_tokens": 30,
+              "cache_read_tokens": 0,
+              "cache_write_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": null,
+              "model": "gemini-2.5-pro",
+              "estimated": false
+            },
+            "derivation": "Gemini cumulative (ADR-0016 §3; series start 09:00 is before the receiver start, so 09:01 only set a baseline, R2): input 1300 − 1000 = 300, no cache series so nothing is subtracted; output 130 − 100 = 30; auth_type oauth-personal → tokens only, no cost_usd (R6); gm_ thread only."
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "droppedUnattributedTotal": null,
+  "absentStrings": [
+    "ApiKey",
+    "SENTINEL_ACCOUNT_U21",
+    "SENTINEL_CC_EMAIL_U21",
+    "SENTINEL_EMAIL_GM_U21",
+    "SENTINEL_EMAIL_U21",
+    "SENTINEL_HOST_U21",
+    "SENTINEL_INSTALLATION_U21",
+    "auth_mode",
+    "auth_type",
+    "conversation.id",
+    "example.com",
+    "host.name",
+    "installation.id",
+    "oauth-personal",
+    "user.account_id",
+    "user.email"
+  ],
+  "identityGroup": null
+}

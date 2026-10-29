@@ -1,0 +1,78 @@
+{
+  "$schema": "./schema.json",
+  "id": "H10",
+  "kind": "hook",
+  "description": "Stop becomes heartbeat idle, with stop_hook_active false and true; last_assistant_message (with a planted key) is discarded.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (Stop → heartbeat idle, last message discarded); ADR-0016 §5 Mapping; spec §12 L0 drops (last_assistant_message); Codex hook schema stop.command.input",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h10",
+        "turn_id": "SENTINEL_TURN_H10_S1",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H10_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H10_S1/web-app",
+        "hook_event_name": "Stop",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "stop_hook_active": false,
+        "last_assistant_message": "Done. The API key is sk-SENTINEL_LASTMSG_H10_S1"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h10",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h10",
+        "turn_id": "SENTINEL_TURN_H10_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H10_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H10_S2/web-app",
+        "hook_event_name": "Stop",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "stop_hook_active": true,
+        "last_assistant_message": "Done. The API key is sk-SENTINEL_LASTMSG_H10_S2"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h10",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CWD_H10_S1",
+    "SENTINEL_CWD_H10_S2",
+    "SENTINEL_LASTMSG_H10_S1",
+    "SENTINEL_LASTMSG_H10_S2",
+    "SENTINEL_TRANSCRIPT_H10_S1",
+    "SENTINEL_TRANSCRIPT_H10_S2",
+    "SENTINEL_TURN_H10_S1",
+    "SENTINEL_TURN_H10_S2",
+    "sk-SENTINEL"
+  ]
+}
