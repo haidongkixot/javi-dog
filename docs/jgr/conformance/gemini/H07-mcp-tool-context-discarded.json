@@ -29,6 +29,7 @@
         "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H07_S1"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.started",
@@ -65,6 +66,7 @@
         "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H07_S2"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.completed",

@@ -20,6 +20,7 @@
         "stop_hook_active": false
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "heartbeat",

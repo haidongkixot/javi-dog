@@ -63,7 +63,7 @@
     "hookStep": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["platform", "stdin", "rawStdin", "expect"],
+      "required": ["platform", "stdin", "rawStdin", "env", "expect"],
       "properties": {
         "platform": {
           "description": "Which hook entry receives the payload: gemini-cli (javi hook --platform gemini-cli) or claude-code (javi hook, default platform).",
@@ -76,6 +76,18 @@
         "rawStdin": {
           "description": "Exact UTF-8 stdin bytes, used instead of stdin (malformed input).",
           "type": ["string", "null"]
+        },
+        "env": {
+          "description": "Extra environment variables for this step's hook process only, added to (and overriding) the fixed process environment; null: none. README: Hook steps → Invocation.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": { "pattern": "^[A-Z][A-Z0-9_]*$" },
+              "additionalProperties": { "type": "string" }
+            }
+          ]
         },
         "expect": {
           "type": "object",
@@ -149,7 +161,12 @@
       "allOf": [{ "$ref": "#/definitions/common" }],
       "type": "object",
       "additionalProperties": false,
-      "required": ["registerSessions", "droppedUnattributedTotal", "identityGroup"],
+      "required": [
+        "receiverStartedAt",
+        "registerSessions",
+        "droppedUnattributedTotal",
+        "identityGroup"
+      ],
       "properties": {
         "$schema": {},
         "id": { "type": "string", "pattern": "^U[0-9]{2}$" },
@@ -158,6 +175,16 @@
         "contract": {},
         "ambiguities": {},
         "clock": {},
+        "receiverStartedAt": {
+          "description": "The receiver's own start time (ADR-0016 Changes R2): the runner pins the clock to this instant from javi usage on until the receiver is listening, and to clock everywhere else. null: the receiver starts at clock. At or before clock. README: Pinned clock.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+            }
+          ]
+        },
         "registerSessions": {
           "description": "Sessions registered through a SessionStart hook of that platform before step 1 (README: Session registration). No other session is registered.",
           "type": "array",
@@ -191,7 +218,7 @@
         "request": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["path", "auth", "body", "rawBody"],
+          "required": ["path", "auth", "body", "rawBody", "bodyPadBytes"],
           "properties": {
             "path": { "enum": ["/v1/metrics", "/", "/v1/logs", "/v1/traces"] },
             "auth": {
@@ -199,7 +226,11 @@
               "type": "boolean"
             },
             "body": { "type": ["object", "null"] },
-            "rawBody": { "type": ["string", "null"] }
+            "rawBody": { "type": ["string", "null"] },
+            "bodyPadBytes": {
+              "description": "Append ASCII spaces (0x20) to the serialized body until it is at least this many bytes (insignificant JSON whitespace). null: no padding. README: Usage steps → Request.",
+              "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 1 }]
+            }
           },
           "oneOf": [
             { "properties": { "body": { "type": "object" }, "rawBody": { "type": "null" } } },
@@ -266,7 +297,7 @@
             "reasoning_tokens": { "type": "integer", "minimum": 0 },
             "cache_write_tokens": { "type": "integer", "minimum": 0 },
             "cost_usd": {
-              "description": "Expected cost; null means the cost_usd key MUST be absent.",
+              "description": "Expected cost; null means the cost_usd key MUST be absent. For a claude-code event, 0 also matches an absent key (otlp suite convention).",
               "type": ["number", "null"],
               "minimum": 0
             },
@@ -275,7 +306,7 @@
           }
         },
         "priceSource": {
-          "description": "For an estimated Gemini cost: the page row, prices and quoted fragment the expected cost_usd was computed from. null otherwise.",
+          "description": "For every Gemini cost: the page row, prices and quoted fragment the expected cost_usd was computed from. null otherwise.",
           "oneOf": [
             { "type": "null" },
             {
@@ -315,29 +346,28 @@
       },
       "allOf": [
         {
+          "$comment": "ADR-0016 Changes R5: Gemini token counts are exact, so estimated is false on every Gemini event, priced or not.",
+          "if": { "properties": { "platform": { "const": "gemini-cli" } } },
+          "then": {
+            "properties": {
+              "usage_delta": { "properties": { "estimated": { "const": false } } }
+            }
+          }
+        },
+        {
           "if": {
             "properties": {
               "platform": { "const": "gemini-cli" },
               "usage_delta": { "properties": { "cost_usd": { "type": "number" } } }
             }
           },
-          "then": {
-            "properties": {
-              "usage_delta": { "properties": { "estimated": { "const": true } } },
-              "priceSource": { "type": "object" }
-            }
-          }
+          "then": { "properties": { "priceSource": { "type": "object" } } }
         },
         {
           "if": {
             "properties": { "usage_delta": { "properties": { "cost_usd": { "type": "null" } } } }
           },
-          "then": {
-            "properties": {
-              "usage_delta": { "properties": { "estimated": { "const": false } } },
-              "priceSource": { "type": "null" }
-            }
-          }
+          "then": { "properties": { "priceSource": { "type": "null" } } }
         },
         {
           "if": { "properties": { "platform": { "const": "claude-code" } } },

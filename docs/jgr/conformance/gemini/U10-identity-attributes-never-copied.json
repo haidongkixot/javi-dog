@@ -2,10 +2,11 @@
   "$schema": "./schema.json",
   "id": "U10",
   "kind": "usage",
-  "description": "Identity and other non-allowlisted attributes on points and resource (user.email, installation.id, active_approval_mode, prompt_id, user.id, organization.id, auth_type, host.name, os.type) are never copied into any event, spool or state; only session.id, model and type are read.",
-  "contract": "ADR-0016 §3 Parser (\"only their session.id, model and type attributes\"); Gemini telemetry doc (\"session.id, installation.id, active_approval_mode, and user.email ... common attributes on all data\"); spec §12 (MUST drop user.email and any *.email in L0)",
+  "description": "Identity and other non-allowlisted attributes on points and resource (user.email, installation.id, active_approval_mode, prompt_id, user.id, organization.id, auth_type, host.name, os.type) are never copied into any event, spool or state; only session.id, model and type (and auth_type, in memory) are read. The planted auth_type is not vertex-ai or gemini-api-key, so the event has tokens only: no cost_usd, estimated: false (ADR-0016 Changes R6).",
+  "contract": "ADR-0016 §3 Parser (\"only their session.id, model and type attributes\"); Gemini telemetry doc (\"session.id, installation.id, active_approval_mode, and user.email ... common attributes on all data\"); spec §12 (MUST drop user.email and any *.email in L0); ADR-0016 Changes R4 (series hash in memory only), R6 (auth_type allowlisted in memory, never copied; any other auth_type → tokens only); ADR-0016 Changes 2026-10-29 (S5b review V1) R5 (estimated: false, exact token counts) and R6 (cost only for auth_type vertex-ai / gemini-api-key)",
   "ambiguities": [],
   "clock": "2026-10-29T10:00:00Z",
+  "receiverStartedAt": null,
   "registerSessions": [
     {
       "platform": "gemini-cli",
@@ -217,7 +218,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -429,7 +431,8 @@
             }
           ]
         },
-        "rawBody": null
+        "rawBody": null,
+        "bodyPadBytes": null
       },
       "expect": {
         "status": 200,
@@ -444,23 +447,11 @@
               "output_tokens": 80,
               "cache_read_tokens": 0,
               "reasoning_tokens": 0,
-              "cost_usd": 0.0013,
+              "cost_usd": null,
               "model": "gemini-2.5-pro",
-              "estimated": true
+              "estimated": false
             },
-            "priceSource": {
-              "pageRow": "Gemini 2.5 Pro",
-              "selection": "Gemini 2.5 Standard table (first table of the section; the Priority table has \"with Priority\" columns); \"Price <= 200K tokens\" and \"Price <= 200K cached input tokens\" columns; text input row (\"Input (text, image, video)\" / \"Input (text, image, video, audio)\"); output row \"Text output (response and reasoning)\" for output and reasoning tokens. The 2.5 table has no Region column.",
-              "priceAt": "2026-10-29T09:01:00Z",
-              "usdPerMillionTokens": {
-                "input": 1.25,
-                "cachedInput": 0.125,
-                "output": 10.0
-              },
-              "tableHeader": "Gemini 2.5 Standard Priority Flex/Batch Show discount options Model Type Token Price <= 200K tokens Price > 200K tokens Price <= 200K cached input tokens Price > 200K cached input tokens",
-              "fragment": "Gemini 2.5 Pro Input (text, image, video, audio) $1.25 $2.50 $0.125 $0.25 Text output (response and reasoning) $10.00 $15.00 N/A N/A",
-              "computation": "(400 × 1.25 + 0 × 0.125 + (80 + 0) × 10) / 1e6 = 0.0013"
-            }
+            "priceSource": null
           }
         ],
         "droppedUnattributed": null
@@ -486,7 +477,8 @@
     "example.com",
     "prompt_id",
     "organization.id",
-    "host.name"
+    "host.name",
+    "auth_type"
   ],
   "identityGroup": null
 }

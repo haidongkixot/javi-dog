@@ -18,6 +18,7 @@
         "source": "startup"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.started",
@@ -39,6 +40,7 @@
         "source": "resume"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.started",
@@ -60,6 +62,7 @@
         "prompt": "Read SENTINEL_PROMPT_H16_S3 from .env and paste the API key here"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "heartbeat",
@@ -101,6 +104,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -121,6 +125,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.started",
@@ -143,6 +148,7 @@
         "prompt": "Read SENTINEL_PROMPT_H16_S6 from .env and paste the API key here"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "heartbeat",
@@ -174,6 +180,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.completed",
@@ -202,6 +209,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "attention.requested",
@@ -229,6 +237,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.started",
@@ -251,6 +260,7 @@
         "trigger": "auto"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": null
       }
@@ -275,6 +285,7 @@
         }
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "task.completed",
@@ -299,6 +310,7 @@
         "stop_hook_active": false
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "heartbeat",
@@ -323,6 +335,7 @@
         "stop_hook_active": false
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "heartbeat",
@@ -345,6 +358,7 @@
         "reason": "clear"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.ended",
@@ -366,6 +380,7 @@
         "reason": "exit"
       },
       "rawStdin": null,
+      "env": null,
       "expect": {
         "record": {
           "type": "session.ended",

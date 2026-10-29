@@ -11,6 +11,7 @@
       "platform": "gemini-cli",
       "stdin": null,
       "rawStdin": "{\"session_id\":\"gm-sess-h14\",\"hook_event_name\":\"BeforeTool\",\"tool_name\":\"read_file\",\"tool_input\":{\"path\":\"SENTINEL_TOOLINPUT_H14\"",
+      "env": null,
       "expect": {
         "record": null
       }
@@ -19,6 +20,7 @@
       "platform": "gemini-cli",
       "stdin": null,
       "rawStdin": "[{\"session_id\":\"gm-sess-h14\",\"hook_event_name\":\"SessionStart\"}]",
+      "env": null,
       "expect": {
         "record": null
       }
@@ -27,6 +29,7 @@
       "platform": "gemini-cli",
       "stdin": null,
       "rawStdin": "null",
+      "env": null,
       "expect": {
         "record": null
       }
@@ -35,6 +38,7 @@
       "platform": "gemini-cli",
       "stdin": null,
       "rawStdin": "",
+      "env": null,
       "expect": {
         "record": null
       }
