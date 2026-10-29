@@ -2,7 +2,7 @@
   "$schema": "./schema.json",
   "id": "U20",
   "kind": "usage",
-  "description": "AMBIGUOUS (G5). The cache series first appears in the second export (caching starts mid-session) while input already has a baseline. Literal ADR reading: the first cache point only sets its baseline, so that export has a cache delta of 0 and input_tokens is not reduced; from the third export the rule applies normally.",
+  "description": "G5 decided 2026-10-29 (orchestrator, ADR-0016 Changes): the cache series first appears in the second export while input already has a baseline with the same start time. A new series whose start equals the known start of the same session and model counts from 0, so that export's cache delta (800) is subtracted from input.",
   "contract": "ADR-0016 §3 Temporality (\"The first point only sets a baseline\"), Token mapping (input − cache delta of the same interval); ADR-0011 Temporality (\"the first point of a series without a baseline only sets the baseline\")",
   "ambiguities": ["G5"],
   "clock": "2026-10-29T10:00:00Z",
@@ -339,11 +339,11 @@
             "session": "gm-sess-u20",
             "occurred_at": "2026-10-29T09:01:00Z",
             "usage_delta": {
-              "input_tokens": 2500,
+              "input_tokens": 1700,
               "output_tokens": 200,
-              "cache_read_tokens": 0,
+              "cache_read_tokens": 800,
               "reasoning_tokens": 0,
-              "cost_usd": 0.005125,
+              "cost_usd": 0.004225,
               "model": "gemini-2.5-pro",
               "estimated": true
             },

@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
-  "description": "POST /v1/traces (traces are not received): 404 and nothing recorded",
-  "contract": "ADR-0011 Receiver (accepts /v1/metrics and / only); ADR-0011 Decision (logs and traces exporters not set)",
+  "description": "POST /v1/traces: 200 {} without parsing the body, nothing recorded (ADR-0016 §3 superseded the earlier 404, 2026-10-29)",
+  "contract": "ADR-0016 §3 Receiver (`/v1/logs` and `/v1/traces` answer 200 {} unparsed); ADR-0011 Receiver",
   "ambiguities": ["A4"],
   "steps": [
     {
@@ -190,9 +190,13 @@
         "bodyPadBytes": null
       },
       "expect": {
-        "status": 404,
-        "headers": {},
-        "body": null,
+        "status": 200,
+        "headers": {
+          "content-type": {
+            "pattern": "^application/json(\\s*;.*)?$"
+          }
+        },
+        "body": {},
         "events": [],
         "droppedUnattributed": null
       }

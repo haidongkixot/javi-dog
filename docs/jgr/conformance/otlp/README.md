@@ -209,7 +209,7 @@ Report one of PASS, FAIL, BLOCKED, NOT RUN or SKIPPED per vector (Orcasus contra
 | 18 | [`18-empty-request-object.json`](18-empty-request-object.json) | `{}` (A3) | 200 `{}`; no event |
 | 19 | [`19-foreign-object-unknown-fields.json`](19-foreign-object-unknown-fields.json) | JGR-shaped `{"events":[…]}` (A3, AMBIGUOUS) | 200 `{}`; no event |
 | 20 | [`20-wrong-method.json`](20-wrong-method.json) | `GET /v1/metrics` (A4) | 405, `Allow` names `POST`; no event |
-| 21 | [`21-unknown-path.json`](21-unknown-path.json) | `POST /v1/traces` (A4) | 404; no event |
+| 21 | [`21-unknown-path.json`](21-unknown-path.json) | `POST /v1/traces` (A4, superseded by ADR-0016 §3 on 2026-10-29) | 200 `{}` unparsed; no event |
 | 22 | [`22-asint-as-number.json`](22-asint-as-number.json) | `asInt` as JSON numbers | 200; same event as 01 |
 | 23 | [`23-asdouble-token-values.json`](23-asdouble-token-values.json) | Tokens as `asDouble`, cost `0.00375` | 200; 1 event |
 | 24 | [`24-timestamps-as-numbers.json`](24-timestamps-as-numbers.json) | `startTimeUnixNano` / `timeUnixNano` as numbers | 200; same event as 01 |

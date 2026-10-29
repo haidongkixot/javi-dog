@@ -92,3 +92,10 @@ The roadmap's S5 needs the Codex and Gemini CLI collectors (owner priority "Clau
   - whether `/clear` starts a new Gemini session id;
   - whether Codex `conversation.id` equals the hook `session_id`;
   - Windows shells for both.
+
+## Changes
+
+- 2026-10-29 (S5b, QA findings G5/G15):
+  - **New sibling series.** Gemini exports cumulative series per (session, model, type) with a shared start time. A series that first appears for a (session, model, start) whose sibling series already have baselines counts from 0. This happens when caching starts mid-session: the full `cache` value is the delta and is subtracted from input. A (session, model) without baselines, or a different start time (a new process), still only sets a baseline (ADR-0011). This follows the ADR's preference for under-counting.
+  - **Receiver paths.** `POST /v1/traces` and `/v1/logs` answer `200 {}` without parsing, which supersedes OTLP conformance vector 21 (previously 404, updated).
+  - **Price selection.** The price table uses the Standard / Global / ≤ 200k text rows. Model ids match exactly; there is no prefix matching. The 3.6/3.7/3.8 Flash introductory prices are promotional ("50 % credits back"), and the table uses the listed effective price.
