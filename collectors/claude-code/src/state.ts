@@ -40,6 +40,37 @@ export interface UsageConfig {
   written?: Record<string, string>;
   /** Present while Gemini CLI usage export is on (ADR-0016 §3). */
   gemini?: GeminiUsageConfig;
+  /** Present while Codex CLI usage export is on (ADR-0016 Changes S5c C3, H6). */
+  codex?: CodexUsageConfig;
+}
+
+/** What `javi usage on --platform codex-cli` appended to Codex's user `config.toml`. */
+export interface CodexUsageConfig {
+  /** The `$CODEX_HOME/config.toml` javi edited (usage off edits the same file). */
+  path: string;
+  /** The exact marked block javi wrote (`# >>> javi usage …` to `# <<< javi`, final newline). */
+  block: string;
+  /** What javi put before the block to separate it from the user's text ('' or line breaks). */
+  separator: string;
+  /** True when javi created the file: usage off removes it again if nothing else is left. */
+  created: boolean;
+}
+
+/**
+ * `~/.javi/warnings/codex-env.<project>.json` — written by a Codex CLI SessionStart hook that
+ * found a proxy or header variable that would redirect or break Codex's log export (ADR-0016
+ * Changes H1, M5), or javi's own Claude Code header in Codex's environment (H2). Names, paths,
+ * project and time only: never a value.
+ */
+export interface CodexEnvWarning {
+  project: string;
+  at: string;
+  /** Proxy variables not covered by NO_PROXY for 127.0.0.1 (H1), per source. */
+  proxy: Array<{ source: string; keys: string[] }>;
+  /** OTLP header variables that override javi's bearer (M5), per source. */
+  headers: Array<{ source: string; keys: string[] }>;
+  /** javi's Claude Code `OTEL_EXPORTER_OTLP_METRICS_HEADERS` value is in Codex's env (H2). */
+  claudeHeader: boolean;
 }
 
 /** `~/.javi/gemini-settings.before.json` — Gemini user settings before the first `usage on`. */
@@ -86,12 +117,16 @@ const SESSION_REFRESH_MS = 60 * 60 * 1000;
 /** Full sweeps of `sessions/` at most this often. */
 const SESSION_PRUNE_EVERY_MS = 24 * 60 * 60 * 1000;
 /**
- * Only hashed session refs (`opaqueRef('cc' | 'gm', …)`: Claude Code, Gemini CLI) may name a
- * file — never a raw session id.
+ * Only hashed session refs (`opaqueRef('cc' | 'gm' | 'cx', …)`: Claude Code, Gemini CLI, Codex
+ * CLI) may name a file — never a raw session id.
  */
-const THREAD_REF = /^(?:cc|gm)_[0-9a-f]{32}$/;
-const SESSION_FILE = /^(?:cc|gm)_[0-9a-f]{32}\.json$/;
+const THREAD_REF = /^(?:cc|gm|cx)_[0-9a-f]{32}$/;
+const SESSION_FILE = /^(?:cc|gm|cx)_[0-9a-f]{32}\.json$/;
+/** Codex sub-agent links: hashed child ref → hashed parent session ref (S5c C6, M4). */
+const CODEX_REF = /^cx_[0-9a-f]{32}$/;
+const AGENT_REF = /^[A-Za-z0-9_:-]{1,128}$/;
 const WARNING_PREFIX = 'gemini-telemetry.';
+const CODEX_WARNING_PREFIX = 'codex-env.';
 
 export const javiHome = (env: NodeJS.ProcessEnv = process.env) =>
   env.JAVI_HOME?.trim() || join(homedir(), '.javi');
@@ -358,6 +393,109 @@ export const createState = (home: string) => {
       const names = await readdir(path('warnings')).catch(() => [] as string[]);
       for (const name of names) {
         if (name.startsWith(WARNING_PREFIX)) await rm(path('warnings', name), { force: true });
+      }
+    },
+
+    // --- Codex CLI (ADR-0016 Changes S5c) ---
+
+    /**
+     * Records that the Codex sub-agent thread `childRef` (`opaqueRef('cx', agent_id)`) belongs
+     * to the session `parentRef` (`opaqueRef('cx', session_id)`), with the sub-agent's
+     * `agentRef`, so the receiver can count its usage in the parent thread (C6, M4). Hashed refs
+     * only; same 7-day TTL as session attributions. Returns false for anything else.
+     */
+    rememberSubagent: async (
+      childRef: string,
+      parentRef: string,
+      agentRef: string,
+      atMs: number,
+    ): Promise<boolean> => {
+      if (!CODEX_REF.test(childRef) || !CODEX_REF.test(parentRef) || !AGENT_REF.test(agentRef)) {
+        return false;
+      }
+      await ready;
+      await mkdir(path('subagents'), { recursive: true, mode: 0o700 });
+      await writeJsonPrivate(path('subagents', `${childRef}.json`), {
+        parent: parentRef,
+        agent_ref: agentRef,
+        at: atMs,
+      });
+      // Opportunistic sweep, at most once a day (as for sessions); never fails the caller.
+      const marker = path('subagents', '.pruned.json');
+      const pruned = (await readJson<{ at: number }>(marker))?.at ?? 0;
+      if (atMs - pruned >= SESSION_PRUNE_EVERY_MS) {
+        await writeJsonPrivate(marker, { at: atMs }).catch(() => {});
+        for (const name of await readdir(path('subagents')).catch(() => [] as string[])) {
+          if (!/^cx_[0-9a-f]{32}\.json$/.test(name)) continue;
+          const entry = await readJson<{ at: number }>(path('subagents', name));
+          if (!entry || !(atMs - entry.at < SESSION_TTL_MS)) {
+            await rm(path('subagents', name), { force: true });
+          }
+        }
+      }
+      return true;
+    },
+
+    /** The parent session and agent ref of a Codex sub-agent seen in the last 7 days, or null. */
+    subagentParent: async (
+      childRef: string,
+      nowMs = Date.now(),
+    ): Promise<{ parent: string; agentRef: string } | null> => {
+      if (!CODEX_REF.test(childRef)) return null;
+      const file = path('subagents', `${childRef}.json`);
+      const entry = await readJson<{ parent: unknown; agent_ref: unknown; at: unknown }>(file);
+      if (
+        !entry ||
+        typeof entry.parent !== 'string' ||
+        !CODEX_REF.test(entry.parent) ||
+        typeof entry.agent_ref !== 'string' ||
+        !AGENT_REF.test(entry.agent_ref) ||
+        typeof entry.at !== 'number'
+      ) {
+        return null;
+      }
+      if (!(nowMs - entry.at < SESSION_TTL_MS)) {
+        await rm(file, { force: true });
+        return null;
+      }
+      return { parent: entry.parent, agentRef: entry.agent_ref };
+    },
+
+    saveCodexEnvWarning: async (warning: CodexEnvWarning) => {
+      await mkdir(path('warnings'), { recursive: true, mode: 0o700 });
+      await writeJsonPrivate(
+        path('warnings', `${CODEX_WARNING_PREFIX}${warning.project}.json`),
+        warning,
+      );
+    },
+
+    removeCodexEnvWarning: (projectRef: string) =>
+      rm(path('warnings', `${CODEX_WARNING_PREFIX}${projectRef}.json`), { force: true }),
+
+    /** All recorded Codex warnings, oldest project name first. */
+    codexEnvWarnings: async (): Promise<CodexEnvWarning[]> => {
+      const names = await readdir(path('warnings')).catch(() => [] as string[]);
+      const warnings: CodexEnvWarning[] = [];
+      for (const name of names.sort()) {
+        if (!name.startsWith(CODEX_WARNING_PREFIX) || !name.endsWith('.json')) continue;
+        const w = await readJson<CodexEnvWarning>(path('warnings', name));
+        if (
+          w &&
+          typeof w.project === 'string' &&
+          Array.isArray(w.proxy) &&
+          Array.isArray(w.headers)
+        ) {
+          warnings.push(w);
+        }
+      }
+      return warnings;
+    },
+
+    clearCodexEnvWarnings: async () => {
+      const names = await readdir(path('warnings')).catch(() => [] as string[]);
+      for (const name of names) {
+        if (name.startsWith(CODEX_WARNING_PREFIX))
+          await rm(path('warnings', name), { force: true });
       }
     },
 

@@ -13,6 +13,9 @@
 // Gemini CLI (ADR-0016): `--platform gemini-cli` on init, uninstall, status, hook and usage on|off
 //   registers hooks in the project's .gemini/settings.json and edits the telemetry block of
 //   ~/.gemini/settings.json; without --platform every command is the Claude Code one.
+// Codex CLI (ADR-0016 Changes S5c): `--platform codex-cli` on the same commands installs the
+//   stable launcher ~/.javi/bin/javi-hook, appends javi's groups to the project's
+//   .codex/hooks.json and appends a marked [otel] block (logs only) to $CODEX_HOME/config.toml.
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { realpathSync } from 'node:fs';
@@ -31,6 +34,31 @@ import {
   type EnableResult,
   type SettingsBackup,
 } from './claude-env.ts';
+import {
+  CODEX_LOGS_PATH,
+  codexConfigPath,
+  codexEnvRisks,
+  codexHome,
+  codexOtelBlock,
+  disableCodexOtel,
+  enableCodexOtel,
+  readCodexApproval,
+  type CodexBackup,
+  type EnableCodexResult,
+  type EnvFinding,
+} from './codex-config.ts';
+import {
+  codexHooksInstalled,
+  codexHooksPath,
+  codexHooksTracked,
+  codexJaviGroups,
+  codexProjectConfigHasHooks,
+  installCodexHooks,
+  installCodexLauncher,
+  probeShellOutput,
+  uninstallCodexHooks,
+  type CodexShift,
+} from './codex-hooks.ts';
 import {
   geminiHome,
   geminiHooksInstalled,
@@ -256,14 +284,15 @@ const usageOn = async (
   }
   const config = await state.usageConfig();
   const port = requested ?? config?.port ?? DEFAULT_USAGE_PORT;
-  // One receiver and one port serve every platform: moving it would strand the other one.
-  const other: Platform = platform === 'gemini-cli' ? 'claude-code' : 'gemini-cli';
-  const otherOn = other === 'gemini-cli' ? Boolean(config?.gemini) : Boolean(config?.written);
-  if (config && otherOn && port !== config.port) {
+  // One receiver and one port serve every platform: moving it would strand the other ones.
+  const others = config ? platformsOn(config).filter((p) => p !== platform) : [];
+  if (config && others.length && port !== config.port) {
     io.err(
-      `javi uses one usage port for all platforms, and ${PLATFORM_NAMES[other]} usage export is on at port ${config.port}.`,
+      `javi uses one usage port for all platforms, and ${platformList(others)} usage export is on at port ${config.port}.`,
     );
-    io.err(`Nothing was changed. Run javi usage off --platform ${other} first, or omit --port.`);
+    io.err(
+      `Nothing was changed. Run javi usage off --platform ${others[0]} first, or omit --port.`,
+    );
     return 1;
   }
   // Generated once; `usage on` again (or with a new port) keeps the same secret.
@@ -277,15 +306,16 @@ const usageOn = async (
     return 1;
   }
   if (platform === 'gemini-cli') return geminiUsageOn(io, state, config, port, secret, live);
+  if (platform === 'codex-cli') return codexUsageOn(io, state, config, port, secret, live);
 
   const path = claudeSettings(io.env);
   // usage.json first, with the values about to be written: settings never hold keys javi has
   // forgotten. Restored (or removed) below when the settings edit is refused or fails.
   const next: UsageConfig = {
+    ...config,
     port,
     secret,
     written: usageEnv(port, secret),
-    ...(config?.gemini && { gemini: config.gemini }),
   };
   try {
     await state.saveUsageConfig(next);
@@ -367,9 +397,9 @@ const geminiUsageOn = async (
     return 1;
   }
   const pending: UsageConfig = {
+    ...config,
     port,
     secret,
-    ...(config?.written && { written: config.written }),
     gemini: { path, written: geminiTelemetryBlock(port, secret), sha256: '' },
   };
   // usage.json first (as for Claude Code): the settings never hold a secret javi forgot.
@@ -445,11 +475,161 @@ const geminiUsageOn = async (
   return 0;
 };
 
+/** Which platforms export usage to javi's receiver under `config`. */
+const platformsOn = (config: UsageConfig): Platform[] =>
+  PLATFORMS.filter((p) =>
+    p === 'claude-code'
+      ? Boolean(config.written)
+      : p === 'gemini-cli'
+        ? Boolean(config.gemini)
+        : Boolean(config.codex),
+  );
+
+const platformList = (platforms: Platform[]) =>
+  platforms.map((p) => PLATFORM_NAMES[p]).join(' and ');
+
+/** `config` without `platform`'s usage, or null when no platform uses the receiver any more. */
+const withoutPlatform = (config: UsageConfig, platform: Platform): UsageConfig | null => {
+  const rest = { ...config };
+  if (platform === 'claude-code') delete rest.written;
+  else if (platform === 'gemini-cli') delete rest.gemini;
+  else delete rest.codex;
+  return platformsOn(rest).length ? rest : null;
+};
+
+const receiverLine = (receiver: 'kept' | 'stopped' | 'none', rest: UsageConfig | null) =>
+  receiver === 'kept'
+    ? `The usage receiver keeps running for ${platformList(rest ? platformsOn(rest) : [])}.`
+    : receiver === 'stopped'
+      ? 'Usage receiver stopped.'
+      : 'No usage receiver was running.';
+
+const findings = (list: EnvFinding[]) =>
+  list.map(({ source, keys }) => `${source}: ${keys.join(', ')}`).join('; ');
+
+/** `javi usage on --platform codex-cli`: javi's marked `[otel]` block in Codex's config.toml. */
+const codexUsageOn = async (
+  io: Io,
+  state: CollectorState,
+  config: UsageConfig | null,
+  port: number,
+  secret: string,
+  live: Awaited<ReturnType<typeof liveReceiver>>,
+): Promise<number> => {
+  // usage off edits the file usage on edited, even if CODEX_HOME changed meanwhile.
+  const path = config?.codex?.path ?? codexConfigPath(codexHome(io.env));
+  // H1: a proxy not bypassed for 127.0.0.1 would carry Codex's logs and javi's bearer away.
+  const risks = await codexEnvRisks({ env: io.env, home: dirname(path) });
+  if (risks.proxy.length) {
+    io.err(
+      `Codex CLI token usage not enabled: a proxy is set and NO_PROXY does not cover 127.0.0.1 (names only): ${findings(risks.proxy)}.`,
+    );
+    io.err(
+      "Codex would send its logs (your email, tool arguments) and javi's receiver token through that proxy. Add 127.0.0.1 to NO_PROXY (or unset the proxy), then run javi usage on --platform codex-cli again.",
+    );
+    io.err(`Nothing was changed in ${path}.`);
+    return 1;
+  }
+  const pending: UsageConfig = {
+    ...config,
+    port,
+    secret,
+    codex: { path, block: codexOtelBlock(port, secret), separator: '', created: false },
+  };
+  // usage.json first (as for the other platforms): config.toml never holds a secret javi forgot.
+  try {
+    await state.saveUsageConfig(pending);
+  } catch {
+    io.err(
+      `Codex CLI token usage not enabled: could not save ${join(state.home, 'usage.json')}. Nothing was changed in ${path}.`,
+    );
+    return 1;
+  }
+  const restore = () => (config ? state.saveUsageConfig(config) : state.removeUsageConfig());
+  let result: EnableCodexResult;
+  try {
+    result = await enableCodexOtel({
+      path,
+      port,
+      secret,
+      ...(config?.codex && { previous: config.codex }),
+    });
+  } catch (e) {
+    await restore();
+    throw e;
+  }
+  if (!result.ok) {
+    await restore();
+    if (result.reason === 'conflict') {
+      // Names only: the values can hold someone else's endpoint or credentials.
+      io.err(
+        `Codex CLI token usage not enabled: OpenTelemetry is already configured in ${path} (${(result.keys ?? []).join(', ')}).`,
+      );
+      io.err('javi never takes over an existing telemetry setup. Nothing was changed.');
+    } else {
+      io.err(
+        `Codex CLI token usage not enabled: ${path} does not parse as TOML, and javi does not edit a file it cannot read. Nothing was changed.`,
+      );
+    }
+    return 1;
+  }
+  // The separator lets usage off remove exactly what javi added; without it off still removes
+  // the block, so a failure here is not worth undoing the edit.
+  await state
+    .saveUsageConfig({
+      ...pending,
+      codex: { path, block: result.block, separator: result.separator, created: result.created },
+    })
+    .catch(() => {});
+
+  await afterUsageOn(state, live, port);
+  io.out(`Codex CLI log export enabled in ${result.path} (user-wide):`);
+  io.out(
+    `  [otel] exporter = otlp-http to 127.0.0.1:${port}${CODEX_LOGS_PATH}; log_user_prompt, log_agent_responses, log_guardian_assessments and log_sse_deltas are false.`,
+  );
+  io.out(
+    "  It sits between '# >>> javi usage (do not edit)' and '# <<< javi'; javi usage off removes exactly that block. metrics_exporter is left as it is.",
+  );
+  io.out(backupLine(result.path, result.backup, "javi's [otel] block"));
+  io.out(
+    'This is user-wide: every Codex CLI session of this user started from now on, in any folder, sends its logs to javi; sessions already running are not affected.',
+  );
+  io.out(
+    "With a log exporter set, Codex asks OpenAI for each turn's cost estimate (about every 150 s, best effort).",
+  );
+  io.out(
+    "Codex's logs carry your email and tool arguments. They go only to javi's local receiver, which keeps token counts and cost and drops everything else unread.",
+  );
+  io.out(
+    'Cost is shown only for API-key sign-ins; ChatGPT-plan sessions report tokens only. Codex sends each log batch once: while the receiver is down, those token counts are lost.',
+  );
+  io.out('A Codex version that does not know one of these keys can fail with --strict-config.');
+  if (risks.headers.length) {
+    io.out(
+      `Warning: ${findings(risks.headers)} replace javi's receiver token in Codex's log export, so javi would reject those logs and count no usage. Unset them for Codex.`,
+    );
+  }
+  if (config?.written) {
+    io.out(
+      "Note: a Codex session started inside Claude Code inherits javi's Claude Code usage header, and Codex adds it to its default metrics export to OpenAI. javi status warns when a Codex session starts that way.",
+    );
+  }
+  io.out(
+    'Usage of projects without javi init --platform codex-cli stays on this machine and is dropped.',
+  );
+  if (!(await liveReceiver(state))) io.spawnReceiver();
+  return 0;
+};
+
 /**
- * What `usage on` (either platform) did with the settings backup (ADR-0016 Changes R7 and its
+ * What `usage on` (any platform) did with the settings backup (ADR-0016 Changes R7 and its
  * Claude Code twin); `ours` names what javi writes into that file.
  */
-const backupLine = (path: string, backup: GeminiBackup | SettingsBackup, ours: string) => {
+const backupLine = (
+  path: string,
+  backup: GeminiBackup | SettingsBackup | CodexBackup,
+  ours: string,
+) => {
   if (!backup) return 'There was no settings file before, so there was nothing to back up.';
   if (backup.status === 'created') {
     return `A copy of ${path} as it was before this change is in ${backup.path}.`;
@@ -480,6 +660,45 @@ const geminiTelemetryWarnings = async (io: Io, state: CollectorState) => {
   }
 };
 
+/**
+ * `javi status`, first lines: what Codex CLI SessionStart hooks found in Codex's environment
+ * (H1 proxy, M5 headers, H2 javi's Claude Code header). Names only.
+ */
+const codexEnvWarnings = async (io: Io, state: CollectorState) => {
+  for (const w of await state.codexEnvWarnings()) {
+    if (w.proxy.length) {
+      io.out(
+        `WARNING: Codex CLI logs can bypass javi in project ${w.project} (seen at session start ${w.at}): a proxy without NO_PROXY for 127.0.0.1 (${findings(w.proxy)}).`,
+      );
+      io.out(
+        "  Codex then sends its logs (your email, tool arguments) and javi's receiver token through that proxy.",
+      );
+      io.out(
+        '  Fix: add 127.0.0.1 to NO_PROXY or unset the proxy, or run javi usage off --platform codex-cli.',
+      );
+    }
+    if (w.headers.length) {
+      io.out(
+        `WARNING: Codex CLI sessions in project ${w.project} replace javi's receiver token (seen at session start ${w.at}): ${findings(w.headers)}.`,
+      );
+      io.out(
+        "  javi's receiver then rejects their logs and counts no usage. Fix: unset them for Codex.",
+      );
+    }
+    if (w.claudeHeader) {
+      io.out(
+        `WARNING: a Codex CLI session in project ${w.project} started with javi's Claude Code usage header in its environment (seen at session start ${w.at}).`,
+      );
+      io.out(
+        "  Codex adds OTEL_EXPORTER_OTLP_METRICS_HEADERS to its default metrics export to OpenAI, so javi's receiver token (it opens only javi's local receiver) leaves this machine.",
+      );
+      io.out(
+        '  Fix: start Codex outside Claude Code or unset that variable first, or run javi usage off for Claude Code.',
+      );
+    }
+  }
+};
+
 /** Stops the receiver and forgets the secret, unless another platform still uses them. */
 const releaseUsage = async (state: CollectorState, rest: UsageConfig | null) => {
   if (rest) {
@@ -498,6 +717,7 @@ const usageOff = async (
   platform: Platform = 'claude-code',
 ): Promise<number> => {
   if (platform === 'gemini-cli') return geminiUsageOff(io, state);
+  if (platform === 'codex-cli') return codexUsageOff(io, state);
   const config = await state.usageConfig();
   if (!config) {
     io.out('Token usage export is already off.');
@@ -518,11 +738,7 @@ const usageOff = async (
     io.err('Nothing was removed. Fix that file, then run javi usage off again to remove the keys.');
     return 1;
   }
-  let rest: UsageConfig | null = null;
-  if (config.gemini) {
-    rest = { ...config };
-    delete rest.written;
-  }
+  const rest = withoutPlatform(config, 'claude-code');
   const receiver = await releaseUsage(state, rest);
   io.out(
     removed.length
@@ -530,13 +746,7 @@ const usageOff = async (
       : `Nothing to remove from ${path} (those keys were already changed or removed).`,
   );
   if (backupRemoved) io.out(`Removed the backup ${backupRemoved}: it is no longer needed.`);
-  io.out(
-    receiver === 'kept'
-      ? 'The usage receiver keeps running for Gemini CLI.'
-      : receiver === 'stopped'
-        ? 'Usage receiver stopped.'
-        : 'No usage receiver was running.',
-  );
+  io.out(receiverLine(receiver, rest));
   io.out('New Claude Code sessions no longer export token usage.');
   return 0;
 };
@@ -567,11 +777,7 @@ const geminiUsageOff = async (io: Io, state: CollectorState): Promise<number> =>
   }
   await state.removeGeminiSettingsBefore();
   await state.clearGeminiTelemetryWarnings();
-  let rest: UsageConfig | null = null;
-  if (config.written) {
-    rest = { ...config };
-    delete rest.gemini;
-  }
+  const rest = withoutPlatform(config, 'gemini-cli');
   const receiver = await releaseUsage(state, rest);
   io.out(
     outcome === 'restored'
@@ -583,14 +789,33 @@ const geminiUsageOff = async (io: Io, state: CollectorState): Promise<number> =>
         : `Nothing to remove from ${path} (its telemetry block was changed or removed since javi wrote it).`,
   );
   if (backupRemoved) io.out(`Removed the backup ${backupRemoved}: it is no longer needed.`);
-  io.out(
-    receiver === 'kept'
-      ? 'The usage receiver keeps running for Claude Code.'
-      : receiver === 'stopped'
-        ? 'Usage receiver stopped.'
-        : 'No usage receiver was running.',
-  );
+  io.out(receiverLine(receiver, rest));
   io.out('New Gemini CLI sessions no longer export telemetry to javi.');
+  return 0;
+};
+
+const codexUsageOff = async (io: Io, state: CollectorState): Promise<number> => {
+  const config = await state.usageConfig();
+  if (!config?.codex) {
+    io.out('Token usage export for Codex CLI is already off.');
+    return 0;
+  }
+  const { path, outcome, backupRemoved } = await disableCodexOtel(config.codex);
+  await state.clearCodexEnvWarnings();
+  const rest = withoutPlatform(config, 'codex-cli');
+  const receiver = await releaseUsage(state, rest);
+  io.out(
+    outcome === 'removed'
+      ? `Removed javi's [otel] block from ${path}; everything else in it is kept as it is.`
+      : outcome === 'deleted'
+        ? `Removed ${path}: javi had created it for usage on and nothing else is in it.`
+        : outcome === 'changed'
+          ? `javi's block in ${path} was changed since usage on, so javi left the file as it is. Remove the lines between '# >>> javi usage (do not edit)' and '# <<< javi' yourself, or Codex keeps sending its logs to that endpoint.`
+          : `Nothing to remove from ${path} (javi's block is no longer there).`,
+  );
+  if (backupRemoved) io.out(`Removed the backup ${backupRemoved}: it is no longer needed.`);
+  io.out(receiverLine(receiver, rest));
+  io.out('New Codex CLI sessions no longer export logs to javi.');
   return 0;
 };
 
@@ -605,9 +830,10 @@ const usageStatus = async (io: Io, state: CollectorState) => {
   const live = await liveReceiver(state);
   io.out(`Usage: on (port ${config.port})`);
   // Claude Code-only setups keep their exact output; per-platform lines once Gemini is involved.
-  if (config.gemini || !config.written) {
+  if (config.gemini || config.codex || !config.written) {
     io.out(`Claude Code usage: ${config.written ? 'on' : 'off'}`);
     io.out(`Gemini CLI usage: ${config.gemini ? `on (${config.gemini.path})` : 'off'}`);
+    io.out(`Codex CLI usage: ${config.codex ? `on (${config.codex.path})` : 'off'}`);
   }
   io.out(`Usage receiver: ${live ? `running (pid ${live.pid})` : 'not running'}`);
   io.out(
@@ -744,6 +970,154 @@ const geminiHookStatus = async (
   );
 };
 
+const shiftLines = (shifts: CodexShift[]) =>
+  shifts.map(
+    ({ event, groups }) =>
+      `  ${event}: ${groups} of your hook group${groups === 1 ? '' : 's'} changed position; Codex trusts hooks by position, so it will ask you to review ${groups === 1 ? 'it' : 'them'} again.`,
+  );
+
+/** `javi init --platform codex-cli`: launcher, hooks and the notices ADR-0016 S5c requires. */
+const initCodexHooks = async (
+  io: Io,
+  state: CollectorState,
+  projectDir: string,
+  cliPath: string,
+  projectRef: string,
+): Promise<boolean> => {
+  let result: Awaited<ReturnType<typeof installCodexHooks>>;
+  let launchers: Awaited<ReturnType<typeof installCodexLauncher>>;
+  try {
+    // The launcher first: hooks.json only ever names it, never a versioned path (H4).
+    launchers = await installCodexLauncher(state.home, process.execPath, cliPath);
+    result = await installCodexHooks(projectDir, launchers, projectRef);
+  } catch (e) {
+    io.err(`javi init failed: ${(e as Error).message} No token saved.`);
+    return false;
+  }
+  io.out(`Codex CLI hook launcher written: ${launchers.posix} (Windows: ${launchers.windows}).`);
+  io.out(
+    `  It runs ${cliPath} with ${process.execPath}; javi init rewrites it, the hook commands stay the same.`,
+  );
+  const changed = [...result.appended, ...result.updated];
+  io.out(
+    changed.length
+      ? `Codex CLI hooks added to ${result.path} for ${changed.length} events; your own hook groups keep their positions.`
+      : `Codex CLI hooks already in ${result.path}; nothing changed.`,
+  );
+  if (result.updated.length) {
+    io.out(`  Changed in place (Codex asks to review these again): ${result.updated.join(', ')}.`);
+  }
+  for (const line of shiftLines(result.shifts)) io.out(line);
+  io.out(
+    'Codex runs project hooks only in a trusted project and only after you approve them: Codex shows "Hooks need review" at startup (or use /hooks). javi never approves hooks for you.',
+  );
+  io.out(
+    'Until the first event arrives, javi status --platform codex-cli says "waiting for approval in Codex".',
+  );
+  io.out('Codex waits at most 3 s for SessionEnd hooks, so the end of a session is best effort.');
+  if (codexHooksTracked(projectDir)) {
+    io.out(
+      'Warning: .codex/hooks.json is tracked by git. It now holds the launcher path on this machine (with your user name); commit it only if you mean to.',
+    );
+  }
+  if (await codexProjectConfigHasHooks(projectDir)) {
+    io.out(
+      "Warning: this project's .codex/config.toml has a [hooks] table as well; Codex warns when a folder defines hooks in both places.",
+    );
+  }
+  for (const { command, problem } of probeShellOutput(io.env, projectDir)) {
+    io.out(
+      problem === 'timeout'
+        ? `Warning: '${command}' did not finish within 2 s. Codex starts every hook in your shell, so each hook would wait for it.`
+        : `Warning: '${command}' printed something (${problem}). Codex runs hooks in your shell and passes plain hook output to the model as context (SessionStart, SubagentStart, UserPromptSubmit; on Stop it is an error). Remove that output from your shell startup files.`,
+    );
+  }
+  return true;
+};
+
+/** Folders Codex may key this project's trust by: the folder and its repository root. */
+const codexProjectDirs = (projectDir: string) => {
+  const dirs = [projectDir];
+  try {
+    dirs.push(realpathSync(projectDir));
+  } catch {
+    // keep the plain path
+  }
+  try {
+    const top = execFileSync('git', ['-C', projectDir, 'rev-parse', '--show-toplevel'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (top) dirs.push(top);
+  } catch {
+    // not a git repository
+  }
+  return [...new Set(dirs)];
+};
+
+/** `javi status --platform codex-cli`: registered, trusted, approved, and seen running? (M3) */
+const codexHookStatus = async (
+  io: Io,
+  state: CollectorState,
+  projectDir: string,
+  projectRef: string,
+) => {
+  const hooksPath = codexHooksPath(projectDir);
+  const positions = await codexJaviGroups(projectDir, projectRef);
+  if (!positions.length) {
+    io.out(
+      `Codex CLI hooks: not found in ${hooksPath} (run javi init --platform codex-cli in that folder)`,
+    );
+  } else {
+    const configPath = codexConfigPath(codexHome(io.env));
+    const approval = await readCodexApproval({
+      configPath,
+      projectDirs: codexProjectDirs(projectDir),
+      hooksPath,
+      positions,
+    });
+    if (approval.kind === 'unreadable') {
+      io.out(
+        `Codex CLI hooks: registered in ${hooksPath}; javi cannot read ${configPath} to see whether they are approved.`,
+      );
+    } else if (approval.trust !== 'trusted') {
+      io.out(
+        `Codex CLI hooks: project not trusted — Codex loads ${hooksPath} only in a trusted project (trust it when Codex asks).`,
+      );
+    } else if (approval.approved < approval.total) {
+      io.out(
+        `Codex CLI hooks: hooks not approved (${approval.approved} of ${approval.total}) — approve them in Codex: "Hooks need review" at startup, or /hooks.`,
+      );
+    } else {
+      io.out(`Codex CLI hooks: approved (${approval.approved} of ${approval.total})`);
+    }
+    if (approval.kind === 'ok' && approval.disabled) {
+      io.out(`  ${approval.disabled} of javi's Codex hooks are turned off in Codex (/hooks).`);
+    }
+  }
+  const last = await state.lastHookAt(projectRef, 'codex-cli');
+  io.out(
+    last
+      ? `Last Codex CLI hook event: ${last}`
+      : 'Codex CLI hook events: no events yet (waiting for approval in Codex).',
+  );
+};
+
+/** True when `platform`'s hooks for `projectRef` are installed in `projectDir`. */
+const hooksInstalledFor = (platform: Platform, projectDir: string, projectRef: string) =>
+  platform === 'gemini-cli'
+    ? geminiHooksInstalled(projectDir, projectRef)
+    : platform === 'codex-cli'
+      ? codexHooksInstalled(projectDir, projectRef)
+      : claudeHooksInstalled(projectDir, projectRef);
+
+const hooksFileFor = (platform: Platform, projectDir: string) =>
+  platform === 'gemini-cli'
+    ? geminiProjectSettingsPath(projectDir)
+    : platform === 'codex-cli'
+      ? codexHooksPath(projectDir)
+      : settingsPath(projectDir);
+
 export const main = async (argv: string[], io: Io): Promise<number> => {
   const [command] = argv;
   const projectRef = flag(argv, 'project');
@@ -779,7 +1153,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
     if (argv[1] === 'on') return usageOn(argv, io, state, platform);
     if (argv[1] === 'off') return usageOff(io, state, platform);
     io.err(
-      'Usage: javi usage on [--port <n>] [--platform <claude-code|gemini-cli>] | javi usage off [--platform <claude-code|gemini-cli>]',
+      `Usage: javi usage on [--port <n>] [--platform <${PLATFORMS.join('|')}>] | javi usage off [--platform <${PLATFORMS.join('|')}>]`,
     );
     return 2;
   }
@@ -788,7 +1162,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
 
   if (!projectRef || !REF.test(projectRef)) {
     io.err(
-      'Usage: javi <init|flush|status|uninstall> --project <project slug> [--platform <claude-code|gemini-cli>]',
+      `Usage: javi <init|flush|status|uninstall> --project <project slug> [--platform <${PLATFORMS.join('|')}>]`,
     );
     return 2;
   }
@@ -830,6 +1204,9 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       if (platform === 'gemini-cli') {
         // Hooks first: a settings file javi cannot edit stops init before the token is saved.
         if (!(await initGeminiHooks(io, projectDir, cliPath, projectRef))) return 1;
+        await state.saveCredentials(projectRef, { endpoint, token });
+      } else if (platform === 'codex-cli') {
+        if (!(await initCodexHooks(io, state, projectDir, cliPath, projectRef))) return 1;
         await state.saveCredentials(projectRef, { endpoint, token });
       } else {
         await state.saveCredentials(projectRef, { endpoint, token });
@@ -885,6 +1262,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
 
     case 'status': {
       await geminiTelemetryWarnings(io, state);
+      await codexEnvWarnings(io, state);
       const creds = await state.credentials(projectRef);
       if (!creds) {
         io.out(`Project ${projectRef}: not configured (run javi init).`);
@@ -898,6 +1276,9 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       if (platform === 'gemini-cli') {
         await geminiHookStatus(io, state, resolve(io.cwd, flag(argv, 'dir') ?? '.'), projectRef);
       }
+      if (platform === 'codex-cli') {
+        await codexHookStatus(io, state, resolve(io.cwd, flag(argv, 'dir') ?? '.'), projectRef);
+      }
       await usageStatus(io, state);
       return 0;
     }
@@ -906,9 +1287,17 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       const projectDir = resolve(io.cwd, flag(argv, 'dir') ?? '.');
       let path: string;
       let removed: boolean;
-      if (platform === 'gemini-cli') {
+      let shifts: CodexShift[] = [];
+      let deleted = false;
+      if (platform === 'gemini-cli' || platform === 'codex-cli') {
         try {
-          ({ path, removed } = await uninstallGeminiHooks(projectDir));
+          if (platform === 'gemini-cli')
+            ({ path, removed } = await uninstallGeminiHooks(projectDir));
+          else {
+            const result = await uninstallCodexHooks(projectDir);
+            ({ path, shifts, deleted } = result);
+            removed = result.removed > 0;
+          }
         } catch (e) {
           io.err((e as Error).message);
           return 1;
@@ -917,24 +1306,25 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         ({ path, removed } = await uninstallHooks(projectDir));
       }
       io.out(removed ? `Removed javi hooks from ${path}.` : `No hooks found in ${path}.`);
+      if (deleted) io.out(`${path} held only javi's hooks, so the file was removed.`);
+      for (const line of shiftLines(shifts)) io.out(line);
       if (argv.includes('--forget-token')) {
-        // R8: both platforms' hooks of one project share its token; keep it for the other one.
-        const other: Platform = platform === 'gemini-cli' ? 'claude-code' : 'gemini-cli';
-        const otherInstalled =
-          other === 'gemini-cli'
-            ? await geminiHooksInstalled(projectDir, projectRef)
-            : await claudeHooksInstalled(projectDir, projectRef);
-        if (otherInstalled) {
-          const otherPath =
-            other === 'gemini-cli'
-              ? geminiProjectSettingsPath(projectDir)
-              : settingsPath(projectDir);
-          io.out(
-            `Token kept: ${PLATFORM_NAMES[other]} hooks for ${projectRef} are still installed in ${otherPath} and need it.`,
-          );
-          io.out(
-            `To remove it, run javi uninstall --project ${projectRef} --platform ${other} --forget-token.`,
-          );
+        // R8: every platform's hooks of one project share its token; keep it for the others.
+        const others: Platform[] = [];
+        for (const other of PLATFORMS) {
+          if (other !== platform && (await hooksInstalledFor(other, projectDir, projectRef))) {
+            others.push(other);
+          }
+        }
+        if (others.length) {
+          for (const other of others) {
+            io.out(
+              `Token kept: ${PLATFORM_NAMES[other]} hooks for ${projectRef} are still installed in ${hooksFileFor(other, projectDir)} and need it.`,
+            );
+            io.out(
+              `To remove it, run javi uninstall --project ${projectRef} --platform ${other} --forget-token.`,
+            );
+          }
         } else {
           await state.removeCredentials(projectRef);
           io.out('Token removed from this machine.');
