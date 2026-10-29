@@ -1,0 +1,67 @@
+{
+  "$schema": "./schema.json",
+  "id": "H15",
+  "kind": "hook",
+  "description": "Truncated JSON, empty stdin, null, an array, a JSON string and binary bytes produce no record; every hook still exits 0 with empty stdout (Codex treats non-JSON stdout on Stop as an error and passes SessionStart stdout to the model).",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design review D0) H5 (\"javi hook prints nothing\"; SessionStart stdout reaches the model, non-JSON Stop stdout is an error); C1 (\"javi hook prints nothing\"); ADR-0010 Neutral hooks (exit 0 in every case)",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": null,
+      "rawStdin": "{\"session_id\":\"cx-sess-h15\",\"hook_event_name\":\"SessionStart\",\"source\":\"start",
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": null,
+      "rawStdin": "",
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": null,
+      "rawStdin": "null",
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": null,
+      "rawStdin": "[]",
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": null,
+      "rawStdin": "\"SessionStart\"",
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": null,
+      "rawStdin": "\u0000\u0001SENTINEL_BINARY_H15",
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": ["SENTINEL_BINARY_H15"]
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "./schema.json",
+  "id": "H03",
+  "kind": "hook",
+  "description": "SessionStart with source compact (after a startup) and with source resume (a session never seen in this run) each emit a heartbeat on that session's thread, never a second or a new session.started.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design review D0) Low (\"SessionStart with source compact or resume emits a heartbeat, not a new session.started\"); ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping; Codex hook schema session-start source enum startup / resume / clear / compact / fork",
+  "ambiguities": ["X1"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h03-a",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H03_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h03-a",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h03-a",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H03_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S2/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "compact"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h03-a",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h03-b",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H03_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S3/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "resume"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h03-b",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h03-b",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H03_S4.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S4/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "resume"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h03-b",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CWD_H03_S1",
+    "SENTINEL_CWD_H03_S2",
+    "SENTINEL_CWD_H03_S3",
+    "SENTINEL_CWD_H03_S4",
+    "SENTINEL_TRANSCRIPT_H03_S1",
+    "SENTINEL_TRANSCRIPT_H03_S2",
+    "SENTINEL_TRANSCRIPT_H03_S3",
+    "SENTINEL_TRANSCRIPT_H03_S4"
+  ]
+}

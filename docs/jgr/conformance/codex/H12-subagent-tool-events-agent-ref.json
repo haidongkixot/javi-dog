@@ -1,0 +1,210 @@
+{
+  "$schema": "./schema.json",
+  "id": "H12",
+  "kind": "hook",
+  "description": "AMBIGUOUS (X5). Tool events that carry agent_id map as usual and carry the agent_ref of that agent (the same as its agent.started); a root tool event (no agent_id) has no agent_ref; a tool event of a sub-agent never seen in a SubagentStart (resumed sub-agent) still carries its own distinct agent_ref.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design review D0) M4 (\"Sub-agent tool events carry agent_ref\"); ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (agent_ref from agent_id); Codex hook schemas pre-tool-use / post-tool-use (optional agent_id, agent_type)",
+  "ambiguities": ["X1", "X5"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h12",
+        "turn_id": "SENTINEL_TURN_H12_S1",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H12_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S1/web-app",
+        "hook_event_name": "SubagentStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h12-a",
+        "agent_type": "explorer"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "agent.started",
+          "session": "cx-sess-h12",
+          "agent": "cx-agent-h12-a",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h12",
+        "turn_id": "SENTINEL_TURN_H12_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H12_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S2/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h12-a",
+        "agent_type": "explorer",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H12_S2"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H12_S2",
+          "SENTINEL_TOOLINPUT_KEY_H12_S2": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H12_S2"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h12",
+          "agent": "cx-agent-h12-a",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "shell"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h12",
+        "turn_id": "SENTINEL_TURN_H12_S3",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H12_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S3/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h12-a",
+        "agent_type": "explorer",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H12_S3"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H12_S3",
+          "SENTINEL_TOOLINPUT_KEY_H12_S3": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H12_S3",
+        "tool_response": {
+          "output": "-----BEGIN OPENSSH PRIVATE KEY----- SENTINEL_TOOLRESPONSE_H12_S3",
+          "metadata": {
+            "exit_code": 0,
+            "duration_seconds": 0.2
+          }
+        }
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "cx-sess-h12",
+          "agent": "cx-agent-h12-a",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "shell"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h12",
+        "turn_id": "SENTINEL_TURN_H12_S4",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H12_S4.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S4/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "apply_patch",
+        "tool_input": {
+          "input": "SENTINEL_PATCH_H12_S4"
+        },
+        "tool_use_id": "SENTINEL_CALL_H12_S4"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h12",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "apply_patch"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h12",
+        "turn_id": "SENTINEL_TURN_H12_S5",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H12_S5.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H12_S5/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "agent_id": "cx-agent-h12-resumed",
+        "agent_type": "explorer",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H12_S5"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H12_S5",
+          "SENTINEL_TOOLINPUT_KEY_H12_S5": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H12_S5"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h12",
+          "agent": "cx-agent-h12-resumed",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "shell"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CALL_H12_S2",
+    "SENTINEL_CALL_H12_S3",
+    "SENTINEL_CALL_H12_S4",
+    "SENTINEL_CALL_H12_S5",
+    "SENTINEL_CWD_H12_S1",
+    "SENTINEL_CWD_H12_S2",
+    "SENTINEL_CWD_H12_S3",
+    "SENTINEL_CWD_H12_S4",
+    "SENTINEL_CWD_H12_S5",
+    "SENTINEL_PATCH_H12_S4",
+    "SENTINEL_TOOLINPUT_H12_S2",
+    "SENTINEL_TOOLINPUT_H12_S3",
+    "SENTINEL_TOOLINPUT_H12_S5",
+    "SENTINEL_TOOLINPUT_KEY_H12_S2",
+    "SENTINEL_TOOLINPUT_KEY_H12_S3",
+    "SENTINEL_TOOLINPUT_KEY_H12_S5",
+    "SENTINEL_TOOLINPUT_PATH_H12_S2",
+    "SENTINEL_TOOLINPUT_PATH_H12_S3",
+    "SENTINEL_TOOLINPUT_PATH_H12_S5",
+    "SENTINEL_TOOLRESPONSE_H12_S3",
+    "SENTINEL_TRANSCRIPT_H12_S1",
+    "SENTINEL_TRANSCRIPT_H12_S2",
+    "SENTINEL_TRANSCRIPT_H12_S3",
+    "SENTINEL_TRANSCRIPT_H12_S4",
+    "SENTINEL_TRANSCRIPT_H12_S5",
+    "SENTINEL_TURN_H12_S1",
+    "SENTINEL_TURN_H12_S2",
+    "SENTINEL_TURN_H12_S3",
+    "SENTINEL_TURN_H12_S4",
+    "SENTINEL_TURN_H12_S5"
+  ]
+}

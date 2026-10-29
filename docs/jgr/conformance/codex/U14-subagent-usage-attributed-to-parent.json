@@ -1,0 +1,611 @@
+{
+  "$schema": "./schema.json",
+  "id": "U14",
+  "kind": "usage",
+  "description": "AMBIGUOUS (X21). After a SubagentStart hook links agent_id to its parent session, the sub-agent's response.completed (conversation.id = agent_id) and its later ApiKey codex.turn_cost (after SubagentStop) count in the parent thread with that agent's agent_ref; the parent's own response in the same body has no agent_ref.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C6 Attribution (\"A sub-agent's conversation.id is its agent_id. SubagentStart hooks record agent_id → parent session_id locally (hashed refs only), and sub-agent usage counts in the parent thread with its agent_ref\"); ADR-0016 Changes 2026-10-29 (S5c design review D0) M4 (persisted synchronously, 7-day TTL); ADR-0016 Changes S5c owner decision \"Attribute to parent\"; ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (SubagentStart / SubagentStop)",
+  "ambiguities": ["X1", "X12", "X16", "X21"],
+  "clock": "2026-10-29T10:00:00Z",
+  "registerSessions": [
+    {
+      "platform": "codex-cli",
+      "session": "cx-sess-u14"
+    }
+  ],
+  "steps": [
+    {
+      "hook": {
+        "platform": "codex-cli",
+        "stdin": {
+          "session_id": "cx-sess-u14",
+          "turn_id": "SENTINEL_TURN_U14_S1",
+          "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_U14_S1.jsonl",
+          "cwd": "/home/dev/SENTINEL_CWD_U14_S1/web-app",
+          "hook_event_name": "SubagentStart",
+          "model": "gpt-5.5-codex",
+          "permission_mode": "default",
+          "agent_id": "cx-agent-u14-a",
+          "agent_type": "explorer"
+        },
+        "rawStdin": null,
+        "env": null
+      },
+      "expect": {
+        "record": {
+          "type": "agent.started",
+          "session": "cx-sess-u14",
+          "agent": "cx-agent-u14-a",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/logs/codex-cli",
+        "auth": true,
+        "body": {
+          "resourceLogs": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "codex_cli_rs"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.130.0"
+                    }
+                  },
+                  {
+                    "key": "host.name",
+                    "value": {
+                      "stringValue": "SENTINEL_HOST_U14"
+                    }
+                  }
+                ]
+              },
+              "scopeLogs": [
+                {
+                  "scope": {
+                    "name": "codex_otel.log_only"
+                  },
+                  "logRecords": [
+                    {
+                      "timeUnixNano": "1793264520000000000",
+                      "observedTimeUnixNano": "1793264520000000000",
+                      "severityNumber": 9,
+                      "severityText": "INFO",
+                      "attributes": [
+                        {
+                          "key": "event.name",
+                          "value": {
+                            "stringValue": "codex.sse_event"
+                          }
+                        },
+                        {
+                          "key": "event.kind",
+                          "value": {
+                            "stringValue": "response.completed"
+                          }
+                        },
+                        {
+                          "key": "input_token_count",
+                          "value": {
+                            "stringValue": "900"
+                          }
+                        },
+                        {
+                          "key": "output_token_count",
+                          "value": {
+                            "stringValue": "120"
+                          }
+                        },
+                        {
+                          "key": "cached_token_count",
+                          "value": {
+                            "intValue": "300"
+                          }
+                        },
+                        {
+                          "key": "cache_write_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "reasoning_token_count",
+                          "value": {
+                            "intValue": "40"
+                          }
+                        },
+                        {
+                          "key": "tool_token_count",
+                          "value": {
+                            "stringValue": "1020"
+                          }
+                        },
+                        {
+                          "key": "ttft_ms",
+                          "value": {
+                            "intValue": "850"
+                          }
+                        },
+                        {
+                          "key": "model_reasoning_effort",
+                          "value": {
+                            "stringValue": "medium"
+                          }
+                        },
+                        {
+                          "key": "event.timestamp",
+                          "value": {
+                            "stringValue": "2026-10-29T09:02:00.000Z"
+                          }
+                        },
+                        {
+                          "key": "conversation.id",
+                          "value": {
+                            "stringValue": "cx-agent-u14-a"
+                          }
+                        },
+                        {
+                          "key": "app.version",
+                          "value": {
+                            "stringValue": "0.130.0"
+                          }
+                        },
+                        {
+                          "key": "auth_mode",
+                          "value": {
+                            "stringValue": "ApiKey"
+                          }
+                        },
+                        {
+                          "key": "originator",
+                          "value": {
+                            "stringValue": "codex_cli_rs"
+                          }
+                        },
+                        {
+                          "key": "user.account_id",
+                          "value": {
+                            "stringValue": "SENTINEL_ACCOUNT_U14"
+                          }
+                        },
+                        {
+                          "key": "user.email",
+                          "value": {
+                            "stringValue": "SENTINEL_EMAIL_U14@example.com"
+                          }
+                        },
+                        {
+                          "key": "terminal.type",
+                          "value": {
+                            "stringValue": "xterm-256color"
+                          }
+                        },
+                        {
+                          "key": "model",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex-mini"
+                          }
+                        },
+                        {
+                          "key": "slug",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex-mini"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "timeUnixNano": "1793264520000000000",
+                      "observedTimeUnixNano": "1793264520000000000",
+                      "severityNumber": 9,
+                      "severityText": "INFO",
+                      "attributes": [
+                        {
+                          "key": "event.name",
+                          "value": {
+                            "stringValue": "codex.sse_event"
+                          }
+                        },
+                        {
+                          "key": "event.kind",
+                          "value": {
+                            "stringValue": "response.completed"
+                          }
+                        },
+                        {
+                          "key": "input_token_count",
+                          "value": {
+                            "stringValue": "400"
+                          }
+                        },
+                        {
+                          "key": "output_token_count",
+                          "value": {
+                            "stringValue": "60"
+                          }
+                        },
+                        {
+                          "key": "cached_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "cache_write_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "reasoning_token_count",
+                          "value": {
+                            "intValue": "0"
+                          }
+                        },
+                        {
+                          "key": "tool_token_count",
+                          "value": {
+                            "stringValue": "460"
+                          }
+                        },
+                        {
+                          "key": "ttft_ms",
+                          "value": {
+                            "intValue": "850"
+                          }
+                        },
+                        {
+                          "key": "model_reasoning_effort",
+                          "value": {
+                            "stringValue": "medium"
+                          }
+                        },
+                        {
+                          "key": "event.timestamp",
+                          "value": {
+                            "stringValue": "2026-10-29T09:02:00.000Z"
+                          }
+                        },
+                        {
+                          "key": "conversation.id",
+                          "value": {
+                            "stringValue": "cx-sess-u14"
+                          }
+                        },
+                        {
+                          "key": "app.version",
+                          "value": {
+                            "stringValue": "0.130.0"
+                          }
+                        },
+                        {
+                          "key": "auth_mode",
+                          "value": {
+                            "stringValue": "ApiKey"
+                          }
+                        },
+                        {
+                          "key": "originator",
+                          "value": {
+                            "stringValue": "codex_cli_rs"
+                          }
+                        },
+                        {
+                          "key": "user.account_id",
+                          "value": {
+                            "stringValue": "SENTINEL_ACCOUNT_U14"
+                          }
+                        },
+                        {
+                          "key": "user.email",
+                          "value": {
+                            "stringValue": "SENTINEL_EMAIL_U14@example.com"
+                          }
+                        },
+                        {
+                          "key": "terminal.type",
+                          "value": {
+                            "stringValue": "xterm-256color"
+                          }
+                        },
+                        {
+                          "key": "model",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        },
+                        {
+                          "key": "slug",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u1",
+            "platform": "codex-cli",
+            "session": "cx-sess-u14",
+            "agent": "cx-agent-u14-a",
+            "occurred_at": "2026-10-29T09:02:00Z",
+            "usage_delta": {
+              "input_tokens": 600,
+              "output_tokens": 120,
+              "cache_read_tokens": 300,
+              "cache_write_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": null,
+              "model": "gpt-5.5-codex-mini",
+              "estimated": false
+            },
+            "derivation": "input_tokens = max(0, input_token_count 900 − cached_token_count 300 − cache_write_token_count 0) = max(0, 600) = 600 (D0 H3); cache_read_tokens = cached_token_count 300; cache_write_tokens = cache_write_token_count 0; output_tokens = output_token_count 120; reasoning_token_count 40 and tool_token_count 1020 are never added (C4), so reasoning_tokens is absent or 0; no cost_usd on a token report (C5). conversation.id is the sub-agent's agent_id → parent thread cx-sess-u14 with the agent's agent_ref."
+          },
+          {
+            "idLabel": "u2",
+            "platform": "codex-cli",
+            "session": "cx-sess-u14",
+            "agent": null,
+            "occurred_at": "2026-10-29T09:02:00Z",
+            "usage_delta": {
+              "input_tokens": 400,
+              "output_tokens": 60,
+              "cache_read_tokens": 0,
+              "cache_write_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": null,
+              "model": "gpt-5.5-codex",
+              "estimated": false
+            },
+            "derivation": "input_tokens = max(0, input_token_count 400 − cached_token_count 0 − cache_write_token_count 0) = max(0, 400) = 400 (D0 H3); cache_read_tokens = cached_token_count 0; cache_write_tokens = cache_write_token_count 0; output_tokens = output_token_count 60; reasoning_token_count 0 and tool_token_count 460 are never added (C4), so reasoning_tokens is absent or 0; no cost_usd on a token report (C5). The parent's own record: no agent_ref."
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    },
+    {
+      "hook": {
+        "platform": "codex-cli",
+        "stdin": {
+          "session_id": "cx-sess-u14",
+          "turn_id": "SENTINEL_TURN_U14_S3",
+          "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_U14_S3.jsonl",
+          "cwd": "/home/dev/SENTINEL_CWD_U14_S3/web-app",
+          "hook_event_name": "SubagentStop",
+          "model": "gpt-5.5-codex",
+          "permission_mode": "default",
+          "agent_id": "cx-agent-u14-a",
+          "agent_type": "explorer",
+          "agent_transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_AGENT_TRANSCRIPT_U14_S3.jsonl",
+          "stop_hook_active": false,
+          "last_assistant_message": "Found 3 call sites SENTINEL_LASTMSG_U14_S3"
+        },
+        "rawStdin": null,
+        "env": null
+      },
+      "expect": {
+        "record": {
+          "type": "agent.stopped",
+          "session": "cx-sess-u14",
+          "agent": "cx-agent-u14-a",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "path": "/v1/logs/codex-cli",
+        "auth": true,
+        "body": {
+          "resourceLogs": [
+            {
+              "resource": {
+                "attributes": [
+                  {
+                    "key": "service.name",
+                    "value": {
+                      "stringValue": "codex_cli_rs"
+                    }
+                  },
+                  {
+                    "key": "service.version",
+                    "value": {
+                      "stringValue": "0.130.0"
+                    }
+                  },
+                  {
+                    "key": "host.name",
+                    "value": {
+                      "stringValue": "SENTINEL_HOST_U14"
+                    }
+                  }
+                ]
+              },
+              "scopeLogs": [
+                {
+                  "scope": {
+                    "name": "codex_otel.log_only"
+                  },
+                  "logRecords": [
+                    {
+                      "timeUnixNano": "1793264700000000000",
+                      "observedTimeUnixNano": "1793264700000000000",
+                      "severityNumber": 9,
+                      "severityText": "INFO",
+                      "attributes": [
+                        {
+                          "key": "event.name",
+                          "value": {
+                            "stringValue": "codex.turn_cost"
+                          }
+                        },
+                        {
+                          "key": "turn.id",
+                          "value": {
+                            "stringValue": "SENTINEL_TURN_U14_1"
+                          }
+                        },
+                        {
+                          "key": "usage.estimated_usd",
+                          "value": {
+                            "stringValue": "0.0031"
+                          }
+                        },
+                        {
+                          "key": "turn.interrupted",
+                          "value": {
+                            "boolValue": false
+                          }
+                        },
+                        {
+                          "key": "reasoning_effort",
+                          "value": {
+                            "stringValue": "medium"
+                          }
+                        },
+                        {
+                          "key": "event.timestamp",
+                          "value": {
+                            "stringValue": "2026-10-29T09:05:00.000Z"
+                          }
+                        },
+                        {
+                          "key": "conversation.id",
+                          "value": {
+                            "stringValue": "cx-agent-u14-a"
+                          }
+                        },
+                        {
+                          "key": "app.version",
+                          "value": {
+                            "stringValue": "0.130.0"
+                          }
+                        },
+                        {
+                          "key": "auth_mode",
+                          "value": {
+                            "stringValue": "ApiKey"
+                          }
+                        },
+                        {
+                          "key": "originator",
+                          "value": {
+                            "stringValue": "codex_cli_rs"
+                          }
+                        },
+                        {
+                          "key": "user.account_id",
+                          "value": {
+                            "stringValue": "SENTINEL_ACCOUNT_U14"
+                          }
+                        },
+                        {
+                          "key": "user.email",
+                          "value": {
+                            "stringValue": "SENTINEL_EMAIL_U14@example.com"
+                          }
+                        },
+                        {
+                          "key": "terminal.type",
+                          "value": {
+                            "stringValue": "xterm-256color"
+                          }
+                        },
+                        {
+                          "key": "model",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex-mini"
+                          }
+                        },
+                        {
+                          "key": "slug",
+                          "value": {
+                            "stringValue": "gpt-5.5-codex-mini"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "rawBody": null,
+        "bodyPadBytes": null
+      },
+      "expect": {
+        "status": 200,
+        "events": [
+          {
+            "idLabel": "u3",
+            "platform": "codex-cli",
+            "session": "cx-sess-u14",
+            "agent": "cx-agent-u14-a",
+            "occurred_at": null,
+            "usage_delta": {
+              "input_tokens": 0,
+              "output_tokens": 0,
+              "cache_read_tokens": 0,
+              "cache_write_tokens": 0,
+              "reasoning_tokens": 0,
+              "cost_usd": 0.0031,
+              "model": null,
+              "estimated": false
+            },
+            "derivation": "Cost-only report (C5): codex.turn_cost with auth_mode ApiKey, usage.estimated_usd \"0.0031\" matches ^\\d+(\\.\\d+)?$ (D0 M2) → cost_usd 0.0031; no token counters, no model; event id from (salt, codex-cli, conversation, turn.id SENTINEL_TURN_U14_1). The cost polls arrive after SubagentStop; the link has a 7-day TTL, so it still counts in the parent thread with the agent_ref."
+          }
+        ],
+        "droppedUnattributed": null
+      }
+    }
+  ],
+  "droppedUnattributedTotal": null,
+  "absentStrings": [
+    "/home/dev",
+    "ApiKey",
+    "SENTINEL_ACCOUNT_U14",
+    "SENTINEL_AGENT_TRANSCRIPT_U14_S3",
+    "SENTINEL_CWD_U14_S1",
+    "SENTINEL_CWD_U14_S3",
+    "SENTINEL_EMAIL_U14",
+    "SENTINEL_HOST_U14",
+    "SENTINEL_LASTMSG_U14_S3",
+    "SENTINEL_TRANSCRIPT_U14_S1",
+    "SENTINEL_TRANSCRIPT_U14_S3",
+    "SENTINEL_TURN_U14_1",
+    "SENTINEL_TURN_U14_S1",
+    "SENTINEL_TURN_U14_S3",
+    "auth_mode",
+    "conversation.id",
+    "example.com",
+    "host.name",
+    "usage.estimated_usd",
+    "user.account_id",
+    "user.email"
+  ],
+  "identityGroup": null
+}

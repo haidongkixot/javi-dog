@@ -1,0 +1,37 @@
+{
+  "$schema": "./schema.json",
+  "id": "H01",
+  "kind": "hook",
+  "description": "SessionStart with source startup (UUID-shaped session id, as Codex sends) becomes session.started with a cx_ thread_ref and platform codex-cli; transcript_path, cwd, model and permission_mode are never copied.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (SessionStart → session.*; thread ref opaqueRef('cx', session_id, salt); attributes.platform = codex-cli); Codex hook schema session-start.command.input (session_id, transcript_path, cwd, hook_event_name, model, permission_mode, source); spec §3 (thread_ref never a path), §7 L0, §12 (session_id hashed)",
+  "ambiguities": ["X1", "X4"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "019a2f6e-8c41-7d3a-9b2e-5f10c0a1d001",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H01_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "019a2f6e-8c41-7d3a-9b2e-5f10c0a1d001",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": ["/home/dev", "SENTINEL_CWD_H01_S1", "SENTINEL_TRANSCRIPT_H01_S1"]
+}

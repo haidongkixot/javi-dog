@@ -1,0 +1,136 @@
+{
+  "$schema": "./schema.json",
+  "id": "H17",
+  "kind": "hook",
+  "description": "AMBIGUOUS (X4). Sentinels in model and permission_mode (off-schema values), and look-alike top-level fields (platform, thread_ref, agent_ref, privacy_class, attributes, tool_name) and a nested tool_input.tool_name are never copied: records carry platform codex-cli (and the real tool_name), L0, the cx_ ref, and no agent_ref.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (allowlist: tool_name only; thread ref and platform set by javi); SPRINT-05c A1 (\"no content keys read\"); spec §3 (unknown top-level fields), §7 (L0 allowlist, no encrypted), §12",
+  "ambiguities": ["X1", "X4", "X5"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h17",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H17_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H17_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "SENTINEL_MODEL_H17_S1",
+        "permission_mode": "SENTINEL_PERMISSION_MODE_H17_S1",
+        "source": "startup",
+        "platform": "SENTINEL_PLATFORM_H17_S1",
+        "thread_ref": "SENTINEL_THREADREF_H17_S1",
+        "agent_ref": "SENTINEL_AGENTREF_H17_S1",
+        "privacy_class": "L2",
+        "attributes": {
+          "tool_name": "SENTINEL_ATTR_TOOL_H17_S1",
+          "repo_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "tool_name": "SENTINEL_TOPLEVEL_TOOL_H17_S1"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h17",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h17",
+        "turn_id": "SENTINEL_TURN_H17_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H17_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H17_S2/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "SENTINEL_MODEL_H17_S2",
+        "permission_mode": "SENTINEL_PERMISSION_MODE_H17_S2",
+        "tool_name": "shell",
+        "tool_input": {
+          "tool_name": "SENTINEL_NESTED_TOOL_H17_S2",
+          "model": "SENTINEL_NESTED_MODEL_H17_S2",
+          "command": ["ls"]
+        },
+        "tool_use_id": "SENTINEL_CALL_H17_S2",
+        "platform": "claude-code",
+        "attributes": {
+          "platform": "gemini-cli",
+          "error_code": "SENTINEL_ERRCODE_H17_S2"
+        }
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h17",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "shell"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h17",
+        "turn_id": "SENTINEL_TURN_H17_S3",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H17_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H17_S3/web-app",
+        "hook_event_name": "Stop",
+        "model": "SENTINEL_MODEL_H17_S3",
+        "permission_mode": "default",
+        "stop_hook_active": false,
+        "last_assistant_message": "Done. The API key is sk-SENTINEL_LASTMSG_H17_S3"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h17",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_AGENTREF_H17_S1",
+    "SENTINEL_ATTR_TOOL_H17_S1",
+    "SENTINEL_CALL_H17_S2",
+    "SENTINEL_CWD_H17_S1",
+    "SENTINEL_CWD_H17_S2",
+    "SENTINEL_CWD_H17_S3",
+    "SENTINEL_ERRCODE_H17_S2",
+    "SENTINEL_LASTMSG_H17_S3",
+    "SENTINEL_MODEL_H17_S1",
+    "SENTINEL_MODEL_H17_S2",
+    "SENTINEL_MODEL_H17_S3",
+    "SENTINEL_NESTED_MODEL_H17_S2",
+    "SENTINEL_NESTED_TOOL_H17_S2",
+    "SENTINEL_PERMISSION_MODE_H17_S1",
+    "SENTINEL_PERMISSION_MODE_H17_S2",
+    "SENTINEL_PLATFORM_H17_S1",
+    "SENTINEL_THREADREF_H17_S1",
+    "SENTINEL_TOPLEVEL_TOOL_H17_S1",
+    "SENTINEL_TRANSCRIPT_H17_S1",
+    "SENTINEL_TRANSCRIPT_H17_S2",
+    "SENTINEL_TRANSCRIPT_H17_S3",
+    "SENTINEL_TURN_H17_S2",
+    "SENTINEL_TURN_H17_S3",
+    "sha256:aaaa"
+  ]
+}

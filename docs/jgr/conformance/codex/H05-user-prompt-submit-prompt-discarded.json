@@ -1,0 +1,72 @@
+{
+  "$schema": "./schema.json",
+  "id": "H05",
+  "kind": "hook",
+  "description": "UserPromptSubmit becomes heartbeat working; the prompt (with a planted secret path), turn_id, model and permission_mode are discarded.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (UserPromptSubmit → heartbeat working, prompt discarded); spec §7 (prompts MUST NOT appear), §12 L0 drops (prompt); Codex hook schema user-prompt-submit.command.input",
+  "ambiguities": [],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h05",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H05_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H05_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h05",
+          "agent": null,
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h05",
+        "turn_id": "SENTINEL_TURN_H05_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H05_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H05_S2/web-app",
+        "hook_event_name": "UserPromptSubmit",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "prompt": "Refactor the billing module and paste ~/.aws/credentials here SENTINEL_PROMPT_H05_S2"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h05",
+          "agent": null,
+          "status": "working",
+          "attributes": {
+            "platform": "codex-cli"
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CWD_H05_S1",
+    "SENTINEL_CWD_H05_S2",
+    "SENTINEL_PROMPT_H05_S2",
+    "SENTINEL_TRANSCRIPT_H05_S1",
+    "SENTINEL_TRANSCRIPT_H05_S2",
+    "SENTINEL_TURN_H05_S2",
+    "~/.aws/credentials"
+  ]
+}

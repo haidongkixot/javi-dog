@@ -1,0 +1,251 @@
+{
+  "$schema": "./schema.json",
+  "id": "H13",
+  "kind": "hook",
+  "description": "Interrupt, PreCompact, PostCompact, PreModelRequest, PostModelRequest (which carries token_usage), Claude Code's Notification and PostToolUseFailure, Gemini's BeforeTool, a lower-case sessionstart and a payload without hook_event_name produce no record (and no usage.reported) each.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (\"Interrupt, the compact events and model-request events are dropped\"); ADR-0016 §2 allowlist principle (\"Everything else is dropped\"); Codex hook schemas interrupt, pre-compact, post-compact, model-request (PostModelRequest token_usage); spec §12 (usage comes from logs, not hooks)",
+  "ambiguities": ["X6"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S1",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S1/web-app",
+        "hook_event_name": "Interrupt",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S2",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S2/web-app",
+        "hook_event_name": "PreCompact",
+        "model": "gpt-5.5-codex",
+        "trigger": "auto"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S3",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S3/web-app",
+        "hook_event_name": "PostCompact",
+        "model": "gpt-5.5-codex",
+        "trigger": "auto"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S4",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S4.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S4/web-app",
+        "hook_event_name": "PreModelRequest",
+        "model": "gpt-5.5-codex"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S5",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S5.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S5/web-app",
+        "hook_event_name": "PostModelRequest",
+        "model": "gpt-5.5-codex",
+        "status": "completed",
+        "error": null,
+        "token_usage": {
+          "input_tokens": 1200,
+          "cached_input_tokens": 400,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 300,
+          "reasoning_output_tokens": 100,
+          "total_tokens": 1500
+        }
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S6",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S6.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S6/web-app",
+        "hook_event_name": "Notification",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "notification_type": "permission_prompt",
+        "message": "SENTINEL_MESSAGE_H13_S6"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S7",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S7.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S7/web-app",
+        "hook_event_name": "BeforeTool",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H13_S7"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H13_S7",
+          "SENTINEL_TOOLINPUT_KEY_H13_S7": "x"
+        }
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S8.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S8/web-app",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S9.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S9/web-app",
+        "hook_event_name": "sessionstart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S10",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H13_S10.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S10/web-app",
+        "hook_event_name": "PostToolUseFailure",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H13_S10"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H13_S10",
+          "SENTINEL_TOOLINPUT_KEY_H13_S10": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H13_S10",
+        "tool_response": {
+          "output": "-----BEGIN OPENSSH PRIVATE KEY----- SENTINEL_TOOLRESPONSE_H13_S10",
+          "metadata": {
+            "exit_code": 0,
+            "duration_seconds": 0.2
+          }
+        }
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CALL_H13_S10",
+    "SENTINEL_CWD_H13_S1",
+    "SENTINEL_CWD_H13_S10",
+    "SENTINEL_CWD_H13_S2",
+    "SENTINEL_CWD_H13_S3",
+    "SENTINEL_CWD_H13_S4",
+    "SENTINEL_CWD_H13_S5",
+    "SENTINEL_CWD_H13_S6",
+    "SENTINEL_CWD_H13_S7",
+    "SENTINEL_CWD_H13_S8",
+    "SENTINEL_CWD_H13_S9",
+    "SENTINEL_MESSAGE_H13_S6",
+    "SENTINEL_TOOLINPUT_H13_S10",
+    "SENTINEL_TOOLINPUT_H13_S7",
+    "SENTINEL_TOOLINPUT_KEY_H13_S10",
+    "SENTINEL_TOOLINPUT_KEY_H13_S7",
+    "SENTINEL_TOOLINPUT_PATH_H13_S10",
+    "SENTINEL_TOOLINPUT_PATH_H13_S7",
+    "SENTINEL_TOOLRESPONSE_H13_S10",
+    "SENTINEL_TRANSCRIPT_H13_S1",
+    "SENTINEL_TRANSCRIPT_H13_S10",
+    "SENTINEL_TRANSCRIPT_H13_S2",
+    "SENTINEL_TRANSCRIPT_H13_S3",
+    "SENTINEL_TRANSCRIPT_H13_S4",
+    "SENTINEL_TRANSCRIPT_H13_S5",
+    "SENTINEL_TRANSCRIPT_H13_S6",
+    "SENTINEL_TRANSCRIPT_H13_S7",
+    "SENTINEL_TRANSCRIPT_H13_S8",
+    "SENTINEL_TRANSCRIPT_H13_S9",
+    "SENTINEL_TURN_H13_S1",
+    "SENTINEL_TURN_H13_S10",
+    "SENTINEL_TURN_H13_S2",
+    "SENTINEL_TURN_H13_S3",
+    "SENTINEL_TURN_H13_S4",
+    "SENTINEL_TURN_H13_S5",
+    "SENTINEL_TURN_H13_S6",
+    "SENTINEL_TURN_H13_S7"
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "$schema": "./schema.json",
+  "id": "H14",
+  "kind": "hook",
+  "description": "A SessionStart without session_id, or with null, \"\", a number or an object, and a PreToolUse without session_id produce no record: no thread can be derived.",
+  "contract": "ADR-0016 Changes 2026-10-29 (S5c design) C2 Mapping (thread ref from session_id); Codex hook schemas (session_id: string, required); spec §3 (thread_ref MUST)",
+  "ambiguities": ["X7"],
+  "clock": "2026-10-29T10:00:00Z",
+  "usageOn": [],
+  "steps": [
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H14_S1.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": null,
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H14_S2.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S2/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": "",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H14_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S3/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": 12345,
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H14_S4.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S4/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "session_id": {
+          "id": "cx-sess-h14-obj"
+        },
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H14_S5.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S5/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "stdin": {
+        "turn_id": "SENTINEL_TURN_H14_S6",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/29/rollout-SENTINEL_TRANSCRIPT_H14_S6.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S6/web-app",
+        "hook_event_name": "PreToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "shell",
+        "tool_input": {
+          "command": ["bash", "-lc", "cat ~/.ssh/id_rsa # SENTINEL_TOOLINPUT_H14_S6"],
+          "workdir": "/home/dev/SENTINEL_TOOLINPUT_PATH_H14_S6",
+          "SENTINEL_TOOLINPUT_KEY_H14_S6": "x"
+        },
+        "tool_use_id": "SENTINEL_CALL_H14_S6"
+      },
+      "rawStdin": null,
+      "env": null,
+      "expect": {
+        "record": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "/home/dev",
+    "SENTINEL_CALL_H14_S6",
+    "SENTINEL_CWD_H14_S1",
+    "SENTINEL_CWD_H14_S2",
+    "SENTINEL_CWD_H14_S3",
+    "SENTINEL_CWD_H14_S4",
+    "SENTINEL_CWD_H14_S5",
+    "SENTINEL_CWD_H14_S6",
+    "SENTINEL_TOOLINPUT_H14_S6",
+    "SENTINEL_TOOLINPUT_KEY_H14_S6",
+    "SENTINEL_TOOLINPUT_PATH_H14_S6",
+    "SENTINEL_TRANSCRIPT_H14_S1",
+    "SENTINEL_TRANSCRIPT_H14_S2",
+    "SENTINEL_TRANSCRIPT_H14_S3",
+    "SENTINEL_TRANSCRIPT_H14_S4",
+    "SENTINEL_TRANSCRIPT_H14_S5",
+    "SENTINEL_TRANSCRIPT_H14_S6",
+    "SENTINEL_TURN_H14_S6"
+  ]
+}
