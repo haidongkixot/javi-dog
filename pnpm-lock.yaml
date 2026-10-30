@@ -148,6 +148,9 @@ importers:
       '@javis-dog/collector-adapters':
         specifier: workspace:*
         version: link:../adapters
+      '@javis-dog/collector-mcp-server':
+        specifier: workspace:*
+        version: link:../mcp-server
       '@javis-dog/jgr-sdk':
         specifier: workspace:*
         version: link:../../packages/jgr-sdk
