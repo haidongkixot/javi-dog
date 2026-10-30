@@ -1,0 +1,5 @@
+---
+'@javis-dog/collector-claude-code': minor
+---
+
+S5d agent self-report in JD-C01 (ADR-0017). The post-tool hooks of Claude Code, Gemini CLI and Codex CLI record a call of javi's own `report_status` / `report_task` as the one JD-C02 self-report record (pre-tool hooks silent, invalid input dropped, no generic tool event), and flush a self-reported status other than `working`, a self-reported `task.failed` and the end-of-turn `heartbeat idle` at once (`isUrgent()`). New `javi mcp --platform <p> --project <slug>` serves JD-C03 on stdio. `javi init --self-report [--allow-self-report] [--allow-tracked-config]` registers the `javi` MCP server in `.mcp.json`, `.gemini/settings.json` or a marked `[mcp_servers.javi]` block of the project `.codex/config.toml` through the unversioned launcher `~/.javi/bin/javi-mcp.mjs`, refusing git-tracked and unparsable files; `javi uninstall` removes it before the hooks; `javi status` reports registration, pre-approval and a missing Node path. New dependency: `@javis-dog/collector-mcp-server` (workspace).

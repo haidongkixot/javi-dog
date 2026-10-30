@@ -7,7 +7,35 @@ export {
   mapHook,
   opaqueRef,
 } from './mapping.ts';
-export { FLUSH_BACKLOG, FLUSH_DEBOUNCE_MS, FLUSH_INTERVAL_MS, runFlush, runHook } from './run.ts';
+export {
+  FLUSH_BACKLOG,
+  FLUSH_DEBOUNCE_MS,
+  FLUSH_INTERVAL_MS,
+  isUrgent,
+  runFlush,
+  runHook,
+} from './run.ts';
+export {
+  CLAUDE_SELF_REPORT_ALLOW,
+  GEMINI_SELF_REPORT_TOOLS,
+  MCP_LAUNCHER_NAME,
+  SELF_REPORT_BLOCK_START,
+  checkSelfReport,
+  codexMcpBlock,
+  gitTracked,
+  installMcpLauncher,
+  isJaviEntry,
+  mcpEntry,
+  mcpLauncherPath,
+  mcpLauncherScript,
+  readSelfReport,
+  registerSelfReport,
+  registrationPath,
+  unregisterSelfReport,
+  type McpEntry,
+  type SelfReportRegistration,
+  type SelfReportStatus,
+} from './mcp-registration.ts';
 export {
   HOOK_MARKER,
   claudeHooksInstalled,

@@ -1,6 +1,6 @@
 # JD-C01 · `@javis-dog/collector-claude-code` — Claude Code collector (`javi`)
 
-Status: **in-progress** (S3c, ADR-0010; Gemini CLI since S5b, Codex CLI since S5c, ADR-0016). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. The same `javi` also collects from Gemini CLI with `--platform gemini-cli` ([below](#gemini-cli-s5b-adr-0016)) and from Codex CLI with `--platform codex-cli` ([below](#codex-cli-s5c-adr-0016)). **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage is opt-in (see below).
+Status: **in-progress** (S3c, ADR-0010; Gemini CLI since S5b, Codex CLI since S5c, ADR-0016; agent self-report since S5d, ADR-0017). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. The same `javi` also collects from Gemini CLI with `--platform gemini-cli` ([below](#gemini-cli-s5b-adr-0016)) and from Codex CLI with `--platform codex-cli` ([below](#codex-cli-s5c-adr-0016)). **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage is opt-in (see below).
 
 ## Set up a project
 
@@ -45,7 +45,9 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 | `javi hook --project <slug>` | Called by Claude Code; silent, always exit 0 |
 | `javi usage on [--port <n>]` / `javi usage off` | Opt in to / out of token usage (below); no `--project` needed |
 | `javi receive` | The local usage receiver; hooks start it for you |
-| `--platform <claude-code\|gemini-cli\|codex-cli>` | On `init`, `uninstall`, `status`, `hook`, `usage on\|off`; default `claude-code` (unchanged behaviour) |
+| `--platform <claude-code\|gemini-cli\|codex-cli>` | On `init`, `uninstall`, `status`, `hook`, `mcp`, `usage on\|off`; default `claude-code` (unchanged behaviour) |
+| `javi init … --self-report [--allow-self-report] [--allow-tracked-config]` | Also registers javi's MCP server for agent self-report ([below](#agent-self-report-s5d-adr-0017)) |
+| `javi mcp --platform <p> --project <slug>` | javi's self-report MCP server on stdin/stdout; MCP clients start it |
 
 ## What is sent
 
@@ -194,3 +196,54 @@ log_sse_deltas = false
 - Claude Code, Gemini CLI and Codex CLI share one receiver, port and secret. Keys an older Codex does not know can fail `codex --strict-config`.
 
 **Not yet verified on a real Codex run** (ADR-0016): the log attribute names on the wire, which shell runs the first `SessionStart`, Windows (`cmd` and PowerShell with the `.cmd` launcher), proxy behaviour of the released binary, whether a sub-agent's cost is excluded from its parent turn, and `analytics.enabled`.
+
+## Agent self-report (S5d, ADR-0017)
+
+An agent can tell the dashboard what it thinks its state is ("blocked: missing credentials", "now testing") by calling two tools of javi's local MCP server. Only values from fixed lists exist, so no free text leaves the machine. The dashboard labels the result "reported by agent".
+
+```sh
+JAVI_INGEST_TOKEN='<paste token>' node "<repo>/collectors/claude-code/src/cli.ts" init --project <project-slug> --self-report [--platform gemini-cli|codex-cli] [--allow-self-report]
+```
+
+**Tools.** `report_status { status, reason? }` (`working`, `waiting`, `blocked`, `idle`, `completed`, `failed`; a `reason` such as `missing_credentials` only with `waiting`, `blocked` or `failed`) and `report_task { phase, kind }` (`started`, `completed`, `failed` × `plan`, `research`, `implement`, `test`, `debug`, `review`, `docs`, `build`, `deploy`, `other`). The server is JD-C03 (`@javis-dog/collector-mcp-server`), bundled into `javi.mjs` with no MCP SDK.
+
+**The hook records the report.** The server itself writes nothing. The post-tool hook that already runs for every tool call (Claude Code and Codex `PostToolUse`, Claude Code `PostToolUseFailure`, Gemini `AfterTool`) turns a valid call of javi's own tool into one record on the session's thread:
+
+- `report_status` → `heartbeat` with that status (plus `error_code` `<status>.<reason>`); `report_task` → `task.<phase>` with `task_kind`; both with `tool_name`.
+- No generic tool event for these calls; an invalid input records nothing; the pre-tool hook stays silent for them; a sub-agent's `report_status` is dropped. Every other tool maps as before.
+- This is the only place a hook reads `tool_input`, and only for javi's two tools.
+- A self-reported status other than `working`, a self-reported `task.failed` and the end-of-turn `heartbeat idle` (`Stop`, Gemini `AfterAgent`) are flushed at once.
+
+So self-report needs the platform's hooks, and `init --self-report` installs them too.
+
+**Registration.** `init --self-report` adds a server named `javi` to the project file the platform reads:
+
+| Platform | File | Entry |
+|---|---|---|
+| Claude Code | `.mcp.json` | `mcpServers.javi` |
+| Gemini CLI | `.gemini/settings.json` | `mcpServers.javi` |
+| Codex CLI | `.codex/config.toml` (the project's) | `[mcp_servers.javi]` between `# >>> javi self-report (do not edit)` and `# <<< javi` |
+
+```json
+{ "mcpServers": { "javi": { "command": "/usr/bin/node",
+  "args": ["--no-warnings", "/home/you/.javi/bin/javi-mcp.mjs", "--platform", "claude-code", "--project", "web-app"] } } }
+```
+
+- `command` is the Node.js that ran `init`. `~/.javi/bin/javi-mcp.mjs` is an unversioned launcher that `init` rewrites to run the installed `javi.mjs` (or `src/cli.ts` from a checkout) with the `mcp` command, so an upgrade never changes the registered command. It pins `JAVI_HOME` and prints nothing itself. The entry holds no token and no environment variables. If Node.js moves, run `init --self-report` again; `javi status` warns about a registered Node.js path that no longer exists.
+- JSON files are edited in place: everything outside javi's entry keeps its bytes, and `uninstall` gives you back the exact file (deleted when javi created it). Gemini's file also holds javi's hooks, which `init` writes as plain JSON as before. Codex's block is appended like the S5c `[otel]` block. Re-running `init` changes nothing when the entry is already right.
+- **Refused, with nothing changed** (no token saved, no hooks): a registration file tracked by git, because the entry holds paths on this machine (pass `--allow-tracked-config` to write it anyway); a file that does not parse (JSON with comments included); an `mcpServers` that is not an object; a `javi` server javi did not write; a Codex `mcp_servers` inline table, which a `[mcp_servers.javi]` table cannot extend.
+- **Approval.** By default nothing is pre-approved: Claude Code and Gemini CLI ask before each call, and you can choose "always allow" there. `--allow-self-report` adds a narrow pre-approval:
+  - Claude Code: exactly `mcp__javi__report_status` and `mcp__javi__report_task` in `permissions.allow` of `.claude/settings.local.json`; javi records which ones it added and removes only those.
+  - Gemini CLI: `trust: true` and `includeTools: ["report_status", "report_task"]` on the `javi` entry only.
+  - Codex CLI: nothing to write (Codex decides from the tools' annotations).
+
+  `init --self-report` without the flag takes javi's earlier pre-approval back.
+- Claude Code asks once whether to use a project's `.mcp.json` servers; Gemini CLI starts stdio servers only in a trusted folder; Codex reads the project `.codex/config.toml` only in a trusted project.
+
+**`javi mcp`.** Answers `initialize`, `ping`, `tools/list` and `tools/call` on stdin/stdout (stdout carries JSON-RPC only, stderr fixed strings only). It never reads the token and starts no receiver and no flush. A valid call answers "noted" when javi's hooks for that platform and project are installed, and `isError` "not recorded: javi hooks are not installed for this project" otherwise. The MCP client's working folder is not always the project, so javi looks in the folders `init --self-report` recorded for that platform and project (`~/.javi/self-report/`, paths and flags only), then in the working folder, and checks the platform's hooks file there.
+
+**`javi status`** shows whether self-report is registered in the project file, whether it is pre-approved, and a warning when the registered Node.js path or launcher is missing.
+
+**`javi uninstall`** removes javi's MCP entry for the project first (and the allow rules javi added), then the hooks. A `javi` server registered for another project, or one javi did not write, stays. If javi's Codex block was edited, `uninstall` changes nothing and says which lines to remove. The launcher `~/.javi/bin/javi-mcp.mjs` stays: other projects may use it, and it holds no token.
+
+**Not yet verified on a real run** (ADR-0017): which MCP protocol version each CLI sends first, the approval prompts, Windows spawn, and whether Claude Code fires `PostToolUse` or `PostToolUseFailure` for an `isError` result (javi maps both).

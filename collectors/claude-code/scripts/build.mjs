@@ -96,6 +96,10 @@ export const buildBundle = async ({ out = join(ROOT, 'dist') } = {}) => {
       await reject(`contains a machine path (${what}).`);
     }
   }
+  // ADR-0017 §1: javi's MCP server (JD-C03) is hand-written; the SDK is a test-only dependency.
+  if (text.includes('modelcontextprotocol')) {
+    await reject('bundles the MCP SDK (@modelcontextprotocol/*), a test-only dependency.');
+  }
   await chmod(bundle, 0o755);
   const { size } = await stat(bundle);
   return { path: bundle, size, ms: Date.now() - started, metafile, version };

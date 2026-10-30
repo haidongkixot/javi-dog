@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import type { SelfReportRegistration } from './mcp-registration.ts';
 
 // Local collector state under JAVI_HOME (default ~/.javi). Files holding secrets are written
 // with mode 0600 (POSIX; on Windows the user profile ACL applies). Never inside a repository.
@@ -192,6 +193,31 @@ export const createState = (home: string) => {
   // `ready` still sees the error.
   ready.catch(() => {});
   const path = (...parts: string[]) => join(home, ...parts);
+  const registrationFile = (platform: string, file: string) =>
+    path(
+      'self-report',
+      `${createHash('sha256')
+        .update(`${platform}\u0000${resolve(file)}`)
+        .digest('hex')
+        .slice(0, 32)}.json`,
+    );
+  const isRegistration = (value: unknown): value is SelfReportRegistration => {
+    const r = value as Partial<SelfReportRegistration> | null;
+    return (
+      !!r &&
+      typeof r === 'object' &&
+      typeof r.platform === 'string' &&
+      typeof r.project === 'string' &&
+      typeof r.dir === 'string' &&
+      typeof r.file === 'string' &&
+      typeof r.created === 'boolean' &&
+      typeof r.container === 'boolean' &&
+      typeof r.separator === 'string' &&
+      Array.isArray(r.allow) &&
+      r.allow.every((a) => typeof a === 'string') &&
+      (r.allowCreated === null || r.allowCreated === 'permissions' || r.allowCreated === 'allow')
+    );
+  };
   const originFile = (hooksPath: string) =>
     path(
       'codex-hooks',
@@ -559,6 +585,45 @@ export const createState = (home: string) => {
     },
 
     removeCodexHooksOrigin: (hooksPath: string) => rm(originFile(hooksPath), { force: true }),
+
+    // --- Agent self-report registrations (ADR-0017 §5) ---
+
+    /**
+     * What `javi init --self-report` wrote into one registration file (`.mcp.json`,
+     * `.gemini/settings.json` or `.codex/config.toml`), keyed by a hash of platform and path.
+     * Paths, flags and javi's own allow rules only; never a token.
+     */
+    selfReportRegistration: async (
+      platform: string,
+      file: string,
+    ): Promise<SelfReportRegistration | null> => {
+      const entry = await readJson<unknown>(registrationFile(platform, file));
+      return isRegistration(entry) ? entry : null;
+    },
+
+    saveSelfReportRegistration: async (registration: SelfReportRegistration) => {
+      await ready;
+      await mkdir(path('self-report'), { recursive: true, mode: 0o700 });
+      await writeJsonPrivate(
+        registrationFile(registration.platform, registration.file),
+        registration,
+      );
+    },
+
+    removeSelfReportRegistration: (platform: string, file: string) =>
+      rm(registrationFile(platform, file), { force: true }),
+
+    /** Every recorded registration (for `javi mcp`: where a project's hooks live). */
+    selfReportRegistrations: async (): Promise<SelfReportRegistration[]> => {
+      const names = await readdir(path('self-report')).catch(() => [] as string[]);
+      const found: SelfReportRegistration[] = [];
+      for (const name of names.sort()) {
+        if (!/^[0-9a-f]{32}\.json$/.test(name)) continue;
+        const entry = await readJson<unknown>(path('self-report', name));
+        if (isRegistration(entry)) found.push(entry);
+      }
+      return found;
+    },
 
     saveCodexEnvWarning: async (warning: CodexEnvWarning) => {
       await mkdir(path('warnings'), { recursive: true, mode: 0o700 });
