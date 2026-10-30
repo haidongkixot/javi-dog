@@ -1,0 +1,582 @@
+{
+  "$schema": "./schema.json",
+  "id": "H15",
+  "kind": "hook",
+  "description": "A re-fired post-tool hook for javi's tool (the same Claude Code or Codex PostToolUse with the same tool_use_id) records once, even when the clock has moved between the runs, so the event id differs; a different tool_use_id, another session or another platform with the same call id is a new call and is recorded at the moved clock. Gemini's AfterTool has no call id, so a re-fire is recorded again.",
+  "contract": "ADR-0017 (a551aed) decision 3 Thread, sequence and ids (\"A re-run hook is deduplicated by JD-C01's local seen-call marker: ~/.javi/self-report/seen.json holds the newest 512 keys, each an HMAC of the platform, session id and call id. The event id alone does not deduplicate, because its time part is the hook clock (code review M1). No raw id leaves the machine.\"; \"Gemini's AfterTool has no call id, so it gets a fresh ULID\"); Changes code review M1",
+  "ambiguities": ["Y8"],
+  "clock": "2026-10-30T10:00:00Z",
+  "identityGroup": null,
+  "steps": [
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse report_status blocked.missing_credentials, call CC1: recorded",
+      "stdin": {
+        "session_id": "cc-sess-h15",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H15_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S1/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC1",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S1"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h15",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc1"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "the same PostToolUse (same tool_use_id) re-fired 5 s later: no second record",
+      "clockAdvanceMs": 5000,
+      "stdin": {
+        "session_id": "cc-sess-h15",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H15_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S1/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC1",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S1"
+          }
+        ]
+      },
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "re-fired again 60 s later: still no record (the marker has no time window)",
+      "clockAdvanceMs": 60000,
+      "stdin": {
+        "session_id": "cc-sess-h15",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H15_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S1/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC1",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S1"
+          }
+        ]
+      },
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "same session and input, another tool_use_id (CC2): a new call, recorded at the moved clock",
+      "clockAdvanceMs": 5000,
+      "stdin": {
+        "session_id": "cc-sess-h15",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H15_S4/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S4/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC2",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S4"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h15",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc2"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse report_task started/test, call CC3: recorded",
+      "clockAdvanceMs": 1000,
+      "stdin": {
+        "session_id": "cc-sess-h15",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H15_S5/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S5/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "started",
+          "kind": "test"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC3",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S5"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cc-sess-h15",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_task",
+            "task_kind": "test"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc3"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "the same report_task PostToolUse re-fired 5 s later: no second record",
+      "clockAdvanceMs": 5000,
+      "stdin": {
+        "session_id": "cc-sess-h15",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H15_S5/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S5/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "started",
+          "kind": "test"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC3",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S5"
+          }
+        ]
+      },
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "another session, the same tool_use_id as CC1: the marker key includes the session, so recorded",
+      "clockAdvanceMs": 1000,
+      "stdin": {
+        "session_id": "cc-sess-h15-b",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H15_S7/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S7/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC1",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S7"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h15-b",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc4"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "Codex PostToolUse report_status waiting.needs_approval, call CX1: recorded",
+      "clockAdvanceMs": 1000,
+      "stdin": {
+        "session_id": "cx-sess-h15",
+        "turn_id": "SENTINEL_TURN_H15_S8",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H15_S8.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S8/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "waiting",
+          "reason": "needs_approval"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CX1",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S8"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h15",
+          "agent": null,
+          "status": "waiting",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "waiting.needs_approval"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx1"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "the same Codex PostToolUse re-fired 5 s later: no second record",
+      "clockAdvanceMs": 5000,
+      "stdin": {
+        "session_id": "cx-sess-h15",
+        "turn_id": "SENTINEL_TURN_H15_S8",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H15_S8.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S8/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "waiting",
+          "reason": "needs_approval"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CX1",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S8"
+          }
+        ]
+      },
+      "expect": {
+        "record": null
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "Codex, same session and input, another tool_use_id (CX2): recorded",
+      "clockAdvanceMs": 1000,
+      "stdin": {
+        "session_id": "cx-sess-h15",
+        "turn_id": "SENTINEL_TURN_H15_S10",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H15_S10.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S10/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "waiting",
+          "reason": "needs_approval"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CX2",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S10"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h15",
+          "agent": null,
+          "status": "waiting",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "waiting.needs_approval"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx2"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "Codex with the session string and tool_use_id of CC1: the marker key includes the platform, so recorded",
+      "clockAdvanceMs": 1000,
+      "stdin": {
+        "session_id": "cc-sess-h15",
+        "turn_id": "SENTINEL_TURN_H15_S11",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H15_S11.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S11/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H15_CC1",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S11"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h15",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx3"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "Gemini AfterTool report_status blocked.dependency_down (no call id): recorded",
+      "clockAdvanceMs": 1000,
+      "stdin": {
+        "session_id": "gm-sess-h15",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H15_S12/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S12/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:01:26.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "dependency_down"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S12"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H15_S12"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H15_S12/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H15_S12/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H15_S12/web-app",
+          "url": "https://SENTINEL_MCPURL_H15_S12.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H15_S12"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h15",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status",
+            "error_code": "blocked.dependency_down"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "the same Gemini AfterTool re-fired 5 s later: recorded again, with a fresh ULID (no call id, no marker key; Y8)",
+      "clockAdvanceMs": 5000,
+      "stdin": {
+        "session_id": "gm-sess-h15",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H15_S12/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H15_S12/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:01:26.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "dependency_down"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H15_S12"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H15_S12"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H15_S12/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H15_S12/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H15_S12/web-app",
+          "url": "https://SENTINEL_MCPURL_H15_S12.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H15_S12"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h15",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status",
+            "error_code": "blocked.dependency_down"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CALL_H15_CC1",
+    "SENTINEL_CALL_H15_CC2",
+    "SENTINEL_CALL_H15_CC3",
+    "SENTINEL_CALL_H15_CX1",
+    "SENTINEL_CALL_H15_CX2",
+    "SENTINEL_CWD_H15_S1",
+    "SENTINEL_CWD_H15_S10",
+    "SENTINEL_CWD_H15_S11",
+    "SENTINEL_CWD_H15_S12",
+    "SENTINEL_CWD_H15_S4",
+    "SENTINEL_CWD_H15_S5",
+    "SENTINEL_CWD_H15_S7",
+    "SENTINEL_CWD_H15_S8",
+    "SENTINEL_MCPARGS_H15_S12",
+    "SENTINEL_MCPCMD_H15_S12",
+    "SENTINEL_MCPCWD_H15_S12",
+    "SENTINEL_MCPURL_H15_S12",
+    "SENTINEL_ORIGINAL_REQUEST_H15_S12",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H15_S12",
+    "SENTINEL_TOOLRESPONSE_H15_S1",
+    "SENTINEL_TOOLRESPONSE_H15_S10",
+    "SENTINEL_TOOLRESPONSE_H15_S11",
+    "SENTINEL_TOOLRESPONSE_H15_S12",
+    "SENTINEL_TOOLRESPONSE_H15_S4",
+    "SENTINEL_TOOLRESPONSE_H15_S5",
+    "SENTINEL_TOOLRESPONSE_H15_S7",
+    "SENTINEL_TOOLRESPONSE_H15_S8",
+    "SENTINEL_TRANSCRIPT_H15_S1",
+    "SENTINEL_TRANSCRIPT_H15_S10",
+    "SENTINEL_TRANSCRIPT_H15_S11",
+    "SENTINEL_TRANSCRIPT_H15_S12",
+    "SENTINEL_TRANSCRIPT_H15_S4",
+    "SENTINEL_TRANSCRIPT_H15_S5",
+    "SENTINEL_TRANSCRIPT_H15_S7",
+    "SENTINEL_TRANSCRIPT_H15_S8",
+    "SENTINEL_TURN_H15_S10",
+    "SENTINEL_TURN_H15_S11",
+    "SENTINEL_TURN_H15_S8"
+  ]
+}

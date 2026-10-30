@@ -8,7 +8,7 @@ Black-box cases for agent self-report: an agent calls javi's MCP tools `report_s
 
 - **Oracle independence.** Every expectation comes only from the texts under [Sources](#sources). No code under `collectors/**/src`, `packages/**/src` or `apps/**` and no existing unit test was read to write them (QA role, [`TEAM.md`](../../../agent-ops/TEAM.md)). The [Codex](../codex/README.md) and [Gemini](../gemini/README.md) suites (README, schema, a few vectors) were read for format conventions and for the hook payload shapes they already verified; no expected value was taken from an implementation. Where the texts could be read more than one way, the gap was reported to the orchestrator; ADR-0017's Changes entry "QA spec gaps" resolved them, and the vectors now encode the single resolved outcome ([Spec gaps](#spec-gaps-g)). Cases that are still open are left out. No behaviour is invented silently.
 - **Format.** One JSON file per case, named `<M|H|R><NN>-<kebab-name>.json`, valid against [`schema.json`](schema.json) (JSON Schema draft-07). Every key is always present, so a runner never guesses a default.
-- **Status.** Written 2026-10-30 for S5d task T5. The runner is planned with T5; it is not part of this commit.
+- **Status.** Written 2026-10-30 for S5d task T5; the runners merged in S5d (M and R `8a0cba7`, H `44d88da`). Extended in S5e task F2 for the coverage gaps the runner reported (SPRINT-05d team log) and Guru finding SR-F5: M23, H15, R19–R21, four new M18 steps and the H12 wording. H15 needs one runner change, the per-step [`clockAdvanceMs`](#pinned-clock). For F2 the H runner was read only to learn how a new step field would be consumed; no expected value comes from it.
 
 ## Reused conventions and what is new
 
@@ -21,7 +21,7 @@ Reused from the [Codex](../codex/README.md#runner-rules) and [Gemini](../gemini/
 | Thread identity per (`platform`, raw session id); `cc_` / `cx_` / `gm_` ref prefixes; agent identity from the first record naming the agent | [Thread and agent identity](#thread-and-agent-identity) |
 | `idLabel` identity: same label = same `event_id`, different labels = different ids, scoped to a vector or an `identityGroup` | [Event identity](#event-identity) |
 | Absent strings: the global `SENTINEL` and `/home/dev` substrings, raw session and agent ids, plus a per-vector list | [Absent strings](#absent-strings) |
-| Pinned clock for the whole vector | [Pinned clock](#pinned-clock) |
+| Pinned clock for the whole vector (moved forward only by `clockAdvanceMs`, H15) | [Pinned clock](#pinned-clock) |
 | Collector layer required for a PASS; mapper layer optional; process checks (exit 0, empty stdout) | [Hook steps](#hook-steps) |
 | Invariants I1–I8, result labels PASS / FAIL / BLOCKED / NOT RUN / SKIPPED | [Invariants](#invariants), [Results](#results) |
 
@@ -33,10 +33,11 @@ New in this suite:
 - **`expect.record.eventId`.** `null`: not checked. `{ "format": "ulid-at-clock", "idLabel": ... }`: the `event_id` is a ULID whose time part is the vector clock, and `idLabel` (or `null` for Gemini) sets its identity.
 - **MCP vectors** with a JSON [pattern language](#pattern-language), a no-response rule with a ping barrier, a stderr rule and suite-wide text labels.
 - **Reader vectors** with expectations after every event.
+- **`clockAdvanceMs`** (F2) on a hook step moves the pinned clock forward before that step. It is the only optional key in the suite (absent = 0), so the existing vectors stay unchanged.
 
 ## Sources
 
-All at commit `2d4dcc2` (branch `claude/clever-goldberg-wlurty`, "ADR-0017 design review D0"), plus the orchestrator's amendment of ADR-0017 and TEST_PLAN §S5d made on 2026-10-30 after the first QA report (ADR-0017 Changes entry **"QA spec gaps"**; at the time of writing it was not yet committed on top of `2d4dcc2`). Contract strings in the vectors read `ADR-0017 (c25cf2d)`.
+All at commit `2d4dcc2` (branch `claude/clever-goldberg-wlurty`, "ADR-0017 design review D0"), plus the orchestrator's amendment of ADR-0017 and TEST_PLAN §S5d made on 2026-10-30 after the first QA report (ADR-0017 Changes entry **"QA spec gaps"**; at the time of writing it was not yet committed on top of `2d4dcc2`). Contract strings in the vectors read `ADR-0017 (c25cf2d)`. The S5e F2 additions (M23, H15, R19–R21, M18 steps 25–28, the H12 wording) were written from the sources at commit `a551aed` (same branch) and cite `ADR-0017 (a551aed)`; the F2 rows below name what they add.
 
 | Source | Sections used |
 |---|---|
@@ -45,11 +46,14 @@ All at commit `2d4dcc2` (branch `claude/clever-goldberg-wlurty`, "ADR-0017 desig
 | [TEST_PLAN §S5d](../../../agent-ops/TEST_PLAN.md) | Rows on strict vocabularies, handshake, `tools/call`, hook mapping, read restrictions, invalid input, one record per call, sub-agents, derived ULID, sentinels, "not recorded". The row on invalid self-report input now reads "no record at all for that javi call" (G5 fixed). |
 | [SPRINT-05d](../../../sprints/SPRINT-05d.md) | Goal, global constraints (no free text, input never echoed), T5 acceptance ("every vector PASS, mutation-checked"), review focus (prompt-like strings in extra keys, third-party `tool_input` never read). |
 | [ADR-0010](../../../adr/0010-claude-code-collector.md) §Decision Mapping | Claude Code ordinary mapping only: `Pre/PostToolUse/PostToolUseFailure` → `task.*` with `tool_name`, `Notification permission_prompt` → `attention.requested` (waiting), `SubagentStart` → `agent.started` with `agent_ref` from hashed `agent_id`, `UserPromptSubmit` → `heartbeat working`, `Stop` → `heartbeat idle`. |
+| [ADR-0017 at `a551aed`](../../../adr/0017-agent-self-report-mcp-server.md) (F2) | Changes "Conformance runner for the M and R groups" (client response objects are ignored; `needsAttention` for ended threads unchanged); Changes "Code review" M1 and decision 3 "Thread, sequence and ids" as amended (seen-call marker: the newest 512 HMAC keys of platform, session id and call id; "The event id alone does not deduplicate"). |
+| [ADR-0012](../../../adr/0012-dashboard-read-model-and-polling.md) (F2) | Thread state: freshness `ended` when the last event is `session.ended`; Changes S4a review: `needsAttention` = waiting and not ended. |
+| [SPRINT-05d](../../../sprints/SPRINT-05d.md) team log, [Guru wisdom log](../../../../guru/WISDOM_LOG.md) (F2) | Runner coverage gaps (client response object; `report_task` without object `arguments`; a thread ended while waiting or blocked); Guru finding SR-F5: no vector moves the clock, stale H12 wording. |
 | [Codex suite](../codex/README.md), [Gemini suite](../gemini/README.md) | Format conventions (above) and the verified payload shapes: Codex `PreToolUse` / `PostToolUse` / `PermissionRequest` / `SubagentStart` / `UserPromptSubmit` / `Stop` fields; Gemini base fields with `timestamp`, `BeforeTool` / `AfterTool` with `mcp_context` and `original_request_name`, `BeforeAgent` / `AfterAgent`, `Notification` `ToolPermission`. |
 
 **Claude Code payloads** use the documented hook shape: `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`, `tool_name`, `tool_input`, `tool_use_id`, `tool_response` (`PostToolUse`), `error` and `is_interrupt` (`PostToolUseFailure`), optional `agent_id` and `agent_type`. **Illustrative values:** `gpt-5.5-codex`, the `agent_type` values, the tool response texts and the `mcp_context.command` / `args` / `cwd` / `url` values. An implementation MUST NOT depend on them.
 
-**Timestamps.** Every hook vector's `clock` is `2026-10-30T10:00:00Z`. Gemini payload `timestamp`s are `2026-10-30T10:00:00.000Z`, except one H11 step at `09:59:00.000Z`: the hook time is javi's own clock, never a time inside the payload (G12), so that step's ULID time part is still the clock. Claude Code and Codex payloads carry no time.
+**Timestamps.** Every hook vector's `clock` is `2026-10-30T10:00:00Z`. Gemini payload `timestamp`s are `2026-10-30T10:00:00.000Z`, except one H11 step at `09:59:00.000Z` and the two H15 Gemini steps at `10:01:26.000Z`. The hook time is javi's own clock, never a time inside the payload (G12), so the ULID time part is always the step clock. H15's re-fired Gemini step repeats the payload byte for byte, so its `timestamp` stays at `10:01:26.000Z` while its step clock is `10:01:31`. Claude Code and Codex payloads carry no time.
 
 ## Vector file format
 
@@ -125,6 +129,7 @@ All at commit `2d4dcc2` (branch `claude/clever-goldberg-wlurty`, "ADR-0017 desig
 | `identityGroup` | `null`, or `self-report-event-id` (H11 and H12): the scope of `idLabel` comparison across the two vectors. |
 | `steps[]` | Hook invocations, run **in order** against one `HOME`. Sequence counters, thread refs and agent links persist between steps. |
 | `steps[].platform` | `claude-code`, `codex-cli` or `gemini-cli`: which platform's hook entry receives the payload. |
+| `steps[].clockAdvanceMs` | **Optional**, the only optional key in the suite (absent = `0`). An integer from 0 to 86 400 000: before this step runs, the [pinned clock](#pinned-clock) moves forward by this many milliseconds and stays there for the later steps. Used only by H15. |
 | `steps[].stdin` | The payload, serialized compactly. |
 | `expect.record` | `null`: zero records. Otherwise exactly one record matching the object. |
 | `record.type` | The JGR type. |
@@ -239,6 +244,12 @@ A `label` on a string matcher names a constant. All strings matched under the sa
 
 `clock` is the current time for setup and every hook step, as in the Codex and Gemini suites. If the runner cannot pin it, `eventId` checks are NOT RUN (listed next to the result) and the rest of the vector may run with the real clock; the vector cannot then PASS H11 or H12, which are BLOCKED.
 
+**Step clock.** The step clock of step *i* is `clock` plus the sum of `clockAdvanceMs` over steps 1 to *i* (absent = 0). Setup runs at `clock`. The runner MUST:
+
+- run step *i*'s hook process, and any flush it starts, with the clock pinned to the step clock (for example by setting the clock variable of its preload per step instead of per vector);
+- use the step clock wherever this README says "the clock" or "`clock`" for that step: the ULID time part ([Event identity](#event-identity)) and `now` for I1;
+- never run a step that has `clockAdvanceMs` > 0 at an unmoved clock. A runner that cannot move the clock reports the vector BLOCKED. At an unmoved clock a re-fired hook would get the same `event_id`, and the observation rule ("not seen before in this vector") would hide the duplicate that H15 exists to catch.
+
 #### Invocation and observation
 
 - **Collector layer** (required for a PASS): `claude-code` steps run the argv of javi's entry in `<project>/.claude/settings.local.json`; `codex-cli` steps follow the [Codex suite invocation](../codex/README.md#hook-steps) (`.codex/hooks.json`, `/bin/sh -c`); `gemini-cli` steps use the argv of javi's entry in `<project>/.gemini/settings.json`. `cwd` = the project, `CLAUDE_PROJECT_DIR` / `GEMINI_PROJECT_DIR` / `GEMINI_CWD` = the project for those platforms only.
@@ -268,7 +279,7 @@ A `label` on a string matcher names a constant. All strings matched under the sa
 
 For a record whose `eventId` is not `null`:
 
-- `event_id` is a ULID: 26 characters of Crockford base32 (`^[0-9A-HJKMNP-TV-Z]{26}$` after upper-casing). Its first 10 characters decode to the millisecond Unix time of `clock` (`1793354400000`, decision 3 "the time part is the hook time").
+- `event_id` is a ULID: 26 characters of Crockford base32 (`^[0-9A-HJKMNP-TV-Z]{26}$` after upper-casing). Its first 10 characters decode to the millisecond Unix time of the [step clock](#pinned-clock) (`1793354400000` when no `clockAdvanceMs` precedes the step; decision 3 "the time part is the hook time").
 - `idLabel` a string: within the scope (the vector, or all vectors of the `identityGroup`), the same label means the same canonical `event_id`, and different labels mean different ids. Run H11 and H12 in the same run with the same salt and clock.
 - `idLabel` `null` (Gemini): no identity assertion beyond "not seen before in this vector", which the observation rule already requires; two identical Gemini payloads in one vector therefore yield two records (decision 3 "a fresh ULID").
 
@@ -286,7 +297,7 @@ Checked after every hook step, in addition to the expectations.
 
 | # | Invariant |
 |---|---|
-| I1 | Every emitted record validates as JGR v0.1 with the JD-M01 public validator at `now` = `clock`. |
+| I1 | Every emitted record validates as JGR v0.1 with the JD-M01 public validator at `now` = the step clock. |
 | I2 | `privacy_class` is absent or `"L0"`; no `encrypted`; attribute keys are on the L0 allowlist; strings ≤ 128 characters. |
 | I3 | Records of a platform carry that platform's ref prefix; `attributes.platform`, when present, equals the step's platform. |
 | I4 | No step emits more than one record (decision 3 "no hook ever produces two records"). |
@@ -330,10 +341,13 @@ Rows are ADR-0017 rules; cells name the vectors that check them per platform. "N
 | Same thread and next sequence as the hook | H01–H06, H14 | H01–H06, H14 | H01–H05, H14 |
 | `event_id` ULID at javi's clock (G12) | H01–H06, H09–H12, H14 | H01–H06, H10–H12, H14 | H01–H05, H07, H09–H12, H14 (H11: payload `timestamp` ≠ clock) |
 | `event_id` stable per (platform, session, call id) | H11 + H12 | H11 + H12 | N/A (fresh ULID) |
+| Re-fired hook (same call id, clock moved) → one record; seen-call key per (platform, session, call id) (code review M1) | H15 | H15 | N/A (no call id: a re-fire is recorded again, H15, Y8) |
 | Collector heartbeats carry no `tool_name` (decision 6, L1) | H14 | H14 | H14 |
 | Permission prompt for javi's tool still → `attention.requested` | H13 (`Notification`) | H13 (`PermissionRequest`) | H13 (`Notification ToolPermission`) |
-| MCP server (platform-neutral, decisions 1–2) | M01–M22 | M01–M22 (M02 2025-06-18; M21 `_meta.sessionId`) | M01–M22 (M02 2025-06-18) |
-| Reader precedence (platform-neutral, decision 6) | R01–R18 | R01–R18 | R01–R18 |
+| MCP server (platform-neutral, decisions 1–2) | M01–M23 | M01–M23 (M02 2025-06-18; M21 `_meta.sessionId`) | M01–M23 (M02 2025-06-18) |
+| MCP: a client response object is ignored (Changes "Conformance runner") | M23 | M23 | M23 |
+| Reader precedence (platform-neutral, decision 6) | R01–R21 | R01–R21 | R01–R21 |
+| Reader: a thread ended while the agent reports `waiting` or `blocked` | R05, R19–R21 | R05, R19–R21 | R05, R19–R21 |
 
 ## Vectors
 
@@ -356,11 +370,12 @@ Rows are ADR-0017 rules; cells name the vectors that check them per platform. "N
 | M15 | Every valid `report_status` input → success text without a delivery claim | 22 |
 | M16 | Every phase and kind of `report_task` → success | 12 |
 | M17 | Invalid `report_status` inputs, including `reason: null`, missing `status` and missing / non-object `arguments` → `isError` constant text, input never echoed (G2, G10) | 27 |
-| M18 | Invalid `report_task` inputs, including missing keys → `isError` constant text (G2) | 16 |
+| M18 | Invalid `report_task` inputs, including missing keys and missing / non-object `arguments` → `isError` constant text (G2) | 20 |
 | M19 | Unknown tool names (sentinel, client-prefixed, case, empty) → -32602 | 8 |
 | M20 | Hooks not installed: valid calls → "not recorded: javi hooks are not installed for this project"; invalid input → the validation constant first; `tools/list` unchanged (G3) | 8 |
 | M21 | Sentinels in `_meta`, unknown tools / methods, broken JSON never on stdout or stderr; `_meta` is not an argument | 8 |
 | M22 | `"id": null` → -32600 with `id: null` before and after `initialize`; a second `initialize` answered like the first (G14) | 9 |
+| M23 | Client response objects (`result` or `error` with an id, no method) → no response, before and after `initialize`; an initialize-shaped response does not initialize; their content never on stdout or stderr | 11 |
 | H01 | `report_status` without reason → heartbeat, `tool_name`, no `error_code` (3 platforms) | 15 |
 | H02 | `report_status` with reason → `error_code` `<status>.<reason>` (3 platforms) | 12 |
 | H03 | `report_task` → `task.started` / `completed` / `failed` + `task_kind` (3 platforms) | 12 |
@@ -372,9 +387,10 @@ Rows are ADR-0017 rules; cells name the vectors that check them per platform. "N
 | H09 | Claude Code `PostToolUseFailure` and Gemini `AfterTool` with error still map; type from the phase | 9 |
 | H10 | Sentinels in other tools' input and in javi's `tool_response` / `mcp_context` never copied | 15 |
 | H11 | `event_id` run A: ULID at javi's clock even when the Gemini `timestamp` differs (G12); ids differ per call id, session and platform | 9 |
-| H12 | `event_id` run B: replay in a fresh `HOME` gives the same ids (Claude Code, Codex) | 5 |
+| H12 | `event_id` run B: replay in a fresh `HOME` gives the same ids (Claude Code, Codex); id stability, not deduplication (a fresh `HOME` has no seen-call marker) | 5 |
 | H13 | Permission prompts for javi's tools still → `attention.requested` (Y5) | 6 |
 | H14 | Self-report in the session thread between collector heartbeats without `tool_name` | 12 |
+| H15 | Re-fired `PostToolUse` with the same `tool_use_id` at a moved clock (+5 s, +65 s) → one record (Claude Code `report_status` and `report_task`, Codex); another call id, session or platform → recorded; a Gemini re-fire → recorded again (Y8) | 13 |
 | R01 | Agent `blocked` survives end-of-turn `idle`; a prompt heartbeat clears it | 5 |
 | R02 | Survives `usage.reported`, `error`, `idle`; `attention.requested` clears it (G8) | 5 |
 | R03 | Cleared by `task.started`, `task.completed`, `task.failed` carrying a status | 6 |
@@ -393,8 +409,11 @@ Rows are ADR-0017 rules; cells name the vectors that check them per platform. "N
 | R16 | A status-less clearing event shows the latest non-agent status from before the report (G6) | 5 |
 | R17 | Cleared with no non-agent status ever → status `null`, source `collector` (G6) | 2 |
 | R18 | A self-reported `task.*` clears an agent status (G7) | 5 |
+| R19 | Agent `waiting`, then a status-less `session.ended`: the earlier collector `waiting`, no attention (ended) | 3 |
+| R20 | Agent `blocked`, then `session.ended` `completed`: collector `completed`, no attention | 3 |
+| R21 | Agent `blocked` only, then a status-less `session.ended`: status `null`, no attention (G6, Y7) | 2 |
 
-Totals: 22 MCP vectors (193 steps), 14 hook vectors (200 steps), 18 reader vectors (74 steps).
+Totals: 23 MCP vectors (208 steps), 15 hook vectors (213 steps), 21 reader vectors (82 steps).
 
 ## Suggested mutation checks
 
@@ -413,7 +432,11 @@ Each mutation must turn at least the listed vector to FAIL (SPRINT-05d T5 "mutat
 | Process batch elements | M12 |
 | Drop `additionalProperties: false`, or change an enum or annotation | M14 |
 | Accept unknown argument keys, `reason: null`, or a `reason` with `working` | M17, M18 |
-| Answer -32602 for missing keys or non-object `arguments` | M17, M18 |
+| Answer -32602 for missing keys or non-object `arguments` | M17, M18 (steps 25–28 for `report_task`) |
+| Check for object `arguments` only in `report_status` (a crash, -32602 or a success for `report_task` without object `arguments`) | M18 |
+| Answer a client response object (any error such as -32600 or -32601, or a result) | M23 |
+| Treat an initialize-shaped client response as `initialize` | M23 (step 4) |
+| Log a client response's content (message, data, result) to stderr | M23 |
 | Echo the input (or a key name) in the `isError` text | M17, M18, M20, M21 |
 | Say "sent" or "delivered" in the success text | M15, M16 |
 | Return `isError: false` when hooks are not installed | M20 |
@@ -430,7 +453,13 @@ Each mutation must turn at least the listed vector to FAIL (SPRINT-05d T5 "mutat
 | Copy `tool_input` of other tools | H07, H08, H10 |
 | Map `PostToolUseFailure` of javi's tool to `task.failed` from the failure | H09 |
 | Use a random ULID for Claude Code / Codex, or leave the platform or session out of the HMAC | H11, H12 |
-| Take the ULID time from the Gemini payload `timestamp` | H11 |
+| Take the ULID time from the Gemini payload `timestamp` | H11, H15 |
+| Deduplicate a re-fired hook by `event_id` only (no seen-call marker) | H15 (steps 2, 3, 6, 9) |
+| A seen-call marker that expires (a time window under 65 s) | H15 (step 3) |
+| A seen-call key without the session or without the platform | H15 (steps 7, 11) |
+| A seen-call key from the tool input instead of the call id | H15 (steps 4, 10) |
+| Deduplicate Gemini re-fires by payload content | H15 (step 13) |
+| Store a raw `tool_use_id` in `seen.json` | H15 (absent strings under `$HOME/.javi`) |
 | Clear the agent status on collector `heartbeat idle`, `usage.reported` or `error` | R01, R02, R10 |
 | Keep the agent status on `attention.requested` | R02, R13 |
 | Never clear it on `task.*`, `session.*` or `agent.*` | R03–R06, R16, R18 |
@@ -438,6 +467,9 @@ Each mutation must turn at least the listed vector to FAIL (SPRINT-05d T5 "mutat
 | Match `statusSource` on tool names | R11 |
 | Accept any reason text, or ignore the prefix | R09 |
 | Count collector-only `blocked` as attention | R08 |
+| Keep the agent status after `session.ended` | R05, R19–R21 |
+| Count an ended thread whose status is `waiting` as needing attention | R19 |
+| Show `session.ended`'s missing status instead of the earlier collector status | R19 |
 | Order by insertion instead of `received_at`, `sequence` | R12 |
 
 ## Not covered
@@ -455,6 +487,10 @@ Each mutation must turn at least the listed vector to FAIL (SPRINT-05d T5 "mutat
 | A collector heartbeat with a status other than `working` / `idle` after an agent status | In neither list of decision 6 (G18, "no change" in the QA spec gaps entry). |
 | Gemini sub-agents | No `agent_id` field in the documented Gemini payloads (G13). |
 | `/clear` in Claude Code, real CLI runs, Windows spawn, protocol versions clients actually send | Runtime, owner steps (ADR-0017 Verification; NOT RUN until then). |
+| A client response object with `"id": null`, with both `result` and `error`, or without an id | Open (G20). M23 uses only well-formed responses with a string or number id. |
+| A self-report received after `session.ended` | Open (G21). |
+| Eviction from the seen-call marker (more than 512 keys); a re-fire with the same call id but another `tool_input` | File-level cost (513 hook runs), and a payload that does not occur in practice; not needed for the M1 claim. |
+| A Claude Code `PostToolUseFailure` after a `PostToolUse` with the same `tool_use_id` | Claude Code fires one of the two per call; no source shows the pair occurs. |
 
 ## Ambiguities
 
@@ -480,6 +516,8 @@ Raised by the first QA pass against ADR-0017 at `2d4dcc2`; resolved by the orche
 | G14 | `"id": null`; a second `initialize`; other malformed requests | `"id": null` → -32600 with `id: null`; a repeated `initialize` is answered like the first. The rest stays open ([Not covered](#not-covered)). | M22 |
 | G18 | A collector heartbeat with another status after an agent status | No change; still open. | — |
 | G19 | `attributes.tool_name` for a Gemini call matched on `mcp_context` | The payload's tool name as given, up to 128 characters. | H07 |
+| G20 | (F2) A client message `{"jsonrpc":"2.0","id":null,"error":{…}}` is a well-formed JSON-RPC response (JSON-RPC 2.0 §5 allows `id: null` on an error), but decision 1 answers "a request with `"id": null`" with -32600. Is it ignored like other responses, or answered? Same question for an object with both `result` and `error`, or with `result` and no `id`. | Open. | — |
+| G21 | (F2) A self-report received after `session.ended` makes the thread no longer `ended` by ADR-0012's rule (the last event is not `session.ended`), so a late agent `blocked` or `waiting` would need attention again. Intended, or does an ended session stay ended? A late hook after `SessionEnd` is plausible (asynchronous hooks, re-fires). | Open. | — |
 
 ### Readings (Y)
 
@@ -493,9 +531,11 @@ Choices the suite makes where the text is clear in intent but needs an operation
 | Y4 | A self-reported `task.*` carries no checked status (ADR-0017 is silent); H03 and H09 leave `status` unchecked. In H09 the record type follows the `phase`, not the failure hook (decision 3 Mapping is per input). |
 | Y5 | Codex `PermissionRequest` for javi's tool may keep `tool_name` (optional `prefixOf` matcher, as the Codex suite's H09 allows); Claude Code and Gemini permission notifications carry no `tool_name`. |
 | Y6 | Claude Code records may omit `attributes.platform` (ADR-0010 does not name it); when present it is `claude-code`. Codex and Gemini records MUST carry it (ADR-0016). |
-| Y7 | R17: with no status at all the reader returns `status: null`, `statusSource: "collector"` (the amended "Otherwise" rule names `collector` as the source), `statusReason: null` and no attention. |
+| Y7 | R17, R21: with no status at all the reader returns `status: null`, `statusSource: "collector"` (the amended "Otherwise" rule names `collector` as the source), `statusReason: null` and no attention. |
+| Y8 | H15: a re-fired Gemini `AfterTool` for javi's tool is recorded again. Decision 3 keys the seen-call marker on the call id, and Gemini's `AfterTool` has none ("so it gets a fresh ULID"). Deduplicating on the payload content would also drop a real repeated report. |
 
 ## Changes
 
 - 2026-10-30 — Created for S5d T5 from ADR-0017 at `2d4dcc2` (QA lane, before any implementation).
+- 2026-10-30 — S5e F2, from ADR-0017 at `a551aed`: new M23 (client response objects are ignored), H15 (a re-fired hook at a moved clock records once; code review M1, Guru SR-F5), R19–R21 (a thread ended while the agent reports `waiting` or `blocked`); M18 steps 25–28 (missing or non-object `arguments` for `report_task`); H12's description and contract no longer claim that the event id deduplicates. Schema: optional hook-step key `clockAdvanceMs` ([Step clock](#pinned-clock)). New open gaps G20 and G21; new reading Y8.
 - 2026-10-30 — Updated to ADR-0017 Changes "QA spec gaps": single outcomes for G1, G2 and G10 (M08, M17, M18); new cases for G3 (M20), G14 (new M22), G12 (H11), G19 (H07), G9 (R09), G6 (new R16, R17), G7 (new R18); G8 inverted (R02, R13); hook setup without `--self-report` (G11); schema allows a null reader `status`.

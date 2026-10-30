@@ -2,8 +2,8 @@
   "$schema": "./schema.json",
   "id": "M18",
   "kind": "mcp",
-  "description": "Invalid report_task inputs, including a missing phase or kind, answer isError:true with one constant text that names the phases and kinds and never echoes the input.",
-  "contract": "ADR-0017 (c25cf2d) decision 2 report_task vocabulary, Strict arguments (QA gap G2); D0 L3",
+  "description": "Invalid report_task inputs, including a missing phase or kind and missing or non-object arguments, answer isError:true with one constant text that names the phases and kinds and never echoes the input.",
+  "contract": "ADR-0017 (c25cf2d) decision 2 report_task vocabulary, Strict arguments (\"a missing required key, arguments that are missing or not an object … are rejected (QA gaps G2, G10)\"; the rules apply to both tools); D0 L3",
   "ambiguities": ["G4"],
   "server": {
     "hooksInstalled": true
@@ -709,6 +709,193 @@
       }
     },
     {
+      "note": "arguments absent",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task"
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "arguments is a string",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": "SENTINEL_ARGS_STRING_M18_D"
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "arguments is an array",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": ["started", "test"]
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "arguments is null",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": null
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
       "note": "a valid call still succeeds afterwards",
       "send": {
         "jsonrpc": "2.0",
@@ -751,6 +938,7 @@
   "stderrForbidden": ["initialize", "notifications/initialized", "tools/call"],
   "absentStrings": [
     ".env file",
+    "SENTINEL_ARGS_STRING_M18_D",
     "SENTINEL_KIND_M18_C",
     "SENTINEL_PHASE_M18_B",
     "SENTINEL_PROMPT_M18_A",

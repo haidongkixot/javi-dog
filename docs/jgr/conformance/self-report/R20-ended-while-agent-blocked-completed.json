@@ -1,0 +1,65 @@
+{
+  "$schema": "./schema.json",
+  "id": "R20",
+  "kind": "reader",
+  "description": "A thread ends while the agent reports blocked: a session.ended carrying completed (the Claude Code SessionEnd mapping) clears the agent status; the thread shows completed, source collector, no reason and no attention.",
+  "contract": "ADR-0017 (a551aed) decision 6 Precedence (\"session.*\" clears the agent status; \"Otherwise … the latest non-null status among events that are not agent statuses, and the source is collector\"), Attention (\"its status is waiting, as today, or … blocked with source agent\"); Changes \"Conformance runner for the M and R groups\" (\"needsAttention for ended threads is unchanged by this ADR\"); ADR-0012 Changes S4a review (\"ThreadState.needsAttention (waiting and not ended)\"; freshness \"ended when the last event is session.ended\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector prompt",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent blocked, missing_credentials",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.missing_credentials",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_credentials",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "session.ended completed: cleared, no attention",
+      "event": {
+        "type": "session.ended",
+        "status": "completed",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "completed",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

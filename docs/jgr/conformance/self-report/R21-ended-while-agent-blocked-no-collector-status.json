@@ -1,0 +1,47 @@
+{
+  "$schema": "./schema.json",
+  "id": "R21",
+  "kind": "reader",
+  "description": "A thread whose only status is an agent blocked ends with a status-less session.ended: the agent status is cleared, no non-agent status exists, so the status is null with source collector, no reason and no attention.",
+  "contract": "ADR-0017 (a551aed) decision 6 Precedence (\"session.*\" clears the agent status; \"Otherwise … the latest non-null status among events that are not agent statuses, and the source is collector\"), Attention (\"its status is waiting, as today, or … blocked with source agent\"); Changes \"Conformance runner for the M and R groups\" (\"needsAttention for ended threads is unchanged by this ADR\"); ADR-0012 Changes S4a review (\"ThreadState.needsAttention (waiting and not ended)\"; freshness \"ended when the last event is session.ended\")",
+  "ambiguities": ["G6", "Y7"],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent blocked, tests_failing (first status of the thread)",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.tests_failing",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "tests_failing",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "session.ended without a status: cleared, null, no attention",
+      "event": {
+        "type": "session.ended",
+        "status": null,
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": null,
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}
