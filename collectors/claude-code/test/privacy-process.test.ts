@@ -84,10 +84,10 @@ type Run = { code: number | null; stdout: string; stderr: string };
 const run = (
   args: string[],
   env: NodeJS.ProcessEnv,
-  opts: { cwd?: string; stdin?: string; detached?: boolean } = {},
+  opts: { cwd?: string; stdin?: string; detached?: boolean; script?: string } = {},
 ) =>
   new Promise<Run>((resolve) => {
-    const child = spawn(process.execPath, [CLI, ...args], {
+    const child = spawn(process.execPath, [opts.script ?? CLI, ...args], {
       env,
       cwd: opts.cwd ?? root,
       // detached → setsid: the child has no controlling terminal, so /dev/tty cannot open.
@@ -214,6 +214,118 @@ describe.runIf(posix)('javi init --privacy as a real process', () => {
       /Privacy class: L2 \(key [0-9A-Z]{8}; the key itself is never shown\)\./,
     );
     expect(leaks(status.stdout + status.stderr, fixture.sentinels)).toEqual([]);
+  });
+});
+
+// Security review L7: the built bundle swaps crypto-loader.ts for crypto-loader.bundle.ts
+// (scripts/build.mjs `static-crypto`). Only a run of the bundle itself exercises that path.
+describe.runIf(posix)('javi init --privacy L2 from the built bundle (security review L7)', () => {
+  const BUILD = fileURLToPath(new URL('../scripts/build.mjs', import.meta.url));
+  let bundle: string;
+  let built: Run;
+  beforeAll(async () => {
+    const out = join(root, 'dist');
+    bundle = join(out, 'javi.mjs');
+    // Built into the temp dir (as test/mcp-process.test.ts does): the repo's dist/ stays as is.
+    built = await new Promise<Run>((resolve) => {
+      const child = spawn(process.execPath, [BUILD, '--out', out], { cwd: root });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (d) => (stdout += d));
+      child.stderr.on('data', (d) => (stderr += d));
+      child.on('close', (code) => resolve({ code, stdout, stderr }));
+    });
+  }, 60_000);
+
+  it('key file → canary, hook → flush → identity event that decrypts with @javis-dog/crypto', async () => {
+    expect(built.code, built.stderr).toBe(0);
+    // JD-M11 is inlined: no import of @javis-dog/crypto is left for node to resolve at run time.
+    expect(await readFile(bundle, 'utf8')).not.toMatch(/import\(["']@javis-dog\/crypto["']\)/);
+    mode = 'accept';
+    const d = await dirs();
+    const keyFile = join(root, `bundle-key-${n}.txt`);
+    await writeFile(keyFile, `${fixture.key}\n`);
+    await chmod(keyFile, 0o600);
+    const before = bodies.length;
+
+    const init = await run(
+      [
+        'init',
+        '--project',
+        'shop-two',
+        '--endpoint',
+        endpoint,
+        '--privacy',
+        'L2',
+        '--privacy-key-file',
+        keyFile,
+      ],
+      baseEnv(d.home),
+      { cwd: d.projectDir, script: bundle },
+    );
+    expect(init.code, init.stderr).toBe(0);
+    expect(init.stdout).toMatch(/Privacy class L2: recovery key stored in/);
+    // The hooks run the installed copy of the bundle.
+    const settings = await readFile(join(d.projectDir, '.claude', 'settings.local.json'), 'utf8');
+    const installed = /"([^"]*\/bin\/[^"]+\/javi\.mjs)"/.exec(settings)?.[1];
+    expect(installed, settings).toBeDefined();
+
+    const repo = join(d.projectDir, 'shop');
+    await mkdir(join(repo, '.git'), { recursive: true });
+    await writeFile(join(repo, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    const hook = await run(['hook', '--project', 'shop-two'], baseEnv(d.home), {
+      cwd: repo,
+      script: installed!,
+      stdin: JSON.stringify({ session_id: 's-b', cwd: repo, hook_event_name: 'SessionStart' }),
+    });
+    expect(hook).toEqual({ code: 0, stdout: '', stderr: '' });
+    const flush = await run(['flush', '--project', 'shop-two'], baseEnv(d.home), {
+      cwd: repo,
+      script: installed!,
+    });
+    expect(flush.code, flush.stderr).toBe(0);
+
+    type Sent = {
+      event_id: string;
+      type: string;
+      producer_id: string;
+      thread_ref: string;
+      privacy_class?: string;
+      encrypted?: unknown;
+    };
+    const sent = (): Sent[] =>
+      bodies.slice(before).flatMap((b) => (JSON.parse(b) as { events: Sent[] }).events);
+    // The hook's detached flush may have delivered it first; either way it arrives once.
+    for (let i = 0; i < 50 && !sent().some((e) => e.type === 'x.javi.thread.identity'); i++) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const canary = sent().find((e) => e.type === 'x.javi.collector.installed');
+    const identity = sent().find((e) => e.type === 'x.javi.thread.identity');
+    expect(canary?.privacy_class).toBe('L2');
+    expect(identity?.privacy_class, JSON.stringify(sent())).toBe('L2');
+
+    const { decryptL2, deriveProjectKeys } = await import('@javis-dog/crypto');
+    const keys = await deriveProjectKeys(fixture.secret, 'shop-two');
+    const byKid = new Map([[keys.kid, keys.l2Key]]);
+    expect(
+      await decryptL2(byKid, identity!.encrypted, {
+        eventId: identity!.event_id,
+        slug: 'shop-two',
+        producerId: identity!.producer_id,
+        threadRef: identity!.thread_ref,
+        type: 'x.javi.thread.identity',
+      }),
+    ).toEqual({ ok: true, payload: { v: 1, repo: 'shop', branch: 'main' } });
+    expect(
+      await decryptL2(byKid, canary!.encrypted, {
+        eventId: canary!.event_id,
+        slug: 'shop-two',
+        producerId: canary!.producer_id,
+        threadRef: canary!.thread_ref,
+        type: 'x.javi.collector.installed',
+      }),
+    ).toEqual({ ok: true, payload: { v: 1, canary: true } });
+    expect(leaks(init.stdout + init.stderr + bodies.join('\n'), fixture.sentinels)).toEqual([]);
   });
 });
 
