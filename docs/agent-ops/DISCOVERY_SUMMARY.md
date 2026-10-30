@@ -43,6 +43,14 @@ See ADR-0001 (modular monolith vs. microservices vs. folders) and ADR-0002 (stac
 
 Grouped in the readiness matrix: B1–B5 are needed before Sprint 2; B2 can be done now with confirmation; D1 confirmation needed during Sprint 1.
 
+## Delta — S5d planning (2026-10-30)
+
+- Scope: JD-C03 agent self-report through a local MCP server (`javi mcp`), owner choice 2026-10-30. Decisions in ADR-0017.
+- Available: hook pipeline, spool and delivery (JD-C01); pure adapters (JD-C02); L0 keys `error_code` and `task_kind`; the reader already exposes `status` and attention (JD-M12). No ingest, schema, credential or production change is needed.
+- Verified from source: all three CLIs run their post-tool hook for MCP tools with the session id and `tool_input` (ADR-0017 research table).
+- Unknown until the owner's real runs: the protocol version Claude Code sends first, Windows spawn, and hook behaviour for MCP tool calls at runtime (readiness rows "Self-report …").
+- New dependency: the MCP SDK client as a dev dependency only (owner-approved).
+
 ## Delta — S3c planning (2026-10-23)
 
 - **Hook contract verified** (code.claude.com/docs/en/hooks and /settings, via a docs agent and a direct fetch; some tables only partially extracted — re-check on Claude Code upgrades): 33 events; common fields `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `agent_id`/`agent_type` inside subagents; `async: true` non-blocking; exec form (`command` + `args`) has no shell; Windows shell form = Git Bash or PowerShell; plain stdout of SessionStart/UserPromptSubmit enters Claude's context; exit 2 blocks some events; `.claude/settings.local.json` only auto-ignored when Claude Code created it.

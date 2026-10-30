@@ -297,3 +297,29 @@ Written before the lanes start. Risk: **HIGH**: Codex logs carry email, prompts 
 | `~/.codex/config.toml` `[otel]` edit: refusal, comments, backup, exact restore | High | Process (temp home) | bytes before/after | No |
 | Gemini logs still never parsed; Claude Code and Gemini unchanged | High | Existing suites + receiver test | unchanged assertions | No |
 | Real Codex session | — | Runtime (owner) | approval flow, events, usage | NOT RUN until owner run |
+
+## S5d — Agent self-report MCP server (2026-10-30)
+
+Written before the lanes start (ADR-0017). Risk: **MEDIUM-HIGH**:
+
+- a new process speaks a protocol to three external clients;
+- a hook reads `tool_input` for the first time (javi's own two tools only);
+- an agent's claim reaches the dashboard.
+
+Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| Strict vocabularies: unknown keys, wrong types, values outside the lists, `reason` with `working`/`idle`/`completed` rejected; input never echoed | High | Unit (JD-C02 validator) | table of inputs → ok / issue; sentinel string absent from every message | QA vectors |
+| MCP handshake: `initialize` echoes known versions, else `2025-11-25`; `ping`; `tools/list` schemas + annotations + instructions ≤ 1 000 chars; notifications ignored; `server/discover` and unknown methods `-32601`; malformed JSON `-32700`; batch `-32600` | High | Unit (JD-C03 over in-memory streams) | request → exact response | QA vectors |
+| `tools/call`: valid → success text with no delivery claim; invalid → `isError: true` | High | Unit | as above | QA vectors |
+| stdout carries only newline-terminated JSON-RPC; logs only on stderr | High | Process (spawn built `javi.mjs mcp`) | every stdout line parses as JSON-RPC 2.0 | No |
+| Interop with the official client | High | Process (SDK client, dev dependency) | connect, list, call valid and invalid | No |
+| Hook mapping, all three CLIs: javi's tools → `heartbeat`+`status`(+`error_code` `<status>.<reason>`) or `task.*`+`task_kind`; `tool_name` provenance; same thread, agent and sequence as the hook; ids from `tool_use_id` (Claude Code, Codex), fresh for Gemini | High | Unit (mappers) | payload → records | QA vectors |
+| No other tool's `tool_input` is read; Gemini match only on `mcp_context` | High | Unit | trap object throws on property access | QA vectors |
+| Invalid self-report input → no self-report event, normal tool event unchanged | Medium | Unit | payload → records | QA vectors |
+| `init --self-report` writes `.mcp.json` / `.gemini/settings.json` / `.codex/config.toml`; idempotent; uninstall removes only javi's entry; user entries and comments kept; git-tracked warning; unparsable file refused | High | Process (temp dirs) | bytes before/after | No |
+| `statusSource` = `agent` only when the status-giving event came from javi's tools; pill shows "reported by agent" as text with an accessible name | Medium | Unit (reader on PGlite) + component | rows → state; rendered text | No |
+| End to end: hook payload → spool → ingest handler (PGlite) → reader shows `blocked`, source `agent` | Medium | Process (existing e2e harness) | reader output | No |
+| Claude Code, Gemini CLI and Codex CLI unchanged for every other tool | High | Existing suites + conformance runners | unchanged assertions | No |
+| Real CLI runs (protocol version, approval prompts, Windows spawn) | — | Runtime (owner) | `javi status`, dashboard | NOT RUN until owner run |
