@@ -3,8 +3,8 @@
   "id": "H11",
   "kind": "hook",
   "description": "Run A of the event-id pair. The self-report event_id is a ULID whose time part is the hook clock; for Claude Code and Codex its random part comes from HMAC(salt, platform ‖ session ‖ call id), so different call ids, sessions or platforms give different ids. Gemini gets a fresh ULID. H12 replays some calls in a fresh HOME with the same salt.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 3 Thread, sequence and ids (review M5)",
-  "ambiguities": ["G12"],
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Thread, sequence and ids (review M5); Independent of registration (\"The hook time is javi's own clock, never a time inside the payload\", QA gap G12)",
+  "ambiguities": [],
   "clock": "2026-10-30T10:00:00Z",
   "identityGroup": "self-report-event-id",
   "steps": [
@@ -376,6 +376,63 @@
           }
         }
       }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "Gemini payload timestamp one minute before the clock: the ULID time part is still javi's clock (G12)",
+      "stdin": {
+        "session_id": "gm-sess-h11",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H11_S9/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H11_S9/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T09:59:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_access"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H11_S9 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H11_S9"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H11_S9/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H11_S9/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H11_S9/web-app",
+          "url": "https://SENTINEL_MCPURL_H11_S9.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H11_S9"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h11",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status",
+            "error_code": "blocked.missing_access"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
     }
   ],
   "absentStrings": [
@@ -391,18 +448,25 @@
     "SENTINEL_CWD_H11_S6",
     "SENTINEL_CWD_H11_S7",
     "SENTINEL_CWD_H11_S8",
+    "SENTINEL_CWD_H11_S9",
     "SENTINEL_MCPARGS_H11_S7",
     "SENTINEL_MCPARGS_H11_S8",
+    "SENTINEL_MCPARGS_H11_S9",
     "SENTINEL_MCPCMD_H11_S7",
     "SENTINEL_MCPCMD_H11_S8",
+    "SENTINEL_MCPCMD_H11_S9",
     "SENTINEL_MCPCWD_H11_S7",
     "SENTINEL_MCPCWD_H11_S8",
+    "SENTINEL_MCPCWD_H11_S9",
     "SENTINEL_MCPURL_H11_S7",
     "SENTINEL_MCPURL_H11_S8",
+    "SENTINEL_MCPURL_H11_S9",
     "SENTINEL_ORIGINAL_REQUEST_H11_S7",
     "SENTINEL_ORIGINAL_REQUEST_H11_S8",
+    "SENTINEL_ORIGINAL_REQUEST_H11_S9",
     "SENTINEL_TOOLRESPONSE_DISPLAY_H11_S7",
     "SENTINEL_TOOLRESPONSE_DISPLAY_H11_S8",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H11_S9",
     "SENTINEL_TOOLRESPONSE_H11_S1",
     "SENTINEL_TOOLRESPONSE_H11_S2",
     "SENTINEL_TOOLRESPONSE_H11_S3",
@@ -411,6 +475,7 @@
     "SENTINEL_TOOLRESPONSE_H11_S6",
     "SENTINEL_TOOLRESPONSE_H11_S7",
     "SENTINEL_TOOLRESPONSE_H11_S8",
+    "SENTINEL_TOOLRESPONSE_H11_S9",
     "SENTINEL_TRANSCRIPT_H11_S1",
     "SENTINEL_TRANSCRIPT_H11_S2",
     "SENTINEL_TRANSCRIPT_H11_S3",
@@ -419,6 +484,7 @@
     "SENTINEL_TRANSCRIPT_H11_S6",
     "SENTINEL_TRANSCRIPT_H11_S7",
     "SENTINEL_TRANSCRIPT_H11_S8",
+    "SENTINEL_TRANSCRIPT_H11_S9",
     "SENTINEL_TURN_H11_S3",
     "SENTINEL_TURN_H11_S4",
     "SENTINEL_TURN_H11_S6"

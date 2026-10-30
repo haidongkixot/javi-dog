@@ -3,7 +3,7 @@
   "id": "R11",
   "kind": "reader",
   "description": "An agent status is any heartbeat that carries a tool_name, whatever the name (structural match, review L1): the Gemini form and even an unexpected name count.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 6 Agent status (\"a heartbeat that carries a tool_name\"); Changes D0 L1 (\"Structural match\")",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Agent status (\"a heartbeat that carries a tool_name\"); Changes D0 L1 (\"Structural match\")",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [

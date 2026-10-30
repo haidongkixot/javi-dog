@@ -3,7 +3,7 @@
   "id": "H03",
   "kind": "hook",
   "description": "report_task maps phase started / completed / failed to task.started / task.completed / task.failed with attributes.task_kind = kind and tool_name provenance; no error_code; exactly one record per call.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 3 Mapping (\"report_task maps to task.started, task.completed or task.failed with attributes.task_kind = kind\"), Only one record per hook call (review L2)",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Mapping (\"report_task maps to task.started, task.completed or task.failed with attributes.task_kind = kind\"), Only one record per hook call (review L2)",
   "ambiguities": ["Y4"],
   "clock": "2026-10-30T10:00:00Z",
   "identityGroup": null,

@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema.json",
+  "id": "R16",
+  "kind": "reader",
+  "description": "A clearing event without a status (collector task.started / task.completed) clears the agent status; the thread shows the latest non-null status among non-agent events, from before the agent's report, with source collector.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"Otherwise … the latest non-null status among events that are not agent statuses, and the source is collector. A clearing event with no status … shows the collector status that came before the agent's report (QA gap G6)\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector end of turn",
+      "event": {
+        "type": "heartbeat",
+        "status": "idle",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "idle",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent blocked",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.missing_credentials",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_credentials",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "status-less collector task.started clears; latest non-agent status is idle",
+      "event": {
+        "type": "task.started",
+        "status": null,
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "idle",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent waiting",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_input",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_input",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "status-less collector task.completed clears; still idle",
+      "event": {
+        "type": "task.completed",
+        "status": null,
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "idle",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

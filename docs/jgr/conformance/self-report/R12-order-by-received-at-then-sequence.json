@@ -3,7 +3,7 @@
   "id": "R12",
   "kind": "reader",
   "description": "The reader orders by received_at, then sequence, not by insertion order: with equal received_at the higher sequence wins; an earlier received_at loses even with a higher sequence.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 6 Ordering (\"received_at, then sequence, then row id\")",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Ordering (\"received_at, then sequence, then row id\")",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [

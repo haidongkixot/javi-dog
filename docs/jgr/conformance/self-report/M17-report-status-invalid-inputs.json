@@ -2,9 +2,9 @@
   "$schema": "./schema.json",
   "id": "M17",
   "kind": "mcp",
-  "description": "Invalid report_status inputs (unknown keys holding prompt-like sentinels, wrong types, values outside the lists, a reason with working / idle / completed) answer isError:true with one constant text that names the six statuses and never echoes the input. Missing status or non-object arguments: isError or -32602 (G2).",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 2 Strict arguments (\"Unknown keys, wrong types, values outside the lists, or a reason with another status are rejected … a constant per tool that names the allowed values and never echoes the input\"); D0 L3",
-  "ambiguities": ["G2", "G4"],
+  "description": "Invalid report_status inputs (unknown keys holding prompt-like sentinels, wrong types including reason:null, values outside the lists, a reason with working / idle / completed, a missing status, missing or non-object arguments) answer isError:true with one constant text that names the six statuses and never echoes the input.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 2 Strict arguments (\"Unknown keys, wrong types (including reason: null), values outside the lists, a missing required key, arguments that are missing or not an object, or a reason with another status are rejected (QA gaps G2, G10)\" … \"a constant per tool that names the allowed values and never echoes the input\"); D0 L3",
+  "ambiguities": ["G4"],
   "server": {
     "hooksInstalled": true
   },
@@ -561,7 +561,7 @@
       }
     },
     {
-      "note": "report_task keys sent to report_status",
+      "note": "reason is null (G10)",
       "send": {
         "jsonrpc": "2.0",
         "id": 25,
@@ -569,8 +569,8 @@
         "params": {
           "name": "report_status",
           "arguments": {
-            "phase": "started",
-            "kind": "test"
+            "status": "blocked",
+            "reason": null
           }
         }
       },
@@ -597,9 +597,20 @@
       }
     },
     {
-      "note": "__proto__ key (raw JSON so the key exists)",
-      "send": null,
-      "rawLine": "{\"jsonrpc\":\"2.0\",\"id\":26,\"method\":\"tools/call\",\"params\":{\"name\":\"report_status\",\"arguments\":{\"status\":\"blocked\",\"__proto__\":{\"SENTINEL_PROTO_M17_H\":\"x\"}}}}",
+      "note": "report_task keys sent to report_status",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "phase": "started",
+            "kind": "test"
+          }
+        }
+      },
+      "rawLine": null,
       "expect": {
         "jsonrpc": "2.0",
         "id": 26,
@@ -622,20 +633,9 @@
       }
     },
     {
-      "note": "constructor key",
-      "send": {
-        "jsonrpc": "2.0",
-        "id": 27,
-        "method": "tools/call",
-        "params": {
-          "name": "report_status",
-          "arguments": {
-            "status": "blocked",
-            "constructor": "SENTINEL_CTOR_M17_F"
-          }
-        }
-      },
-      "rawLine": null,
+      "note": "__proto__ key (raw JSON so the key exists)",
+      "send": null,
+      "rawLine": "{\"jsonrpc\":\"2.0\",\"id\":27,\"method\":\"tools/call\",\"params\":{\"name\":\"report_status\",\"arguments\":{\"status\":\"blocked\",\"__proto__\":{\"SENTINEL_PROTO_M17_H\":\"x\"}}}}",
       "expect": {
         "jsonrpc": "2.0",
         "id": 27,
@@ -658,10 +658,46 @@
       }
     },
     {
-      "note": "missing status (empty object)",
+      "note": "constructor key",
       "send": {
         "jsonrpc": "2.0",
         "id": 28,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "constructor": "SENTINEL_CTOR_M17_F"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_status.invalid",
+                "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "missing status (empty object)",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 29,
         "method": "tools/call",
         "params": {
           "name": "report_status",
@@ -670,50 +706,31 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 28,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 29,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_status.invalid",
-                    "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 28,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_status.invalid",
+                "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
       "note": "missing status, reason only",
       "send": {
         "jsonrpc": "2.0",
-        "id": 29,
+        "id": 30,
         "method": "tools/call",
         "params": {
           "name": "report_status",
@@ -724,50 +741,31 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 29,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 30,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_status.invalid",
-                    "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 29,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_status.invalid",
+                "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
       "note": "arguments absent",
       "send": {
         "jsonrpc": "2.0",
-        "id": 30,
+        "id": 31,
         "method": "tools/call",
         "params": {
           "name": "report_status"
@@ -775,50 +773,31 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 30,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 31,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_status.invalid",
-                    "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 30,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_status.invalid",
+                "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
       "note": "arguments is a string",
       "send": {
         "jsonrpc": "2.0",
-        "id": 31,
+        "id": 32,
         "method": "tools/call",
         "params": {
           "name": "report_status",
@@ -827,50 +806,31 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 31,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 32,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_status.invalid",
-                    "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 31,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_status.invalid",
+                "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
       "note": "arguments is an array",
       "send": {
         "jsonrpc": "2.0",
-        "id": 32,
+        "id": 33,
         "method": "tools/call",
         "params": {
           "name": "report_status",
@@ -879,50 +839,31 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 32,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 33,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_status.invalid",
-                    "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 32,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_status.invalid",
+                "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
       "note": "arguments is null",
       "send": {
         "jsonrpc": "2.0",
-        "id": 33,
+        "id": 34,
         "method": "tools/call",
         "params": {
           "name": "report_status",
@@ -931,50 +872,31 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 33,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 34,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_status.invalid",
-                    "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 33,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_status.invalid",
+                "containsAll": ["working", "waiting", "blocked", "idle", "completed", "failed"]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
       "note": "a valid call still succeeds afterwards",
       "send": {
         "jsonrpc": "2.0",
-        "id": 34,
+        "id": 35,
         "method": "tools/call",
         "params": {
           "name": "report_status",
@@ -986,7 +908,7 @@
       "rawLine": null,
       "expect": {
         "jsonrpc": "2.0",
-        "id": 34,
+        "id": 35,
         "result": {
           "$open": true,
           "content": [

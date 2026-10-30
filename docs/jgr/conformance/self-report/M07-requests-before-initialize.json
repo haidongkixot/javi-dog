@@ -3,7 +3,7 @@
   "id": "M07",
   "kind": "mcp",
   "description": "Before initialize: tools/list and tools/call get -32600, ping answers {}; after initialize the same requests work.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Message rules (\"Any request other than initialize and ping that arrives before initialize gets -32600\")",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Message rules (\"Any request other than initialize and ping that arrives before initialize gets -32600\")",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

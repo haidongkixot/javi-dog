@@ -2,15 +2,15 @@
   "$schema": "./schema.json",
   "id": "M08",
   "kind": "mcp",
-  "description": "AMBIGUOUS (G1) before initialize. server/discover and an unknown method before initialize get -32600 or -32601 (both accepted); after initialize both get -32601.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Message rules (-32600 before initialize) vs Errors (\"server/discover and any other method get -32601\")",
-  "ambiguities": ["G1"],
+  "description": "server/discover, unknown methods and unoffered methods get -32601 before initialize too (only tools/list and tools/call get -32600 there); after initialize they still get -32601.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Errors (\"server/discover and any other method get -32601 … This holds before initialize too (QA gap G1). Only the known methods tools/list and tools/call get -32600 before initialize\")",
+  "ambiguities": [],
   "server": {
     "hooksInstalled": true
   },
   "steps": [
     {
-      "note": "server/discover before initialize → -32600 or -32601",
+      "note": "server/discover before initialize → -32601",
       "send": {
         "jsonrpc": "2.0",
         "id": 1,
@@ -22,10 +22,7 @@
         "jsonrpc": "2.0",
         "id": 1,
         "error": {
-          "code": {
-            "$match": "oneOf",
-            "values": [-32600, -32601]
-          },
+          "code": -32601,
           "message": {
             "$match": "string"
           },
@@ -37,7 +34,7 @@
       }
     },
     {
-      "note": "unknown method before initialize → -32600 or -32601",
+      "note": "unknown method before initialize → -32601",
       "send": {
         "jsonrpc": "2.0",
         "id": 2,
@@ -48,10 +45,31 @@
         "jsonrpc": "2.0",
         "id": 2,
         "error": {
-          "code": {
-            "$match": "oneOf",
-            "values": [-32600, -32601]
+          "code": -32601,
+          "message": {
+            "$match": "string"
           },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "resources/list before initialize → -32601",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 20,
+        "method": "resources/list",
+        "params": {}
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 20,
+        "error": {
+          "code": -32601,
           "message": {
             "$match": "string"
           },
@@ -164,6 +182,7 @@
   "stderrForbidden": [
     "initialize",
     "notifications/initialized",
+    "resources/list",
     "server/discover",
     "x/SENTINEL_METHOD_M08_A",
     "x/SENTINEL_METHOD_M08_B"

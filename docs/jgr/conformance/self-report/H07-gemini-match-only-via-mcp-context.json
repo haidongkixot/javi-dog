@@ -2,8 +2,8 @@
   "$schema": "./schema.json",
   "id": "H07",
   "kind": "hook",
-  "description": "Gemini self-reports are matched only on mcp_context.server_name = \"javi\" (exact) and mcp_context.tool_name ∈ {report_status, report_task}. A tool_name that looks like javi's with server_name javi_x, JAVI or absent, no mcp_context, or another mcp_context.tool_name maps as an ordinary tool (tool_name only); its tool_input is never copied. A matching control call maps as a self-report.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 3 Match (Gemini: \"server_name is the raw config key, so javi_x cannot match\"), Pre-tool hooks (Gemini matched the same way), The one exception (other tools' tool_input unread)",
+  "description": "Gemini self-reports are matched only on mcp_context.server_name = \"javi\" (exact) and mcp_context.tool_name ∈ {report_status, report_task}. A tool_name that looks like javi's with server_name javi_x, JAVI or absent, no mcp_context, or another mcp_context.tool_name maps as an ordinary tool (tool_name only); its tool_input is never copied. A matching call maps as a self-report, with attributes.tool_name exactly as the payload gives it.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Match (Gemini: \"server_name is the raw config key, so javi_x cannot match\"), Pre-tool hooks (Gemini matched the same way), Independent of registration (\"attributes.tool_name is the payload's tool name as given\", QA gap G19), The one exception (other tools' tool_input unread)",
   "ambiguities": [],
   "clock": "2026-10-30T10:00:00Z",
   "identityGroup": null,
@@ -407,11 +407,69 @@
           }
         }
       }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "mcp_context javi / report_task with an unprefixed payload tool_name: self-report, tool_name kept as given (G19)",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S11/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S11/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "report_task",
+        "tool_input": {
+          "phase": "started",
+          "kind": "review"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H07_S11 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S11"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_task",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S11/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H07_S11/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S11/web-app",
+          "url": "https://SENTINEL_MCPURL_H07_S11.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H07_S11"
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "report_task",
+            "task_kind": "review"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
     }
   ],
   "absentStrings": [
     "SENTINEL_CWD_H07_S1",
     "SENTINEL_CWD_H07_S10",
+    "SENTINEL_CWD_H07_S11",
     "SENTINEL_CWD_H07_S2",
     "SENTINEL_CWD_H07_S3",
     "SENTINEL_CWD_H07_S4",
@@ -421,7 +479,9 @@
     "SENTINEL_CWD_H07_S8",
     "SENTINEL_CWD_H07_S9",
     "SENTINEL_MCPARGS_H07_S10",
+    "SENTINEL_MCPARGS_H07_S11",
     "SENTINEL_MCPCMD_H07_S10",
+    "SENTINEL_MCPCMD_H07_S11",
     "SENTINEL_MCPCMD_H07_S2",
     "SENTINEL_MCPCMD_H07_S3",
     "SENTINEL_MCPCMD_H07_S5",
@@ -429,6 +489,7 @@
     "SENTINEL_MCPCMD_H07_S7",
     "SENTINEL_MCPCMD_H07_S9",
     "SENTINEL_MCPCWD_H07_S10",
+    "SENTINEL_MCPCWD_H07_S11",
     "SENTINEL_MCPCWD_H07_S2",
     "SENTINEL_MCPCWD_H07_S3",
     "SENTINEL_MCPCWD_H07_S5",
@@ -436,7 +497,9 @@
     "SENTINEL_MCPCWD_H07_S7",
     "SENTINEL_MCPCWD_H07_S9",
     "SENTINEL_MCPURL_H07_S10",
+    "SENTINEL_MCPURL_H07_S11",
     "SENTINEL_ORIGINAL_REQUEST_H07_S10",
+    "SENTINEL_ORIGINAL_REQUEST_H07_S11",
     "SENTINEL_TOOLINPUT_H07_S2",
     "SENTINEL_TOOLINPUT_H07_S3",
     "SENTINEL_TOOLINPUT_H07_S4",
@@ -446,6 +509,7 @@
     "SENTINEL_TOOLINPUT_H07_S8",
     "SENTINEL_TOOLINPUT_H07_S9",
     "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S10",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S11",
     "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S2",
     "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S3",
     "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S4",
@@ -454,6 +518,7 @@
     "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S7",
     "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S8",
     "SENTINEL_TOOLRESPONSE_H07_S10",
+    "SENTINEL_TOOLRESPONSE_H07_S11",
     "SENTINEL_TOOLRESPONSE_H07_S2",
     "SENTINEL_TOOLRESPONSE_H07_S3",
     "SENTINEL_TOOLRESPONSE_H07_S4",
@@ -463,6 +528,7 @@
     "SENTINEL_TOOLRESPONSE_H07_S8",
     "SENTINEL_TRANSCRIPT_H07_S1",
     "SENTINEL_TRANSCRIPT_H07_S10",
+    "SENTINEL_TRANSCRIPT_H07_S11",
     "SENTINEL_TRANSCRIPT_H07_S2",
     "SENTINEL_TRANSCRIPT_H07_S3",
     "SENTINEL_TRANSCRIPT_H07_S4",

@@ -3,7 +3,7 @@
   "id": "H06",
   "kind": "hook",
   "description": "When the post-tool payload carries agent_id (a sub-agent), report_status produces no record, and report_task produces its record with the sub-agent's agent_ref (the same as its agent.started). The main agent's report_status still maps. Claude Code and Codex only (G13).",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 3 Sub-agents (review M6); spec §2 (agent_ref), §12 (SubagentStart → agent.started, agent_ref from hashed agent_id)",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Sub-agents (review M6); spec §2 (agent_ref), §12 (SubagentStart → agent.started, agent_ref from hashed agent_id)",
   "ambiguities": ["G13"],
   "clock": "2026-10-30T10:00:00Z",
   "identityGroup": null,

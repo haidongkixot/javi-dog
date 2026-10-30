@@ -3,7 +3,7 @@
   "id": "M13",
   "kind": "mcp",
   "description": "The id is echoed exactly, keeping its JSON type: string ids stay strings (\"42\" is not 42), number ids stay numbers (0, negative, 2^53−1), on results and on errors.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Message rules (\"id is echoed exactly (string or number)\")",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Message rules (\"id is echoed exactly (string or number)\")",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

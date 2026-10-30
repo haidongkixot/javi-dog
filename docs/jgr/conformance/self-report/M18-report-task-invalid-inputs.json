@@ -2,9 +2,9 @@
   "$schema": "./schema.json",
   "id": "M18",
   "kind": "mcp",
-  "description": "Invalid report_task inputs answer isError:true with one constant text that names the phases and kinds and never echoes the input. Missing phase or kind: isError or -32602 (G2).",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 2 report_task vocabulary, Strict arguments; D0 L3",
-  "ambiguities": ["G2", "G4"],
+  "description": "Invalid report_task inputs, including a missing phase or kind, answer isError:true with one constant text that names the phases and kinds and never echoes the input.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 2 report_task vocabulary, Strict arguments (QA gap G2); D0 L3",
+  "ambiguities": ["G4"],
   "server": {
     "hooksInstalled": true
   },
@@ -578,57 +578,38 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 21,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 21,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_task.invalid",
-                    "containsAll": [
-                      "started",
-                      "completed",
-                      "failed",
-                      "plan",
-                      "research",
-                      "implement",
-                      "test",
-                      "debug",
-                      "review",
-                      "docs",
-                      "build",
-                      "deploy",
-                      "other"
-                    ]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 21,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
@@ -646,57 +627,38 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 22,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 22,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_task.invalid",
-                    "containsAll": [
-                      "started",
-                      "completed",
-                      "failed",
-                      "plan",
-                      "research",
-                      "implement",
-                      "test",
-                      "debug",
-                      "review",
-                      "docs",
-                      "build",
-                      "deploy",
-                      "other"
-                    ]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 22,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {
@@ -712,57 +674,38 @@
       },
       "rawLine": null,
       "expect": {
-        "$match": "oneOf",
-        "values": [
-          {
-            "jsonrpc": "2.0",
-            "id": 23,
-            "result": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "result": {
+          "$open": true,
+          "content": [
+            {
               "$open": true,
-              "content": [
-                {
-                  "$open": true,
-                  "type": "text",
-                  "text": {
-                    "$match": "string",
-                    "minLength": 1,
-                    "label": "report_task.invalid",
-                    "containsAll": [
-                      "started",
-                      "completed",
-                      "failed",
-                      "plan",
-                      "research",
-                      "implement",
-                      "test",
-                      "debug",
-                      "review",
-                      "docs",
-                      "build",
-                      "deploy",
-                      "other"
-                    ]
-                  }
-                }
-              ],
-              "isError": true
-            }
-          },
-          {
-            "jsonrpc": "2.0",
-            "id": 23,
-            "error": {
-              "code": -32602,
-              "message": {
-                "$match": "string"
-              },
-              "data": {
-                "$match": "any",
-                "optional": true
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
               }
             }
-          }
-        ]
+          ],
+          "isError": true
+        }
       }
     },
     {

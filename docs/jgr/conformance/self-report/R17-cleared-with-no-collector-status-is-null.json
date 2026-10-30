@@ -1,0 +1,47 @@
+{
+  "$schema": "./schema.json",
+  "id": "R17",
+  "kind": "reader",
+  "description": "When the agent status is cleared and no non-agent event ever carried a status, the thread status is null with source collector, no reason and no attention.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"If there is no such status, the status is null\"; \"the source is collector\")",
+  "ambiguities": ["Y7"],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent blocked is the first status in the thread",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.other",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "other",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "status-less task.started clears; no collector status exists",
+      "event": {
+        "type": "task.started",
+        "status": null,
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": null,
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

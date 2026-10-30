@@ -3,7 +3,7 @@
   "id": "M11",
   "kind": "mcp",
   "description": "A line that is not valid JSON gets -32700 with id null, before and after initialize, even when an id is visible in the broken text; the text is never echoed.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Errors (\"Malformed JSON gets -32700 with id: null\"), stderr (no parse excerpts)",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Errors (\"Malformed JSON gets -32700 with id: null\"), stderr (no parse excerpts)",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

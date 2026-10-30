@@ -414,7 +414,7 @@
               "required": ["status", "statusSource", "statusReason", "needsAttention"],
               "additionalProperties": false,
               "properties": {
-                "status": { "$ref": "#/definitions/jgrStatus" },
+                "status": { "anyOf": [{ "type": "null" }, { "$ref": "#/definitions/jgrStatus" }] },
                 "statusSource": { "enum": ["agent", "collector"] },
                 "statusReason": {
                   "enum": [

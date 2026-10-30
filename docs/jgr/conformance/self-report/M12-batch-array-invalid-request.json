@@ -3,7 +3,7 @@
   "id": "M12",
   "kind": "mcp",
   "description": "A JSON array (batch) gets a single -32600 response with id null, before and after initialize, whatever it contains (requests, notifications only, or nothing).",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Errors (\"A JSON array (batch) gets -32600\"); id null per reading Y1",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Errors (\"A JSON array (batch) gets -32600\"); id null per reading Y1",
   "ambiguities": ["Y1"],
   "server": {
     "hooksInstalled": true

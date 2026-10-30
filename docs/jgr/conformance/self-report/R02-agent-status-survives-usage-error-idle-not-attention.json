@@ -2,8 +2,8 @@
   "$schema": "./schema.json",
   "id": "R02",
   "kind": "reader",
-  "description": "Agent blocked survives collector attention.requested, usage.reported and error events, and a second end-of-turn idle.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 6 Precedence (\"What does not clear it\")",
+  "description": "Agent blocked survives collector usage.reported, error and end-of-turn idle; a later attention.requested clears it, so the thread shows the collector waiting with attention.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"What does not clear it\": heartbeat idle, usage.reported, error; \"A later attention.requested also clears it\", QA gap G8)",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [
@@ -26,24 +26,6 @@
       }
     },
     {
-      "note": "collector permission wait does not clear",
-      "event": {
-        "type": "attention.requested",
-        "status": "waiting",
-        "toolName": null,
-        "errorCode": null,
-        "agent": null,
-        "receivedAt": "2026-10-30T10:00:02Z",
-        "sequence": 2
-      },
-      "expect": {
-        "status": "blocked",
-        "statusSource": "agent",
-        "statusReason": "dependency_down",
-        "needsAttention": true
-      }
-    },
-    {
       "note": "usage does not clear",
       "event": {
         "type": "usage.reported",
@@ -51,8 +33,8 @@
         "toolName": null,
         "errorCode": null,
         "agent": null,
-        "receivedAt": "2026-10-30T10:00:03Z",
-        "sequence": 3
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
       },
       "expect": {
         "status": "blocked",
@@ -69,8 +51,8 @@
         "toolName": null,
         "errorCode": "tool_timeout",
         "agent": null,
-        "receivedAt": "2026-10-30T10:00:04Z",
-        "sequence": 4
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
       },
       "expect": {
         "status": "blocked",
@@ -87,13 +69,31 @@
         "toolName": null,
         "errorCode": null,
         "agent": null,
-        "receivedAt": "2026-10-30T10:00:05Z",
-        "sequence": 5
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
       },
       "expect": {
         "status": "blocked",
         "statusSource": "agent",
         "statusReason": "dependency_down",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector permission wait clears: collector waiting, attention",
+      "event": {
+        "type": "attention.requested",
+        "status": "waiting",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "collector",
+        "statusReason": null,
         "needsAttention": true
       }
     }

@@ -3,7 +3,7 @@
   "id": "M02",
   "kind": "mcp",
   "description": "initialize with protocol 2025-06-18 (Gemini CLI, Codex legacy mode) echoes 2025-06-18.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Handshake (known versions echoed); Research table (Gemini and Codex send 2025-06-18)",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Handshake (known versions echoed); Research table (Gemini and Codex send 2025-06-18)",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

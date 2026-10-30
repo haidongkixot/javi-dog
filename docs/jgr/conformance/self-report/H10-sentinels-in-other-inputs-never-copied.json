@@ -3,7 +3,7 @@
   "id": "H10",
   "kind": "hook",
   "description": "Sentinels in tool_input of other tools (shell and a third-party MCP tool whose input mimics the self-report vocabulary), and in tool_response, mcp_context.command / args / cwd / url and original_request_name of javi's own tools, never appear in any record or spool file. javi's record comes from tool_input only (tool_response claims another status).",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 3 Validation (\"Only the tool name, tool_input, mcp_context.server_name and mcp_context.tool_name are read. tool_response and the rest of mcp_context are never read\"), The one exception; spec §7, §12 edge rules (tool_input, tool_response dropped)",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Validation (\"Only the tool name, tool_input, mcp_context.server_name and mcp_context.tool_name are read. tool_response and the rest of mcp_context are never read\"), The one exception; spec §7, §12 edge rules (tool_input, tool_response dropped)",
   "ambiguities": [],
   "clock": "2026-10-30T10:00:00Z",
   "identityGroup": null,

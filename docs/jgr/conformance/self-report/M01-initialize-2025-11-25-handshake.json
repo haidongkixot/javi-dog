@@ -3,7 +3,7 @@
   "id": "M01",
   "kind": "mcp",
   "description": "initialize with protocol 2025-11-25 echoes it and returns exactly capabilities.tools.listChanged:false, serverInfo.name \"javi\" with a version, and instructions of at most 1 000 characters; notifications/initialized gets no response; ping answers {}; tools/list works.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Handshake, Methods, Message rules; decision 2 Instructions (≤ 1 000 characters)",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Handshake, Methods, Message rules; decision 2 Instructions (≤ 1 000 characters)",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

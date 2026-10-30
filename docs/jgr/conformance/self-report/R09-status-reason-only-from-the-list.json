@@ -2,8 +2,8 @@
   "$schema": "./schema.json",
   "id": "R09",
   "kind": "reader",
-  "description": "statusReason is the reason part of \"<status>.<reason>\" only when it is in the SELF_REPORT reason list; otherwise null.",
-  "contract": "ADR-0017 (at 2d4dcc2) decision 6 Reader (\"accepted only when it is in the SELF_REPORT list\", review M2); decision 2 reasons",
+  "description": "statusReason is the reason part of \"<status>.<reason>\" only when the prefix equals the status and the reason is in the SELF_REPORT list; otherwise null.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Reader (\"accepted only when the prefix equals the status and the reason is in the SELF_REPORT list\", review M2, QA gap G9); decision 2 reasons",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [
@@ -80,6 +80,24 @@
       }
     },
     {
+      "note": "listed reason but the prefix differs from the status (G9)",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_input",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
       "note": "no error_code",
       "event": {
         "type": "heartbeat",
@@ -87,8 +105,8 @@
         "toolName": "mcp__javi__report_status",
         "errorCode": null,
         "agent": null,
-        "receivedAt": "2026-10-30T10:00:05Z",
-        "sequence": 5
+        "receivedAt": "2026-10-30T10:00:06Z",
+        "sequence": 6
       },
       "expect": {
         "status": "blocked",
@@ -105,8 +123,8 @@
         "toolName": "mcp__javi__report_status",
         "errorCode": "failed.tests_failing",
         "agent": null,
-        "receivedAt": "2026-10-30T10:00:06Z",
-        "sequence": 6
+        "receivedAt": "2026-10-30T10:00:07Z",
+        "sequence": 7
       },
       "expect": {
         "status": "failed",
@@ -123,8 +141,8 @@
         "toolName": "mcp__javi__report_status",
         "errorCode": "blocked.conflicting_requirements",
         "agent": null,
-        "receivedAt": "2026-10-30T10:00:07Z",
-        "sequence": 7
+        "receivedAt": "2026-10-30T10:00:08Z",
+        "sequence": 8
       },
       "expect": {
         "status": "blocked",
