@@ -238,3 +238,4 @@ Sources:
 
   G4, G13 and G18 need no change. G5 was a TEST_PLAN line that contradicted decision 3 and is now fixed.
 - 2026-10-30 — Module labels corrected (Developer B): the reader is JD-M07 `packages/realtime` (JD-M12 is `packages/resilience`), and `ThreadStatusPill` is JD-APP (`apps/web`), not JD-M13. Orchestrator follow-ups to the T4 lane: reasons only on `waiting`, `blocked` and `failed` in the reader too, "CI failing" capitalised, and a test that the reader's reason list equals JD-C02's.
+- 2026-10-30 — Conformance runner for the M and R groups: 40 of 40 vectors pass; 51 of 54 mutations are caught. Clarification from the survivors: the server ignores a JSON-RPC **response** object (`result` or `error` with an `id`) sent by the client, as JD-C03 already does. The success text is not required to be constant (decision 2 makes only the "not recorded" text constant), and `needsAttention` for ended threads is unchanged by this ADR (decision 6).

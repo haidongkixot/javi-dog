@@ -37,6 +37,7 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-10-30 — T5 runner part 1 merged: the M group (22/22, instance layer) and the R group (18/18, PGlite) pass; 51/54 mutations caught. Survivors were logged as coverage gaps; one ADR clarification (client response objects are ignored). The H group waits on T3 — `8a0cba7`.
 - 2026-10-30 — Orchestrator follow-ups to T4: reasons only on `waiting`/`blocked`/`failed` in the reader, "CI failing" capitalised, reader ↔ JD-C02 vocabulary equality test (red-first: 3 new tests failed before the fix) — `d9b51eb`.
 - 2026-10-30 — T4 merged (Developer B): reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`, pill text in squad, feed and agents table — `bd616f6`.
 - 2026-10-30 — Registry: JD-C03 out of `planned.json` into `REGISTRY.md` — `c59b260`.
@@ -51,6 +52,7 @@ Newest first: date — what changed — commit SHA.
 | `pnpm -s test --force` (main tree after T1, T2, T4 merges, `d9b51eb`) | 0 | — | 1997 | 0 | 0 | 0 | 0 | 15 packages; no "Unhandled" |
 | `pnpm -s build`; migration drift check; `format:check`, `lint`, `typecheck`, `docs:check` | 0 | — | — | — | — | — | — | — |
 | CI `c25cf2d` / `1595b4e` | success | — | — | — | — | — | — | runs 41072581103, 41073502748 |
+| Conformance runner M (`collector-mcp-server` tests) / R (`realtime` tests), runner worktree | 0 / 0 | — | 22 / 18 vectors | 0 | 0 | 0 | H: 14 | 114 / 136 package tests; mutations 51/54 caught |
 | QA vector checks (schema, negatives, satisfiability; QA worktree) | 0 | — | 54 + 9 + 181 | 0 | 0 | 0 | 0 | scratch scripts, not committed |
 
 ## Team
@@ -67,6 +69,12 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-30 — Runner — Coverage gaps from surviving mutations, for QA follow-up (F2):
+  - a client response object is not covered by any vector;
+  - `report_task` has no case for missing or non-object `arguments` (M18);
+  - no vector ends a thread while it is waiting or blocked.
+
+  The success text varying per call is allowed by the ADR. The R store is truncated between vectors rather than recreated (45 s versus 5.5 s); accepted.
 - 2026-10-30 — Orchestrator — Process slip: the gated push of `d9b51eb` chained the secret scan with `;` instead of `&&`. The scan was clean (exit 1), so nothing slipped, and the scan is chained again from the next push.
 - 2026-10-30 — Developer B — Corrected module labels (the reader is JD-M07, the pill is JD-APP). Open: project-level "N waiting for you" now also counts agent-`blocked` threads; the wording is logged as a follow-up (F1), not changed.
 - 2026-10-30 — QA — 50 vectors (M 21, H 14, R 15) from the ADR only, `1f40a78` in the QA worktree. 19 spec gaps; G8 was a design defect: an agent's `working` would have hidden a real permission prompt. All resolved in ADR-0017 (Changes "QA spec gaps"). Developers A and B were told mid-lane, and QA is updating the vectors.
