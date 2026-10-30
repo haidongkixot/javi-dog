@@ -6,7 +6,6 @@ import {
   HKDF_INFO_L2,
   HKDF_SALT,
   hkdfInfo,
-  KID_CHARS,
   KID_HKDF_BYTES,
   L1_FIELDS,
   L1_HASH_PREFIX,
@@ -65,7 +64,8 @@ export const deriveProjectKeys = async (secret: Uint8Array, slug: string): Promi
     ikm,
     KID_HKDF_BYTES * 8,
   );
-  const kid = toBase32(new Uint8Array(kidBits)).slice(0, KID_CHARS);
+  // 5 bytes = 40 bits = exactly KID_CHARS base32 characters, no pad bits (G4).
+  const kid = toBase32(new Uint8Array(kidBits));
 
   const l2Key = await subtle().deriveKey(
     hkdfParams(HKDF_INFO_L2, slug),

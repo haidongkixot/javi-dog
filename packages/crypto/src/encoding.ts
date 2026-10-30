@@ -1,5 +1,5 @@
 // Byte encodings used by JD-M11. Web-platform only (TextEncoder/TextDecoder), no Buffer.
-import { CROCKFORD_ALIASES, CROCKFORD_ALPHABET } from './constants.ts';
+import { CROCKFORD_ALPHABET } from './constants.ts';
 
 export type Bytes = Uint8Array<ArrayBuffer>;
 
@@ -47,32 +47,18 @@ export const toBase32 = (bytes: Uint8Array): string => {
   return out;
 };
 
-const BASE32_VALUES = new Map<string, number>([
-  ...[...CROCKFORD_ALPHABET].map((c, i) => [c, i] as const),
-  ...Object.entries(CROCKFORD_ALIASES).map(
-    ([alias, target]) => [alias, CROCKFORD_ALPHABET.indexOf(target)] as const,
-  ),
-]);
+const BASE32_VALUES = new Map<string, number>([...CROCKFORD_ALPHABET].map((c, i) => [c, i]));
 
-/** Replaces Crockford aliases by their canonical characters; `null` if a character is invalid. */
-export const canonicalBase32 = (text: string): string | null => {
-  let out = '';
-  for (const char of text) {
-    const value = BASE32_VALUES.get(char);
-    if (value === undefined) return null;
-    out += CROCKFORD_ALPHABET[value];
-  }
-  return out;
-};
+/** True when every character is in the upper-case Crockford alphabet (no aliases, G2). */
+export const isBase32 = (text: string): boolean => [...text].every((c) => BASE32_VALUES.has(c));
 
 export type Base32Decode =
   { ok: true; bytes: Bytes } | { ok: false; reason: 'character' | 'padding' };
 
 /**
- * Decodes upper-case Crockford base32 (aliases I, L → 1 and O → 0 accepted) into `length`
- * bytes. The input must be exactly ceil(length·8/5) characters (checked by the caller) and
- * the pad bits must be zero, so every byte string has exactly one accepted spelling
- * (aliases aside).
+ * Decodes upper-case Crockford base32 (no aliases) into `length` bytes. The input must be
+ * exactly ceil(length·8/5) characters (checked by the caller) and the pad bits must be
+ * zero, so every byte string has exactly one accepted spelling.
  */
 export const fromBase32 = (text: string, length: number): Base32Decode => {
   const out = new Uint8Array(length);

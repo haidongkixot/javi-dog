@@ -54,6 +54,11 @@ describe('deriveProjectKeys', () => {
     expect(keys.kid).toBe(base32(nodeHkdf('jgr/kid/v1|demo-app', 5)));
   });
 
+  // Reconciliation point given by the orchestrator from QA's independent suite (S1).
+  it('S1: bytes 00..1f with slug "web-app" give kid 0Q12NAV3', async () => {
+    expect((await deriveProjectKeys(secret, 'web-app')).kid).toBe('0Q12NAV3');
+  });
+
   it('kid is stable for the same secret and slug', async () => {
     const a = await deriveProjectKeys(secret, 'demo-app');
     const b = await deriveProjectKeys(Uint8Array.from(secret), 'demo-app');

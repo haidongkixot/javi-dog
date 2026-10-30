@@ -3,12 +3,13 @@ import {
   RECOVERY_KEY_BODY_CHARS,
   RECOVERY_KEY_CHECKSUM_CHARS,
   RECOVERY_KEY_GROUP_CHARS,
+  RECOVERY_KEY_IGNORED,
   RECOVERY_KEY_MAX_INPUT_CHARS,
   RECOVERY_KEY_PREFIX,
   RECOVERY_KEY_SEPARATOR,
   SECRET_BYTES,
 } from './constants.ts';
-import { canonicalBase32, copyBytes, fromBase32, toBase32, type Bytes } from './encoding.ts';
+import { copyBytes, fromBase32, isBase32, toBase32, type Bytes } from './encoding.ts';
 
 /** Why a recovery key was refused. Messages are fixed and never contain the input. */
 export type RecoveryKeyError = 'empty' | 'prefix' | 'length' | 'character' | 'checksum';
@@ -63,14 +64,14 @@ export const encodeRecoveryKey = async (secret: Uint8Array): Promise<string> => 
 };
 
 /**
- * Parses a recovery key typed or pasted by a person. Ignores case, whitespace and dashes;
- * accepts the Crockford aliases I and L for 1 and O for 0 (body and checksum only, not the
- * `JDK1` prefix). Never throws; errors are typed and never echo the input.
+ * Parses a recovery key typed or pasted by a person (G2). Removes only spaces (U+0020) and
+ * `-`, ignores case, requires the `JDK1` prefix and refuses I, L, O and U (no Crockford
+ * aliases) and non-zero pad bits. Never throws; errors are typed and never echo the input.
  */
 export const parseRecoveryKey = async (text: string): Promise<ParseRecoveryKeyResult> => {
   if (typeof text !== 'string') return fail('empty');
   if (text.length > RECOVERY_KEY_MAX_INPUT_CHARS) return fail('length');
-  const compact = text.replace(/[\s-]+/g, '').toUpperCase();
+  const compact = text.replace(RECOVERY_KEY_IGNORED, '').toUpperCase();
   if (compact.length === 0) return fail('empty');
   if (!compact.startsWith(RECOVERY_KEY_PREFIX)) return fail('prefix');
   const rest = compact.slice(RECOVERY_KEY_PREFIX.length);
@@ -79,8 +80,8 @@ export const parseRecoveryKey = async (text: string): Promise<ParseRecoveryKeyRe
   const decoded = fromBase32(rest.slice(0, RECOVERY_KEY_BODY_CHARS), SECRET_BYTES);
   // Non-zero pad bits in the last body character are a typo as well; report it as a character.
   if (!decoded.ok) return fail('character');
-  const typed = canonicalBase32(rest.slice(RECOVERY_KEY_BODY_CHARS));
-  if (typed === null) return fail('character');
+  const typed = rest.slice(RECOVERY_KEY_BODY_CHARS);
+  if (!isBase32(typed)) return fail('character');
   if (typed !== (await checksumOf(decoded.bytes))) return fail('checksum');
   return { ok: true, secret: decoded.bytes };
 };

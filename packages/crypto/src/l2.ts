@@ -10,6 +10,7 @@ import {
   IV_BYTES,
   L2_ALG,
   L2_NAME_MAX_CODE_POINTS,
+  L2_NAME_MAX_JSON_BYTES,
   L2_PAD_BYTE,
   L2_PAYLOAD_BYTES,
   L2_PAYLOAD_VERSION,
@@ -17,7 +18,7 @@ import {
   TAG_BITS,
   TAG_BYTES,
 } from './constants.ts';
-import { fromBase64Url, fromUtf8, toBase64Url, utf8, type Bytes } from './encoding.ts';
+import { copyBytes, fromBase64Url, fromUtf8, toBase64Url, utf8, type Bytes } from './encoding.ts';
 
 /** Every part of the AAD (ADR-0018 §4). */
 export type AadParts = Readonly<{
@@ -57,9 +58,9 @@ export type EncryptedL2 = {
  * - `other-kid`: keys are loaded, none has this kid;
  * - `unverifiable`: a key with this kid is loaded but GCM authentication fails (changed or
  *   damaged data, or an AAD that does not match: another event, thread, type, project,
- *   producer or kid);
- * - `malformed`: the encrypted object, the AAD context or the decrypted payload has the
- *   wrong shape.
+ *   producer or kid), or decryption succeeds but the plaintext is not a valid v1 payload
+ *   (G10);
+ * - `malformed`: the encrypted object or the AAD context has the wrong shape.
  */
 export type DecryptL2Failure = 'no-key' | 'other-kid' | 'unverifiable' | 'malformed';
 export type DecryptL2Result =
@@ -96,23 +97,34 @@ export const buildAad = (parts: AadParts): Bytes => {
   );
 };
 
-const codePoints = (value: string): string[] =>
-  Array.from(value.normalize(NAME_NORMALIZATION)).slice(0, L2_NAME_MAX_CODE_POINTS);
+/** UTF-8 length of the JSON-escaped string without its quotes. */
+const escapedBytes = (codePoint: string): number => utf8(JSON.stringify(codePoint)).length - 2;
 
-const jsonBytes = (value: string): number => utf8(JSON.stringify(value)).length;
-
-const optionalName = (value: unknown, field: string): string[] | undefined => {
+/**
+ * G5, G6: NFC first, then the longest prefix of at most 100 code points whose JSON-escaped
+ * UTF-8 length is at most 113 bytes. Escaping is per code point, so the escaped length of a
+ * prefix is the sum over its code points.
+ */
+const cutName = (value: unknown, field: string): string | undefined => {
   if (value === undefined) return undefined;
   if (typeof value !== 'string') throw new TypeError(`L2 ${field} must be a string.`);
-  return codePoints(value);
+  let out = '';
+  let bytes = 0;
+  let count = 0;
+  for (const codePoint of value.normalize(NAME_NORMALIZATION)) {
+    const next = escapedBytes(codePoint);
+    if (count === L2_NAME_MAX_CODE_POINTS || bytes + next > L2_NAME_MAX_JSON_BYTES) break;
+    out += codePoint;
+    bytes += next;
+    count += 1;
+  }
+  return out;
 };
 
 /**
- * L2 payload v1: `{"v":1,"repo":…,"branch":…}` (absent fields omitted) or
- * `{"v":1,"canary":true}`, padded with spaces to exactly 256 bytes. Names are
- * NFC-normalised and cut to 100 code points; if the JSON is still above 256 bytes
- * (multi-byte characters or escapes), whole code points are removed from the end of the
- * name whose JSON string is longer in bytes (branch on a tie) until it fits.
+ * L2 payload v1 (G8, G12): `JSON.stringify` with keys `v`, `repo`, `branch` (absent fields
+ * omitted) or `v`, `canary`, raw UTF-8, padded with spaces to exactly 256 bytes. Each name
+ * is NFC-normalised and cut per field (G6), so the JSON is at most 255 bytes.
  */
 export const encodeL2Payload = (input: L2PayloadInput): Bytes => {
   let json: string;
@@ -124,25 +136,19 @@ export const encodeL2Payload = (input: L2PayloadInput): Bytes => {
   } else {
     if (input === null || typeof input !== 'object')
       throw new TypeError('L2 payload is an object.');
-    const repo = optionalName(input.repo, 'repo');
-    const branch = optionalName(input.branch, 'branch');
-    const serialise = () =>
-      JSON.stringify({
-        v: L2_PAYLOAD_VERSION,
-        ...(repo ? { repo: repo.join('') } : {}),
-        ...(branch ? { branch: branch.join('') } : {}),
-      });
-    json = serialise();
-    while (utf8(json).length > L2_PAYLOAD_BYTES) {
-      const repoBytes = repo ? jsonBytes(repo.join('')) : -1;
-      const branchBytes = branch ? jsonBytes(branch.join('')) : -1;
-      if (branch && branchBytes >= repoBytes) branch.pop();
-      else repo?.pop();
-      json = serialise();
-    }
+    const repo = cutName(input.repo, 'repo');
+    const branch = cutName(input.branch, 'branch');
+    json = JSON.stringify({
+      v: L2_PAYLOAD_VERSION,
+      ...(repo !== undefined ? { repo } : {}),
+      ...(branch !== undefined ? { branch } : {}),
+    });
   }
+  const bytes = utf8(json);
+  // Unreachable by construction (G6); kept so a future change cannot overflow silently.
+  if (bytes.length > L2_PAYLOAD_BYTES) throw new RangeError('L2 payload exceeds 256 bytes.');
   const out = new Uint8Array(L2_PAYLOAD_BYTES).fill(L2_PAD_BYTE);
-  out.set(utf8(json));
+  out.set(bytes);
   return out;
 };
 
@@ -176,19 +182,33 @@ export const decodeL2Payload = (bytes: Uint8Array): L2Payload | null => {
 };
 
 /**
+ * TEST SEAM ONLY. A fixed IV lets conformance runners check encrypt-direction known answers.
+ * Production callers never pass it: reusing an IV with the same key breaks AES-GCM.
+ */
+export type EncryptL2TestOptions = Readonly<{ unsafeFixedIvForTests?: Uint8Array }>;
+
+/**
  * Encrypts an L2 payload with AES-256-GCM: a fresh 12-byte random IV, the AAD of
  * `buildAad({ ...context, kid })`, and the 256-byte padded payload. Throws a TypeError for
- * an invalid AAD part or payload.
+ * an invalid AAD part, payload or test IV. `testOptions` is for conformance tests only.
  */
 export const encryptL2 = async (
   l2Key: CryptoKey,
   kid: string,
   context: AadContext,
   payload: L2PayloadInput,
+  testOptions?: EncryptL2TestOptions,
 ): Promise<EncryptedL2> => {
   const additionalData = buildAad({ ...context, kid });
   const plaintext = encodeL2Payload(payload);
-  const iv = globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const fixed = testOptions?.unsafeFixedIvForTests;
+  if (fixed !== undefined && (!(fixed instanceof Uint8Array) || fixed.length !== IV_BYTES)) {
+    throw new TypeError(`An L2 iv is exactly ${IV_BYTES} bytes.`);
+  }
+  const iv =
+    fixed !== undefined
+      ? copyBytes(fixed)
+      : globalThis.crypto.getRandomValues(new Uint8Array(IV_BYTES));
   const sealed = await globalThis.crypto.subtle.encrypt(
     { name: 'AES-GCM', iv, additionalData, tagLength: TAG_BITS },
     l2Key,
@@ -261,8 +281,9 @@ export const decryptL2 = async (
     } catch {
       return { ok: false, reason: 'unverifiable' };
     }
+    // G10: authentic bytes that are not a v1 payload are reported as unverifiable.
     const payload = decodeL2Payload(new Uint8Array(plaintext));
-    return payload === null ? { ok: false, reason: 'malformed' } : { ok: true, payload };
+    return payload === null ? { ok: false, reason: 'unverifiable' } : { ok: true, payload };
   } catch {
     return { ok: false, reason: 'malformed' };
   }

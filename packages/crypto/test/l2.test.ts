@@ -88,38 +88,47 @@ describe('encodeL2Payload', () => {
     }
   });
 
-  it('cuts each name to 100 code points, never splitting an astral character', () => {
-    const repo = '😀'.repeat(120);
-    const decoded = decodeL2Payload(encodeL2Payload({ repo }));
-    expect(decoded).not.toBeNull();
-    const kept = decoded && 'repo' in decoded ? decoded.repo : '';
-    // 100 astral characters need 400 UTF-8 bytes, so the 256-byte budget cuts further.
-    expect([...(kept ?? '')].every((c) => c === '😀')).toBe(true);
-    expect(kept).not.toMatch(/[\ud800-\udfff](?![\udc00-\udfff])/u);
-
+  // G6: per field, the longest prefix of ≤ 100 code points whose JSON-escaped UTF-8 length
+  // (without quotes) is ≤ 113 bytes.
+  it('cuts ASCII names to 100 code points', () => {
     const ascii = decodeL2Payload(
       encodeL2Payload({ repo: 'r'.repeat(150), branch: 'b'.repeat(150) }),
     );
     expect(ascii).toEqual({ v: 1, repo: 'r'.repeat(100), branch: 'b'.repeat(100) });
-
-    const mixed = decodeL2Payload(encodeL2Payload({ repo: `${'a'.repeat(99)}😀tail` }));
-    expect(mixed).toEqual({ v: 1, repo: `${'a'.repeat(99)}😀` });
   });
 
-  it('fits long multi-byte names by trimming the longer field first', () => {
-    const decoded = decodeL2Payload(encodeL2Payload({ repo: 'repo', branch: '😀'.repeat(100) }));
-    expect(decoded).toMatchObject({ v: 1, repo: 'repo' });
-    const branch = decoded && 'branch' in decoded ? (decoded.branch ?? '') : '';
-    expect([...branch].length).toBeGreaterThan(40);
-    expect([...branch].length).toBeLessThan(100);
+  it('cuts multi-byte names at 113 escaped bytes, never splitting an astral character', () => {
+    // 4 bytes each: 28 × 4 = 112 ≤ 113 < 116.
+    expect(decodeL2Payload(encodeL2Payload({ repo: '😀'.repeat(120) }))).toEqual({
+      v: 1,
+      repo: '😀'.repeat(28),
+    });
+    // 2 bytes each: 56 × 2 = 112; both fields are cut on their own.
+    expect(
+      decodeL2Payload(encodeL2Payload({ repo: 'é'.repeat(100), branch: 'é'.repeat(100) })),
+    ).toEqual({ v: 1, repo: 'é'.repeat(56), branch: 'é'.repeat(56) });
+    // 99 + 4 = 103 bytes and 100 code points: the code-point limit cuts "tail".
+    expect(decodeL2Payload(encodeL2Payload({ repo: `${'a'.repeat(99)}😀tail` }))).toEqual({
+      v: 1,
+      repo: `${'a'.repeat(99)}😀`,
+    });
+    // 55 × 2 + 4 = 114 > 113: the astral character is dropped whole.
+    expect(decodeL2Payload(encodeL2Payload({ branch: `${'é'.repeat(55)}😀` }))).toEqual({
+      v: 1,
+      branch: 'é'.repeat(55),
+    });
   });
 
-  it('trims the branch first when both names are equally long', () => {
-    // 2 × 100 two-byte characters; 256 − 29 bytes of JSON frame leave room for 113 of them.
-    const decoded = decodeL2Payload(
-      encodeL2Payload({ repo: 'é'.repeat(100), branch: 'é'.repeat(100) }),
-    );
-    expect(decoded).toEqual({ v: 1, repo: 'é'.repeat(57), branch: 'é'.repeat(56) });
+  it('counts JSON escapes in the 113-byte budget', () => {
+    // '"' escapes to 2 bytes, U+0000 to 6 bytes (\u0000).
+    expect(decodeL2Payload(encodeL2Payload({ repo: '"'.repeat(80) }))).toEqual({
+      v: 1,
+      repo: '"'.repeat(56),
+    });
+    expect(decodeL2Payload(encodeL2Payload({ repo: '\u0000'.repeat(40) }))).toEqual({
+      v: 1,
+      repo: '\u0000'.repeat(18),
+    });
   });
 
   it('NFC-normalises names', () => {
@@ -303,7 +312,7 @@ describe('encryptL2 / decryptL2', () => {
     });
   });
 
-  it('reports "malformed" for an authentic ciphertext whose plaintext is not a v1 payload', async () => {
+  it('reports "unverifiable" for an authentic ciphertext whose plaintext is not a v1 payload (G10)', async () => {
     const { keys, byKid } = await setup();
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const aad = buildAad({ ...context, kid: keys.kid });
@@ -320,7 +329,25 @@ describe('encryptL2 / decryptL2', () => {
         .replace(/\//g, '_')
         .replace(/=+$/, '');
     const forged = { alg: 'A256GCM', kid: keys.kid, iv: b64(iv), ciphertext: b64(sealed) };
-    expect(await decryptL2(byKid, forged, context)).toEqual({ ok: false, reason: 'malformed' });
+    expect(await decryptL2(byKid, forged, context)).toEqual({ ok: false, reason: 'unverifiable' });
+  });
+
+  it('test seam: a fixed IV gives a deterministic ciphertext that still round-trips', async () => {
+    const { keys, byKid } = await setup();
+    const iv = Uint8Array.from({ length: 12 }, (_, i) => i);
+    const seam = { unsafeFixedIvForTests: iv };
+    const a = await encryptL2(keys.l2Key, keys.kid, context, { branch: 'main' }, seam);
+    const b = await encryptL2(keys.l2Key, keys.kid, context, { branch: 'main' }, seam);
+    expect(a).toEqual(b);
+    expect(a.iv).toBe('AAECAwQFBgcICQoL');
+    expect(await decryptL2(byKid, a, context)).toEqual({
+      ok: true,
+      payload: { v: 1, branch: 'main' },
+    });
+    const badIv = { unsafeFixedIvForTests: new Uint8Array(16) };
+    await expect(
+      encryptL2(keys.l2Key, keys.kid, context, { branch: 'main' }, badIv),
+    ).rejects.toThrow(TypeError);
   });
 
   it('refuses to encrypt with an AAD part that contains "|"', async () => {

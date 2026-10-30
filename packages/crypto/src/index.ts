@@ -5,7 +5,6 @@ export {
   AAD_PROTOCOL,
   AAD_SEPARATOR,
   AAD_VERSION,
-  CROCKFORD_ALIASES,
   CROCKFORD_ALPHABET,
   HKDF_HASH,
   HKDF_INFO_KID,
@@ -20,6 +19,7 @@ export {
   L1_HASH_PREFIX,
   L2_ALG,
   L2_NAME_MAX_CODE_POINTS,
+  L2_NAME_MAX_JSON_BYTES,
   L2_PAYLOAD_BYTES,
   L2_PAYLOAD_VERSION,
   NAME_NORMALIZATION,
@@ -49,6 +49,7 @@ export {
   type DecryptL2Failure,
   type DecryptL2Result,
   type EncryptedL2,
+  type EncryptL2TestOptions,
   type L2Payload,
   type L2PayloadInput,
 } from './l2.ts';

@@ -1,6 +1,7 @@
 /**
- * Every byte-level choice of JD-M11 in one place (ADR-0018 §1, §2, §4), so independent
- * known-answer vectors can be reconciled against it. Changing any value here changes the
+ * Every byte-level choice of JD-M11 in one place (ADR-0018 §1, §2, §4 and the binding
+ * byte-level rules G1–G12 recorded in its Changes), so independent known-answer vectors can
+ * be reconciled against it. Changing any value here changes the
  * wire format: it needs a new version label (`JDK2`, `…/v2`) and an ADR update.
  */
 
@@ -8,14 +9,11 @@
 export const SECRET_BYTES = 32;
 
 /**
- * Crockford base32 alphabet (no I, L, O, U). Encoding is MSB-first over the byte string,
- * as RFC 4648 base32 with this alphabet and without `=` padding; a final partial group is
- * padded with zero bits on the right.
+ * G1: Crockford base32 alphabet (no I, L, O, U), RFC 4648 §6 bit order (MSB first, 5-bit
+ * groups), last group zero-padded on the right, no `=`, upper case. Used for the key body,
+ * the checksum and the kid. G2: no Crockford aliases on input — I, L, O and U are refused.
  */
 export const CROCKFORD_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-
-/** Accepted on input only (Crockford decoding rules); never produced. */
-export const CROCKFORD_ALIASES: Readonly<Record<string, string>> = { I: '1', L: '1', O: '0' };
 
 /** Recovery key: `JDK1-` + 52 body chars (the 32 bytes) + 4 checksum chars, in groups of 4. */
 export const RECOVERY_KEY_PREFIX = 'JDK1';
@@ -24,6 +22,8 @@ export const RECOVERY_KEY_BODY_CHARS = 52;
 export const RECOVERY_KEY_CHECKSUM_CHARS = 4;
 export const RECOVERY_KEY_GROUP_CHARS = 4;
 export const RECOVERY_KEY_SEPARATOR = '-';
+/** G2: parsing removes only these characters (U+0020 and `-`), then upper-cases. */
+export const RECOVERY_KEY_IGNORED = /[ -]/g;
 /** Inputs longer than this are refused before any processing. */
 export const RECOVERY_KEY_MAX_INPUT_CHARS = 512;
 
@@ -42,16 +42,18 @@ export const hkdfInfo = (label: string, slug: string): string =>
   `${label}${HKDF_INFO_SLUG_SEPARATOR}${slug}`;
 
 /**
- * kid: HKDF output of 32 bytes, Crockford base32 (MSB-first), first 8 characters (= the
- * first 40 bits). HKDF output is prefix-stable, so an output length of 5 bytes gives the
- * same kid.
+ * G4: kid = Crockford base32 of 5 bytes of HKDF output = 8 characters (40 bits, no pad bits).
+ * HKDF output is prefix-stable, so these are also the first 8 characters of a longer output.
  */
-export const KID_HKDF_BYTES = 32;
+export const KID_HKDF_BYTES = 5;
 export const KID_CHARS = 8;
 
 /** L2 key: 32 bytes of HKDF output, imported as AES-256-GCM. */
 export const L2_KEY_BITS = 256;
-/** L1 keys: 32 bytes of HKDF output each, imported as HMAC-SHA256 keys of 256 bits. */
+/**
+ * G4: L1 keys are exactly 32 bytes of HKDF output each, imported as HMAC-SHA256 keys with an
+ * explicit `length: 256` (WebCrypto's HMAC default is the 64-byte block size).
+ */
 export const L1_KEY_BITS = 256;
 
 /** L1 identifier fields (ADR-0018 §2); each has its own key for domain separation. */
@@ -83,6 +85,12 @@ export const CIPHERTEXT_MAX_CHARS = Math.ceil(((4096 + TAG_BYTES) * 4) / 3);
 export const L2_PAYLOAD_VERSION = 1;
 export const L2_PAYLOAD_BYTES = 256;
 export const L2_NAME_MAX_CODE_POINTS = 100;
+/**
+ * G6: each name is cut to the longest prefix of at most 100 code points whose JSON-escaped
+ * UTF-8 length (without the quotes) is at most 113 bytes: 2 × 113 + 29 bytes of JSON frame
+ * (`{"v":1,"repo":"","branch":""}`) = 255 < 256.
+ */
+export const L2_NAME_MAX_JSON_BYTES = 113;
 export const L2_PAD_BYTE = 0x20;
 
 /**

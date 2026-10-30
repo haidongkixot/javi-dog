@@ -66,13 +66,13 @@ describe('parseRecoveryKey', () => {
     }
   });
 
-  it('ignores case, spaces, line breaks and dashes', async () => {
+  it('ignores case, spaces (U+0020) and dashes', async () => {
     const key = await encodeRecoveryKey(fixed);
     const variants = [
       key.toLowerCase(),
       strip(key),
       key.replace(/-/g, ' '),
-      `  ${key.replace(/-/g, '\n')}  `,
+      `  ${key}  `,
       key.replace(/-/g, '--'),
       strip(key).replace(/(.{7})/g, '$1 - '),
     ];
@@ -81,14 +81,22 @@ describe('parseRecoveryKey', () => {
     }
   });
 
-  it('accepts the Crockford aliases I and L for 1 and O for 0', async () => {
+  it('removes only U+0020 and "-": tabs, line breaks and other spaces are refused (G2)', async () => {
     const key = await encodeRecoveryKey(fixed);
-    const body = strip(key).slice(4);
-    expect(body).toMatch(/[01]/); // the fixed secret has at least one 0 or 1 to alias
-    const aliased = `JDK1${body.replace(/1/g, 'l').replace(/0/g, 'O')}`;
-    expect(await parseRecoveryKey(aliased)).toEqual({ ok: true, secret: fixed });
-    const aliasedI = `JDK1${body.replace(/1/g, 'I').replace(/0/g, 'o')}`;
-    expect(await parseRecoveryKey(aliasedI)).toEqual({ ok: true, secret: fixed });
+    for (const separator of ['\t', '\n', '\r\n', '\u00a0', '\u2003']) {
+      const result = await parseRecoveryKey(key.replace(/-/g, separator));
+      expect(result.ok, JSON.stringify(separator)).toBe(false);
+    }
+  });
+
+  it('refuses the Crockford aliases I, L and O (G2)', async () => {
+    const body = strip(await encodeRecoveryKey(fixed)).slice(4);
+    const at = body.search(/[01]/);
+    expect(at).toBeGreaterThanOrEqual(0); // the fixed secret has a 0 or 1 to alias
+    for (const alias of body[at] === '1' ? ['I', 'i', 'L', 'l'] : ['O', 'o']) {
+      const aliased = `JDK1${body.slice(0, at)}${alias}${body.slice(at + 1)}`;
+      expect(await parseRecoveryKey(aliased)).toMatchObject({ ok: false, reason: 'character' });
+    }
   });
 
   it('detects every single-character substitution in the body and the checksum', async () => {
