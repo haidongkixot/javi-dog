@@ -43,6 +43,19 @@ See ADR-0001 (modular monolith vs. microservices vs. folders) and ADR-0002 (stac
 
 Grouped in the readiness matrix: B1–B5 are needed before Sprint 2; B2 can be done now with confirmation; D1 confirmation needed during Sprint 1.
 
+## Delta — S5f planning (2026-10-30)
+
+- **Scope:** JD-M11 privacy classes L1/L2, end to end (owner choice 2026-10-30). Decisions are in ADR-0018.
+- **Available:**
+  - spec §7 and the validator (JD-M01);
+  - the per-project ceiling `projects.privacy_class` (JD-M04, JD-M05);
+  - `events.encrypted` (JD-M06);
+  - the SDK's caller-set `event_id` (JD-M02);
+  - WebCrypto in Node 22 and in browsers.
+- **Missing:** a producer, key custody, decryption, a UI to change the class, and honest copy. The Integrations page claimed L1/L2 already work.
+- **No migration needed:** `kid` is derived from the key, and the class is an existing column.
+- **Unknown until real runs:** the key paste UX, Windows file modes, real git work trees.
+
 ## Delta — S5d planning (2026-10-30)
 
 - Scope: JD-C03 agent self-report through a local MCP server (`javi mcp`), owner choice 2026-10-30. Decisions in ADR-0017.

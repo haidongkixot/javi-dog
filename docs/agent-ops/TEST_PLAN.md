@@ -334,3 +334,22 @@ Screenshot budget: **0**.
 | `statusReason` only from the `SELF_REPORT` list; pill text "Blocked · missing credentials · reported by agent" with an accessible name, also in the activity feed | Medium | Unit (reader) + component | rendered text | No |
 | Claude Code, Gemini CLI and Codex CLI unchanged for every other tool | High | Existing suites + conformance runners | unchanged assertions | No |
 | Real CLI runs (protocol version, approval prompts, Windows spawn) | — | Runtime (owner) | `javi status`, dashboard | NOT RUN until owner run |
+
+## S5f — Privacy classes L1/L2 (2026-10-30)
+
+Written before the lanes start (ADR-0018). Risk: **HIGH**. This is cryptography, a key in the browser, and claims about what the server cannot read. Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| HKDF derivations, `kid`, L1 HMAC per field, AAD bytes, AES-GCM round trip; recovery-key format and checksum | High | Unit (JD-M11), known-answer vectors written by QA from the ADR | exact hex and base64url outputs | QA vectors |
+| Decryption fails with a wrong key, a wrong `kid`, or a changed `event_id` / `project_ref` / `producer_id` / class in the AAD | High | Unit | throws, mapped to a fixed error | QA vectors |
+| `iv` exactly 12 bytes (16 base64url chars) in spec, validator and ingest | Medium | Unit (JD-M01) + ingest handler | 15 and 17 chars rejected | No |
+| Collector: key from env or hidden prompt only; checksum check; stored at mode 0600; never printed (`status` shows class + `kid`); refused when the server class is lower | High | Process (temp `JAVI_HOME`) | sentinel key absent from stdout, stderr, argv, spool and logs | No |
+| Collector: L1 hashes + L2 payload only on `session.started` and the collector `heartbeat working`, the canary on `installed`, everything else L0; `.git/HEAD` read without spawning git | High | Unit + process | payload → records | QA vectors |
+| Reader returns the newest hashes and the newest `encrypted` with `event_id`/`producer_id`/`kid` as opaque data; no server decryption | Medium | Unit (PGlite) | rows → state | No |
+| Browser: memory by default, IndexedDB only with consent, forget/sign-out clears; label states (set up → checked; missing key; wrong key) | High | Component (jsdom + Node WebCrypto) | rendered text + accessible names | No |
+| Key never reaches the server: sentinel key absent from any server action argument, request body, log line and SSR HTML | High | Component + server-action tests | captured requests and logs | No |
+| Class change by owners/admins only; downgrade warning | Medium | Unit (permissions) + action tests | role matrix | No |
+| End to end: `init --privacy L2` → hook → ingest (PGlite) → reader → decrypt → "checked" | High | Process | final label and fields | No |
+| Integrations copy states opt-in, per project, and what the server still sees | Medium | Component | text | No |
+| Real runs (owner's browser and machine, Windows) | — | Runtime (owner) | labels, fields | NOT RUN until owner run |
