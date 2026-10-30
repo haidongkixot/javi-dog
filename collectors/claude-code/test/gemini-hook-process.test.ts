@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -15,17 +15,27 @@ import { createState } from '../src/index.ts';
 // One run through the real JD-C02 adapters: map, spool, sequence, detached flush. (The earlier
 // stub-mapper run injected a module through `--import`; that loader added ~0.5–1 s of its own
 // and made the bound measure the test harness instead of javi — CI run 40867278461.)
-const CLI = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
+//
+// The bound is measured on the built `javi.mjs`, the file users run. Running `src/cli.ts` makes
+// Node strip the types of every source module on each start: locally 263–311 ms per hook against
+// 124–139 ms for the bundle, and 1695 ms on a loaded CI runner (run 41076014566). That measured
+// the dev entry point, not javi (S5d Guru finding SR-F3).
+let CLI = '';
 const TOKEN = `jd_it_${'H'.repeat(43)}`;
 /** Gemini's default hook timeout is 60 s and javi registers 5 s; the budget here is far lower. */
 const BOUND_MS = 1_500;
 
 let server: Server;
 let home: string;
+let bundleDir = '';
 /** Raw text of every batch the detached flushers delivered. */
 const delivered: string[] = [];
 
 beforeAll(async () => {
+  bundleDir = await mkdtemp(join(tmpdir(), 'javi-gm-bundle-'));
+  const build = fileURLToPath(new URL('../scripts/build.mjs', import.meta.url));
+  execFileSync(process.execPath, [build, '--out', bundleDir], { stdio: 'ignore' });
+  CLI = join(bundleDir, 'javi.mjs');
   server = createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on('data', (c: Buffer) => chunks.push(c));
@@ -46,12 +56,13 @@ beforeAll(async () => {
     endpoint: `http://127.0.0.1:${port}/api/v1/events`,
     token: TOKEN,
   });
-});
+}, 60_000);
 afterAll(async () => {
   // Give the detached flushers a moment to finish before their JAVI_HOME disappears.
   await new Promise((r) => setTimeout(r, 1_000));
   await new Promise((r) => server.close(r));
-  await rm(home, { recursive: true, force: true });
+  await rm(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  if (bundleDir) await rm(bundleDir, { recursive: true, force: true });
 });
 
 const runHook = (stdin: string) =>
@@ -60,6 +71,7 @@ const runHook = (stdin: string) =>
     const child = spawn(
       process.execPath,
       [
+        '--no-warnings',
         CLI,
         'hook',
         '--platform',

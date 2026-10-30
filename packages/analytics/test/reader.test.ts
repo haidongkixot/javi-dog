@@ -538,8 +538,15 @@ describe('workspace isolation', () => {
       b2.projectId,
       'bravo',
       'Bravo',
-      '777',
-      '7.77',
+      // The exact seeded values: a bare '777' also occurs by chance inside a random UUID of
+      // tenant A (CI run 41080177974).
+      '777001',
+      '777002',
+      '777003',
+      '777004',
+      '777006',
+      '1554007',
+      '7.77005',
       bTime.toISOString(),
     ]) {
       expect(json).not.toContain(needle);

@@ -37,6 +37,12 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-10-30 — The Guru checkpoint (`c5132d0`, `ad-hoc-self-report`) found that two red CI runs were never followed up (SR-F1). Diagnosed and fixed in tests only:
+  - **Run 41076014566 (`6fa2f03`):**
+    - `gemini-hook-process.test.ts` timed `src/cli.ts`, where Node strips types on every start: 263–311 ms locally against 124–139 ms for the bundle, and 1695 ms on a loaded runner. The test now times the built `javi.mjs`, the file users run, with the bound unchanged at 1500 ms (SR-F3).
+    - `codex-hook-process.test.ts` cleanup hit `ENOTEMPTY` while a detached flush was still writing; `rm` now retries.
+  - **Run 41080177974 (`08f7b2e`):** the analytics leak-check needle `'777'` matched a random UUID by chance; the test now uses the exact seeded values (SR-F2).
+  - **Scan:** the push scan is now the Guru's fail-closed `secret-scan.sh` (self-test PASS) with the project's token patterns (SR-F4).
 - 2026-10-30 — Code review fixes merged (fix lane): M1–M3 and L1–L4, all red-first. Behaviour change: on a machine without git, `--self-report` needs `--allow-tracked-config` — `0a0c7e9`.
 - 2026-10-30 — T5 runner part 2 and T6 end-to-end merged (runner lane 2):
   - H group 14 of 14 vectors pass at the collector layer;
@@ -56,6 +62,9 @@ Newest first: date — what changed — commit SHA.
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm -s test --force` (main tree, final, `66c2250`) | 0 | — | 2200 | 0 | 0 | 0 | 0 | 15 packages |
+| CI `6fa2f03` / `08f7b2e` | **failure** | — | — | 2 | — | — | — | runs 41076014566 (flaky latency bound and cleanup), 41080177974 (flaky needle) — fixed in tests |
+| CI `66c2250` / `1ec4ca4` | success | — | — | — | — | — | — | runs 41086178358, 41086336891 |
 | `pnpm -s test --force` (main tree after T1, T2, T4 merges, `d9b51eb`) | 0 | — | 1997 | 0 | 0 | 0 | 0 | 15 packages; no "Unhandled" |
 | `pnpm -s build`; migration drift check; `format:check`, `lint`, `typecheck`, `docs:check` | 0 | — | — | — | — | — | — | — |
 | CI `c25cf2d` / `1595b4e` | success | — | — | — | — | — | — | runs 41072581103, 41073502748 |
@@ -97,6 +106,7 @@ Team log, newest first:
   - no vector ends a thread while it is waiting or blocked.
 
   The success text varying per call is allowed by the ADR. The R store is truncated between vectors rather than recreated (45 s versus 5.5 s); accepted.
+- 2026-10-30 — Orchestrator — Process slip (SR-F1): pushes continued after two red CI runs that were never checked. Fixed by checking every tip's CI before the next push, and the causes are recorded in the log above.
 - 2026-10-30 — Orchestrator — Process slip: the gated push of `d9b51eb` chained the secret scan with `;` instead of `&&`. The scan was clean (exit 1), so nothing slipped, and the scan is chained again from the next push.
 - 2026-10-30 — Developer B — Corrected module labels (the reader is JD-M07, the pill is JD-APP). Open: project-level "N waiting for you" now also counts agent-`blocked` threads; the wording is logged as a follow-up (F1), not changed.
 - 2026-10-30 — QA — 50 vectors (M 21, H 14, R 15) from the ADR only, `1f40a78` in the QA worktree. 19 spec gaps; G8 was a design defect: an agent's `working` would have hidden a real permission prompt. All resolved in ADR-0017 (Changes "QA spec gaps"). Developers A and B were told mid-lane, and QA is updating the vectors.

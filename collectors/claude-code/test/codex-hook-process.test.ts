@@ -33,7 +33,9 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   await new Promise((r) => setTimeout(r, 500));
-  await rm(home, { recursive: true, force: true });
+  // A detached `javi flush` from the last hook may still be writing `last-flush/` (its endpoint
+  // is dead and it gives up on its own); retry instead of failing on ENOTEMPTY (CI run 41076014566).
+  await rm(home, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
 });
 
 const runCommand = (stdin: string, extraEnv: NodeJS.ProcessEnv = {}) =>
