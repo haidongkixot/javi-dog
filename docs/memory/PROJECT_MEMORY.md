@@ -117,7 +117,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 1. Owner: revoke the ingest token pasted in chat on 2026-10-29 (project `test-01-project-horizos`) and issue a new one.
 2. Owner: run the real Claude Code, Gemini CLI and Codex CLI sessions (`docs/how-to/run-first-real-sessions.md`, e.g. via a local Claude Code) and paste the "Report back" items → closes release-checklist G6 and the UNVERIFIED runtime rows (session-id match, Gemini/Codex hook behaviour, Windows). Step 6 covers agent self-report (S5d): protocol version, approval prompts, Windows spawn.
 3. Owner: decide the release exceptions in `docs/how-to/release-checklist.md` (G2 cutover deferred; G4/G5 measured on `dev-agent`) and G13 (paid plans / Vercel Hobby terms).
-4. Agent: 2026-10-30 20:20 UTC — verify the first purge run by data (scheduled check) → G9.
+4. Done 2026-10-30: the first purge run was verified by data, so G9 is PASS.
 5. Owner: review the G4 Orcasus PR proposal and the `CLAUDE.md` §2 rule-4 proposal in `guru/WISDOM_LOG.md` (nothing opened).
 6. Owner (optional): approve upgrading dev-only tooling with advisories (`markdownlint-cli2`, `drizzle-kit`; readiness "Dependency advisories").
 7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).

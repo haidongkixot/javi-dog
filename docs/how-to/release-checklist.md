@@ -12,7 +12,7 @@ The release gate (roadmap, end of S5) has four parts: working end-to-end telemet
 | G6 | Real agent session | The owner's real Claude Code session with `javi init --usage`: hooks fire, usage attributed (session-id match, ADR-0011) | SPRINT-03c/03e | NOT RUN (owner) |
 | G7 | Rollback plan | `docs/how-to/roll-back-a-release.md` reviewed; down files exist for every migration | SPRINT-05a R3 | PASS (docs) / real rollback NOT RUN |
 | G8 | Runbooks | `docs/how-to/operate-production.md` | SPRINT-05a R4 | PASS (docs) |
-| G9 | Retention purge active | `env.CRON_SECRET` true on `/api/health`; one cron run returns 200 | SPRINT-03b | NOT RUN (first run unverified; `CRON_SECRET` true on 2026-10-29; data check 2026-10-30 20:20 UTC) |
+| G9 | Retention purge active | `env.CRON_SECRET` true on `/api/health`; one cron run returns 200 | SPRINT-03b | **PASS** (2026-10-30 20:49 UTC: `CRON_SECRET` true; the 20:00 UTC run removed the expired rate windows on `dev-agent`, so the count is 0; the purge is the only code path that deletes them; runtime logs unavailable, Hobby retention) |
 | G10 | Secrets | Exposed `neondb_owner` password and GitHub client secret | Readiness matrix | ACCEPTED RISK (owner, 2026-10-28) |
 | G11 | Second and third collectors | Codex (S5c) and Gemini CLI (S5b) collectors with conformance tests | SPRINT-05b, SPRINT-05c | **PASS** (code level: Gemini 53 and Codex 41 vectors green, mutation-checked; real runs pending, G6) |
 | G12 | CI green on the release commit | GitHub Actions run id on the release commit | Sprint log | NOT RUN (latest green: `76b3a42`, run 40976001842; the release commit will be later) |
