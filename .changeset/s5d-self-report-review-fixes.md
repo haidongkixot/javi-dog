@@ -1,0 +1,5 @@
+---
+'@javis-dog/collector-claude-code': patch
+---
+
+S5d self-report code-review fixes (ADR-0017, JD-C01). M1: a re-run post-tool hook for the same Claude Code or Codex call records nothing the second time (seen-call marker `~/.javi/self-report/seen.json`: hex HMAC keys only, newest 512; `CollectorState.markSelfReportSeen`). M2: `javi uninstall` no longer stops at an unparsable `.mcp.json` javi never registered in; it warns once and removes the hooks. M3: the git-tracked check fails closed (`gitTracking` → `tracked` / `untracked` / `unknown`, injectable `GitRunner` via `Io.git`; `gitTracked` now treats "cannot tell" as tracked). L1: the self-report launcher prints only `MCP_LAUNCHER_MISSING` on stderr when the javi it names is missing, and `javi status` warns about it. L2: a `.mcp.json` javi creates in a git repository goes into `.git/info/exclude`; uninstall takes that line back. L3: `javi status` strips control characters from registration-file values. L4: javi's Codex block goes before the first table header; uninstall and init refuse when bare keys follow javi's block.

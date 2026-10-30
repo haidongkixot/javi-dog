@@ -93,6 +93,7 @@ import {
   checkSelfReport,
   excludeFromGit,
   installMcpLauncher,
+  keysAfterBlockMessage,
   mcpLauncherPath,
   readSelfReport,
   registerSelfReport,
@@ -1408,6 +1409,11 @@ const uninstallSelfReport = async (
     result = await unregisterSelfReport({ platform, projectDir, projectRef, record });
   } catch (e) {
     io.err((e as Error).message);
+    return false;
+  }
+  if (result.outcome === 'changed' && result.keysBelow.length) {
+    io.err(keysAfterBlockMessage(file, result.keysBelow));
+    io.err('Nothing was removed; run javi uninstall again once they are moved.');
     return false;
   }
   if (result.outcome === 'changed') {

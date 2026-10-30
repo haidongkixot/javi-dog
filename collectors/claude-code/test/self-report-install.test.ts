@@ -290,32 +290,45 @@ describe('existing files with the user’s servers and formatting', () => {
     expect(JSON.parse(await read(file))).toEqual(user);
   });
 
-  it('Codex CLI project config.toml: marked block appended, comments kept, exact bytes back', async () => {
+  const codexBlock = () =>
+    [
+      '# >>> javi self-report (do not edit)',
+      '[mcp_servers.javi]',
+      `command = ${JSON.stringify(process.execPath)}`,
+      `args = [${expectedEntry('codex-cli')
+        .args.map((a) => JSON.stringify(a))
+        .join(', ')}]`,
+      '# <<< javi',
+      '',
+    ].join('\n');
+
+  it('Codex CLI project config.toml: marked block before the first table, comments kept, exact bytes back', async () => {
     const file = join(dir, '.codex', 'config.toml');
     await mkdir(join(dir, '.codex'), { recursive: true });
-    const original =
-      '# my project settings\nmodel = "gpt-5.5-codex"   # pinned\n\n[mcp_servers.docs]\ncommand = "npx"\nargs = ["docs-mcp"]\n';
+    const head = '# my project settings\nmodel = "gpt-5.5-codex"   # pinned\n\n';
+    const tail = '[mcp_servers.docs]\ncommand = "npx"\nargs = ["docs-mcp"]\n';
+    const original = head + tail;
     await writeFile(file, original);
     expect((await init('codex-cli', '--self-report')).code).toBe(0);
     const after = await read(file);
-    expect(after.startsWith(original)).toBe(true);
-    expect(after.slice(original.length)).toBe(
-      [
-        '',
-        '# >>> javi self-report (do not edit)',
-        '[mcp_servers.javi]',
-        `command = ${JSON.stringify(process.execPath)}`,
-        `args = [${expectedEntry('codex-cli')
-          .args.map((a) => JSON.stringify(a))
-          .join(', ')}]`,
-        '# <<< javi',
-        '',
-      ].join('\n'),
-    );
-    const parsed = parseToml(after) as { mcp_servers: Record<string, unknown> };
-    expect(Object.keys(parsed.mcp_servers)).toEqual(['docs', 'javi']);
+    // Code review L4: javi's table is followed by the user's table, never by bare keys.
+    expect(after).toBe(head + codexBlock() + tail);
+    const parsed = parseToml(after) as { mcp_servers: Record<string, unknown>; model: string };
+    expect(Object.keys(parsed.mcp_servers).sort()).toEqual(['docs', 'javi']);
+    expect(parsed.model).toBe('gpt-5.5-codex');
     expect((await init('codex-cli', '--self-report')).code).toBe(0);
     expect(await read(file)).toBe(after);
+    expect((await uninstall('codex-cli')).code).toBe(0);
+    expect(await read(file)).toBe(original);
+  });
+
+  it('Codex CLI project config.toml with root keys only: marked block appended, exact bytes back', async () => {
+    const file = join(dir, '.codex', 'config.toml');
+    await mkdir(join(dir, '.codex'), { recursive: true });
+    const original = '# my project settings\nmodel = "gpt-5.5-codex"   # pinned\n';
+    await writeFile(file, original);
+    expect((await init('codex-cli', '--self-report')).code).toBe(0);
+    expect(await read(file)).toBe(`${original}\n${codexBlock()}`);
     expect((await uninstall('codex-cli')).code).toBe(0);
     expect(await read(file)).toBe(original);
   });
@@ -344,6 +357,51 @@ describe('existing files with the user’s servers and formatting', () => {
     expect(result.err).toContain('was edited');
     expect(await read(file)).toBe(edited);
     expect(await read(join(dir, '.codex', 'hooks.json'))).toContain('javi-collector');
+  });
+
+  // Code review L4: in TOML a bare key below javi's block belongs to [mcp_servers.javi].
+  it('Codex CLI: a bare key appended below javi’s block makes uninstall refuse (exit 1, lines named)', async () => {
+    expect((await init('codex-cli', '--self-report')).code).toBe(0);
+    const file = join(dir, '.codex', 'config.toml');
+    const edited = `${await read(file)}\n# mine\nmodel = "o4"\n`;
+    await writeFile(file, edited);
+    const lineOf = edited.split('\n').indexOf('model = "o4"') + 1;
+    const result = await uninstall('codex-cli');
+    expect(result.code).toBe(1);
+    expect(result.err).toContain(file);
+    expect(result.err).toContain(`line ${lineOf}`);
+    expect(result.err).toContain('[mcp_servers.javi]');
+    expect(await read(file)).toBe(edited);
+    expect(await read(join(dir, '.codex', 'hooks.json'))).toContain('javi-collector');
+    // init refuses it too, before writing anything, with the same explanation.
+    const again = await init('codex-cli', '--self-report');
+    expect(again.code).toBe(1);
+    expect(again.err).toContain(`line ${lineOf}`);
+    expect(await read(file)).toBe(edited);
+  });
+
+  it('Codex CLI: javi’s block goes before the first table, so a key appended at the end stays the user’s', async () => {
+    const file = join(dir, '.codex', 'config.toml');
+    await mkdir(join(dir, '.codex'), { recursive: true });
+    const original = 'model = "o4"\n\n# profile for CI\n[profiles.ci]\nmodel = "o3"\n';
+    await writeFile(file, original);
+    expect((await init('codex-cli', '--self-report')).code).toBe(0);
+    const after = await read(file);
+    expect(after.startsWith('model = "o4"\n\n# >>> javi self-report (do not edit)\n')).toBe(true);
+    expect(after.endsWith('# <<< javi\n# profile for CI\n[profiles.ci]\nmodel = "o3"\n')).toBe(
+      true,
+    );
+    // The user appends a key at the end of the file: it joins their own table, not javi's.
+    const appended = `${after}approval_policy = "never"\n`;
+    await writeFile(file, appended);
+    const parsed = parseToml(appended) as {
+      profiles: { ci: Record<string, unknown> };
+      mcp_servers: { javi: Record<string, unknown> };
+    };
+    expect(parsed.profiles.ci).toEqual({ model: 'o3', approval_policy: 'never' });
+    expect(parsed.mcp_servers.javi).toEqual(expectedEntry('codex-cli'));
+    expect((await uninstall('codex-cli')).code).toBe(0);
+    expect(await read(file)).toBe(`${original}approval_policy = "never"\n`);
   });
 });
 

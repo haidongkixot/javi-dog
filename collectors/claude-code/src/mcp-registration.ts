@@ -357,6 +357,63 @@ const findCodexBlock = (text: string): { from: number; to: number } | null => {
   return null;
 };
 
+/**
+ * 1-based numbers of the lines after javi's block that TOML reads as keys of
+ * `[mcp_servers.javi]` (code review L4): every line up to the next table header that is not
+ * blank and not a comment. javi's block ends with complete values, so this is exact.
+ */
+export const keysAfterCodexBlock = (text: string, found: { to: number }): number[] => {
+  const first = text.slice(0, found.to).split('\n').length;
+  const lines: number[] = [];
+  const rest = text.slice(found.to).split('\n');
+  for (const [i, line] of rest.entries()) {
+    if (/^[ \t]*\[/.test(line)) break;
+    if (!/^[ \t]*(?:#.*)?\r?$/.test(line)) lines.push(first + i);
+  }
+  return lines;
+};
+
+const lineList = (lines: number[]) =>
+  `line${lines.length === 1 ? '' : 's'} ${lines.slice(0, 5).join(', ')}${lines.length > 5 ? ', …' : ''}`;
+
+/** The message for keys below javi's block (uninstall and init). */
+export const keysAfterBlockMessage = (file: string, lines: number[]) =>
+  `${file} has keys below javi's self-report block (${lineList(lines)}): TOML reads them as part of [mcp_servers.javi], so javi left the file as it is. Move them above javi's block (or under their own table), then run javi again.`;
+
+/**
+ * `text` (without a javi block) with javi's `block` added (code review L4). In TOML, keys below
+ * a table belong to it, so the block goes before the first table header that follows the root
+ * keys (and before the comment lines directly above that header): what follows javi's table is
+ * then a table of the user's, and a key the user later appends at the end of the file joins
+ * their own last table, never javi's. A position counts only when the file parses exactly as
+ * before plus javi's table (a `[` inside a multi-line string or array is not a header). With
+ * no table at all, or no such position, the block is appended (as before); a key appended below
+ * it later is then caught by `keysAfterCodexBlock` at uninstall and init. `separator` is what
+ * javi put before the block.
+ */
+const placeCodexBlock = (text: string, block: string): { next: string; separator: string } => {
+  const original = tryToml(text);
+  const javi = codexJaviTable(tryToml(block));
+  if (original && javi !== undefined && text !== '') {
+    const servers = isPlainObject(original.mcp_servers) ? original.mcp_servers : {};
+    const expected = { ...original, mcp_servers: { ...servers, javi } };
+    const lines = text.split('\n');
+    const starts: number[] = [];
+    for (let i = 0, at = 0; i < lines.length; at += lines[i]!.length + 1, i++) starts.push(at);
+    for (const [i, line] of lines.entries()) {
+      if (!/^[ \t]*\[/.test(line)) continue;
+      let top = i;
+      while (top > 0 && /^[ \t]*#/.test(lines[top - 1]!)) top--;
+      for (const at of new Set([starts[top]!, starts[i]!])) {
+        const next = text.slice(0, at) + block + text.slice(at);
+        if (jsonEqual(tryToml(next), expected)) return { next, separator: '' };
+      }
+    }
+  }
+  const separator = text === '' ? '' : text.endsWith('\n') ? '\n' : '\n\n';
+  return { next: `${text}${separator}${block}`, separator };
+};
+
 const codexJaviTable = (parsed: JsonObject | null): unknown => {
   const servers = parsed && Object.hasOwn(parsed, 'mcp_servers') ? parsed.mcp_servers : undefined;
   return isPlainObject(servers) && Object.hasOwn(servers, 'javi') ? servers.javi : undefined;
@@ -507,6 +564,10 @@ export const checkSelfReport = async (opts: {
     const loaded = await loadText(file);
     if (loaded) {
       const found = findCodexBlock(loaded.text);
+      const below = found ? keysAfterCodexBlock(loaded.text, found) : [];
+      if (below.length) {
+        return refusal(`${command} refused: ${keysAfterBlockMessage(file, below)} ${NOTHING}`);
+      }
       const user = found
         ? loaded.text.slice(0, found.from) + loaded.text.slice(found.to)
         : loaded.text;
@@ -521,10 +582,10 @@ export const checkSelfReport = async (opts: {
           `${command} refused: ${file} already has an MCP server named javi that javi did not write. ${NOTHING} Rename or remove it, then re-run.`,
         );
       }
-      // The block javi would append must parse as javi's table (an inline `mcp_servers = {…}`
+      // The block javi would add must parse as javi's table (an inline `mcp_servers = {…}`
       // cannot be extended by a `[mcp_servers.javi]` header).
       const probe = { command: 'node', args: ['--no-warnings', `/${MCP_LAUNCHER_NAME}`] };
-      const next = `${user}${user === '' ? '' : '\n\n'}${codexMcpBlock(probe)}`;
+      const { next } = placeCodexBlock(user, codexMcpBlock(probe));
       if (!jsonEqual(codexJaviTable(tryToml(next)), probe)) {
         return refusal(
           `${command} refused: ${file} cannot take a [mcp_servers.javi] table (is mcp_servers an inline table?). ${NOTHING}`,
@@ -605,8 +666,7 @@ export const registerSelfReport = async (opts: {
       created = previous?.created ?? false;
       separator = previous?.separator ?? '';
     } else {
-      separator = text === '' ? '' : text.endsWith('\n') ? '\n' : '\n\n';
-      next = `${text}${separator}${block}`;
+      ({ next, separator } = placeCodexBlock(text, block));
       created = loaded === null;
     }
     const check = tryToml(next);
@@ -736,9 +796,12 @@ export interface UnregisterResult {
   /**
    * `removed`: javi's entry is gone, everything else kept; `deleted`: javi had created the file
    * and nothing else was left, so the file is gone; `absent`: no entry of javi's for this
-   * project; `changed` (Codex): javi's block was edited, so the file was left as it is.
+   * project; `changed` (Codex): javi's block was edited, or keys below it belong to javi's
+   * table (`keysBelow`), so the file was left as it is.
    */
   outcome: 'removed' | 'deleted' | 'absent' | 'changed';
+  /** Codex, `changed`: 1-based lines below javi's block that TOML reads as javi's keys (L4). */
+  keysBelow: number[];
   /** Claude Code allow entries removed. */
   allowRemoved: string[];
   /**
@@ -764,13 +827,19 @@ export const unregisterSelfReport = async (opts: {
   const file = registrationPath(platform, projectDir);
   let outcome: UnregisterResult['outcome'] = 'absent';
   let unreadable = false;
+  let keysBelow: number[] = [];
   if (platform === 'codex-cli') {
     const loaded = await loadText(file);
     const found = loaded ? findCodexBlock(loaded.text) : null;
     if (loaded && found) {
       const table = codexJaviTable(tryToml(loaded.text.slice(found.from, found.to)));
       if (!isJaviEntry(table)) outcome = 'changed';
-      else if (entryProject(table) === projectRef) {
+      else if (entryProject(table) !== projectRef) {
+        // Another project's registration: not touched, so nothing to check.
+      } else if ((keysBelow = keysAfterCodexBlock(loaded.text, found)).length) {
+        // Removing the block would hand these keys to the table above it (code review L4).
+        outcome = 'changed';
+      } else {
         const { text } = loaded;
         const separator = record?.separator ?? '';
         const from =
@@ -829,7 +898,7 @@ export const unregisterSelfReport = async (opts: {
       }
     }
   }
-  return { file, outcome, allowRemoved, unreadable };
+  return { file, outcome, allowRemoved, unreadable, keysBelow };
 };
 
 export interface SelfReportStatus {
