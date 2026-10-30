@@ -69,7 +69,7 @@ function Metrics({
       <MetricCard
         label="Need your attention"
         value={show(attention.length)}
-        meta={meta(attention, 'No thread is waiting for you')}
+        meta={meta(attention, 'No thread needs you')}
         icon={<Icon name="alert" />}
         iconClassName="bg-danger-bg text-danger"
       />
@@ -128,7 +128,7 @@ function ThreadTable({
     <div className="mt-4 overflow-x-auto">
       <table className="w-full border-collapse text-left whitespace-nowrap">
         <caption className="sr-only">
-          Threads with a signal in the last {s.windowHours} h, threads waiting for you first
+          Threads with a signal in the last {s.windowHours} h, threads that need you first
         </caption>
         <thead>
           <tr>

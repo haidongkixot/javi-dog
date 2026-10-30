@@ -21,14 +21,18 @@
 - Parallel lanes only when their paths do not overlap; only one lane per wave may add a migration.
 - Lanes work in isolated worktrees and never push; the orchestrator merges.
 - Every delegated prompt names the readiness facts it relies on; a lane that finds an assumption false stops and reports.
+- Reviewer and QA probes that run `javi` or any client point it at a dead local endpoint (`--endpoint http://127.0.0.1:9/x`), never at production (S5d code review disclosure).
+- Module IDs in ADRs, commits and prompts are copied from the package's `module.json`, not from memory (S5d: the ADR first named JD-M12/JD-M13 for JD-M07/JD-APP).
+- Lockfile edits come from one hand: lanes list the importer lines they need; the orchestrator applies them and checks with `pnpm install --frozen-lockfile` (local `pnpm install` rewrites unrelated `better-auth` peer strings).
 
 ## Merge checklist (orchestrator, in the main tree)
 
 1. Diff touches only the declared paths.
 2. Lockfile adds no external package without owner approval.
 3. Re-run `pnpm format:check`, `lint`, `typecheck`, `test`, `build`, the migration drift check and `docs:check`; record exit codes and counts.
-4. Secret scan of the diff (`jd_it_[A-Za-z0-9_-]{43}`, `postgres(ql)?://…@`, `npg_`).
+4. Secret scan of the pushed range with `pnpm secrets:scan origin/<branch>..HEAD` (`scripts/secret-scan.sh`: exit 0 clean, 1 match, 2 could not scan; only 0 lets the push go on). Its defaults cover `jd_it_…`, `npg_…`, `re_…`, connection strings with passwords and common key shapes (S5d Guru SR-F4).
 5. Changeset + README for contract changes; `module.json`, `planned.json`, registry consistent.
 6. Reviewer findings closed or logged.
 7. Readiness matrix and test evidence updated.
-8. `git merge --no-ff` (or apply), one `pnpm install`, one push.
+8. `git merge --no-ff` (or apply), one `pnpm install`, one push. Chain every gate step with `&&`; a step that cannot run is a failure, never a pass.
+9. Before the next push, read CI on the previous pushed tip; a red run is diagnosed and recorded in the sprint log before anything else is pushed (S5d Guru SR-F1, G4-F2).

@@ -114,7 +114,7 @@ export function ProjectsTable({
                         <span className="inline-flex items-center gap-2">
                           {h.attentionThreads > 0 ? (
                             <StatusPill tone="danger">
-                              {h.attentionThreads} waiting for you
+                              {h.attentionThreads} {h.attentionThreads === 1 ? 'needs' : 'need'} you
                             </StatusPill>
                           ) : null}
                           {h.freshThreads} fresh

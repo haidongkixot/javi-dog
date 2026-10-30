@@ -14,6 +14,7 @@ import {
   installHooks,
   main,
   type CollectorState,
+  type GitRunner,
   type Io,
   type SystemProxyProbe,
 } from '../src/index.ts';
@@ -80,6 +81,7 @@ const io = (
     stdin?: string;
     cwd?: string;
     systemProxy?: SystemProxyProbe;
+    git?: GitRunner;
   } = {},
 ) => {
   const out: string[] = [];
@@ -99,6 +101,7 @@ const io = (
     spawnFlush: () => {},
     spawnReceiver: () => {},
     ...(opts.systemProxy && { systemProxy: opts.systemProxy }),
+    ...(opts.git && { git: opts.git }),
   };
   return { value, out, err };
 };
@@ -160,6 +163,21 @@ describe('javi init --platform codex-cli', () => {
     expect(r.err.join('\n')).toContain(`launcher path ${join(spaced, 'bin', 'javi-hook')}`);
     expect(await exists(codexHooksPath(project))).toBe(false);
     expect(await createState(spaced).credentials('web-app')).toBeNull();
+  });
+
+  it('warns when git cannot say whether hooks.json is tracked (S5e F3)', async () => {
+    const r = await init({
+      git: () => ({
+        status: 128,
+        stdout: '',
+        stderr: 'fatal: detected dubious ownership',
+        signal: null,
+      }),
+    });
+    expect(r.code).toBe(0);
+    const text = r.out.join('\n');
+    expect(text).toContain('javi could not check whether git tracks .codex/hooks.json');
+    expect(text).not.toMatch(/hooks\.json is tracked by git/);
   });
 
   it('warns about a git-tracked hooks.json, a project [hooks] table and shell startup output', async () => {

@@ -278,7 +278,7 @@ function Squad({ snapshot: s, notCurrent }: { snapshot: DashboardSnapshot; notCu
         Agents appear when a coding tool sends its first heartbeat.
       </EmptyState>
     );
-  // Fresh threads plus any thread waiting for you, even if it went quiet (ADR-0012), never an
+  // Fresh threads plus any thread that needs you, even if it went quiet (ADR-0012), never an
   // ended one.
   const squad = s.threads
     .filter((t) => t.freshness === 'fresh' || t.needsAttention)
@@ -394,7 +394,7 @@ export function OverviewView({
           <CardHead
             id="squad-title"
             title="Agent squad"
-            subtitle="Threads waiting for you first, then fresh threads"
+            subtitle="Threads that need you first, then fresh threads"
           />
           {s ? (
             <Squad snapshot={s} notCurrent={notCurrent} />

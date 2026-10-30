@@ -184,6 +184,7 @@ export {
   codexHooksInstalled,
   codexHooksPath,
   codexHooksTracked,
+  codexHooksTracking,
   codexJaviGroups,
   codexLauncherPaths,
   codexLauncherScripts,

@@ -324,7 +324,7 @@ describe('ended threads never need attention', () => {
 
   it('Live agents: not counted, not sorted first, labelled "Ended" instead of "Waiting for you"', () => {
     render(<AgentsView snapshot={ended} inspector={null} />);
-    expect(card('Need your attention').textContent).toContain('No thread is waiting for you');
+    expect(card('Need your attention').textContent).toContain('No thread needs you');
     const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
     expect(rows[0]!.textContent).toContain('Alpha app');
     expect(rows[1]!.textContent).toContain('Gamma tool');
@@ -484,7 +484,8 @@ describe('Projects table', () => {
     expect(alpha!.textContent).toContain('Fresh');
     expect(alpha!.querySelector('time')!.getAttribute('dateTime')).toBe(ago(12));
     expect(beta!.textContent).toContain('Stale');
-    expect(beta!.textContent).toContain('1 waiting for you');
+    // Waiting or agent-reported blocked threads both need a human (ADR-0017 §6, S5e F1).
+    expect(beta!.textContent).toContain('1 needs you');
     expect(gamma!.textContent).toContain('No signal yet');
     expect(gamma!.querySelector('time')).toBeNull();
   });

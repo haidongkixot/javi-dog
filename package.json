@@ -1,7 +1,7 @@
 {
   "name": "javis-dog",
   "private": true,
-  "description": "Javi's Dog — Every agent. One clear signal.",
+  "description": "Javi's Dog \u2014 Every agent. One clear signal.",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22.18"
@@ -19,6 +19,7 @@
     "docs:links": "node scripts/check-links.mjs",
     "docs:drift": "node scripts/doc-drift.mjs",
     "docs:check": "pnpm docs:lint && pnpm docs:links && node scripts/modules-registry.mjs --check && pnpm --filter @javis-dog/ui tokens:check && pnpm docs:drift",
+    "secrets:scan": "bash scripts/secret-scan.sh",
     "changeset": "changeset"
   },
   "devDependencies": {

@@ -8,6 +8,7 @@ import {
   codexHookGroup,
   codexHooksPath,
   codexHooksTracked,
+  codexHooksTracking,
   codexJaviGroups,
   codexLauncherPaths,
   codexLauncherScripts,
@@ -319,6 +320,35 @@ describe('.codex/hooks.json (C1, M3)', () => {
     await writeFile(path(), `${JSON.stringify(file, null, 2)}\n`);
     expect(await uninstallCodexHooks(project, mine.origin)).toMatchObject({ deleted: false });
     expect(await read()).toEqual({ x: 1 });
+  });
+});
+
+describe('tracked check fails closed (S5e F3, like code review M3)', () => {
+  const fail =
+    (status: number | null, stderr = '', code?: string) =>
+    () => ({
+      status,
+      stdout: '',
+      stderr,
+      ...(code && { error: Object.assign(new Error(code), { code }) }),
+      signal: null,
+    });
+
+  it('answers unknown, never untracked, when git cannot tell', () => {
+    expect(codexHooksTracking(project, fail(null, '', 'ENOENT'))).toBe('unknown');
+    expect(codexHooksTracking(project, fail(128, 'fatal: detected dubious ownership'))).toBe(
+      'unknown',
+    );
+    expect(codexHooksTracking(project, fail(128, 'fatal: not a git repository'))).toBe('untracked');
+  });
+
+  it('uses real git when none is injected', async () => {
+    expect(codexHooksTracking(project)).toBe('untracked');
+    execFileSync('git', ['init', '-q', project]);
+    await installCodexHooks(project, LAUNCHERS, 'web-app');
+    expect(codexHooksTracking(project)).toBe('untracked');
+    execFileSync('git', ['-C', project, 'add', '.codex/hooks.json']);
+    expect(codexHooksTracking(project)).toBe('tracked');
   });
 });
 

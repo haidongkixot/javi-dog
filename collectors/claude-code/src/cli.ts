@@ -61,7 +61,7 @@ import {
 import {
   codexHooksInstalled,
   codexHooksPath,
-  codexHooksTracked,
+  codexHooksTracking,
   codexJaviGroups,
   codexProjectConfigHasHooks,
   installCodexHooks,
@@ -1105,9 +1105,14 @@ const initCodexHooks = async (
     'Until the first event arrives, javi status --platform codex-cli says "waiting for approval in Codex".',
   );
   io.out('Codex waits at most 3 s for SessionEnd hooks, so the end of a session is best effort.');
-  if (codexHooksTracked(projectDir)) {
+  const hooksTracking = codexHooksTracking(projectDir, io.git);
+  if (hooksTracking === 'tracked') {
     io.out(
       'Warning: .codex/hooks.json is tracked by git. It now holds the launcher path on this machine (with your user name); commit it only if you mean to.',
+    );
+  } else if (hooksTracking === 'unknown') {
+    io.out(
+      'Warning: javi could not check whether git tracks .codex/hooks.json (git is missing, failed or did not answer in time). It now holds the launcher path on this machine (with your user name); do not commit it unless you mean to.',
     );
   }
   if (await codexProjectConfigHasHooks(projectDir)) {

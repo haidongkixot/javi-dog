@@ -1,9 +1,10 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { chmod, mkdir, readFile, rm, stat } from 'node:fs/promises';
 import { join, win32 } from 'node:path';
 import { CODEX_HOOK_EVENTS } from '@javis-dog/collector-adapters';
 import { parse as parseToml } from 'smol-toml';
 import { writeTarget } from './claude-env.ts';
+import { gitTracking, runGit, type GitRunner, type GitTracking } from './git.ts';
 import { isPlainObject } from './gemini-settings.ts';
 import { jsonEqual } from './gemini-telemetry.ts';
 import { HOOK_MARKER } from './settings.ts';
@@ -590,20 +591,16 @@ export const codexHooksInstalled = async (projectDir: string, projectRef?: strin
 // --- Warnings at init (H5, Low) ---
 
 /** True when git tracks the project's `.codex/hooks.json` (it holds the launcher path). */
-export const codexHooksTracked = (projectDir: string) => {
-  try {
-    execFileSync(
-      'git',
-      ['-C', projectDir, 'ls-files', '--error-unmatch', '--', '.codex/hooks.json'],
-      {
-        stdio: 'ignore',
-      },
-    );
-    return true;
-  } catch {
-    return false;
-  }
-};
+/**
+ * Does git track the project's `.codex/hooks.json`? `unknown` when git cannot tell (missing,
+ * failed, dubious ownership): never read as "untracked" (S5e F3, like S5d code review M3).
+ */
+export const codexHooksTracking = (projectDir: string, git: GitRunner = runGit): GitTracking =>
+  gitTracking(projectDir, codexHooksPath(projectDir), git);
+
+/** True unless git says `.codex/hooks.json` is untracked (fails closed). */
+export const codexHooksTracked = (projectDir: string, git: GitRunner = runGit) =>
+  codexHooksTracking(projectDir, git) !== 'untracked';
 
 /** True when the project's `.codex/config.toml` has a `[hooks]` table (Codex then warns). */
 export const codexProjectConfigHasHooks = async (projectDir: string) => {
