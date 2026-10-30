@@ -10,7 +10,7 @@ import {
 } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { findSentinel } from './privacy-sentinel';
+import { SENTINEL_SECRET, findSentinel } from './privacy-sentinel';
 
 // ADR-0018 §7–§9 on the pages (TEST_PLAN §S5f): the project page's privacy card per role and
 // class, its server-rendered HTML (no key material, the M6 field attributes), the clearing paths
@@ -56,8 +56,29 @@ vi.mock('@/lib/privacy/browser', async (orig) => ({
   ...(await orig<typeof import('@/lib/privacy/browser')>()),
   forgetKeysOnSignOut,
 }));
+// Review L7: the real server action, wrapped so every argument it receives is captured.
+const actionSpy = vi.hoisted(() => ({ calls: [] as unknown[][] }));
+vi.mock('@/app/projects/actions', async (orig) => {
+  const real = await orig<typeof import('@/app/projects/actions')>();
+  return {
+    ...real,
+    changePrivacyClassAction: (...args: unknown[]) => {
+      actionSpy.calls.push(args);
+      return (real.changePrivacyClassAction as (...a: unknown[]) => unknown)(...args);
+    },
+  };
+});
+// Review L7: the browser's CSPRNG returns the sentinel, so the generated key is the sentinel.
+// (The sentinel binding is read when the function runs, never while the mock is built: the
+// sentinel module itself imports `@javis-dog/crypto`.)
+vi.mock('@javis-dog/crypto', async (orig) => {
+  const real = await orig<typeof import('@javis-dog/crypto')>();
+  return { ...real, generateProjectSecret: () => SENTINEL_SECRET.slice() };
+});
 
 const { default: ProjectPage } = await import('@/app/projects/[id]/page');
+const { changePrivacyClassAction } = await import('@/app/projects/actions');
+const { encodeRecoveryKey } = await import('@javis-dog/crypto');
 const { default: IntegrationsPage } = await import('@/app/integrations/page');
 const { AccountMenu } = await import('@/components/account-menu');
 const { useDashboardSnapshot } = await import('@/components/dashboard/use-dashboard-snapshot');
@@ -164,6 +185,65 @@ describe('project page — privacy card', () => {
     expect(field).toContain('spellcheck="false"');
     expect(field).toContain('autocapitalize="off"');
     expect(field).not.toMatch(/\sname=/);
+  });
+});
+
+describe('review L7 — a typed sentinel key never reaches the server', () => {
+  afterEach(() => {
+    actionSpy.calls.splice(0);
+    state.privacyClass = 'L2';
+  });
+
+  it('setup and key entry on the real page: action arguments, server writes, requests and the next server HTML stay clean', async () => {
+    state.privacyClass = 'L0';
+    projects.setPrivacyClass.mockImplementation(async (_ws: string, id: string, cls: string) => {
+      state.privacyClass = cls;
+      return { id, privacyClass: cls };
+    });
+    const requests: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: unknown, init?: RequestInit) => {
+        requests.push(`${String(input)} ${typeof init?.body === 'string' ? init.body : ''}`);
+        return new Promise(() => {});
+      }),
+    );
+
+    // 1. Key setup: generate (the sentinel), hide, paste it back, the real server action runs.
+    const first = render(await page());
+    fireEvent.click(within(card()).getByRole('button', { name: 'Generate recovery key' }));
+    const key = (await within(card()).findByText(/^JDK1-/)).textContent ?? '';
+    expect(key).toBe(await encodeRecoveryKey(SENTINEL_SECRET));
+    expect(findSentinel(key)).not.toEqual([]);
+    fireEvent.click(within(card()).getByRole('button', { name: 'I saved it, hide the key' }));
+    (within(card()).getByLabelText('Recovery key') as HTMLInputElement).value = key;
+    fireEvent.click(within(card()).getByRole('button', { name: 'Check key and turn on L2' }));
+    await within(card()).findByText('L2 is on for this project.', { exact: false });
+    first.unmount();
+
+    // 2. Key entry on the now-L2 page: the sentinel typed into the reading field.
+    const second = render(await page());
+    (within(card()).getByLabelText('Recovery key') as HTMLInputElement).value = key;
+    fireEvent.click(within(card()).getByRole('button', { name: 'Use key' }));
+    await within(card()).findByText(/loaded in this tab/);
+    second.unmount();
+
+    // 3. What the server saw, and what it renders next.
+    const serverHtml = renderToString(await page());
+    expect({
+      actionArgs: findSentinel(JSON.stringify(actionSpy.calls)),
+      serverWrites: findSentinel(JSON.stringify(projects.setPrivacyClass.mock.calls)),
+      requests: requests.flatMap(findSentinel),
+      serverHtml: findSentinel(serverHtml),
+    }).toEqual({ actionArgs: [], serverWrites: [], requests: [], serverHtml: [] });
+    expect(actionSpy.calls).toEqual([[PROJECT, 'L2']]);
+    expect(projects.setPrivacyClass).toHaveBeenCalledExactlyOnceWith(WS, PROJECT, 'L2');
+  });
+
+  it('positive control: a key passed to the server action is caught by the capture', async () => {
+    const key = await encodeRecoveryKey(SENTINEL_SECRET);
+    await (changePrivacyClassAction as (...a: unknown[]) => Promise<unknown>)(PROJECT, 'L2', key);
+    expect(findSentinel(JSON.stringify(actionSpy.calls))).not.toEqual([]);
   });
 });
 
