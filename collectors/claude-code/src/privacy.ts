@@ -244,7 +244,10 @@ export const readKeyFile = async (path: string): Promise<KeyFileResult> => {
 };
 
 export type HiddenPromptResult =
-  { ok: true; text: string } | { ok: false; reason: 'no-terminal' | 'cancelled' };
+  | { ok: true; text: string }
+  | { ok: false; reason: 'no-terminal' | 'cancelled' }
+  /** Refused inside a coding agent; `marker` is the variable's name, never its value. */
+  | { ok: false; reason: 'agent'; marker: string };
 
 /** Reads one hidden line from the terminal itself; injectable in `Io` for tests. */
 export type HiddenPrompt = (prompt: string) => Promise<HiddenPromptResult>;
@@ -253,18 +256,87 @@ export type HiddenPrompt = (prompt: string) => Promise<HiddenPromptResult>;
 const PROMPT_MAX_CHARS = 1024;
 
 /**
- * Hidden prompt on the controlling terminal (`/dev/tty`; `CONIN$`/`CONOUT$` on Windows), not on
- * stdin, so a token piped on stdin does not conflict. Raw mode, no echo; Enter ends, Backspace
- * deletes, Ctrl-C or Ctrl-D cancels. `no-terminal` when there is no terminal to open.
+ * Environment variables a coding agent sets for the commands it runs (security review M3, S5f).
+ * javi never asks for the recovery key while one of them is present, whatever its value: the
+ * prompt would sit in the agent's terminal, and a key typed there could reach its transcript.
+ *
+ * - `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`: Claude Code's Bash tool environment (seen set at
+ *   runtime in a Claude Code session, 2026-10-30).
+ * - `CODEX_THREAD_ID`, `CODEX_SESSION_ID`: openai/codex `codex-rs/protocol/src/shell_environment.rs`
+ *   (`CODEX_THREAD_ID_ENV_VAR`, inserted by `populate_env`; `CODEX_SESSION_ID_ENV_VAR`, inserted
+ *   by `core/src/exec_env.rs` `inject_session_env`).
+ * - `CODEX_SANDBOX`, `CODEX_SANDBOX_NETWORK_DISABLED`: openai/codex `codex-rs/core/src/spawn.rs`
+ *   (`CODEX_SANDBOX_ENV_VAR`, `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR`).
+ * - `GEMINI_CLI`: google-gemini/gemini-cli `packages/core/src/services/shellExecutionService.ts`
+ *   (`GEMINI_CLI_IDENTIFICATION_ENV_VAR = 'GEMINI_CLI'`, value `'1'`, in every shell command's
+ *   environment).
+ *
+ * Upstream sources read on `main` on 2026-10-30. A `CODEX_*` prefix is not used: users set
+ * `CODEX_HOME` in their own shell.
  */
-export const promptHiddenFromTerminal: HiddenPrompt = (prompt) =>
+export const AGENT_ENV_MARKERS = [
+  'CLAUDECODE',
+  'CLAUDE_CODE_ENTRYPOINT',
+  'CODEX_THREAD_ID',
+  'CODEX_SESSION_ID',
+  'CODEX_SANDBOX',
+  'CODEX_SANDBOX_NETWORK_DISABLED',
+  'GEMINI_CLI',
+] as const;
+
+export type TerminalRefusal = { reason: 'agent'; marker: string } | { reason: 'no-terminal' };
+
+/**
+ * Why the hidden prompt must not run here, or null: an agent marker in `env` (checked first),
+ * or stdin, stdout or stderr not a terminal (a pipe, a file, an agent's captured output).
+ */
+export const terminalRefusal = (
+  env: NodeJS.ProcessEnv,
+  isTty: (fd: number) => boolean = isatty,
+): TerminalRefusal | null => {
+  const marker = AGENT_ENV_MARKERS.find((name) => env[name] !== undefined);
+  if (marker) return { reason: 'agent', marker };
+  return [0, 1, 2].every((fd) => isTty(fd)) ? null : { reason: 'no-terminal' };
+};
+
+export interface HiddenPromptOptions {
+  /** Defaults to `process.env`. */
+  env?: NodeJS.ProcessEnv;
+  /** Defaults to `tty.isatty`. */
+  isTty?: (fd: number) => boolean;
+  /** Tests only: what opening the terminal does (it must not happen after a refusal). */
+  openTerminal?: () => { inFd: number; outFd: number };
+}
+
+const SIGNALS_THAT_CANCEL = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const;
+
+/**
+ * Hidden prompt on the controlling terminal (`/dev/tty`; `CONIN$`/`CONOUT$` on Windows). Raw
+ * mode, no echo; Enter ends, Backspace deletes, Ctrl-C or Ctrl-D cancels. Refused before the
+ * terminal is opened (`agent`, `no-terminal`) inside a coding agent or when stdin, stdout or
+ * stderr is not a terminal (security review M3). While it waits, SIGINT, SIGTERM and SIGHUP
+ * cancel it, and the terminal mode is restored on every way out, process exit included.
+ */
+export const promptHiddenFromTerminal = (
+  prompt: string,
+  options: HiddenPromptOptions = {},
+): Promise<HiddenPromptResult> =>
   new Promise((resolvePrompt) => {
+    const refusal = terminalRefusal(options.env ?? process.env, options.isTty);
+    if (refusal) {
+      resolvePrompt({ ok: false, ...refusal });
+      return;
+    }
     const windows = process.platform === 'win32';
     let inFd: number | undefined;
     let outFd: number | undefined;
     try {
-      inFd = openSync(windows ? 'CONIN$' : '/dev/tty', windows ? 'r+' : 'r');
-      outFd = openSync(windows ? 'CONOUT$' : '/dev/tty', windows ? 'r+' : 'w');
+      if (options.openTerminal) {
+        ({ inFd, outFd } = options.openTerminal());
+      } else {
+        inFd = openSync(windows ? 'CONIN$' : '/dev/tty', windows ? 'r+' : 'r');
+        outFd = openSync(windows ? 'CONOUT$' : '/dev/tty', windows ? 'r+' : 'w');
+      }
       if (!isatty(inFd)) throw new Error('not a terminal');
     } catch {
       for (const fd of [inFd, outFd]) {
@@ -283,15 +355,21 @@ export const promptHiddenFromTerminal: HiddenPrompt = (prompt) =>
     const output = new WriteStream(outFd);
     let text = '';
     let done = false;
-    const finish = (result: HiddenPromptResult) => {
-      if (done) return;
-      done = true;
-      input.removeListener('data', onData);
+    const restoreMode = () => {
       try {
         input.setRawMode(false);
       } catch {
         // the terminal is gone
       }
+    };
+    const onSignal = () => finish({ ok: false, reason: 'cancelled' });
+    const finish = (result: HiddenPromptResult) => {
+      if (done) return;
+      done = true;
+      input.removeListener('data', onData);
+      process.removeListener('exit', restoreMode);
+      for (const signal of SIGNALS_THAT_CANCEL) process.removeListener(signal, onSignal);
+      restoreMode();
       output.write('\n', () => {
         input.destroy();
         output.destroy();
@@ -314,8 +392,13 @@ export const promptHiddenFromTerminal: HiddenPrompt = (prompt) =>
       resolvePrompt({ ok: false, reason: 'no-terminal' });
       return;
     }
+    // From here on raw mode is set: every way out restores it. `exit` covers process.exit and
+    // an uncaught exception; the signals would otherwise end the process in raw mode.
+    process.on('exit', restoreMode);
+    for (const signal of SIGNALS_THAT_CANCEL) process.on(signal, onSignal);
     input.setEncoding('utf8');
     input.on('data', onData);
     input.on('error', () => finish({ ok: false, reason: 'no-terminal' }));
+    input.on('end', () => finish({ ok: false, reason: 'cancelled' }));
     output.write(prompt);
   });

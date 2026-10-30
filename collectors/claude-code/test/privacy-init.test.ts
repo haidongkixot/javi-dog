@@ -363,6 +363,22 @@ describe('javi init --privacy refusals (nothing written)', () => {
     await nothingWritten(d);
   });
 
+  it('a prompt refused inside a coding agent: exit 2, points to --privacy-key-file (review M3)', async () => {
+    const d = await dirs();
+    const t = io(d, 'shop-two', {
+      promptHidden: async () => ({ ok: false, reason: 'agent', marker: 'CLAUDECODE' }),
+    });
+    expect(await main(init('shop-two', ['--privacy', 'L2']), t.value)).toBe(2);
+    const err = t.err.join('\n');
+    expect(err).toContain('javi runs inside a coding agent here (CLAUDECODE is set)');
+    expect(err).toContain(
+      'Run javi init --privacy yourself in a terminal; never paste the key into an agent.',
+    );
+    expect(err).toContain('--privacy-key-file <path>');
+    expect(err).not.toContain('JAVI_PRIVACY_KEY');
+    await nothingWritten(d);
+  });
+
   it.runIf(process.platform !== 'win32')(
     'a FIFO, a directory or an oversized key file is refused without hanging',
     async () => {

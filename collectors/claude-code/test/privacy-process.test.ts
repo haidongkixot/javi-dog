@@ -285,8 +285,16 @@ describe('children never inherit the key', () => {
   });
 });
 
-/** Runs `command` inside a pseudo-terminal (util-linux `script`), typing `input` after `waitFor`. */
-const inPty = (command: string, env: NodeJS.ProcessEnv, waitFor: string, input: string) =>
+/**
+ * Runs `command` inside a pseudo-terminal (util-linux `script`). Once `waitFor` shows up, types
+ * `input` (a string) or calls it with the transcript so far (a function, e.g. to send a signal).
+ */
+const inPty = (
+  command: string,
+  env: NodeJS.ProcessEnv,
+  waitFor: string,
+  input: string | ((transcript: string) => void),
+) =>
   new Promise<{ code: number | null; transcript: string }>((resolve) => {
     const child = spawn('script', ['-qec', command, '/dev/null'], { env, cwd: root });
     let transcript = '';
@@ -296,7 +304,10 @@ const inPty = (command: string, env: NodeJS.ProcessEnv, waitFor: string, input: 
       if (!typed && transcript.includes(waitFor)) {
         typed = true;
         // Typed only once the prompt (and raw mode) is up, as a person would.
-        setTimeout(() => child.stdin.write(input), 100);
+        setTimeout(
+          () => (typeof input === 'string' ? child.stdin.write(input) : input(transcript)),
+          100,
+        );
       }
     });
     child.stderr.on('data', (d) => (transcript += d));
@@ -341,3 +352,143 @@ describe.runIf(hasScript)('hidden prompt on /dev/tty (util-linux script as the t
     expect(credentials['shop-two'].privacy).toEqual({ class: 'L2', key: fixture.key });
   });
 });
+
+const shellQuote = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
+const initCommand = (projectDir: string) =>
+  [
+    shellQuote(process.execPath),
+    shellQuote(CLI),
+    'init',
+    '--project',
+    'shop-two',
+    '--endpoint',
+    shellQuote(endpoint),
+    '--privacy',
+    'L2',
+    '--dir',
+    shellQuote(projectDir),
+  ].join(' ');
+
+/** The terminal flags `stty -a` printed after javi exited (in the same pseudo-terminal). */
+const sttyFlags = (transcript: string) => {
+  const line = transcript.split(/\r?\n/).find((l) => l.startsWith('STTY:')) ?? '';
+  return new Set(
+    line
+      .slice('STTY:'.length)
+      .split(/[\s;]+/)
+      .filter(Boolean),
+  );
+};
+
+/**
+ * javi in the pseudo-terminal through a wrapper that prints javi's pid (the inner `sh` execs
+ * into node), then `stty -a` of the same terminal after javi exited, then javi's exit code.
+ */
+const wrapped = async (projectDir: string) => {
+  const wrapper = join(root, 'wrapper.sh');
+  await writeFile(
+    wrapper,
+    [
+      '#!/bin/sh',
+      `sh -c 'echo "JAVIPID=$$"; exec "$@"' javi "$@"`,
+      'code=$?',
+      'printf "STTY:%s\\n" "$(stty -a | tr "\\n" " ")"',
+      'echo "JAVIEXIT=$code"',
+      '',
+    ].join('\n'),
+  );
+  return `sh ${shellQuote(wrapper)} ${initCommand(projectDir)}`;
+};
+
+const javiExit = (transcript: string) => Number(/JAVIEXIT=(\d+)/.exec(transcript)?.[1] ?? NaN);
+const javiPid = (transcript: string) => Number(/JAVIPID=(\d+)/.exec(transcript)?.[1] ?? NaN);
+const RUN_IT_YOURSELF =
+  'Run javi init --privacy yourself in a terminal; never paste the key into an agent.';
+
+describe.runIf(hasScript)(
+  'hidden prompt refusals and terminal restore (security review M3)',
+  () => {
+    it.each([
+      ['CLAUDECODE', '1'],
+      ['CLAUDE_CODE_ENTRYPOINT', 'cli'],
+      ['CODEX_THREAD_ID', '019a0000-0000-7000-8000-000000000000'],
+      ['CODEX_SESSION_ID', '019a0000-0000-7000-8000-000000000000'],
+      ['CODEX_SANDBOX', 'seatbelt'],
+      ['CODEX_SANDBOX_NETWORK_DISABLED', '1'],
+      ['GEMINI_CLI', '1'],
+    ])(
+      'inside a coding agent (%s=%s): no prompt, exit 2, nothing written',
+      async (marker, value) => {
+        const d = await dirs();
+        const { code, transcript } = await inPty(
+          initCommand(d.projectDir),
+          { ...baseEnv(d.home), TERM: 'dumb', [marker]: value },
+          '(input hidden): ',
+          `${fixture.key}\r`,
+        );
+        expect(transcript).not.toContain('(input hidden)');
+        expect(code, transcript).toBe(2);
+        expect(transcript).toContain(`(${marker} is set)`);
+        expect(transcript).toContain('--privacy-key-file');
+        expect(transcript).toContain(RUN_IT_YOURSELF);
+        expect(await filesUnder(d.home)).toEqual([]);
+        expect(leaks(transcript, fixture.sentinels)).toEqual([]);
+      },
+    );
+
+    it.each([
+      ['stdin', '< /dev/null'],
+      ['stdout', '> /dev/null'],
+      ['stderr', '2> /dev/null'],
+    ])('%s not a terminal (%s): no prompt, exit 2, nothing written', async (name, redirect) => {
+      const d = await dirs();
+      const { code, transcript } = await inPty(
+        `${initCommand(d.projectDir)} ${redirect}`,
+        { ...baseEnv(d.home), TERM: 'dumb' },
+        '(input hidden): ',
+        `${fixture.key}\r`,
+      );
+      expect(transcript).not.toContain('(input hidden)');
+      expect(code, transcript).toBe(2);
+      if (name !== 'stderr') {
+        expect(transcript).toContain('No terminal to read the recovery key from');
+        expect(transcript).toContain('--privacy-key-file');
+        expect(transcript).toContain(RUN_IT_YOURSELF);
+      }
+      expect(await filesUnder(d.home)).toEqual([]);
+    });
+
+    it('Ctrl-C typed at the prompt: cancelled, exit 1, echo and line mode restored', async () => {
+      const d = await dirs();
+      const { transcript } = await inPty(
+        await wrapped(d.projectDir),
+        { ...baseEnv(d.home), TERM: 'dumb' },
+        '(input hidden): ',
+        'JDK1-\u0003',
+      );
+      expect(javiExit(transcript), transcript).toBe(1);
+      expect(transcript).toMatch(/Cancelled\. Nothing was saved/);
+      const flags = sttyFlags(transcript);
+      expect(flags.has('echo') && flags.has('icanon'), transcript).toBe(true);
+      expect(await filesUnder(d.home)).toEqual([]);
+    });
+
+    it.each(['SIGINT', 'SIGTERM', 'SIGHUP'] as const)(
+      '%s while the prompt waits: cancelled, exit 1, echo and line mode restored',
+      async (signal) => {
+        const d = await dirs();
+        const { transcript } = await inPty(
+          await wrapped(d.projectDir),
+          { ...baseEnv(d.home), TERM: 'dumb' },
+          '(input hidden): ',
+          (sofar) => process.kill(javiPid(sofar), signal),
+        );
+        expect(javiExit(transcript), transcript).toBe(1);
+        expect(transcript).toMatch(/Cancelled\. Nothing was saved/);
+        const flags = sttyFlags(transcript);
+        expect(flags.has('echo') && flags.has('icanon'), transcript).toBe(true);
+        expect(await filesUnder(d.home)).toEqual([]);
+      },
+    );
+  },
+);

@@ -1595,10 +1595,18 @@ const readPrivacyRequest = async (
       ? await io.promptHidden(`Recovery key for ${projectRef} (input hidden): `)
       : ({ ok: false, reason: 'no-terminal' } as const);
     if (!answer.ok) {
+      // Security review M3: inside an agent or without a terminal, point to the key file only
+      // (an agent would put JAVI_PRIVACY_KEY in its own command, hence its transcript).
+      const runItYourself =
+        'Run javi init --privacy yourself in a terminal; never paste the key into an agent.';
+      const keyFile =
+        'Or save the key in a file only you can read and give its path with --privacy-key-file <path>.';
       io.err(
         answer.reason === 'cancelled'
           ? `Cancelled. ${NOTHING_SAVED}`
-          : 'No terminal to read the recovery key from. Run javi init --privacy yourself in a terminal, or give the key with --privacy-key-file <path> or JAVI_PRIVACY_KEY.',
+          : answer.reason === 'agent'
+            ? `javi runs inside a coding agent here (${answer.marker} is set), so it does not ask for the recovery key. ${runItYourself} ${keyFile}`
+            : `No terminal to read the recovery key from (stdin, stdout and stderr must all be a terminal). ${runItYourself} ${keyFile}`,
       );
       return answer.reason === 'cancelled' ? 1 : 2;
     }

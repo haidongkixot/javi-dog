@@ -1,0 +1,5 @@
+---
+'@javis-dog/collector-claude-code': patch
+---
+
+S5f security review fixes in `javi` (JD-C01, ADR-0018 §6, review M3). The hidden recovery-key prompt of `javi init --privacy L1|L2` refuses, before it opens the terminal, when javi runs inside a coding agent (`CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`, `CODEX_THREAD_ID`, `CODEX_SESSION_ID`, `CODEX_SANDBOX`, `CODEX_SANDBOX_NETWORK_DISABLED` or `GEMINI_CLI` set) or when stdin, stdout or stderr is not a terminal; the refusal (exit 2, nothing saved) points to `--privacy-key-file`. SIGINT, SIGTERM and SIGHUP cancel a waiting prompt (exit 1), and the terminal mode is restored on every way out. New exports: `AGENT_ENV_MARKERS`, `terminalRefusal`, types `HiddenPromptOptions`, `TerminalRefusal`; `HiddenPromptResult` adds the reason `agent` (with the variable's name); `promptHiddenFromTerminal` takes optional `HiddenPromptOptions`.
