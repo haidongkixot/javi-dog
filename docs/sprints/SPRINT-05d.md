@@ -69,6 +69,21 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-30 — Reviewer — Code review of `2d4dcc2..08f7b2e`:
+  - **Result:** 0 High, 3 Medium, 5 Low. All Mediums were reproduced against a built bundle.
+  - **Medium:**
+    - M1: a re-fired hook is not deduplicated, because the event id's time part is the wall clock.
+    - M2: `uninstall` is blocked by a user's unparsable `.mcp.json`, even without self-report.
+    - M3: the git-tracked refusal fails open on git errors.
+  - **Low:**
+    - L1: launcher stack trace on stderr;
+    - L2: a javi-created `.mcp.json` is not git-excluded;
+    - L3: `javi status` prints repo-controlled control characters;
+    - L4: keys appended after javi's Codex block;
+    - L5: cosmetic line endings and quoting.
+  - **Fix lane:** M1–M3 and L1–L4, red-first. L5 is accepted (no data loss; the round trip is byte-exact).
+  - **Closed UNVERIFIED point:** Codex tool hooks carry `agent_id` only for thread-spawned sub-agents (`codex-rs/core/src/hook_runtime.rs:1144`, `hooks/src/schema.rs:72-84`). So the sub-agent rule does not drop root Codex reports.
+  - **Disclosure:** one reviewer `init` without `--endpoint` sent a single request with a fake token to production. It got `401`; nothing was written. Later runs used a dead local endpoint.
 - 2026-10-30 — Runner — Coverage gaps from surviving mutations, for QA follow-up (F2):
   - a client response object is not covered by any vector;
   - `report_task` has no case for missing or non-object `arguments` (M18);
