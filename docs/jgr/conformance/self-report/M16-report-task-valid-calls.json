@@ -1,0 +1,456 @@
+{
+  "$schema": "./schema.json",
+  "id": "M16",
+  "kind": "mcp",
+  "description": "Every phase and every kind of report_task answers a non-error result whose text makes no delivery claim.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 2 report_task vocabulary, Honest answer; rule Y3",
+  "ambiguities": ["Y3"],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "report_task {\"phase\":\"started\",\"kind\":\"plan\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "started",
+            "kind": "plan"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"completed\",\"kind\":\"research\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "completed",
+            "kind": "research"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"failed\",\"kind\":\"implement\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "failed",
+            "kind": "implement"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"started\",\"kind\":\"test\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "started",
+            "kind": "test"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"completed\",\"kind\":\"debug\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 15,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "completed",
+            "kind": "debug"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 15,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"failed\",\"kind\":\"review\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 16,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "failed",
+            "kind": "review"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 16,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"started\",\"kind\":\"docs\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 17,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "started",
+            "kind": "docs"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 17,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"completed\",\"kind\":\"build\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 18,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "completed",
+            "kind": "build"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 18,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"failed\",\"kind\":\"deploy\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 19,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "failed",
+            "kind": "deploy"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 19,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_task {\"phase\":\"started\",\"kind\":\"other\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 20,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "started",
+            "kind": "other"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 20,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized", "tools/call"],
+  "absentStrings": []
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "./schema.json",
+  "id": "M05",
+  "kind": "mcp",
+  "description": "initialize with 2026-07-28 (the current, stateless MCP spec) is not in the known list and answers 2025-11-25.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Handshake (known list is 2025-11-25, 2025-06-18, 2025-03-26; \"any other gets 2025-11-25\"); Research table (current spec 2026-07-28)",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize 2026-07-28 → 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2026-07-28",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized"],
+  "absentStrings": []
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "./schema.json",
+  "id": "R05",
+  "kind": "reader",
+  "description": "A collector session.ended clears the agent status.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"session.*\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent waiting",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_input",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_input",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "session.ended clears",
+      "event": {
+        "type": "session.ended",
+        "status": "completed",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "completed",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "$schema": "./schema.json",
+  "id": "R12",
+  "kind": "reader",
+  "description": "The reader orders by received_at, then sequence, not by insertion order: with equal received_at the higher sequence wins; an earlier received_at loses even with a higher sequence.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Ordering (\"received_at, then sequence, then row id\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector working, seq 21, received T+1",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 21
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent blocked inserted later but seq 20 at the same received_at: ordered before the collector working, so cleared",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.other",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 20
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent blocked, seq 22, received T+3",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.missing_access",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 22
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_access",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector working with higher seq 23 but earlier received_at T+2: ordered before the agent report",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 23
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_access",
+        "needsAttention": true
+      }
+    }
+  ]
+}

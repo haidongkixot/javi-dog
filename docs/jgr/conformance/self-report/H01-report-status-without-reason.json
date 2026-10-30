@@ -1,0 +1,707 @@
+{
+  "$schema": "./schema.json",
+  "id": "H01",
+  "kind": "hook",
+  "description": "report_status without a reason maps, on all three platforms, to exactly one heartbeat with that status, attributes.tool_name = the tool name as the agent saw it, no error_code, in the session's thread; event_id is a ULID whose time part is the hook clock.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Match, Only one record per hook call, Mapping, Thread, sequence and ids",
+  "ambiguities": [],
+  "clock": "2026-10-30T10:00:00Z",
+  "identityGroup": null,
+  "steps": [
+    {
+      "platform": "claude-code",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cc-sess-h01",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H01_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S1/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "SessionStart",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cc-sess-h01",
+          "agent": null,
+          "status": null,
+          "attributes": null,
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"working\"}",
+      "stdin": {
+        "session_id": "cc-sess-h01",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H01_S2/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S2/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "working"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S2",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S2 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h01",
+          "agent": null,
+          "status": "working",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc1"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"blocked\"}",
+      "stdin": {
+        "session_id": "cc-sess-h01",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H01_S3/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S3/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S3",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S3 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h01",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc2"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"completed\"}",
+      "stdin": {
+        "session_id": "cc-sess-h01",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H01_S4/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S4/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "completed"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S4",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S4 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h01",
+          "agent": null,
+          "status": "completed",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc3"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"idle\"}",
+      "stdin": {
+        "session_id": "cc-sess-h01",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H01_S5/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S5/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "idle"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S5",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S5 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h01",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc4"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cx-sess-h01",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H01_S6.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S6/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h01",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "codex-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"working\"}",
+      "stdin": {
+        "session_id": "cx-sess-h01",
+        "turn_id": "SENTINEL_TURN_H01_S7",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H01_S7.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S7/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "working"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S7",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S7 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h01",
+          "agent": null,
+          "status": "working",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx5"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"blocked\"}",
+      "stdin": {
+        "session_id": "cx-sess-h01",
+        "turn_id": "SENTINEL_TURN_H01_S8",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H01_S8.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S8/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S8",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S8 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h01",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx6"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"completed\"}",
+      "stdin": {
+        "session_id": "cx-sess-h01",
+        "turn_id": "SENTINEL_TURN_H01_S9",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H01_S9.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S9/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "completed"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S9",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S9 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h01",
+          "agent": null,
+          "status": "completed",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx7"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PostToolUse mcp__javi__report_status {\"status\":\"idle\"}",
+      "stdin": {
+        "session_id": "cx-sess-h01",
+        "turn_id": "SENTINEL_TURN_H01_S10",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H01_S10.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S10/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "idle"
+        },
+        "tool_use_id": "SENTINEL_CALL_H01_S10",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S10 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h01",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx8"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "gm-sess-h01",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H01_S11/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S11/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h01",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "AfterTool mcp_javi_report_status {\"status\":\"working\"}",
+      "stdin": {
+        "session_id": "gm-sess-h01",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H01_S12/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S12/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "working"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S12 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S12"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H01_S12/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H01_S12/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H01_S12/web-app",
+          "url": "https://SENTINEL_MCPURL_H01_S12.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H01_S12"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h01",
+          "agent": null,
+          "status": "working",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "AfterTool mcp_javi_report_status {\"status\":\"blocked\"}",
+      "stdin": {
+        "session_id": "gm-sess-h01",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H01_S13/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S13/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S13 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S13"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H01_S13/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H01_S13/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H01_S13/web-app",
+          "url": "https://SENTINEL_MCPURL_H01_S13.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H01_S13"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h01",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "AfterTool mcp_javi_report_status {\"status\":\"completed\"}",
+      "stdin": {
+        "session_id": "gm-sess-h01",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H01_S14/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S14/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "completed"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S14 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S14"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H01_S14/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H01_S14/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H01_S14/web-app",
+          "url": "https://SENTINEL_MCPURL_H01_S14.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H01_S14"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h01",
+          "agent": null,
+          "status": "completed",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "AfterTool mcp_javi_report_status {\"status\":\"idle\"}",
+      "stdin": {
+        "session_id": "gm-sess-h01",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H01_S15/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H01_S15/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "idle"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H01_S15 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S15"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H01_S15/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H01_S15/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H01_S15/web-app",
+          "url": "https://SENTINEL_MCPURL_H01_S15.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H01_S15"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h01",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CALL_H01_S10",
+    "SENTINEL_CALL_H01_S2",
+    "SENTINEL_CALL_H01_S3",
+    "SENTINEL_CALL_H01_S4",
+    "SENTINEL_CALL_H01_S5",
+    "SENTINEL_CALL_H01_S7",
+    "SENTINEL_CALL_H01_S8",
+    "SENTINEL_CALL_H01_S9",
+    "SENTINEL_CWD_H01_S1",
+    "SENTINEL_CWD_H01_S10",
+    "SENTINEL_CWD_H01_S11",
+    "SENTINEL_CWD_H01_S12",
+    "SENTINEL_CWD_H01_S13",
+    "SENTINEL_CWD_H01_S14",
+    "SENTINEL_CWD_H01_S15",
+    "SENTINEL_CWD_H01_S2",
+    "SENTINEL_CWD_H01_S3",
+    "SENTINEL_CWD_H01_S4",
+    "SENTINEL_CWD_H01_S5",
+    "SENTINEL_CWD_H01_S6",
+    "SENTINEL_CWD_H01_S7",
+    "SENTINEL_CWD_H01_S8",
+    "SENTINEL_CWD_H01_S9",
+    "SENTINEL_MCPARGS_H01_S12",
+    "SENTINEL_MCPARGS_H01_S13",
+    "SENTINEL_MCPARGS_H01_S14",
+    "SENTINEL_MCPARGS_H01_S15",
+    "SENTINEL_MCPCMD_H01_S12",
+    "SENTINEL_MCPCMD_H01_S13",
+    "SENTINEL_MCPCMD_H01_S14",
+    "SENTINEL_MCPCMD_H01_S15",
+    "SENTINEL_MCPCWD_H01_S12",
+    "SENTINEL_MCPCWD_H01_S13",
+    "SENTINEL_MCPCWD_H01_S14",
+    "SENTINEL_MCPCWD_H01_S15",
+    "SENTINEL_MCPURL_H01_S12",
+    "SENTINEL_MCPURL_H01_S13",
+    "SENTINEL_MCPURL_H01_S14",
+    "SENTINEL_MCPURL_H01_S15",
+    "SENTINEL_ORIGINAL_REQUEST_H01_S12",
+    "SENTINEL_ORIGINAL_REQUEST_H01_S13",
+    "SENTINEL_ORIGINAL_REQUEST_H01_S14",
+    "SENTINEL_ORIGINAL_REQUEST_H01_S15",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S12",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S13",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S14",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H01_S15",
+    "SENTINEL_TOOLRESPONSE_H01_S10",
+    "SENTINEL_TOOLRESPONSE_H01_S12",
+    "SENTINEL_TOOLRESPONSE_H01_S13",
+    "SENTINEL_TOOLRESPONSE_H01_S14",
+    "SENTINEL_TOOLRESPONSE_H01_S15",
+    "SENTINEL_TOOLRESPONSE_H01_S2",
+    "SENTINEL_TOOLRESPONSE_H01_S3",
+    "SENTINEL_TOOLRESPONSE_H01_S4",
+    "SENTINEL_TOOLRESPONSE_H01_S5",
+    "SENTINEL_TOOLRESPONSE_H01_S7",
+    "SENTINEL_TOOLRESPONSE_H01_S8",
+    "SENTINEL_TOOLRESPONSE_H01_S9",
+    "SENTINEL_TRANSCRIPT_H01_S1",
+    "SENTINEL_TRANSCRIPT_H01_S10",
+    "SENTINEL_TRANSCRIPT_H01_S11",
+    "SENTINEL_TRANSCRIPT_H01_S12",
+    "SENTINEL_TRANSCRIPT_H01_S13",
+    "SENTINEL_TRANSCRIPT_H01_S14",
+    "SENTINEL_TRANSCRIPT_H01_S15",
+    "SENTINEL_TRANSCRIPT_H01_S2",
+    "SENTINEL_TRANSCRIPT_H01_S3",
+    "SENTINEL_TRANSCRIPT_H01_S4",
+    "SENTINEL_TRANSCRIPT_H01_S5",
+    "SENTINEL_TRANSCRIPT_H01_S6",
+    "SENTINEL_TRANSCRIPT_H01_S7",
+    "SENTINEL_TRANSCRIPT_H01_S8",
+    "SENTINEL_TRANSCRIPT_H01_S9",
+    "SENTINEL_TURN_H01_S10",
+    "SENTINEL_TURN_H01_S7",
+    "SENTINEL_TURN_H01_S8",
+    "SENTINEL_TURN_H01_S9"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "./schema.json",
+  "id": "R04",
+  "kind": "reader",
+  "description": "A collector session.started (for example a resume) clears the agent status.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"session.*\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent blocked",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.missing_access",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_access",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "session.started clears",
+      "event": {
+        "type": "session.started",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

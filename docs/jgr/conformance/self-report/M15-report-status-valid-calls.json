@@ -1,0 +1,840 @@
+{
+  "$schema": "./schema.json",
+  "id": "M15",
+  "kind": "mcp",
+  "description": "Every valid report_status input (each status without reason; each reason with blocked; waiting and failed with reasons) answers a non-error result whose single text item makes no delivery claim.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 2 report_status vocabulary, Honest answer (hooks installed: noted, never claims delivery); rule Y3 (no-delivery-claim words)",
+  "ambiguities": ["Y3"],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "report_status {\"status\":\"working\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "working"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"waiting\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "waiting"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"idle\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "idle"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"completed\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 15,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "completed"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 15,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"failed\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 16,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "failed"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 16,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"needs_input\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 17,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "needs_input"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 17,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"needs_approval\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 18,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "needs_approval"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 18,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"missing_credentials\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 19,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "missing_credentials"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 19,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"missing_access\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 20,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "missing_access"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 20,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"tests_failing\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 21,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "tests_failing"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 21,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"ci_failing\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 22,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "ci_failing"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 22,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"rate_limited\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "rate_limited"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 23,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"dependency_down\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 24,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "dependency_down"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 24,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"conflicting_requirements\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "conflicting_requirements"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 25,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"blocked\",\"reason\":\"other\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "other"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 26,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"waiting\",\"reason\":\"needs_input\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "waiting",
+            "reason": "needs_input"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 27,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"waiting\",\"reason\":\"needs_approval\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "waiting",
+            "reason": "needs_approval"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 28,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"failed\",\"reason\":\"tests_failing\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 29,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "failed",
+            "reason": "tests_failing"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 29,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "report_status {\"status\":\"failed\",\"reason\":\"ci_failing\"}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 30,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "failed",
+            "reason": "ci_failing"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 30,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized", "tools/call"],
+  "absentStrings": []
+}

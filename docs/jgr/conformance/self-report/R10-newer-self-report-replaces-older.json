@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema.json",
+  "id": "R10",
+  "kind": "reader",
+  "description": "A newer self-report replaces the older one, including its reason and attention.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Agent status (\"the latest self-reported status in a thread\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent blocked",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.missing_credentials",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_credentials",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "agent working: reason gone, no attention",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent completed",
+      "event": {
+        "type": "heartbeat",
+        "status": "completed",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "completed",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "collector idle does not clear",
+      "event": {
+        "type": "heartbeat",
+        "status": "idle",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "completed",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent waiting",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_approval",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_approval",
+        "needsAttention": true
+      }
+    }
+  ]
+}

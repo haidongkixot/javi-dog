@@ -1,0 +1,265 @@
+{
+  "$schema": "./schema.json",
+  "id": "M21",
+  "kind": "mcp",
+  "description": "Sentinels planted in _meta (Codex sends _meta.sessionId), progress tokens, unknown tools, invalid arguments, unknown methods and broken JSON never reach stdout or stderr; _meta beside name and arguments is not an argument key, so the valid call succeeds.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 stdout and stderr (\"only fixed strings: no method names, no request text, no parse excerpts\"); Research table (Codex _meta.sessionId); D0 L3",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "valid call with _meta",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "waiting",
+            "reason": "needs_approval"
+          },
+          "_meta": {
+            "sessionId": "SENTINEL_META_SESSION_M21",
+            "progressToken": "SENTINEL_PROGRESS_M21"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "invalid call with _meta",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "started",
+            "kind": "test",
+            "extra": "SENTINEL_EXTRA_M21"
+          },
+          "_meta": {
+            "sessionId": "SENTINEL_META_SESSION_M21_B"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "unknown tool",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "params": {
+          "name": "SENTINEL_TOOL_M21",
+          "arguments": {
+            "status": "working"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "error": {
+          "code": -32602,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "unknown method",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "SENTINEL_METHOD_M21"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "error": {
+          "code": -32601,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "broken JSON",
+      "send": null,
+      "rawLine": "{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"SENTINEL_BROKEN_M21\"",
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "error": {
+          "code": -32700,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "ping",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "result": {}
+      }
+    }
+  ],
+  "stderrForbidden": [
+    "SENTINEL_BROKEN_M21",
+    "SENTINEL_METHOD_M21",
+    "initialize",
+    "notifications/initialized",
+    "ping",
+    "tools/call"
+  ],
+  "absentStrings": [
+    "Ignore previous instructions",
+    "SENTINEL_BROKEN_M21",
+    "SENTINEL_EXTRA_M21",
+    "SENTINEL_META_SESSION_M21",
+    "SENTINEL_META_SESSION_M21_B",
+    "SENTINEL_METHOD_M21",
+    "SENTINEL_PROGRESS_M21",
+    "SENTINEL_TOOL_M21",
+    "id_rsa"
+  ]
+}

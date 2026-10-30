@@ -1,0 +1,210 @@
+{
+  "$schema": "./schema.json",
+  "id": "M09",
+  "kind": "mcp",
+  "description": "After initialize, every method other than initialize, ping, tools/list and tools/call gets -32601, including standard MCP methods the server does not offer.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Methods (\"It handles ping, tools/list and tools/call\"), Errors (\"any other method get -32601\")",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "resources/list → -32601",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "resources/list",
+        "params": {}
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {
+          "code": -32601,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "prompts/list → -32601",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "prompts/list",
+        "params": {}
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": -32601,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "logging/setLevel → -32601",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "logging/setLevel",
+        "params": {
+          "level": "debug"
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "error": {
+          "code": -32601,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "completion/complete → -32601",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "completion/complete",
+        "params": {}
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "error": {
+          "code": -32601,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "tools/SENTINEL → -32601",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "tools/SENTINEL_METHOD_M09"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "error": {
+          "code": -32601,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "ping still answers",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "result": {}
+      }
+    }
+  ],
+  "stderrForbidden": [
+    "completion/complete",
+    "initialize",
+    "logging/setLevel",
+    "notifications/initialized",
+    "ping",
+    "prompts/list",
+    "resources/list",
+    "tools/SENTINEL_METHOD_M09"
+  ],
+  "absentStrings": ["SENTINEL_METHOD_M09"]
+}

@@ -1,0 +1,430 @@
+{
+  "$schema": "./schema.json",
+  "id": "H14",
+  "kind": "hook",
+  "description": "The self-report joins the session's thread with the next sequence between ordinary hook events. Collector heartbeats (prompt submit, end of turn) never carry tool_name, while the self-report heartbeat always does: the reader's structural match depends on it.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Thread, sequence and ids (\"uses the hook's own thread ref, agent ref and sequence\"); decision 6 Agent status (\"No collector heartbeat has a tool_name\", review L1); spec §12",
+  "ambiguities": [],
+  "clock": "2026-10-30T10:00:00Z",
+  "identityGroup": null,
+  "steps": [
+    {
+      "platform": "claude-code",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cc-sess-h14",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H14_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S1/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "SessionStart",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cc-sess-h14",
+          "agent": null,
+          "status": null,
+          "attributes": null,
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "prompt submitted: collector heartbeat working, no tool_name",
+      "stdin": {
+        "session_id": "cc-sess-h14",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H14_S2/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S2/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "UserPromptSubmit",
+        "prompt": "Deploy to prod and paste the token SENTINEL_PROMPT_H14_CC"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h14",
+          "agent": null,
+          "status": "working",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            }
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "self-report in the same thread, next sequence",
+      "stdin": {
+        "session_id": "cc-sess-h14",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H14_S3/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S3/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H14_S3",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H14_S3 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h14",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc1"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "end of turn: collector heartbeat idle, no tool_name",
+      "stdin": {
+        "session_id": "cc-sess-h14",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H14_S4/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S4/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "Stop",
+        "stop_hook_active": false,
+        "last_assistant_message": "I am blocked. SENTINEL_LASTMSG_H14_CC"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cc-sess-h14",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            }
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cx-sess-h14",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H14_S5.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S5/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h14",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "codex-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "prompt submitted: collector heartbeat working, no tool_name",
+      "stdin": {
+        "session_id": "cx-sess-h14",
+        "turn_id": "SENTINEL_TURN_H14_S6",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H14_S6.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S6/web-app",
+        "hook_event_name": "UserPromptSubmit",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "prompt": "Deploy to prod and paste the token SENTINEL_PROMPT_H14_CX"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h14",
+          "agent": null,
+          "status": "working",
+          "attributes": {
+            "platform": "codex-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "self-report in the same thread, next sequence",
+      "stdin": {
+        "session_id": "cx-sess-h14",
+        "turn_id": "SENTINEL_TURN_H14_S7",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H14_S7.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S7/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_use_id": "SENTINEL_CALL_H14_S7",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H14_S7 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h14",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx2"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "end of turn: collector heartbeat idle, no tool_name",
+      "stdin": {
+        "session_id": "cx-sess-h14",
+        "turn_id": "SENTINEL_TURN_H14_S8",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H14_S8.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S8/web-app",
+        "hook_event_name": "Stop",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "stop_hook_active": false,
+        "last_assistant_message": "I am blocked. SENTINEL_LASTMSG_H14_CX"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "cx-sess-h14",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "codex-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "gm-sess-h14",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H14_S9/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S9/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h14",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "prompt submitted: collector heartbeat working, no tool_name",
+      "stdin": {
+        "session_id": "gm-sess-h14",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H14_S10/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S10/web-app",
+        "hook_event_name": "BeforeAgent",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "prompt": "Deploy to prod and paste the token SENTINEL_PROMPT_H14_GM"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h14",
+          "agent": null,
+          "status": "working",
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "self-report in the same thread, next sequence",
+      "stdin": {
+        "session_id": "gm-sess-h14",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H14_S11/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S11/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H14_S11 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H14_S11"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H14_S11/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H14_S11/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H14_S11/web-app",
+          "url": "https://SENTINEL_MCPURL_H14_S11.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H14_S11"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h14",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "end of turn: collector heartbeat idle, no tool_name",
+      "stdin": {
+        "session_id": "gm-sess-h14",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H14_S12/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H14_S12/web-app",
+        "hook_event_name": "AfterAgent",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "stop_hook_active": false,
+        "prompt": "SENTINEL_PROMPT2_H14_GM",
+        "prompt_response": "Blocked. SENTINEL_RESPONSE_H14_GM"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h14",
+          "agent": null,
+          "status": "idle",
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CALL_H14_S3",
+    "SENTINEL_CALL_H14_S7",
+    "SENTINEL_CWD_H14_S1",
+    "SENTINEL_CWD_H14_S10",
+    "SENTINEL_CWD_H14_S11",
+    "SENTINEL_CWD_H14_S12",
+    "SENTINEL_CWD_H14_S2",
+    "SENTINEL_CWD_H14_S3",
+    "SENTINEL_CWD_H14_S4",
+    "SENTINEL_CWD_H14_S5",
+    "SENTINEL_CWD_H14_S6",
+    "SENTINEL_CWD_H14_S7",
+    "SENTINEL_CWD_H14_S8",
+    "SENTINEL_CWD_H14_S9",
+    "SENTINEL_LASTMSG_H14_CC",
+    "SENTINEL_LASTMSG_H14_CX",
+    "SENTINEL_MCPARGS_H14_S11",
+    "SENTINEL_MCPCMD_H14_S11",
+    "SENTINEL_MCPCWD_H14_S11",
+    "SENTINEL_MCPURL_H14_S11",
+    "SENTINEL_ORIGINAL_REQUEST_H14_S11",
+    "SENTINEL_PROMPT2_H14_GM",
+    "SENTINEL_PROMPT_H14_CC",
+    "SENTINEL_PROMPT_H14_CX",
+    "SENTINEL_PROMPT_H14_GM",
+    "SENTINEL_RESPONSE_H14_GM",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H14_S11",
+    "SENTINEL_TOOLRESPONSE_H14_S11",
+    "SENTINEL_TOOLRESPONSE_H14_S3",
+    "SENTINEL_TOOLRESPONSE_H14_S7",
+    "SENTINEL_TRANSCRIPT_H14_S1",
+    "SENTINEL_TRANSCRIPT_H14_S10",
+    "SENTINEL_TRANSCRIPT_H14_S11",
+    "SENTINEL_TRANSCRIPT_H14_S12",
+    "SENTINEL_TRANSCRIPT_H14_S2",
+    "SENTINEL_TRANSCRIPT_H14_S3",
+    "SENTINEL_TRANSCRIPT_H14_S4",
+    "SENTINEL_TRANSCRIPT_H14_S5",
+    "SENTINEL_TRANSCRIPT_H14_S6",
+    "SENTINEL_TRANSCRIPT_H14_S7",
+    "SENTINEL_TRANSCRIPT_H14_S8",
+    "SENTINEL_TRANSCRIPT_H14_S9",
+    "SENTINEL_TURN_H14_S6",
+    "SENTINEL_TURN_H14_S7",
+    "SENTINEL_TURN_H14_S8"
+  ]
+}

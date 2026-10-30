@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema.json",
+  "id": "R01",
+  "kind": "reader",
+  "description": "Agent blocked with a reason survives the collector end-of-turn heartbeat idle (review H1); the next prompt (collector heartbeat working, no tool_name) clears it; afterwards the existing latest-status rule applies.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (what clears it, what does not), Reader, Attention",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector session start",
+      "event": {
+        "type": "session.started",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent reports blocked",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.missing_credentials",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_credentials",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector end-of-turn idle does not clear",
+      "event": {
+        "type": "heartbeat",
+        "status": "idle",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "missing_credentials",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector prompt heartbeat working clears",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "collector idle, existing rule",
+      "event": {
+        "type": "heartbeat",
+        "status": "idle",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "idle",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

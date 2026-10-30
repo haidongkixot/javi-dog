@@ -1,0 +1,92 @@
+{
+  "$schema": "./schema.json",
+  "id": "M06",
+  "kind": "mcp",
+  "description": "initialize with a version string and clientInfo / capabilities that hold sentinels answers 2025-11-25 and never echoes them (stdout or stderr).",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Handshake (\"any other gets 2025-11-25\"), stdout and stderr (fixed strings only); D0 L3",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize with sentinel version and client info",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "SENTINEL_VERSION_M06",
+          "capabilities": {
+            "experimental": {
+              "SENTINEL_CAP_KEY_M06": {
+                "note": "SENTINEL_CAP_M06"
+              }
+            }
+          },
+          "clientInfo": {
+            "name": "SENTINEL_CLIENT_M06",
+            "version": "SENTINEL_CLIENT_VERSION_M06"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "ping",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {}
+      }
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized", "ping"],
+  "absentStrings": [
+    "SENTINEL_CAP_KEY_M06",
+    "SENTINEL_CAP_M06",
+    "SENTINEL_CLIENT_M06",
+    "SENTINEL_CLIENT_VERSION_M06",
+    "SENTINEL_VERSION_M06"
+  ]
+}

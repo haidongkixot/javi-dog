@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema.json",
+  "id": "R13",
+  "kind": "reader",
+  "description": "An agent-reported working is cleared by a later collector attention.requested: the thread shows waiting (collector) with attention, so a real permission prompt is never hidden behind the agent's claim.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"A later attention.requested also clears it (QA gap G8)\"), Attention",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent working",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "collector permission wait clears: waiting, attention",
+      "event": {
+        "type": "attention.requested",
+        "status": "waiting",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector prompt",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent completed",
+      "event": {
+        "type": "heartbeat",
+        "status": "completed",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "completed",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "another permission wait clears again",
+      "event": {
+        "type": "attention.requested",
+        "status": "waiting",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    }
+  ]
+}

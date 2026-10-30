@@ -1,0 +1,571 @@
+{
+  "$schema": "./schema.json",
+  "id": "H03",
+  "kind": "hook",
+  "description": "report_task maps phase started / completed / failed to task.started / task.completed / task.failed with attributes.task_kind = kind and tool_name provenance; no error_code; exactly one record per call.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Mapping (\"report_task maps to task.started, task.completed or task.failed with attributes.task_kind = kind\"), Only one record per hook call (review L2)",
+  "ambiguities": ["Y4"],
+  "clock": "2026-10-30T10:00:00Z",
+  "identityGroup": null,
+  "steps": [
+    {
+      "platform": "claude-code",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cc-sess-h03",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H03_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S1/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "SessionStart",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cc-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": null,
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse mcp__javi__report_task {\"phase\":\"started\",\"kind\":\"test\"}",
+      "stdin": {
+        "session_id": "cc-sess-h03",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H03_S2/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S2/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "started",
+          "kind": "test"
+        },
+        "tool_use_id": "SENTINEL_CALL_H03_S2",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S2 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cc-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_task",
+            "task_kind": "test"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc1"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse mcp__javi__report_task {\"phase\":\"completed\",\"kind\":\"test\"}",
+      "stdin": {
+        "session_id": "cc-sess-h03",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H03_S3/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S3/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "completed",
+          "kind": "test"
+        },
+        "tool_use_id": "SENTINEL_CALL_H03_S3",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S3 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "cc-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_task",
+            "task_kind": "test"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc2"
+          }
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "PostToolUse mcp__javi__report_task {\"phase\":\"failed\",\"kind\":\"deploy\"}",
+      "stdin": {
+        "session_id": "cc-sess-h03",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H03_S4/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S4/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "PostToolUse",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "failed",
+          "kind": "deploy"
+        },
+        "tool_use_id": "SENTINEL_CALL_H03_S4",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S4 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "task.failed",
+          "session": "cc-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            },
+            "tool_name": "mcp__javi__report_task",
+            "task_kind": "deploy"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cc3"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cx-sess-h03",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H03_S5.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S5/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "codex-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PostToolUse mcp__javi__report_task {\"phase\":\"started\",\"kind\":\"plan\"}",
+      "stdin": {
+        "session_id": "cx-sess-h03",
+        "turn_id": "SENTINEL_TURN_H03_S6",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H03_S6.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S6/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "started",
+          "kind": "plan"
+        },
+        "tool_use_id": "SENTINEL_CALL_H03_S6",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S6 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "cx-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_task",
+            "task_kind": "plan"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx4"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PostToolUse mcp__javi__report_task {\"phase\":\"completed\",\"kind\":\"implement\"}",
+      "stdin": {
+        "session_id": "cx-sess-h03",
+        "turn_id": "SENTINEL_TURN_H03_S7",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H03_S7.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S7/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "completed",
+          "kind": "implement"
+        },
+        "tool_use_id": "SENTINEL_CALL_H03_S7",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S7 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "cx-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_task",
+            "task_kind": "implement"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx5"
+          }
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PostToolUse mcp__javi__report_task {\"phase\":\"failed\",\"kind\":\"build\"}",
+      "stdin": {
+        "session_id": "cx-sess-h03",
+        "turn_id": "SENTINEL_TURN_H03_S8",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H03_S8.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S8/web-app",
+        "hook_event_name": "PostToolUse",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_task",
+        "tool_input": {
+          "phase": "failed",
+          "kind": "build"
+        },
+        "tool_use_id": "SENTINEL_CALL_H03_S8",
+        "tool_response": [
+          {
+            "type": "text",
+            "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S8 status=blocked"
+          }
+        ]
+      },
+      "expect": {
+        "record": {
+          "type": "task.failed",
+          "session": "cx-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": "mcp__javi__report_task",
+            "task_kind": "build"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": "cx6"
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "gm-sess-h03",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H03_S9/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S9/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "AfterTool mcp_javi_report_task {\"phase\":\"started\",\"kind\":\"research\"}",
+      "stdin": {
+        "session_id": "gm-sess-h03",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H03_S10/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S10/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_task",
+        "tool_input": {
+          "phase": "started",
+          "kind": "research"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S10 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H03_S10"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_task",
+          "command": "/home/dev/SENTINEL_MCPCMD_H03_S10/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H03_S10/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H03_S10/web-app",
+          "url": "https://SENTINEL_MCPURL_H03_S10.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H03_S10"
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_task",
+            "task_kind": "research"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "AfterTool mcp_javi_report_task {\"phase\":\"completed\",\"kind\":\"review\"}",
+      "stdin": {
+        "session_id": "gm-sess-h03",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H03_S11/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S11/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_task",
+        "tool_input": {
+          "phase": "completed",
+          "kind": "review"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S11 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H03_S11"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_task",
+          "command": "/home/dev/SENTINEL_MCPCMD_H03_S11/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H03_S11/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H03_S11/web-app",
+          "url": "https://SENTINEL_MCPURL_H03_S11.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H03_S11"
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_task",
+            "task_kind": "review"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "AfterTool mcp_javi_report_task {\"phase\":\"failed\",\"kind\":\"other\"}",
+      "stdin": {
+        "session_id": "gm-sess-h03",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H03_S12/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H03_S12/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_task",
+        "tool_input": {
+          "phase": "failed",
+          "kind": "other"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H03_S12 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H03_S12"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_task",
+          "command": "/home/dev/SENTINEL_MCPCMD_H03_S12/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H03_S12/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H03_S12/web-app",
+          "url": "https://SENTINEL_MCPURL_H03_S12.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H03_S12"
+      },
+      "expect": {
+        "record": {
+          "type": "task.failed",
+          "session": "gm-sess-h03",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_task",
+            "task_kind": "other"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CALL_H03_S2",
+    "SENTINEL_CALL_H03_S3",
+    "SENTINEL_CALL_H03_S4",
+    "SENTINEL_CALL_H03_S6",
+    "SENTINEL_CALL_H03_S7",
+    "SENTINEL_CALL_H03_S8",
+    "SENTINEL_CWD_H03_S1",
+    "SENTINEL_CWD_H03_S10",
+    "SENTINEL_CWD_H03_S11",
+    "SENTINEL_CWD_H03_S12",
+    "SENTINEL_CWD_H03_S2",
+    "SENTINEL_CWD_H03_S3",
+    "SENTINEL_CWD_H03_S4",
+    "SENTINEL_CWD_H03_S5",
+    "SENTINEL_CWD_H03_S6",
+    "SENTINEL_CWD_H03_S7",
+    "SENTINEL_CWD_H03_S8",
+    "SENTINEL_CWD_H03_S9",
+    "SENTINEL_MCPARGS_H03_S10",
+    "SENTINEL_MCPARGS_H03_S11",
+    "SENTINEL_MCPARGS_H03_S12",
+    "SENTINEL_MCPCMD_H03_S10",
+    "SENTINEL_MCPCMD_H03_S11",
+    "SENTINEL_MCPCMD_H03_S12",
+    "SENTINEL_MCPCWD_H03_S10",
+    "SENTINEL_MCPCWD_H03_S11",
+    "SENTINEL_MCPCWD_H03_S12",
+    "SENTINEL_MCPURL_H03_S10",
+    "SENTINEL_MCPURL_H03_S11",
+    "SENTINEL_MCPURL_H03_S12",
+    "SENTINEL_ORIGINAL_REQUEST_H03_S10",
+    "SENTINEL_ORIGINAL_REQUEST_H03_S11",
+    "SENTINEL_ORIGINAL_REQUEST_H03_S12",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H03_S10",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H03_S11",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H03_S12",
+    "SENTINEL_TOOLRESPONSE_H03_S10",
+    "SENTINEL_TOOLRESPONSE_H03_S11",
+    "SENTINEL_TOOLRESPONSE_H03_S12",
+    "SENTINEL_TOOLRESPONSE_H03_S2",
+    "SENTINEL_TOOLRESPONSE_H03_S3",
+    "SENTINEL_TOOLRESPONSE_H03_S4",
+    "SENTINEL_TOOLRESPONSE_H03_S6",
+    "SENTINEL_TOOLRESPONSE_H03_S7",
+    "SENTINEL_TOOLRESPONSE_H03_S8",
+    "SENTINEL_TRANSCRIPT_H03_S1",
+    "SENTINEL_TRANSCRIPT_H03_S10",
+    "SENTINEL_TRANSCRIPT_H03_S11",
+    "SENTINEL_TRANSCRIPT_H03_S12",
+    "SENTINEL_TRANSCRIPT_H03_S2",
+    "SENTINEL_TRANSCRIPT_H03_S3",
+    "SENTINEL_TRANSCRIPT_H03_S4",
+    "SENTINEL_TRANSCRIPT_H03_S5",
+    "SENTINEL_TRANSCRIPT_H03_S6",
+    "SENTINEL_TRANSCRIPT_H03_S7",
+    "SENTINEL_TRANSCRIPT_H03_S8",
+    "SENTINEL_TRANSCRIPT_H03_S9",
+    "SENTINEL_TURN_H03_S6",
+    "SENTINEL_TURN_H03_S7",
+    "SENTINEL_TURN_H03_S8"
+  ]
+}

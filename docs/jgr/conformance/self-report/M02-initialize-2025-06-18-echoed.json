@@ -1,0 +1,80 @@
+{
+  "$schema": "./schema.json",
+  "id": "M02",
+  "kind": "mcp",
+  "description": "initialize with protocol 2025-06-18 (Gemini CLI, Codex legacy mode) echoes 2025-06-18.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Handshake (known versions echoed); Research table (Gemini and Codex send 2025-06-18)",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize 2025-06-18",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-06-18",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-06-18",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "ping",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {}
+      }
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized", "ping"],
+  "absentStrings": []
+}

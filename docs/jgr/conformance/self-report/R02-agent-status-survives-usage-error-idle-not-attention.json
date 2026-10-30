@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema.json",
+  "id": "R02",
+  "kind": "reader",
+  "description": "Agent blocked survives collector usage.reported, error and end-of-turn idle; a later attention.requested clears it, so the thread shows the collector waiting with attention.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"What does not clear it\": heartbeat idle, usage.reported, error; \"A later attention.requested also clears it\", QA gap G8)",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent reports blocked",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.dependency_down",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "dependency_down",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "usage does not clear",
+      "event": {
+        "type": "usage.reported",
+        "status": null,
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "dependency_down",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "error does not clear",
+      "event": {
+        "type": "error",
+        "status": null,
+        "toolName": null,
+        "errorCode": "tool_timeout",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "dependency_down",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "end-of-turn idle does not clear",
+      "event": {
+        "type": "heartbeat",
+        "status": "idle",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "dependency_down",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector permission wait clears: collector waiting, attention",
+      "event": {
+        "type": "attention.requested",
+        "status": "waiting",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    }
+  ]
+}

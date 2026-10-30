@@ -1,0 +1,101 @@
+{
+  "$schema": "./schema.json",
+  "id": "R18",
+  "kind": "reader",
+  "description": "A self-reported task.* (it carries tool_name but is not a heartbeat) clears the agent status: the agent has resumed work. Without a status on the task event, the latest non-agent status shows.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"task.*, from the collector or self-reported\"; \"A later self-reported task.* clears it too\", QA gap G7)",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector prompt",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent blocked",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.tests_failing",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "tests_failing",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "self-reported task.started clears; latest non-agent status is working",
+      "event": {
+        "type": "task.started",
+        "status": null,
+        "toolName": "mcp__javi__report_task",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent waiting",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_approval",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_approval",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "self-reported task.failed clears too",
+      "event": {
+        "type": "task.failed",
+        "status": null,
+        "toolName": "mcp__javi__report_task",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

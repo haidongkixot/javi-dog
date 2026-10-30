@@ -1,0 +1,155 @@
+{
+  "$schema": "./schema.json",
+  "id": "R09",
+  "kind": "reader",
+  "description": "statusReason is the reason part of \"<status>.<reason>\" only when the prefix equals the status and the reason is in the SELF_REPORT list; otherwise null.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Reader (\"accepted only when the prefix equals the status and the reason is in the SELF_REPORT list\", review M2, QA gap G9); decision 2 reasons",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "reason not in the list",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.out_of_coffee",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "reason in the wrong case",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.Missing_Credentials",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "no <status>. prefix",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "missing_credentials",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "empty reason",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "listed reason but the prefix differs from the status (G9)",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_input",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "no error_code",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:06Z",
+        "sequence": 6
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "valid reason; agent failed needs no attention",
+      "event": {
+        "type": "heartbeat",
+        "status": "failed",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "failed.tests_failing",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:07Z",
+        "sequence": 7
+      },
+      "expect": {
+        "status": "failed",
+        "statusSource": "agent",
+        "statusReason": "tests_failing",
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "valid reason",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.conflicting_requirements",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:08Z",
+        "sequence": 8
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "conflicting_requirements",
+        "needsAttention": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "$schema": "./schema.json",
+  "id": "R07",
+  "kind": "reader",
+  "description": "An agent-reported waiting needs attention, with or without a reason.",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Attention (\"status is waiting, as today\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector prompt",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent waiting with reason",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_input",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_input",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "agent waiting without reason",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+{
+  "$schema": "./schema.json",
+  "id": "M10",
+  "kind": "mcp",
+  "description": "A message without an id never gets a response: before and after initialize, for known and unknown notification names, and for request method names sent without an id (even with invalid arguments).",
+  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Message rules (\"A message without an id (a notification) never gets a response\")",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "notifications/initialized before initialize",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "ping without id before initialize",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "tools/list without id before initialize",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "tools/list"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "notifications/cancelled",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/cancelled",
+        "params": {
+          "requestId": 99,
+          "reason": "SENTINEL_CANCEL_REASON_M10"
+        }
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "unknown notification",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/SENTINEL_NOTIFICATION_M10"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "tools/call without id, invalid arguments",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "SENTINEL_STATUS_M10",
+            "note": "SENTINEL_PROMPT_M10"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "tools/call without id, unknown tool",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "tools/call",
+        "params": {
+          "name": "SENTINEL_TOOL_M10",
+          "arguments": {}
+        }
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "server/discover without id",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "server/discover",
+        "params": {}
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "ping still answers",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {}
+      }
+    }
+  ],
+  "stderrForbidden": [
+    "initialize",
+    "notifications/SENTINEL_NOTIFICATION_M10",
+    "notifications/cancelled",
+    "notifications/initialized",
+    "ping",
+    "server/discover",
+    "tools/call",
+    "tools/list"
+  ],
+  "absentStrings": [
+    "SENTINEL_CANCEL_REASON_M10",
+    "SENTINEL_NOTIFICATION_M10",
+    "SENTINEL_PROMPT_M10",
+    "SENTINEL_STATUS_M10",
+    "SENTINEL_TOOL_M10"
+  ]
+}
