@@ -19,6 +19,14 @@ import { geminiHome } from './gemini-settings.ts';
 import { findGeminiTelemetryOverrides } from './gemini-telemetry.ts';
 import { COLLECTOR_VERSION, mapHook, opaqueRef } from './mapping.ts';
 import type { Platform } from './platform.ts';
+import {
+  buildIdentityRecord,
+  isIdentityTrigger,
+  loadProjectKeys,
+  ulidAfter,
+  type StoredPrivacy,
+} from './privacy.ts';
+import { readSessionFolder } from './session-folder.ts';
 import type { CollectorState } from './state.ts';
 
 /** Above this many waiting events a hook triggers a background flush. */
@@ -201,6 +209,58 @@ export const selfReportSeenKey = (platform: Platform, raw: unknown, salt: string
     .digest('hex');
 };
 
+/** The hook payload's `cwd` (an own property), read only for L1/L2 projects (G13). */
+const payloadCwd = (raw: unknown): unknown =>
+  raw && typeof raw === 'object' && Object.hasOwn(raw, 'cwd')
+    ? (raw as { cwd?: unknown }).cwd
+    : undefined;
+
+/**
+ * ADR-0018 §5 (review H1): after a trigger event of an L1/L2 project, records the thread's
+ * `x.javi.thread.identity` with the same `thread_ref`. Nothing when the stored key cannot be
+ * loaded or the payload has no usable `cwd`. Never throws: a failure here never costs the
+ * trigger event, which is already spooled unchanged.
+ */
+const recordIdentity = async (
+  args: Readonly<{
+    privacy: StoredPrivacy | undefined;
+    raw: unknown;
+    trigger: { event_id: string; thread_ref: string; occurred_at: string } & Pick<
+      RecordInput,
+      'type' | 'status'
+    >;
+    selfReported: boolean;
+    projectRef: string;
+    producerId: string;
+    platform: Platform;
+    state: CollectorState;
+    client: ReturnType<typeof createJgrClient>;
+  }>,
+): Promise<void> => {
+  try {
+    if (!args.privacy) return;
+    if (!isIdentityTrigger(args.trigger, args.selfReported)) return;
+    const loaded = await loadProjectKeys(args.privacy, args.projectRef);
+    if (!loaded) return;
+    const folder = await readSessionFolder(payloadCwd(args.raw));
+    if (!folder) return;
+    const record = await buildIdentityRecord({
+      loaded,
+      projectRef: args.projectRef,
+      producerId: args.producerId,
+      threadRef: args.trigger.thread_ref,
+      platform: args.platform,
+      folder,
+      eventId: ulidAfter(args.trigger.event_id),
+      occurredAt: args.trigger.occurred_at,
+    });
+    const sequence = await args.state.nextSequence(record.thread_ref);
+    await args.client.record({ ...record, sequence });
+  } catch {
+    // The identity costs only the names, never the status signal.
+  }
+};
+
 const hookEventName = (raw: unknown) =>
   raw && typeof raw === 'object' ? (raw as { hook_event_name?: unknown }).hook_event_name : null;
 
@@ -310,6 +370,19 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
     const sequence = await deps.state.nextSequence(input.thread_ref);
     const result = await client.record({ ...input, sequence });
     if (!result.ok) return 'error';
+    if (creds.privacy) {
+      await recordIdentity({
+        privacy: creds.privacy,
+        raw,
+        trigger: result.event,
+        selfReported: javi !== null,
+        projectRef: deps.projectRef,
+        producerId: producer_id,
+        platform,
+        state: deps.state,
+        client,
+      });
+    }
 
     const now = (deps.now?.() ?? new Date()).getTime();
     const urgent = isUrgent(input, {
@@ -350,6 +423,9 @@ export const runFlush = async (
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const attempt = () =>
     deps.state.tryFlushLock(deps.projectRef, async () => {
+      // ADR-0018 §5 (review H1): the codes of rejected events, for `javi status`.
+      const codes: string[] = [];
+      let rejectedEvents = 0;
       const client = createJgrClient({
         endpoint: creds.endpoint,
         token: creds.token,
@@ -359,13 +435,20 @@ export const runFlush = async (
         ...(deps.fetch && { fetch: deps.fetch }),
         ...(deps.now && { now: deps.now }),
         ...(deps.sleep && { sleep: deps.sleep }),
+        onRejected: (rejected) => {
+          rejectedEvents += rejected.length;
+          for (const event of rejected) {
+            for (const issue of event.issues ?? []) codes.push(String(issue?.code));
+          }
+        },
       });
       // client.flush() re-reads the spool each round, so events recorded meanwhile are included.
       const flushed = await client.flush();
-      await deps.state.saveLastFlush(deps.projectRef, {
-        at: (deps.now?.() ?? new Date()).toISOString(),
-        ...flushed,
-      });
+      const at = (deps.now?.() ?? new Date()).toISOString();
+      await deps.state.saveLastFlush(deps.projectRef, { at, ...flushed });
+      if (rejectedEvents > 0) {
+        await deps.state.saveRejections(deps.projectRef, at, codes, rejectedEvents).catch(() => {});
+      }
       return flushed;
     });
   // Another flusher holds the lock: give it a moment, then try once more so an urgent

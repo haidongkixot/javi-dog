@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { relative } from 'node:path';
+import { childEnv } from './child-env.ts';
 
 // Git checks shared by the self-report registration (JD-C01, ADR-0017 §5) and the Codex hooks
 // installer: every answer is tracked, untracked or unknown, and unknown is never "untracked"
@@ -30,7 +31,7 @@ export const runGit: GitRunner = (args) => {
     timeout: GIT_TIMEOUT_MS,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, LC_ALL: 'C', LANGUAGE: '' },
+    env: { ...childEnv(), LC_ALL: 'C', LANGUAGE: '' },
   });
   return {
     status: run.status,

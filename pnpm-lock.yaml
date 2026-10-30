@@ -151,6 +151,9 @@ importers:
       '@javis-dog/collector-mcp-server':
         specifier: workspace:*
         version: link:../mcp-server
+      '@javis-dog/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@javis-dog/jgr-sdk':
         specifier: workspace:*
         version: link:../../packages/jgr-sdk

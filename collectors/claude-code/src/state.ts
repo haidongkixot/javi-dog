@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/p
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { SelfReportRegistration } from './mcp-registration.ts';
+import type { StoredPrivacy } from './privacy.ts';
 
 // Local collector state under JAVI_HOME (default ~/.javi). Files holding secrets are written
 // with mode 0600 (POSIX; on Windows the user profile ACL applies). Never inside a repository.
@@ -17,6 +18,21 @@ export interface Installation {
 export interface ProjectCredentials {
   endpoint: string;
   token: string;
+  /**
+   * L1/L2 projects only (ADR-0018 §6): the class and the recovery key. The key lives only here
+   * (mode 0600 on POSIX) and is never printed; `javi status` shows the class and the kid.
+   */
+  privacy?: StoredPrivacy;
+}
+
+/**
+ * `~/.javi/rejections/<project>.json` — the last flush that got `rejected[]` back (ADR-0018 §5,
+ * review H1): the issue codes and how many events, never any event content.
+ */
+export interface RejectionRecord {
+  at: string;
+  codes: string[];
+  events: number;
 }
 
 /** What `javi usage on --platform gemini-cli` wrote into Gemini CLI's user settings (ADR-0016). */
@@ -149,6 +165,15 @@ const SEEN_KEY = /^[0-9a-f]{64}$/;
 const WARNING_PREFIX = 'gemini-telemetry.';
 const CODEX_WARNING_PREFIX = 'codex-env.';
 
+/** A new installation identity (written by `installation()`, or after the init canary). */
+export const newInstallation = (): Installation => ({
+  producer_id: `prod_claude-code_${randomBytes(6).toString('hex')}`,
+  salt: randomBytes(32).toString('base64url'),
+});
+
+/** Issue codes as the JGR spec spells them (spec §13); anything else is recorded as `unknown`. */
+const ISSUE_CODE = /^[a-z][a-z0-9_]{0,63}$/;
+
 export const javiHome = (env: NodeJS.ProcessEnv = process.env) =>
   env.JAVI_HOME?.trim() || join(homedir(), '.javi');
 
@@ -263,19 +288,26 @@ export const createState = (home: string) => {
     home,
     spoolDir: (projectRef: string) => path('spool', projectRef),
 
-    /** Created once; later calls return the same producer id and salt. */
-    installation: () =>
+    /**
+     * Created once; later calls return the same producer id and salt. `candidate` (from
+     * `newInstallation()`, used by the `init --privacy` canary before anything is written) is
+     * the identity stored when none exists yet.
+     */
+    installation: (candidate?: Installation) =>
       withLock('installation', async () => {
         const file = path('installation.json');
         const existing = await readJson<Installation>(file);
         if (existing?.producer_id && existing.salt) return existing;
-        const created: Installation = {
-          producer_id: `prod_claude-code_${randomBytes(6).toString('hex')}`,
-          salt: randomBytes(32).toString('base64url'),
-        };
+        const created: Installation = candidate ?? newInstallation();
         await writeJsonPrivate(file, created);
         return created;
       }),
+
+    /** The stored installation identity, or null; never creates one (nothing is written). */
+    peekInstallation: async (): Promise<Installation | null> => {
+      const existing = await readJson<Installation>(path('installation.json'));
+      return existing?.producer_id && existing.salt ? existing : null;
+    },
 
     credentials: async (projectRef: string) =>
       (await readJson<Record<string, ProjectCredentials>>(path('credentials.json')))?.[
@@ -346,6 +378,27 @@ export const createState = (home: string) => {
     saveLastFlush: async (projectRef: string, result: Record<string, unknown>) => {
       await mkdir(path('last-flush'), { recursive: true, mode: 0o700 });
       await writeJsonPrivate(path('last-flush', `${projectRef}.json`), result);
+    },
+
+    /** The last flush with rejected events (codes and count only), or null. */
+    lastRejections: async (projectRef: string): Promise<RejectionRecord | null> => {
+      const record = await readJson<RejectionRecord>(path('rejections', `${projectRef}.json`));
+      return record &&
+        typeof record.at === 'string' &&
+        Array.isArray(record.codes) &&
+        record.codes.every((c) => typeof c === 'string') &&
+        typeof record.events === 'number'
+        ? record
+        : null;
+    },
+
+    /** Records the issue codes of a flush's `rejected[]` (deduplicated, never event content). */
+    saveRejections: async (projectRef: string, at: string, codes: string[], events: number) => {
+      await ready;
+      await mkdir(path('rejections'), { recursive: true, mode: 0o700 });
+      const clean = [...new Set(codes.map((c) => (ISSUE_CODE.test(c) ? c : 'unknown')))].sort();
+      const record: RejectionRecord = { at, codes: clean, events };
+      await writeJsonPrivate(path('rejections', `${projectRef}.json`), record);
     },
 
     // --- Token usage (ADR-0011) ---

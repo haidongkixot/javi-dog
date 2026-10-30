@@ -2,6 +2,10 @@
 // `javi` — Javi's Dog collector for Claude Code (JD-C01, ADR-0010).
 //   javi init --project <slug> [--endpoint <url>] [--dir <project dir>] [--no-verify] [--usage]
 //            token from JAVI_INGEST_TOKEN or piped stdin; never from argv (shell history)
+//   javi init … --privacy L1|L2 [--privacy-key-file <path>]   (ADR-0018 §6)
+//            recovery key from a hidden prompt on the terminal (/dev/tty, CONIN$), the key file
+//            or JAVI_PRIVACY_KEY (deleted from the environment at once); never from argv. The
+//            canary is checked before anything is written. `--privacy L0` removes a stored key.
 //   javi hook --project <slug>      (called by Claude Code; silent, always exits 0)
 //   javi flush --project <slug>     javi status --project <slug>
 //   javi uninstall --project <slug> [--dir <project dir>] [--forget-token]
@@ -29,7 +33,14 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { serveStdio } from '@javis-dog/collector-mcp-server';
-import { createFileSpool, createJgrClient } from '@javis-dog/jgr-sdk';
+import {
+  createFileSpool,
+  createJgrClient,
+  createMemorySpool,
+  createUlid,
+} from '@javis-dog/jgr-sdk';
+import { childEnv, takePrivacyKeyEnv } from './child-env.ts';
+import { loadCrypto } from './crypto-loader.ts';
 import {
   DEFAULT_USAGE_PORT,
   claudeUserSettingsPath,
@@ -104,6 +115,20 @@ import {
 } from './mcp-registration.ts';
 import { PLATFORM_NAMES, PLATFORMS, platformFlag, type Platform } from './platform.ts';
 import {
+  buildCanaryRecord,
+  isPrivacyClass,
+  loadProjectKeys,
+  PRIVACY_GUIDANCE,
+  promptHiddenFromTerminal,
+  readKeyFile,
+  storedPrivacy,
+  UUID_LIKE,
+  type HiddenPrompt,
+  type KeyedClass,
+  type LoadedKeys,
+  type StoredPrivacy,
+} from './privacy.ts';
+import {
   RECEIVER_IDLE_MS,
   createUsageReceiver,
   ensureReceiver,
@@ -113,7 +138,15 @@ import {
 } from './receiver.ts';
 import { runFlush, runHook } from './run.ts';
 import { claudeHooksInstalled, installHooks, settingsPath, uninstallHooks } from './settings.ts';
-import { createState, javiHome, type CollectorState, type UsageConfig } from './state.ts';
+import {
+  createState,
+  javiHome,
+  newInstallation,
+  type CollectorState,
+  type Installation,
+  type ProjectCredentials,
+  type UsageConfig,
+} from './state.ts';
 
 /** Replaced with `true` by scripts/build.mjs (esbuild define); undeclared when run from .ts. */
 declare const __JAVI_BUNDLED__: boolean | undefined;
@@ -140,6 +173,11 @@ export interface Io {
   systemProxy?: SystemProxyProbe;
   /** `init --self-report`: runs git for the tracked check (code review M3); tests inject one. */
   git?: GitRunner;
+  /**
+   * `init --privacy L1|L2`: the hidden prompt on the terminal (ADR-0018 §6). The CLI passes
+   * `promptHiddenFromTerminal`; without one there is no terminal to ask.
+   */
+  promptHidden?: HiddenPrompt;
   /**
    * `javi mcp` only: the streams the MCP server speaks on (the CLI passes process.stdin,
    * process.stdout and process.stderr for that command only).
@@ -178,7 +216,10 @@ const ensureIgnored = async (
   entry = '.claude/settings.local.json',
 ) => {
   try {
-    execFileSync('git', ['-C', projectDir, 'check-ignore', '-q', file], { stdio: 'ignore' });
+    execFileSync('git', ['-C', projectDir, 'check-ignore', '-q', file], {
+      stdio: 'ignore',
+      env: childEnv(),
+    });
     return 'already ignored';
   } catch (e) {
     if ((e as { status?: number }).status !== 1) return 'not a git repository';
@@ -186,6 +227,7 @@ const ensureIgnored = async (
   try {
     const gitDir = execFileSync('git', ['-C', projectDir, 'rev-parse', '--git-dir'], {
       encoding: 'utf8',
+      env: childEnv(),
     }).trim();
     const exclude = join(resolve(projectDir, gitDir), 'info', 'exclude');
     const current = await readFile(exclude, 'utf8').catch(() => '');
@@ -1142,6 +1184,7 @@ const codexProjectDirs = (projectDir: string) => {
     const top = execFileSync('git', ['-C', projectDir, 'rev-parse', '--show-toplevel'], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      env: childEnv(),
     }).trim();
     if (top) dirs.push(top);
   } catch {
@@ -1458,8 +1501,270 @@ const uninstallSelfReport = async (
   return true;
 };
 
+// --- Privacy classes L1/L2 (ADR-0018 §5, §6) ---
+
+type PrivacyRequest =
+  { class: 'L0' } | { class: KeyedClass; loaded: LoadedKeys; stored: StoredPrivacy };
+
+const NOTHING_SAVED = 'Nothing was saved: no token, key or hooks.';
+
+type PrivacyFlags = { class: 'L0' } | { class: KeyedClass; keyFile: string | null };
+
+/**
+ * `--privacy L0|L1|L2 [--privacy-key-file <path>]` of `javi init` (review H2, H3): refused with
+ * `--no-verify` and with a UUID-looking project ref. Returns null without `--privacy`, an exit
+ * code on refusal.
+ */
+const checkPrivacyFlags = (
+  argv: string[],
+  io: Io,
+  projectRef: string,
+): PrivacyFlags | number | null => {
+  const keyFileGiven = argv.includes('--privacy-key-file');
+  if (!argv.includes('--privacy')) {
+    if (keyFileGiven) {
+      io.err('--privacy-key-file only applies with --privacy L1 or --privacy L2.');
+      return 2;
+    }
+    return null;
+  }
+  const value = flag(argv, 'privacy');
+  if (!isPrivacyClass(value)) {
+    io.err('Use --privacy L0, --privacy L1 or --privacy L2.');
+    return 2;
+  }
+  if (argv.includes('--no-verify')) {
+    io.err(
+      "--privacy needs the check against Javi's Dog before anything is saved; it cannot be combined with --no-verify.",
+    );
+    return 2;
+  }
+  if (UUID_LIKE.test(projectRef)) {
+    io.err(
+      '--privacy needs the project slug (as shown on the project page), not the project id: the slug is part of every encrypted event.',
+    );
+    return 2;
+  }
+  if (value === 'L0') {
+    if (keyFileGiven) {
+      io.err('--privacy L0 needs no recovery key: leave out --privacy-key-file.');
+      return 2;
+    }
+    return { class: 'L0' };
+  }
+  const keyFile = flag(argv, 'privacy-key-file');
+  if (keyFileGiven && (!keyFile || keyFile.startsWith('--'))) {
+    io.err('--privacy-key-file needs a path.');
+    return 2;
+  }
+  return { class: value, keyFile: keyFile ?? null };
+};
+
+/**
+ * The recovery key of an L1/L2 request from exactly one source — `--privacy-key-file`,
+ * `JAVI_PRIVACY_KEY` (already deleted from the environment) or the hidden terminal prompt —
+ * parsed with its checksum, and the project keys derived from it. An exit code on refusal.
+ * Never echoes the key.
+ */
+const readPrivacyRequest = async (
+  flags: PrivacyFlags,
+  io: Io,
+  projectRef: string,
+  envKey: string | undefined,
+): Promise<PrivacyRequest | number> => {
+  if (flags.class === 'L0') return { class: 'L0' };
+  for (const line of PRIVACY_GUIDANCE) io.out(line);
+  const { keyFile } = flags;
+  const value = flags.class;
+  if (keyFile && envKey !== undefined) {
+    io.err('Give the recovery key one way only: --privacy-key-file or JAVI_PRIVACY_KEY.');
+    return 2;
+  }
+  let text: string;
+  if (keyFile) {
+    const read = await readKeyFile(resolve(io.cwd, keyFile));
+    if (!read.ok) {
+      io.err(read.message);
+      return 2;
+    }
+    text = read.text;
+  } else if (envKey !== undefined) {
+    text = envKey;
+  } else {
+    const answer = io.promptHidden
+      ? await io.promptHidden(`Recovery key for ${projectRef} (input hidden): `)
+      : ({ ok: false, reason: 'no-terminal' } as const);
+    if (!answer.ok) {
+      io.err(
+        answer.reason === 'cancelled'
+          ? `Cancelled. ${NOTHING_SAVED}`
+          : 'No terminal to read the recovery key from. Run javi init --privacy yourself in a terminal, or give the key with --privacy-key-file <path> or JAVI_PRIVACY_KEY.',
+      );
+      return answer.reason === 'cancelled' ? 1 : 2;
+    }
+    text = answer.text;
+  }
+  const { deriveProjectKeys, encodeRecoveryKey, parseRecoveryKey } = await loadCrypto();
+  const parsed = await parseRecoveryKey(text);
+  if (!parsed.ok) {
+    io.err(`The recovery key was not accepted: ${parsed.message}`);
+    return 2;
+  }
+  const keys = await deriveProjectKeys(parsed.secret, projectRef);
+  const canonical = await encodeRecoveryKey(parsed.secret);
+  parsed.secret.fill(0);
+  return {
+    class: value,
+    loaded: { class: value, keys },
+    stored: { class: value, key: canonical },
+  };
+};
+
+/** Issue codes as the JGR spec spells them (spec §13); anything else is shown as `unknown`. */
+const issueCodes = (codes: string[]) => [
+  ...new Set(codes.map((c) => (/^[a-z][a-z0-9_]{0,63}$/.test(c) ? c : 'unknown'))),
+];
+
+/**
+ * The canary (ADR-0018 §5, §6, review H2): the installation event in the requested class, sent
+ * through an in-memory spool before anything is written. Accepted → null; otherwise the
+ * message to show. `rejected[].issues[].code` decides: `privacy_class_not_allowed` means the
+ * project's class is lower than the one requested.
+ */
+const checkCanary = async (
+  io: Io,
+  args: Readonly<{
+    endpoint: string;
+    token: string;
+    projectRef: string;
+    platform: Platform;
+    installation: Installation;
+    request: PrivacyRequest;
+  }>,
+): Promise<string | null> => {
+  const codes: string[] = [];
+  const client = createJgrClient({
+    endpoint: args.endpoint,
+    token: args.token,
+    producerId: args.installation.producer_id,
+    spool: createMemorySpool(),
+    maxAttempts: 2,
+    ...(io.fetch && { fetch: io.fetch }),
+    onRejected: (rejected) => {
+      for (const event of rejected) {
+        for (const issue of event.issues ?? []) codes.push(String(issue?.code));
+      }
+    },
+  });
+  const { request } = args;
+  const cls = request.class;
+  const record = await buildCanaryRecord({
+    loaded: request.class === 'L0' ? null : request.loaded,
+    projectRef: args.projectRef,
+    producerId: args.installation.producer_id,
+    threadRef: opaqueRef('init', args.installation.producer_id, args.installation.salt),
+    platform: args.platform,
+    eventId: createUlid()(),
+  });
+  const recorded = await client.record(record);
+  if (!recorded.ok) {
+    return `Could not build the ${cls} check event (${issueCodes(recorded.issues.map((i) => i.code)).join(', ')}).`;
+  }
+  const result = await client.flush();
+  if (result.status === 'ok' && result.rejected === 0 && result.accepted + result.duplicates > 0) {
+    return null;
+  }
+  const unique = issueCodes(codes);
+  if (unique.includes('privacy_class_not_allowed')) {
+    return `Javi's Dog refused the ${cls} check event (privacy_class_not_allowed): project ${args.projectRef} does not accept privacy class ${cls} yet. An owner or admin raises the class on the project page first; then run this again.`;
+  }
+  if (unique.length) return `Javi's Dog refused the ${cls} check event (${unique.join(', ')}).`;
+  if (result.status === 'unauthorized') {
+    return `The ingest token was refused (HTTP ${result.httpStatus ?? 401}).`;
+  }
+  const http = result.httpStatus ? `, HTTP ${result.httpStatus}` : '';
+  return `Javi's Dog did not confirm the ${cls} check event (${result.status}${http}).`;
+};
+
+/** The project's credentials entry after init: the privacy part kept, replaced or removed. */
+const credentialsAfterInit = (
+  endpoint: string,
+  token: string,
+  request: PrivacyRequest | null,
+  existing: ProjectCredentials | null,
+): ProjectCredentials => {
+  const kept = storedPrivacy(existing?.privacy);
+  const privacy = request === null ? kept : request.class === 'L0' ? null : request.stored;
+  return { endpoint, token, ...(privacy && { privacy }) };
+};
+
+/** What `javi init` did with the project's privacy class (never the key). */
+const privacyInitLines = async (
+  io: Io,
+  state: CollectorState,
+  projectRef: string,
+  request: PrivacyRequest | null,
+  previous: ProjectCredentials | null,
+  creds: ProjectCredentials,
+) => {
+  const file = join(state.home, 'credentials.json');
+  const had = storedPrivacy(previous?.privacy);
+  if (request?.class === 'L0') {
+    io.out(
+      had
+        ? `Privacy class L0: the recovery key for ${projectRef} was removed from ${file}.`
+        : `Privacy class L0: no recovery key was stored for ${projectRef}.`,
+    );
+    return;
+  }
+  const kept = storedPrivacy(creds.privacy);
+  if (!kept) return;
+  const loaded = request ? request.loaded : await loadProjectKeys(kept, projectRef);
+  const kid = loaded ? `key ${loaded.keys.kid}` : 'the stored key cannot be read';
+  io.out(
+    request
+      ? `Privacy class ${kept.class}: recovery key stored in ${file} (${kid}). The key is never printed.`
+      : `Privacy class ${kept.class} kept (${kid}); javi init --privacy L0 removes the key.`,
+  );
+};
+
+/** `javi status`: class and kid (never the key), and the last rejected events (codes only). */
+const privacyStatus = async (
+  io: Io,
+  state: CollectorState,
+  projectRef: string,
+  creds: ProjectCredentials,
+) => {
+  const privacy = storedPrivacy(creds.privacy);
+  if (!privacy) {
+    io.out('Privacy class: L0 (no recovery key stored).');
+  } else {
+    const loaded = await loadProjectKeys(privacy, projectRef);
+    io.out(
+      loaded
+        ? `Privacy class: ${privacy.class} (key ${loaded.keys.kid}; the key itself is never shown).`
+        : `Privacy class: ${privacy.class}, but the stored recovery key cannot be read: run javi init --privacy ${privacy.class} again.`,
+    );
+  }
+  const rejections = await state.lastRejections(projectRef);
+  if (!rejections) {
+    io.out('Rejected events: none recorded.');
+    return;
+  }
+  io.out(
+    `Last rejected events: ${rejections.events} at ${rejections.at} (${issueCodes(rejections.codes).join(', ')}).`,
+  );
+  if (rejections.codes.includes('privacy_class_not_allowed')) {
+    io.out(
+      'privacy_class_not_allowed: the project accepts a lower privacy class than this machine sends. Status events still arrive (they stay L0); only the repo and branch identity is refused. Raise the class on the project page, or run javi init --privacy L0.',
+    );
+  }
+};
+
 export const main = async (argv: string[], io: Io): Promise<number> => {
   const [command] = argv;
+  // ADR-0018 §6 (review M3): read once and deleted from the environment before anything runs.
+  const envKey = takePrivacyKeyEnv(io.env);
   const projectRef = flag(argv, 'project');
   const state = createState(javiHome(io.env));
   const platform = platformFlag(argv);
@@ -1534,6 +1839,9 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         io.err('--allow-self-report and --allow-tracked-config only apply with --self-report.');
         return 2;
       }
+      // ADR-0018 §6: the --privacy flags are checked before the token is read.
+      const privacyFlags = checkPrivacyFlags(argv, io, projectRef);
+      if (typeof privacyFlags === 'number') return privacyFlags;
       const token = (io.env.JAVI_INGEST_TOKEN ?? (await io.readStdin())).trim();
       if (!TOKEN.test(token)) {
         io.err('Provide the project ingest token via JAVI_INGEST_TOKEN or stdin (jd_it_…).');
@@ -1560,6 +1868,28 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
           return 1;
         }
       }
+      // ADR-0018 §6 (review H2): with --privacy, the key is read and the canary checked before
+      // anything is written — no token, key, hook, installation file or javi copy.
+      let privacy: PrivacyRequest | null = null;
+      let canaryInstallation: Installation | undefined;
+      if (privacyFlags) {
+        const request = await readPrivacyRequest(privacyFlags, io, projectRef, envKey);
+        if (typeof request === 'number') return request;
+        privacy = request;
+        canaryInstallation = (await state.peekInstallation()) ?? newInstallation();
+        const refused = await checkCanary(io, {
+          endpoint,
+          token,
+          projectRef,
+          platform,
+          installation: canaryInstallation,
+          request,
+        });
+        if (refused) {
+          io.err(`${refused} ${NOTHING_SAVED}`);
+          return 1;
+        }
+      }
       // From the bundle: hooks run a stable, versioned copy. From a repo checkout: this .ts file,
       // as before. The copy comes first: if it fails, no token is saved and no hook registered.
       let cliPath = fileURLToPath(import.meta.url);
@@ -1581,15 +1911,22 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
           return 1;
         }
       }
+      // After a canary, its producer id is the one stored (when none existed yet); without
+      // --privacy the installation is created after the hooks, as before.
+      const canaryProducer = canaryInstallation
+        ? await state.installation(canaryInstallation)
+        : null;
+      const previous = await state.credentials(projectRef);
+      const creds = credentialsAfterInit(endpoint, token, privacy, previous);
       if (platform === 'gemini-cli') {
         // Hooks first: a settings file javi cannot edit stops init before the token is saved.
         if (!(await initGeminiHooks(io, projectDir, cliPath, projectRef))) return 1;
-        await state.saveCredentials(projectRef, { endpoint, token });
+        await state.saveCredentials(projectRef, creds);
       } else if (platform === 'codex-cli') {
         if (!(await initCodexHooks(io, state, projectDir, cliPath, projectRef))) return 1;
-        await state.saveCredentials(projectRef, { endpoint, token });
+        await state.saveCredentials(projectRef, creds);
       } else {
-        await state.saveCredentials(projectRef, { endpoint, token });
+        await state.saveCredentials(projectRef, creds);
         const path = await installHooks(projectDir, process.execPath, cliPath, projectRef);
         io.out(
           `Hooks registered in ${path} (${await ensureIgnored(projectDir, settingsPath(projectDir))}).`,
@@ -1601,9 +1938,16 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       ) {
         return 1;
       }
-      const installation = await state.installation();
+      const installation = canaryProducer ?? (await state.installation());
       io.out(`Token stored in ${join(state.home, 'credentials.json')} as ${masked(token)}`);
       io.out(`Producer id: ${installation.producer_id}`);
+      await privacyInitLines(io, state, projectRef, privacy, previous, creds);
+      if (privacy) {
+        io.out(
+          `Connection verified: Javi's Dog accepted the ${privacy.class} check event before anything was saved.`,
+        );
+        return argv.includes('--usage') ? usageOn(argv, io, state, platform) : 0;
+      }
 
       if (argv.includes('--no-verify')) {
         if (argv.includes('--usage')) {
@@ -1659,6 +2003,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       io.out(`Project ${projectRef}: endpoint ${creds.endpoint}, token ${masked(creds.token)}`);
       io.out(`Spooled events: ${spooled}`);
       io.out(`Last flush: ${JSON.stringify((await state.lastFlush(projectRef)) ?? 'never')}`);
+      await privacyStatus(io, state, projectRef, creds);
       const statusDir = resolve(io.cwd, flag(argv, 'dir') ?? '.');
       if (platform === 'gemini-cli') await geminiHookStatus(io, state, statusDir, projectRef);
       if (platform === 'codex-cli') await codexHookStatus(io, state, statusDir, projectRef);
@@ -1754,23 +2099,40 @@ const isEntryPoint = () => {
   return candidates.some((path) => pathToFileURL(path).href === import.meta.url);
 };
 
-if (isEntryPoint()) {
-  const cliPath = fileURLToPath(import.meta.url);
-  const detached = (args: string[]) =>
-    spawn(process.execPath, [cliPath, ...args], {
+/**
+ * Starts `javi <args>` detached (background flush, receiver) with an explicit environment that
+ * never holds the recovery key (ADR-0018 §6, review M3). `spawnImpl` is injectable for tests.
+ */
+export const detachedSpawner =
+  (cliPath: string, env: NodeJS.ProcessEnv = process.env, spawnImpl: typeof spawn = spawn) =>
+  (args: string[]) => {
+    const child = spawnImpl(process.execPath, [cliPath, ...args], {
       detached: true,
       stdio: 'ignore',
       windowsHide: true,
-    }).unref();
+      env: childEnv(env),
+    });
+    child.unref();
+    return child;
+  };
+
+if (isEntryPoint()) {
+  const cliPath = fileURLToPath(import.meta.url);
+  const detached = detachedSpawner(cliPath);
   main(process.argv.slice(2), {
     env: process.env,
     cwd: process.cwd(),
     readStdin: readAllStdin,
     out: (line) => process.stdout.write(`${line}\n`),
     err: (line) => process.stderr.write(`${line}\n`),
-    spawnFlush: (projectRef) => detached(['flush', '--project', projectRef, '--quiet']),
-    spawnReceiver: () => detached(['receive']),
+    spawnFlush: (projectRef) => {
+      detached(['flush', '--project', projectRef, '--quiet']);
+    },
+    spawnReceiver: () => {
+      detached(['receive']);
+    },
     systemProxy: { platform: process.platform, run: runCommand },
+    promptHidden: promptHiddenFromTerminal,
     // Only `javi mcp` touches process.stdin as a stream (other commands keep their behaviour).
     ...(process.argv[2] === 'mcp' && {
       stdio: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr },

@@ -3,7 +3,10 @@ import type { RecordInput } from '@javis-dog/jgr-sdk';
 
 // Claude Code hook input → JGR event (spec §12, ADR-0010). Only operational metadata
 // leaves this function: prompts, tool inputs/responses, assistant messages, transcript
-// paths and cwd are never read into the output.
+// paths and cwd are never read into the output. The session folder (`cwd`) is read only for
+// L1/L2 projects, and only into the separate `x.javi.thread.identity` event as keyed hashes
+// and, for L2, ciphertext (ADR-0018 §4, §5; run.ts, session-folder.ts). Every event mapped
+// here stays L0.
 
 export const COLLECTOR_VERSION = '0.1.0';
 

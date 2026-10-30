@@ -47,6 +47,20 @@ const nodePrefix = {
   },
 };
 
+/**
+ * src/crypto-loader.ts loads JD-M11 lazily (start-up time of hooks run from a checkout); in the
+ * bundle it is replaced by crypto-loader.bundle.ts, a static import, because a dynamic import
+ * would make esbuild wrap zod and every other shared module in lazy initialisers (+~80 KiB).
+ */
+const staticCrypto = {
+  name: 'static-crypto',
+  setup(b) {
+    b.onResolve({ filter: /\/crypto-loader\.ts$/ }, (args) => ({
+      path: join(args.resolveDir, 'crypto-loader.bundle.ts'),
+    }));
+  },
+};
+
 /** The spellings a machine path can take in bundled source (native, `/`, JSON-escaped `\`). */
 const spellings = (path) => {
   if (!path || parse(path).root === path) return [];
@@ -68,7 +82,7 @@ export const buildBundle = async ({ out = join(ROOT, 'dist') } = {}) => {
     target: 'node22',
     // esbuild keeps the entry's hashbang (cli.ts has one); checked below, never duplicated.
     define: { __JAVI_BUNDLED__: 'true' },
-    plugins: [nodePrefix],
+    plugins: [nodePrefix, staticCrypto],
     sourcemap: false,
     minify: false,
     legalComments: 'eof',
