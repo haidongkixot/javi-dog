@@ -35,7 +35,7 @@
           "encrypted": {
             "alg": "A256GCM",
             "kid": "user-key-1",
-            "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+            "iv": "AAAAAAAAAAAAAAAA",
             "ciphertext": "c2VjcmV0LWNvbnRlbnQ"
           }
         }

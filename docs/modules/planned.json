@@ -6,13 +6,5 @@
     "status": "planned",
     "sprint": "S5",
     "description": "GitHub App webhooks, opt-in archive"
-  },
-  {
-    "id": "JD-M11",
-    "name": "@javis-dog/crypto",
-    "path": "packages/crypto",
-    "status": "planned",
-    "sprint": "S5",
-    "description": "Envelope and end-to-end encryption (WebCrypto)"
   }
 ]

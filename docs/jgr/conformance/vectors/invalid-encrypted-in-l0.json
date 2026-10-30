@@ -14,7 +14,7 @@
     "encrypted": {
       "alg": "A256GCM",
       "kid": "k",
-      "iv": "AAAAAAAAAAAAAAAAAAAAAA",
+      "iv": "AAAAAAAAAAAAAAAA",
       "ciphertext": "eA"
     }
   },
