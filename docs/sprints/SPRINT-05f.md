@@ -23,8 +23,8 @@
 | K2 | Spec §7 wording (HMAC), `iv` exactly 12 bytes in spec, validator and ingest | JD-M01 | tests; changelog | PLANNED |
 | K3 | `javi init --privacy`, key storage, L1/L2 fields on the named events, canary | JD-C01 | TEST_PLAN collector rows | PLANNED |
 | K4 | Class change action, reader fields, key setup + decrypt UI, honest labels, Integrations copy | JD-M04, JD-M07, JD-APP | TEST_PLAN reader, browser, key-never-on-server and role rows | PLANNED |
-| K6 | Nonce CSP for all app routes; then "Remember on this device" | JD-APP | zero CSP violations in a bounded browser run | PLANNED |
-| K5 | QA vectors (`docs/jgr/conformance/privacy/`) and runner; end-to-end test | QA, all | every vector passes, mutation-checked | PLANNED |
+| K6 | Nonce CSP for all app routes; then "Remember on this device" | JD-APP | zero CSP violations in a bounded browser run | CSP DONE (`ae27c91`); remember-on-device with K4 |
+| K5 | QA vectors (`docs/jgr/conformance/privacy/`) and runner; end-to-end test | QA, all | every vector passes, mutation-checked | vectors DONE; runner PLANNED |
 
 ## Review focus
 
@@ -37,12 +37,27 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-10-30 — K5 vectors merged:
+  - QA wrote 17 vectors with 153 cases, computed with two independent reference methods (Node WebCrypto; Python stdlib with `cryptography` and the OpenSSL CLI), 366 checks and 0 mismatches.
+  - 14 spec gaps were resolved in ADR-0018 (G4 and G6 were real defects).
+  - Developer A was told the binding rules mid-lane.
+  - Spec §7 now requires HMAC and a 12-byte `iv`.
+- 2026-10-30 — K6 CSP merged and pushed (`ae27c91`):
+  - full gate: 2225 tests;
+  - local `csp:check`: 12 of 12 routes PASS (red-first: without the nonce 1 of 12; with pages left static 8 of 12);
+  - production: the header is live on `ae27c91`, and a browser load of 6 public routes gave 0 CSP violations with the Next runtime started.
+
+  Signed-in data views were not loaded (owner).
 - 2026-10-30 — Discovery, research, owner decisions, ADR-0018, TEST_PLAN §S5f, readiness rows.
 
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm -s test --force` after the K6 merge | 0 | — | 2225 | 0 | 0 | 0 | 0 | 15 packages |
+| `pnpm --filter @javis-dog/web csp:check` (local `next start`, no DB env) | 0 | — | 12 | 0 | 0 | 0 | 0 | per-route JSON |
+| Production browser load of 6 public routes (scratch script, no screenshots) | 0 | — | 6 | 0 | 0 | 0 | signed-in views | 0 violations |
+| QA reference cross-check (`ref.mjs` + `check.py`) | 0 | — | 366 | 0 | 0 | 0 | 0 | scratch, not committed |
 
 ## Team
 

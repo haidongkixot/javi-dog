@@ -342,10 +342,10 @@ Written before the lanes start (ADR-0018). Risk: **HIGH**. This is cryptography,
 | Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
 |---|---|---|---|---|
 | HKDF derivations, `kid`, L1 HMAC per field, AAD bytes, AES-GCM round trip; recovery-key format and checksum | High | Unit (JD-M11), known-answer vectors written by QA from the ADR | exact hex and base64url outputs | QA vectors |
-| Decryption fails with a wrong key, a wrong `kid`, or a changed `event_id` / `project_ref` / `producer_id` / class in the AAD | High | Unit | throws, mapped to a fixed error | QA vectors |
+| Decryption fails with a wrong key, a wrong `kid`, or a change to any AAD part (`event_id`, project slug, `producer_id`, `thread_ref`, `type`, `kid`, class) | High | Unit | typed failure, never a throw to the caller | QA vectors |
 | `iv` exactly 12 bytes (16 base64url chars) in spec, validator and ingest | Medium | Unit (JD-M01) + ingest handler | 15 and 17 chars rejected | No |
 | Collector: key from env or hidden prompt only; checksum check; stored at mode 0600; never printed (`status` shows class + `kid`); refused when the server class is lower | High | Process (temp `JAVI_HOME`) | sentinel key absent from stdout, stderr, argv, spool and logs | No |
-| Collector: L1 hashes + L2 payload only on `session.started` and the collector `heartbeat working`, the canary on `installed`, everything else L0; `.git/HEAD` read without spawning git | High | Unit + process | payload → records | QA vectors |
+| Collector: L1 hashes + L2 payload only on `x.javi.thread.identity` (after `session.started` and the collector `heartbeat working`), the canary on `installed`, every other event L0 (ADR-0018 D0 H1); `.git/HEAD` read without spawning git | High | Unit + process | payload → records | QA vectors |
 | Reader returns the newest hashes and the newest `encrypted` with `event_id`/`producer_id`/`kid` as opaque data; no server decryption | Medium | Unit (PGlite) | rows → state | No |
 | Browser: memory by default, IndexedDB only with consent, forget/sign-out clears; label states (set up → checked; missing key; wrong key) | High | Component (jsdom + Node WebCrypto; this is Node's engine, not a browser's) | rendered text + accessible names | No |
 | Key never reaches the server: sentinel key absent from any server action argument, request body, log line and SSR HTML | High | Component + server-action tests | captured requests and logs | No |

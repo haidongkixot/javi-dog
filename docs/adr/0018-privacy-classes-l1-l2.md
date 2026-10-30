@@ -189,3 +189,22 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
   | M8 | Test-plan gaps and untestable rows | Rows added; IndexedDB and Windows file-mode rows marked as owner or browser runs |
 
   Accepted Lows: per-project HKDF `info`, `|` rejection, `canonicalEventId()`, sign-out clearing across tabs and session expiry, a persisted "checked" state, scoped copy, the role note, text-only rendering, `transpilePackages`. Deferred: storing the current `kid` on the server (needs a migration); counting events per key.
+- 2026-10-30 — QA spec gaps (known-answer vectors from this ADR only, `docs/jgr/conformance/privacy/`). These byte-level rules are binding:
+
+  | Gap | Rule |
+  |---|---|
+  | G1 | Crockford base32 alphabet `0123456789ABCDEFGHJKMNPQRSTVWXYZ`, RFC 4648 §6 bit order, last group zero-padded on the right, no `=`, upper case. The same rule applies to the key body (52 characters), the checksum (4) and the `kid` (8). |
+  | G2 | Parsing removes only U+0020 and `-` and ignores case. The prefix `JDK1` is required. `O`, `I`, `L` and `U` are refused (no aliases). Padding bits must be zero. |
+  | G3 | HKDF input is the 32 raw secret bytes with an empty salt. `info` is the UTF-8 of `<label>\|<slug>`, with the labels `jgr/kid/v1`, `jgr/l2/aes-gcm/v1` and `jgr/l1/v1/{repo,branch,cwd,file}`. |
+  | G4 | Output lengths: `kid` 5 bytes, giving 8 characters; L2 key 32 bytes; L1 HMAC keys exactly 32 bytes. Set the length explicitly, because WebCrypto's HMAC default is 64 bytes and gives other hashes. |
+  | G5 | The L1 function applies NFC to every field; the payload builder applies NFC before the cut. |
+  | G6 | Decision 4's "100 code points keeps it within 256 bytes" was wrong: 100 astral characters give 417 bytes. The cut is per field: the longest prefix of at most 100 code points whose JSON-escaped UTF-8 is at most 113 bytes. Then the payload is padded with spaces to exactly 256 bytes. |
+  | G7 | base64url is unpadded everywhere; `=` is refused. |
+  | G8 | `{"v":1}` with either field absent is valid. The UI shows the one name present, or nothing. |
+  | G9 | No key in the tab gives "Encrypted (key `kid`)". One or more keys with none matching gives "Can't decrypt with the key on this device". |
+  | G10 | Decryption succeeds but the plaintext is not a valid v1 payload → "Can't verify" (`unverifiable`). |
+  | G12 | Serialisation is `JSON.stringify` with key order `v`, `repo`, `branch` (canary: `v`, `canary`), as raw UTF-8. |
+  | G13 | `cwd_hash` hashes the session folder exactly as the hook payload's `cwd` gives it (absolute, NFC). When the payload has no `cwd`, no `cwd_hash` is sent. |
+  | G14 | After a rotation, the "checked" label names the `kid` of the newest successfully decrypted event. |
+
+  G11 was two stale TEST_PLAN rows, now fixed. Encrypt-direction known answers need a test-only IV input on the encrypt function; it is documented as test-only.
