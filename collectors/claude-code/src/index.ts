@@ -213,20 +213,26 @@ export {
 } from './codex-usage.ts';
 export { childEnv, PRIVACY_KEY_ENV } from './child-env.ts';
 export {
+  AGENT_ENV_MARKERS,
   buildCanaryRecord,
   buildIdentityRecord,
   IDENTITY_TYPE,
   INSTALLED_TYPE,
   isIdentityTrigger,
+  KEY_FILE_MODE_WARNING,
+  KEY_FILE_OWNER_WARNING,
   loadProjectKeys,
   PRIVACY_GUIDANCE,
   promptHiddenFromTerminal,
   readKeyFile,
+  terminalRefusal,
   ulidAfter,
   UUID_LIKE,
   type HiddenPrompt,
+  type HiddenPromptOptions,
   type HiddenPromptResult,
   type PrivacyClass,
   type StoredPrivacy,
+  type TerminalRefusal,
 } from './privacy.ts';
 export { GIT_FILE_MAX_BYTES, readSessionFolder, type SessionFolder } from './session-folder.ts';

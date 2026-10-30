@@ -36,6 +36,12 @@ export const FLUSH_INTERVAL_MS = 30_000;
 /** Minimum gap between two background flush spawns. */
 export const FLUSH_DEBOUNCE_MS = 3_000;
 /** Events that should reach the dashboard promptly. */
+/**
+ * An empty environment typed as `NodeJS.ProcessEnv`, so the package also type-checks where a
+ * global augmentation makes some variable required (Next.js: `NODE_ENV`).
+ */
+const EMPTY_ENV = {} as NodeJS.ProcessEnv;
+
 const URGENT = new Set(['attention.requested', 'session.ended', 'session.started']);
 /** The end-of-turn hook of each platform: its `heartbeat idle` is flushed at once too. */
 const END_OF_TURN: Readonly<Record<Platform, string>> = {
@@ -109,7 +115,7 @@ const checkGeminiTelemetry = async (deps: HookDeps) => {
   try {
     const config = await deps.state.usageConfig();
     if (!config?.gemini) return;
-    const env = deps.env ?? {};
+    const env = deps.env ?? EMPTY_ENV;
     const overrides = await findGeminiTelemetryOverrides({
       cwd: deps.cwd ?? process.cwd(),
       home: geminiHome(env),
@@ -149,7 +155,7 @@ const checkCodexEnv = async (deps: HookDeps) => {
       await deps.state.removeCodexEnvWarning(deps.projectRef);
       return;
     }
-    const env = deps.env ?? {};
+    const env = deps.env ?? EMPTY_ENV;
     const risks = await codexEnvRisks({
       env,
       home: codexHome(env),
