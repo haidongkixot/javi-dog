@@ -444,3 +444,37 @@ it('plain init leaves the registration as it is; uninstall of another project le
   expect(await read(file)).toBe(bytes);
   expect((await status('claude-code')).out).toContain('Self-report: registered');
 });
+
+// Code review M2: javi never registered self-report here, so a .mcp.json it cannot parse is not
+// javi's business: uninstall warns once, removes the hooks, and leaves the file as it is.
+it.each([
+  ['a BOM', '﻿{"mcpServers": {}}\n'],
+  ['garbage', 'not json at all {'],
+  ['an array', '[1, 2]\n'],
+])(
+  'uninstall with an unparsable .mcp.json (%s) javi never wrote: warning, hooks removed, exit 0',
+  async (_, broken) => {
+    expect((await init('claude-code')).code).toBe(0);
+    const file = join(dir, '.mcp.json');
+    await writeFile(file, broken);
+    const result = await uninstall('claude-code');
+    expect(result.code).toBe(0);
+    const mentions = `${result.out}\n${result.err}`.split('\n').filter((l) => l.includes(file));
+    expect(mentions).toHaveLength(1);
+    expect(result.out).toContain(`Removed javi hooks from ${settingsPath(dir)}.`);
+    expect(await read(settingsPath(dir))).not.toContain('javi-collector');
+    expect(await read(file)).toBe(broken);
+  },
+);
+
+it('uninstall still refuses an unparsable .mcp.json in which javi recorded a registration', async () => {
+  expect((await init('claude-code', '--self-report')).code).toBe(0);
+  const file = join(dir, '.mcp.json');
+  const broken = `﻿${await read(file)}`;
+  await writeFile(file, broken);
+  const result = await uninstall('claude-code');
+  expect(result.code).toBe(1);
+  expect(result.err).toContain(file);
+  expect(await read(file)).toBe(broken);
+  expect(await read(settingsPath(dir))).toContain('javi-collector');
+});

@@ -1388,6 +1388,11 @@ const uninstallSelfReport = async (
     );
     return false;
   }
+  if (result.unreadable) {
+    io.out(
+      `Warning: javi cannot read ${file}, and javi never registered self-report there, so it was left as it is.`,
+    );
+  }
   if (result.outcome === 'removed') io.out(`Removed javi's self-report MCP server from ${file}.`);
   if (result.outcome === 'deleted') {
     io.out(`${file} held only javi's self-report MCP server, so the file was removed.`);

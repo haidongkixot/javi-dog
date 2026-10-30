@@ -592,12 +592,18 @@ export interface UnregisterResult {
   outcome: 'removed' | 'deleted' | 'absent' | 'changed';
   /** Claude Code allow entries removed. */
   allowRemoved: string[];
+  /**
+   * The file could not be read as a plain JSON object, but javi never recorded a registration
+   * in it (code review M2): treated as `absent`, and the caller warns once.
+   */
+  unreadable: boolean;
 }
 
 /**
  * Removes javi's MCP entry for `projectRef` (never a `javi` server javi did not write, nor one
  * registered for another project), then the allow rules javi recorded. Throws for a file that
- * does not parse (nothing removed).
+ * does not parse when javi recorded a registration in it (nothing removed); without such a
+ * record the file is not javi's business, so it counts as `absent` with `unreadable` set.
  */
 export const unregisterSelfReport = async (opts: {
   platform: Platform;
@@ -608,6 +614,7 @@ export const unregisterSelfReport = async (opts: {
   const { platform, projectDir, projectRef, record } = opts;
   const file = registrationPath(platform, projectDir);
   let outcome: UnregisterResult['outcome'] = 'absent';
+  let unreadable = false;
   if (platform === 'codex-cli') {
     const loaded = await loadText(file);
     const found = loaded ? findCodexBlock(loaded.text) : null;
@@ -634,7 +641,8 @@ export const unregisterSelfReport = async (opts: {
     }
   } else {
     const loaded = await loadJson(file);
-    if (loaded.kind === 'unparsable') {
+    if (loaded.kind === 'unparsable' && record === null) unreadable = true;
+    else if (loaded.kind === 'unparsable') {
       throw new Error(
         `Cannot read ${file} as a plain JSON object: javi's MCP entry was not removed and nothing else was changed. Fix it, then re-run javi uninstall.`,
       );
@@ -672,7 +680,7 @@ export const unregisterSelfReport = async (opts: {
       }
     }
   }
-  return { file, outcome, allowRemoved };
+  return { file, outcome, allowRemoved, unreadable };
 };
 
 export interface SelfReportStatus {
