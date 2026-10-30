@@ -61,6 +61,10 @@ export const SAFARI_NOTE =
 export const CLEARING_NOTE =
   'Signing out, here or in another tab, forgets every key in this browser, remembered ones included. So does any page that finds you signed out, for example after your session expires. Keys remembered under another account are deleted, never loaded.';
 
+/** Review L3: next to Copy and Download. The clipboard is not a place the key is kept. */
+export const COPY_IS_NOT_SAVING =
+  'A copied key isn’t saved yet. Paste it into your password manager, or keep the downloaded file somewhere safe.';
+
 export const PASTE_MISMATCH = 'This is not the key shown above. Paste the full key you saved.';
 
 /** Lowering warning (ADR-0018 §7 and D0 H1). `above` names the classes that will be refused. */

@@ -9,7 +9,12 @@ import {
 } from '@javis-dog/crypto';
 import { changePrivacyClassAction } from '@/app/projects/actions';
 import { clearChecked } from '@/lib/privacy/checked';
-import { COLLECTOR_GUIDANCE, LOST_KEY_WARNING, PASTE_MISMATCH } from '@/lib/privacy/copy';
+import {
+  COLLECTOR_GUIDANCE,
+  COPY_IS_NOT_SAVING,
+  LOST_KEY_WARNING,
+  PASTE_MISMATCH,
+} from '@/lib/privacy/copy';
 import { KeyInput } from './key-input';
 import { useKeyStore } from './key-context';
 
@@ -34,6 +39,13 @@ const CLASS_TEXT: Record<Raise, string> = {
   L1: 'L1: keyed hashes of repo, branch and folder names only',
 };
 
+/**
+ * Review L3: how long the download's blob URL stays valid. Revoking it at once can cancel a
+ * download the browser has not started yet (a slow "Save as" dialog); 40 s covers that and still
+ * drops the URL soon after.
+ */
+const DOWNLOAD_URL_LIFETIME_MS = 40_000;
+
 /** Offers a download of the key as a text file; no server round trip. */
 const downloadKey = (key: string, slug: string) => {
   const text = `Javi's Dog recovery key for project ${slug}. Keep it private.\n${key}\n`;
@@ -48,7 +60,7 @@ const downloadKey = (key: string, slug: string) => {
   document.body.append(a);
   a.click();
   a.remove();
-  if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+  if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), DOWNLOAD_URL_LIFETIME_MS);
 };
 
 /**
@@ -175,7 +187,10 @@ export function KeySetup({
       ) : null}
 
       {state.step === 'show' ? (
-        <div className="grid gap-3 rounded-control border border-line bg-surface-subtle p-3">
+        <div
+          data-key-panel=""
+          className="grid gap-3 rounded-control border border-line bg-surface-subtle p-3"
+        >
           <p className="text-xs font-bold text-ink">
             Your recovery key. It is shown once and never sent to Javi’s Dog.
           </p>
@@ -218,6 +233,7 @@ export function KeySetup({
               I saved it, hide the key
             </button>
           </div>
+          <p className="text-xs text-muted">{COPY_IS_NOT_SAVING}</p>
         </div>
       ) : null}
 

@@ -31,7 +31,8 @@ const { createKeyStore } = await import('@/lib/privacy/key-store');
 const checked = await import('@/lib/privacy/checked');
 /** Review L1: remembering ships off; these tests force the gate on to test the logic. */
 const REMEMBER_ON = { rememberEnabled: true } as const;
-const { PASTE_MISMATCH, TAB_ONLY_CLEARING_NOTE, lowerWarning } = await import('@/lib/privacy/copy');
+const { COPY_IS_NOT_SAVING, PASTE_MISMATCH, TAB_ONLY_CLEARING_NOTE, lowerWarning } =
+  await import('@/lib/privacy/copy');
 
 const PROJECT = '22222222-2222-4222-8222-222222222222';
 const SLUG = 'web-app';
@@ -269,6 +270,48 @@ describe('key setup flow (owner or admin)', () => {
     expect(requests).toEqual([]);
     // The anchor is removed again.
     expect(document.querySelector('a[download]')).toBeNull();
+  });
+});
+
+describe('review L3 — download and copy', () => {
+  it('the download URL stays valid for about 40 s, then is revoked', async () => {
+    const created: string[] = [];
+    const revoked: string[] = [];
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => {
+        created.push('blob:test-1');
+        return 'blob:test-1';
+      }),
+      revokeObjectURL: vi.fn((u: string) => void revoked.push(u)),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    await screen.findByRole('button', { name: 'Download as a file' });
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Download as a file' }));
+      expect(created).toEqual(['blob:test-1']);
+      await vi.advanceTimersByTimeAsync(1_000);
+      // A slow "Save as" dialog still gets a live URL.
+      expect(revoked).toEqual([]);
+      await vi.advanceTimersByTimeAsync(39_000);
+      expect(revoked).toEqual(['blob:test-1']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says next to the buttons that a copied key is not saved yet', async () => {
+    renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const copy = await screen.findByRole('button', { name: 'Copy key' });
+    const panel = copy.closest('[data-key-panel]');
+    expect(panel?.textContent).toContain(COPY_IS_NOT_SAVING);
+    expect(COPY_IS_NOT_SAVING).toBe(
+      'A copied key isn’t saved yet. Paste it into your password manager, or keep the downloaded file somewhere safe.',
+    );
   });
 });
 
