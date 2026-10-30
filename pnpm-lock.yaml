@@ -173,6 +173,9 @@ importers:
       '@javis-dog/projects':
         specifier: workspace:*
         version: link:../../packages/projects
+      '@javis-dog/realtime':
+        specifier: workspace:*
+        version: link:../../packages/realtime
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5
