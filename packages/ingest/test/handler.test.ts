@@ -275,6 +275,28 @@ describe('partial acceptance and tenant rules', () => {
     expect(await res2.json()).toMatchObject({ accepted: 1, rejected: [] });
   });
 
+  it('rejects an L2 iv that is not exactly 12 bytes (16 base64url characters, ADR-0018)', async () => {
+    const { token } = await setup('L2');
+    const l2 = (n: number, iv: string) =>
+      event(n, {
+        privacy_class: 'L2',
+        encrypted: { alg: 'A256GCM', kid: 'ABCDEFGH', iv, ciphertext: 'c2VjcmV0LWNvbnRlbnQ' },
+      });
+    // 15 characters, 12 bytes, and the 16-byte form the schema accepted before S5f.
+    const events = [l2(1, 'A'.repeat(15)), l2(2, 'A'.repeat(16)), l2(3, 'A'.repeat(22))];
+    const res = await handler()(post(token, { events }));
+    expect(res.status).toBe(202);
+    expect(await res.json()).toMatchObject({
+      accepted: 1,
+      rejected: [
+        { index: 0, issues: [{ code: 'schema', path: 'encrypted.iv' }] },
+        { index: 2, issues: [{ code: 'schema', path: 'encrypted.iv' }] },
+      ],
+    });
+    const stored = await client.query<{ sequence: number }>('select sequence from events');
+    expect(stored.rows).toEqual([{ sequence: 2 }]);
+  });
+
   it('rejects clock skew beyond 5 minutes', async () => {
     const { token } = await setup();
     const res = await handler()(
