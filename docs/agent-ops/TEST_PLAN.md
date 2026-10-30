@@ -316,10 +316,20 @@ Screenshot budget: **0**.
 | stdout carries only newline-terminated JSON-RPC; logs only on stderr | High | Process (spawn built `javi.mjs mcp`) | every stdout line parses as JSON-RPC 2.0 | No |
 | Interop with the official client | High | Process (SDK client, dev dependency) | connect, list, call valid and invalid | No |
 | Hook mapping, all three CLIs: javi's tools → `heartbeat`+`status`(+`error_code` `<status>.<reason>`) or `task.*`+`task_kind`; `tool_name` provenance; same thread, agent and sequence as the hook; ids from `tool_use_id` (Claude Code, Codex), fresh for Gemini | High | Unit (mappers) | payload → records | QA vectors |
-| No other tool's `tool_input` is read; Gemini match only on `mcp_context` | High | Unit | trap object throws on property access | QA vectors |
+| No other tool's `tool_input` is read; for javi's tools only `tool_input`, `tool_name`, `mcp_context.server_name/tool_name` are read; Gemini match only on `mcp_context` | High | Unit (mappers directly) | Proxy records property reads | QA vectors |
 | Invalid self-report input → no self-report event, normal tool event unchanged | Medium | Unit | payload → records | QA vectors |
 | `init --self-report` writes `.mcp.json` / `.gemini/settings.json` / `.codex/config.toml`; idempotent; uninstall removes only javi's entry; user entries and comments kept; git-tracked warning; unparsable file refused | High | Process (temp dirs) | bytes before/after | No |
 | `statusSource` = `agent` only when the status-giving event came from javi's tools; pill shows "reported by agent" as text with an accessible name | Medium | Unit (reader on PGlite) + component | rows → state; rendered text | No |
-| End to end: hook payload → spool → ingest handler (PGlite) → reader shows `blocked`, source `agent` | Medium | Process (existing e2e harness) | reader output | No |
+| End to end: self-report `blocked` + reason → Stop/AfterAgent `idle` → spool → ingest (PGlite) → reader shows `blocked`, reason, source `agent`, needs attention; a later prompt (`heartbeat working`) clears it | High | Process (existing e2e harness) | reader output at both points | No |
+| Precedence (ADR-0017 §6): agent status survives collector `idle`, `attention.requested`, `usage.reported`, `error`; cleared by `task.*`, `session.*`, `agent.*`, collector `working` | High | Unit (reader on PGlite) | event sequences → status, source | No |
+| Prompt flush: self-reported status ≠ `working`, self-reported `task.failed`, and `Stop`/`AfterAgent` `idle` trigger an immediate flush; others keep the backlog/interval rule | High | Unit (`runHook`) | spawnFlush called / not called | No |
+| One record per javi tool call; pre-tool hooks emit nothing for javi's tools; other tools unchanged | High | Unit (mappers) | payload → records | QA vectors |
+| Sub-agent `report_status` → no record; sub-agent `report_task` → record with `agent_ref` | Medium | Unit (mappers) | payload → records | QA vectors |
+| Derived ULID: time part = hook time, stable for the same call id, sorts with spool ULIDs; no raw id in the output | Medium | Unit | id properties | No |
+| `initialize` result has `capabilities.tools`, `serverInfo`, `instructions`; requests before `initialize` → `-32600`; unknown tool → `-32602`; `id` echoed with its type; parse error `id: null`; no response to notifications | High | Unit (JD-C03) | request → exact response | QA vectors |
+| Sentinel strings in any request never appear on stdout responses, stderr, or `isError` text | High | Unit + process | captured streams | No |
+| `javi mcp` answers `isError` "not recorded" when hooks for that platform and project are not installed | Medium | Process | response text | No |
+| `--allow-self-report` adds exactly javi's two allowances; uninstall removes exactly them; git-tracked registration file refused without `--allow-tracked-config`; unversioned `javi-mcp.mjs` | High | Process (temp dirs) | bytes before/after | No |
+| `statusReason` only from the `SELF_REPORT` list; pill text "Blocked · missing credentials · reported by agent" with an accessible name, also in the activity feed | Medium | Unit (reader) + component | rendered text | No |
 | Claude Code, Gemini CLI and Codex CLI unchanged for every other tool | High | Existing suites + conformance runners | unchanged assertions | No |
 | Real CLI runs (protocol version, approval prompts, Windows spawn) | — | Runtime (owner) | `javi status`, dashboard | NOT RUN until owner run |

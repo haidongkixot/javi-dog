@@ -22,7 +22,7 @@
 | T1 | Self-report vocabulary, validator and mappers | JD-C02 | → `SELF_REPORT`, `validateSelfReport()`, `selfReportRecord()` | TEST_PLAN rows 1, 6–8 | PLANNED |
 | T2 | Hand-written stdio MCP server | JD-C03 | JD-C02 → `createMcpServer()` | rows 2–5 | PLANNED |
 | T3 | `javi mcp`, `init --self-report`, uninstall, status, hook wiring for all three platforms | JD-C01 | JD-C02, JD-C03 → CLI | rows 4, 9, 12 | PLANNED |
-| T4 | `statusSource` in the reader, "reported by agent" in `ThreadStatusPill` | JD-M12, JD-M13 | → `ThreadState.statusSource` | row 10 | PLANNED |
+| T4 | Reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`; pill text in all status pills | JD-M12, JD-M13 | → `ThreadState.statusSource`, `statusReason` | precedence, reader and pill rows | PLANNED |
 | T5 | Conformance vectors (`docs/jgr/conformance/self-report/`) and runner | QA | ADR-0017 → vectors | every vector PASS, mutation-checked | PLANNED |
 | T6 | End-to-end test, docs (how-to, spec §12 Changes, registry, changeset) | all | — | row 11; `docs:check` | PLANNED |
 
@@ -58,11 +58,13 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-30 — Reviewer — Design review D0 of ADR-0017, before any code: 2 High (H1 the end-of-turn `idle` overwrote self-reports; H2 self-reports waited in the spool), 7 Medium, 5 Low. Orchestrator verified H1/H2 in `mapping.ts:103-104`, `queries.ts:21,80-81`, `run.ts:23,228-236`. All folded into ADR-0017 (Changes D0). The orchestrator also found that pre-tool hooks would leave an unmatched `task.started` for javi's tools, now silent. Owner: self-reported `blocked` counts as attention; opt-in `--allow-self-report`.
 - 2026-10-30 — Orchestrator — Research agent report (primary sources). The orchestrator re-checked hook firing for MCP tools in the Codex and Gemini sources. That led to a uniform "hook emits" design, with no server-side Codex path.
 
 ## Decisions and deviations
 
 - Owner 2026-10-30: JD-C03 next; hook emits; hand-written server; reason in `error_code`; opt-in registration without pre-granted permissions (ADR-0017).
+- Owner 2026-10-30 (after design review): self-reported `blocked` needs attention; opt-in `--allow-self-report` flag for a narrow allowance.
 
 ## Retro
 
