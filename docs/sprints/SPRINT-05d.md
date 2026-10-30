@@ -2,7 +2,7 @@
 
 - Dates: 2026-10-30 → · Status: ACTIVE
 - Goal (one sentence): an agent can report its state (status with a reason, task phases) through javi's local MCP server, and the dashboard shows it in the session's thread, labelled "reported by agent".
-- Modules touched: JD-C03 (new), JD-C02, JD-C01, JD-M12, JD-M13
+- Modules touched: JD-C03 (new), JD-C02, JD-C01, JD-M07, JD-APP
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows "Self-report MCP protocol", "Self-report correlation", "Self-report on Windows", "MCP SDK client for tests"
 - Test plan: `docs/agent-ops/TEST_PLAN.md` §S5d
 
@@ -22,7 +22,7 @@
 | T1 | Self-report vocabulary, validator and mappers | JD-C02 | → `SELF_REPORT`, `validateSelfReport()`, `selfReportRecord()` | TEST_PLAN rows 1, 6–8 | PLANNED |
 | T2 | Hand-written stdio MCP server | JD-C03 | JD-C02 → `createMcpServer()` | rows 2–5 | PLANNED |
 | T3 | `javi mcp`, `init --self-report`, uninstall, status, hook wiring for all three platforms | JD-C01 | JD-C02, JD-C03 → CLI | rows 4, 9, 12 | PLANNED |
-| T4 | Reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`; pill text in all status pills | JD-M12, JD-M13 | → `ThreadState.statusSource`, `statusReason` | precedence, reader and pill rows | PLANNED |
+| T4 | Reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`; pill text in all status pills | JD-M07, JD-APP | → `ThreadState.statusSource`, `statusReason` | precedence, reader and pill rows | PLANNED |
 | T5 | Conformance vectors (`docs/jgr/conformance/self-report/`) and runner | QA | ADR-0017 → vectors | every vector PASS, mutation-checked | PLANNED |
 | T6 | End-to-end test, docs (how-to, spec §12 Changes, registry, changeset) | all | — | row 11; `docs:check` | PLANNED |
 

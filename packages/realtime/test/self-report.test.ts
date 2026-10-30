@@ -351,6 +351,16 @@ const cases: Case[] = [
     want: { status: 'blocked', statusSource: 'agent', statusReason: null },
   },
   {
+    name: 'rejects a reason on a status that takes none (working, idle, completed)',
+    steps: [agent('working', 1 * MIN, 'working.other')],
+    want: { status: 'working', statusSource: 'agent', statusReason: null },
+  },
+  {
+    name: 'rejects a reason on completed',
+    steps: [agent('completed', 1 * MIN, 'completed.other')],
+    want: { status: 'completed', statusSource: 'agent', statusReason: null },
+  },
+  {
     name: 'rejects a listed reason with a trailing segment',
     steps: [agent('blocked', 1 * MIN, 'blocked.missing_credentials.extra')],
     want: { status: 'blocked', statusSource: 'agent', statusReason: null },

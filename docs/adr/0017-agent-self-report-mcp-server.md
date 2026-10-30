@@ -8,7 +8,7 @@
   - "Opt-in, ask each time" for registration.
 - Date: 2026-10-30
 - Deciders: Project owner (Hai), Claude (orchestrator)
-- Modules: JD-C03 (new, `@javis-dog/collector-mcp-server`, `collectors/mcp-server`); JD-C02 (self-report mapper); JD-C01 (`javi mcp`, `init --self-report`, hook wiring); JD-M12 and JD-M13 (status source on the dashboard); consumes JD-M01
+- Modules: JD-C03 (new, `@javis-dog/collector-mcp-server`, `collectors/mcp-server`); JD-C02 (self-report mapper); JD-C01 (`javi mcp`, `init --self-report`, hook wiring); JD-M07 and JD-APP (status source on the dashboard); consumes JD-M01
 
 ## Context and problem statement
 
@@ -163,13 +163,13 @@ Sources:
      - **What does not clear it.** A later collector `heartbeat idle` (end of turn), `usage.reported` or `error`.
      - **Otherwise.** When there is no agent status, or it has been cleared, the status is the latest non-null status among events that are not agent statuses, and the source is `collector`. A clearing event with no status, such as a collector `task.started`, therefore shows the collector status that came before the agent's report (QA gap G6). If there is no such status, the status is null.
      - **Ordering.** The reader's existing order is used (`received_at`, then `sequence`, then row id).
-   - **Reader** (JD-M12). The thread reader returns:
+   - **Reader** (JD-M07, `packages/realtime`). The thread reader returns:
      - `statusSource`: `agent` or `collector`;
      - `statusReason`: the reason from `<status>.<reason>` in `error_code`, accepted only when the prefix equals the status and the reason is in the `SELF_REPORT` list (review M2, QA gap G9). Otherwise it is null.
 
      No migration is needed: these are aggregates over existing columns.
    - **Attention (owner, 2026-10-30).** A thread needs attention when its status is `waiting`, as today, or when its status is `blocked` with source `agent` (review M1).
-   - **UI** (JD-M13). Wherever a status pill appears, the pill shows the reason in words and "reported by agent", as text with an accessible name, never by colour alone. Example: "Blocked · missing credentials · reported by agent". That includes the activity feed (`overview-view.tsx:175`).
+   - **UI** (JD-APP, `ThreadStatusPill` in `apps/web`). Wherever a status pill appears, the pill shows the reason in words and "reported by agent", as text with an accessible name, never by colour alone. Example: "Blocked · missing credentials · reported by agent". That includes the activity feed (`overview-view.tsx:175`).
    - **Unchanged.** Freshness and `stale` derivation stay as they are.
 
 ## Consequences
@@ -237,3 +237,4 @@ Sources:
   | G19 | `tool_name` is taken as given |
 
   G4, G13 and G18 need no change. G5 was a TEST_PLAN line that contradicted decision 3 and is now fixed.
+- 2026-10-30 — Module labels corrected (Developer B): the reader is JD-M07 `packages/realtime` (JD-M12 is `packages/resilience`), and `ThreadStatusPill` is JD-APP (`apps/web`), not JD-M13. Orchestrator follow-ups to the T4 lane: reasons only on `waiting`, `blocked` and `failed` in the reader too, "CI failing" capitalised, and a test that the reader's reason list equals JD-C02's.

@@ -52,7 +52,9 @@ export const statusLabel: Record<ThreadStatus, string> = {
 };
 
 /** A self-report reason in words: `missing_credentials` → "missing credentials". */
-export const reasonWords = (reason: StatusReason) => reason.replaceAll('_', ' ');
+/** Abbreviations keep their capitals; every other reason is lower case with spaces. */
+export const reasonWords = (reason: StatusReason) =>
+  reason === 'ci_failing' ? 'CI failing' : reason.replaceAll('_', ' ');
 
 /**
  * The words of an agent's own report (ADR-0017 §6), e.g.

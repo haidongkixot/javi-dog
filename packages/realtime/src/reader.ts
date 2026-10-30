@@ -46,8 +46,11 @@ const REASONS: ReadonlySet<string> = new Set(STATUS_REASONS);
  * only when the prefix is the reported status and the rest is a listed reason. Anything else is
  * dropped, so no free text from `error_code` ever reaches the snapshot.
  */
+/** Statuses that may carry a reason (ADR-0017 §2, the JD-C02 validator's rule). */
+const REASON_STATUSES: ReadonlySet<string> = new Set(['waiting', 'blocked', 'failed']);
+
 const reasonOf = (status: string | null, errorCode: string | null): StatusReason | null => {
-  if (status === null || errorCode === null) return null;
+  if (status === null || errorCode === null || !REASON_STATUSES.has(status)) return null;
   const prefix = `${status}.`;
   if (!errorCode.startsWith(prefix)) return null;
   const reason = errorCode.slice(prefix.length);

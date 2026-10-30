@@ -410,6 +410,9 @@ importers:
       '@electric-sql/pglite':
         specifier: 0.5.8
         version: 0.5.8
+      '@javis-dog/collector-adapters':
+        specifier: workspace:*
+        version: link:../../collectors/adapters
       '@javis-dog/projects':
         specifier: workspace:*
         version: link:../projects

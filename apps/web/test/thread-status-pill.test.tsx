@@ -74,7 +74,7 @@ describe('ThreadStatusPill without an agent report', () => {
 describe('reason words', () => {
   it('lower-cases and spaces every listed reason', () => {
     expect(reasonWords('missing_credentials')).toBe('missing credentials');
-    expect(reasonWords('ci_failing')).toBe('ci failing');
+    expect(reasonWords('ci_failing')).toBe('CI failing');
     expect(reasonWords('other')).toBe('other');
     expect(agentStatusText('blocked', 'rate_limited')).toBe(
       'Blocked · rate limited · reported by agent',
