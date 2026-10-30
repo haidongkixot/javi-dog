@@ -41,12 +41,29 @@ export const LOST_KEY_WARNING =
 export const COLLECTOR_GUIDANCE =
   'Run javi init --privacy yourself, in a terminal, on each machine, and paste the key at its hidden prompt. Never paste the key into an agent chat or an agent’s command: it would land in the model provider’s transcript.';
 
-/** ADR-0018 §8: Safari may evict stored keys. */
+/**
+ * Review L1: the clearing note while "Remember on this device" is off (`remember-gate.ts`).
+ * Keys live only in the tab's memory, so it never mentions remembering.
+ */
+export const TAB_ONLY_CLEARING_NOTE =
+  'Keys stay in this tab’s memory only: reloading or closing the tab forgets them. Signing out, here or in another tab, forgets them too, and so does any page that finds you signed out.';
+
+/** ADR-0018 §8: Safari may evict stored keys. Shown only while remembering is offered. */
 export const SAFARI_NOTE =
   'Safari may delete keys remembered on this device after 7 days without a visit.';
 
+/**
+ * Shown only while "Remember on this device" is offered (review L1); otherwise
+ * `TAB_ONLY_CLEARING_NOTE`. Review M2: exactly the clearing paths the app has. The sign-out button (and the notice it
+ * sends to other tabs), any signed-out page (`SignInPrompt`, `/sign-in`, the account menu with
+ * no session, a 401 from the dashboard) and another account's remembered keys on hydrate.
+ */
 export const CLEARING_NOTE =
-  'Signing out, here or in another tab, and an expired session forget every key on this device, remembered ones included.';
+  'Signing out, here or in another tab, forgets every key in this browser, remembered ones included. So does any page that finds you signed out, for example after your session expires. Keys remembered under another account are deleted, never loaded.';
+
+/** Review L3: next to Copy and Download. The clipboard is not a place the key is kept. */
+export const COPY_IS_NOT_SAVING =
+  'A copied key isn’t saved yet. Paste it into your password manager, or keep the downloaded file somewhere safe.';
 
 export const PASTE_MISMATCH = 'This is not the key shown above. Paste the full key you saved.';
 
@@ -56,8 +73,9 @@ export const lowerWarning = (target: 'L0' | 'L1') => {
   return [
     `Events already stored as ${above} stay as they are. From now on, new ${above} events for this project are rejected.`,
     'Status signals keep arriving: javi always sends them as L0. Only the identity events that carry repo and branch names are rejected, and javi status shows the code privacy_class_not_allowed.',
+    // Review L4: say plainly what `javi init --privacy L0` deletes and what that costs.
     target === 'L0'
-      ? 'Run javi init --privacy L0 on each machine to stop sending them; it also removes the stored key.'
+      ? 'Run javi init --privacy L0 on each machine to stop sending them. It deletes that machine’s copy of the recovery key: without another copy (your password manager or the downloaded file), repo and branch names already stored as L2 can’t be read anymore.'
       : 'Run javi init --privacy L1 on each machine to stop sending encrypted names.',
   ] as const;
 };

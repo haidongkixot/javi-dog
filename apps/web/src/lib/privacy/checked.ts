@@ -41,6 +41,27 @@ export const newestChecked = (projectId: string): { kid: string; at: string } | 
     null,
   );
 
+/**
+ * Review L5: forgets the "checked" state of one project (its class changed) or of every project
+ * (sign-out and any session clear). Only this module's own entries are removed.
+ */
+export const clearChecked = (projectId?: string) => {
+  try {
+    const s = storage();
+    if (!s) return;
+    const doomed =
+      projectId !== undefined
+        ? [PREFIX + projectId]
+        : Array.from({ length: s.length }, (_, i) => s.key(i)).filter(
+            (k): k is string => k !== null && k.startsWith(PREFIX),
+          );
+    for (const key of doomed) s.removeItem(key);
+  } catch {
+    // Storage unavailable: nothing was persisted there either.
+  }
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CHECKED_EVENT));
+};
+
 /** Records a successful decryption; keeps the newest event time per kid. */
 export const markChecked = (projectId: string, kid: string, at: string) => {
   if (!VALID_KID.test(kid) || Number.isNaN(Date.parse(at))) return;

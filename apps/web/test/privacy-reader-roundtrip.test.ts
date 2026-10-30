@@ -9,7 +9,7 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { ZodError } from 'zod';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { resolveIdentity } from '@/lib/privacy/identity';
+import { resolveThreadIdentity } from '@/lib/privacy/identity';
 
 // JD-M04 `setPrivacyClass` and the JD-M07 identity fields on real SQL (PGlite with the committed
 // migrations), then the browser-side decryption of what the reader returns (TEST_PLAN §S5f
@@ -88,19 +88,30 @@ describe('JD-M07 reader → browser decryption', () => {
 
     const snapshot = await createDashboardReader(db).snapshot(ws.id, { now });
     const identity = snapshot.threads[0]?.identity ?? null;
+    // Review M1: the AAD comes from the thread row the identity is shown in.
+    const row = {
+      threadRef: snapshot.threads[0]?.threadRef ?? '',
+      projectSlug: snapshot.threads[0]?.projectSlug ?? '',
+    };
+    expect(row).toEqual({ threadRef: 'cc_thread_1', projectSlug: 'demo-app' });
     expect(identity?.encrypted).toEqual(encrypted);
     expect(JSON.stringify(snapshot)).not.toContain('javi-dog');
 
-    expect(await resolveIdentity(identity, new Map([[keys.kid, keys.l2Key]]))).toEqual({
+    expect(await resolveThreadIdentity(identity, new Map([[keys.kid, keys.l2Key]]), row)).toEqual({
       kind: 'names',
       repo: 'javi-dog',
       branch: 'main',
       kid: keys.kid,
     });
     const other = await deriveProjectKeys(generateProjectSecret(), 'demo-app');
-    expect(await resolveIdentity(identity, new Map([[other.kid, other.l2Key]]))).toEqual({
-      kind: 'other-kid',
+    expect(await resolveThreadIdentity(identity, new Map([[other.kid, other.l2Key]]), row)).toEqual(
+      {
+        kind: 'other-kid',
+      },
+    );
+    expect(await resolveThreadIdentity(identity, new Map(), row)).toEqual({
+      kind: 'no-key',
+      kid: keys.kid,
     });
-    expect(await resolveIdentity(identity, new Map())).toEqual({ kind: 'no-key', kid: keys.kid });
   });
 });

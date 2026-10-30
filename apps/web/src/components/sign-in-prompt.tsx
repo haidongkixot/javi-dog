@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import { Card } from '@javis-dog/ui/components';
+import { ForgetKeysWhenSignedOut } from '@/components/privacy/forget-keys-signed-out';
 
 export function SignInPrompt({ what }: { what: string }) {
   return (
     <Card labelledBy="sign-in-prompt">
+      <ForgetKeysWhenSignedOut />
       <div className="flex flex-wrap items-center justify-between gap-3 p-5">
         <p id="sign-in-prompt" className="text-sm text-ink">
           Sign in to see {what}.

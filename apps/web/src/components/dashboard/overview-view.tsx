@@ -178,7 +178,12 @@ function Activity({ snapshot: s }: { snapshot: DashboardSnapshot }) {
                 {a.projectSlug} · <ThreadRef value={a.threadRef} />
               </p>
               {thread ? (
-                <ThreadIdentityLabel projectId={thread.projectId} identity={thread.identity} />
+                <ThreadIdentityLabel
+                  projectId={thread.projectId}
+                  projectSlug={a.projectSlug}
+                  threadRef={a.threadRef}
+                  identity={thread.identity}
+                />
               ) : null}
             </div>
             <div className="flex max-w-[55%] flex-none flex-col items-end gap-1 text-xs text-muted">
@@ -260,7 +265,12 @@ function SquadMember({ t, now, notCurrent }: { t: ThreadState; now: string; notC
         <p className="mt-1 truncate text-xs text-muted">
           <ThreadRef value={t.threadRef} /> · {agentCount(t.agents)}
         </p>
-        <ThreadIdentityLabel projectId={t.projectId} identity={t.identity} />
+        <ThreadIdentityLabel
+          projectId={t.projectId}
+          projectSlug={t.projectSlug}
+          threadRef={t.threadRef}
+          identity={t.identity}
+        />
       </div>
       <div className="flex flex-none flex-col items-end gap-1 text-xs">
         <ThreadStatusPill

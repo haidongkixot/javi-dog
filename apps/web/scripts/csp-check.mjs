@@ -36,7 +36,8 @@ if (!['real', 'no-nonce'].includes(policyMode)) {
 const SAMPLE_PARAMS = { id: '00000000-0000-4000-8000-000000000000' };
 const EXTRA_ROUTES = ['/sign-in?error=access_denied', '/csp-check-not-found', '/api'];
 const API_ROUTES = ['/api/health'];
-const API_CSP = "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
+const API_CSP =
+  "default-src 'none'; script-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
 const ROUTE_TIMEOUT_MS = 30_000;
 
 const cannotRun = (message) => {

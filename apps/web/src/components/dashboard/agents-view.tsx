@@ -150,6 +150,8 @@ function ThreadTable({
                 <ThreadRef value={t.threadRef} />
                 <ThreadIdentityLabel
                   projectId={t.projectId}
+                  projectSlug={t.projectSlug}
+                  threadRef={t.threadRef}
                   identity={t.identity}
                   className="mt-1 block max-w-64 truncate text-xs text-muted"
                 />

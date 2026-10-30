@@ -41,7 +41,10 @@ describe('security headers (next.config headers())', () => {
           return [name!, values.join(' ')];
         }),
     );
+    // Review L2: JSON responses load nothing, so everything else is denied too.
     expect(directives).toEqual({
+      'default-src': "'none'",
+      'script-src': "'none'",
       'frame-ancestors': "'none'",
       'base-uri': "'self'",
       'form-action': "'self'",

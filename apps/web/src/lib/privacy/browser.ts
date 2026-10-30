@@ -2,6 +2,7 @@
 // BroadcastChannel for sign-out in another tab. One store per tab, created on first use. jsdom
 // has no IndexedDB, so the IndexedDB adapter is exercised only in a real browser (owner run,
 // TEST_PLAN §S5f); the store logic is unit-tested with an in-memory fake.
+import { clearChecked } from './checked';
 import {
   createKeyStore,
   type KeyPersistence,
@@ -29,7 +30,11 @@ const done = (tx: IDBTransaction) =>
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'));
   });
 
-/** IndexedDB holds the non-extractable `CryptoKey` objects (structured clone), never the secret. */
+/**
+ * IndexedDB holds the non-extractable `CryptoKey` objects (structured clone), never the secret.
+ * Each row is a `StoredKey` and carries the signed-in user's id (review M2); the key store drops
+ * and deletes rows of another user, or rows without one, when it loads them.
+ */
 export const createIdbPersistence = (idb: IDBFactory): KeyPersistence => {
   let opening: Promise<IDBDatabase> | null = null;
   const open = () => {
@@ -104,13 +109,19 @@ export const browserKeyStore = (): KeyStore => {
 };
 
 /**
- * Sign-out button and session end (401): forget every key in this tab and on this device, and
- * tell other tabs. Never throws.
+ * Sign-out button, session end (401) and any page that renders signed-out: forget every key in
+ * this tab and on this device, and tell other tabs. `store` is the tab's store (the browser
+ * singleton unless a provider passes another). Never throws and never waits long (review L6).
  */
-export const forgetKeysOnSignOut = async (reason: 'sign-out' | 'session-ended') => {
+export const forgetKeysOnSignOut = async (
+  reason: 'sign-out' | 'session-ended',
+  store?: KeyStore | null,
+) => {
   try {
     if (typeof window === 'undefined') return;
-    await browserKeyStore().clearAll(reason);
+    // Review L5: the "checked" flags (localStorage, shared by every tab) go with the keys.
+    clearChecked();
+    await (store ?? browserKeyStore()).clearAll(reason);
   } catch {
     // Clearing must never block signing out.
   }

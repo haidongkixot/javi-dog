@@ -28,7 +28,11 @@ const { KeySetup } = await import('@/components/privacy/key-setup');
 const { KeyEntry } = await import('@/components/privacy/key-entry');
 const { LowerClass } = await import('@/components/privacy/lower-class');
 const { createKeyStore } = await import('@/lib/privacy/key-store');
-const { PASTE_MISMATCH, lowerWarning } = await import('@/lib/privacy/copy');
+const checked = await import('@/lib/privacy/checked');
+/** Review L1: remembering ships off; these tests force the gate on to test the logic. */
+const REMEMBER_ON = { rememberEnabled: true } as const;
+const { COPY_IS_NOT_SAVING, PASTE_MISMATCH, TAB_ONLY_CLEARING_NOTE, lowerWarning } =
+  await import('@/lib/privacy/copy');
 
 const PROJECT = '22222222-2222-4222-8222-222222222222';
 const SLUG = 'web-app';
@@ -129,6 +133,11 @@ const goToConfirm = async () => {
   const key = shown.textContent ?? '';
   fireEvent.click(screen.getByRole('button', { name: 'I saved it, hide the key' }));
   return key;
+};
+
+/** Pastes the key back into the confirmation field. */
+const keyInputAfter = (key: string) => {
+  keyInput().value = key;
 };
 
 describe('sentinel search', () => {
@@ -264,6 +273,164 @@ describe('key setup flow (owner or admin)', () => {
   });
 });
 
+/**
+ * Every string React holds for the tree under `container`: props and hook state of each fiber
+ * and of its alternate (the previous render), two levels deep. React internals, read-only; the
+ * L9 tests use it to show the key is never React state or a prop.
+ */
+const reactHeldStrings = (container: Element): string[] => {
+  const rootKey = Object.keys(container).find((k) => k.startsWith('__reactContainer$'));
+  const out: string[] = [];
+  const collect = (v: unknown, depth: number) => {
+    if (typeof v === 'string') out.push(v);
+    else if (depth > 0 && v !== null && typeof v === 'object' && !(v instanceof Node)) {
+      for (const x of Object.values(v as Record<string, unknown>)) collect(x, depth - 1);
+    }
+  };
+  type Fiber = {
+    memoizedProps: unknown;
+    memoizedState: unknown;
+    child: Fiber | null;
+    sibling: Fiber | null;
+    alternate: Fiber | null;
+  };
+  const read = (f: Fiber) => {
+    collect(f.memoizedProps, 2);
+    let hook = f.memoizedState as { memoizedState?: unknown; next?: unknown } | null;
+    for (let i = 0; hook && typeof hook === 'object' && i < 50; i += 1) {
+      collect('memoizedState' in hook ? hook.memoizedState : hook, 2);
+      hook = (hook.next ?? null) as typeof hook;
+    }
+  };
+  const stack: Fiber[] = rootKey ? [(container as unknown as Record<string, Fiber>)[rootKey]!] : [];
+  const seen = new Set<Fiber>();
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    read(f);
+    if (f.alternate) read(f.alternate);
+    if (f.child) stack.push(f.child);
+    if (f.sibling) stack.push(f.sibling);
+  }
+  return out;
+};
+
+describe('review L9 — no key text left behind', () => {
+  it('the shown key is never React state or a prop, only text in one DOM node', async () => {
+    const { container } = renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const shown = await screen.findByText(/^JDK1-/);
+    const key = shown.textContent ?? '';
+    expect(key).toBe(await crypto.encodeRecoveryKey(SENTINEL_SECRET));
+    const held = reactHeldStrings(container);
+    expect(held.length).toBeGreaterThan(10);
+    expect(held.flatMap(findSentinel)).toEqual([]);
+  });
+
+  it('after "hide" no key text exists in the DOM, not even in the detached key node', async () => {
+    const { container } = renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const node = await screen.findByText(/^JDK1-/);
+    fireEvent.click(screen.getByRole('button', { name: 'I saved it, hide the key' }));
+    expect(node.isConnected).toBe(false);
+    expect(node.textContent).toBe('');
+    expect(findSentinel(document.documentElement.outerHTML)).toEqual([]);
+    expect(reactHeldStrings(container).flatMap(findSentinel)).toEqual([]);
+  });
+
+  it('copy and download still use the shown key', async () => {
+    const blobs: Blob[] = [];
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((b) => {
+      blobs.push(b as Blob);
+      return 'blob:l9-test';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const key = (await screen.findByText(/^JDK1-/)).textContent ?? '';
+    fireEvent.click(screen.getByRole('button', { name: 'Copy key' }));
+    await screen.findByRole('button', { name: 'Copied' });
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(key);
+    fireEvent.click(screen.getByRole('button', { name: 'Download as a file' }));
+    expect(blobs).toHaveLength(1);
+    expect(await blobs[0]!.text()).toContain(key);
+  });
+
+  it('a failed confirmation clears the paste-back field (mismatch and typo)', async () => {
+    renderSetup();
+    const key = await goToConfirm();
+    sentinelNext.value = false;
+    keyInput().value = await crypto.encodeRecoveryKey(crypto.generateProjectSecret());
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText(PASTE_MISMATCH);
+    expect(keyInput().value).toBe('');
+    keyInput().value = `${key.slice(0, -1)}${key.endsWith('0') ? '1' : '0'}`;
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).not.toBe(PASTE_MISMATCH));
+    expect(keyInput().value).toBe('');
+  });
+
+  it('a refused action clears the field too, and success leaves no field with the key', async () => {
+    changePrivacyClassAction.mockResolvedValueOnce({ error: 'Try again.' });
+    renderSetup();
+    const key = await goToConfirm();
+    keyInput().value = key;
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText('Try again.');
+    expect(keyInput().value).toBe('');
+    keyInput().value = key;
+    const field = keyInput();
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText('L2 is on for this project.', { exact: false });
+    expect(field.value).toBe('');
+    expect(findSentinel(document.documentElement.outerHTML)).toEqual([]);
+  });
+});
+
+describe('review L3 — download and copy', () => {
+  it('the download URL stays valid for about 40 s, then is revoked', async () => {
+    const created: string[] = [];
+    const revoked: string[] = [];
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => {
+        created.push('blob:test-1');
+        return 'blob:test-1';
+      }),
+      revokeObjectURL: vi.fn((u: string) => void revoked.push(u)),
+    });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    await screen.findByRole('button', { name: 'Download as a file' });
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'Download as a file' }));
+      expect(created).toEqual(['blob:test-1']);
+      await vi.advanceTimersByTimeAsync(1_000);
+      // A slow "Save as" dialog still gets a live URL.
+      expect(revoked).toEqual([]);
+      await vi.advanceTimersByTimeAsync(39_000);
+      expect(revoked).toEqual(['blob:test-1']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says next to the buttons that a copied key is not saved yet', async () => {
+    renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const copy = await screen.findByRole('button', { name: 'Copy key' });
+    const panel = copy.closest('[data-key-panel]');
+    expect(panel?.textContent).toContain(COPY_IS_NOT_SAVING);
+    expect(COPY_IS_NOT_SAVING).toBe(
+      'A copied key isn’t saved yet. Paste it into your password manager, or keep the downloaded file somewhere safe.',
+    );
+  });
+});
+
 describe('key entry for reading', () => {
   const renderEntry = (s: Store = store) =>
     render(
@@ -280,7 +447,7 @@ describe('key entry for reading', () => {
 
   it('keeps a key in memory only by default, and clears the field', async () => {
     const persistence = memoryPersistence();
-    const s = createKeyStore({ persistence, channel: null });
+    const s = createKeyStore({ persistence, channel: null, ...REMEMBER_ON });
     renderEntry(s);
     keyInput().value = await crypto.encodeRecoveryKey(SENTINEL_SECRET);
     fireEvent.click(screen.getByRole('button', { name: 'Use key' }));
@@ -296,7 +463,8 @@ describe('key entry for reading', () => {
 
   it('"Remember on this device" (ticked) stores the non-extractable key; "Forget" removes it', async () => {
     const persistence = memoryPersistence();
-    const s = createKeyStore({ persistence, channel: null });
+    const s = createKeyStore({ persistence, channel: null, ...REMEMBER_ON });
+    s.setUser('user-1');
     renderEntry(s);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Remember on this device' }));
     keyInput().value = await crypto.encodeRecoveryKey(SENTINEL_SECRET);
@@ -326,23 +494,95 @@ describe('key entry for reading', () => {
     expectNoLeak();
   });
 
-  it('without device storage, offers no remember option and says so', () => {
-    const s = createKeyStore({ persistence: null, channel: null });
+  it('without device storage, offers no remember option and says so (gate forced on)', () => {
+    const s = createKeyStore({ persistence: null, channel: null, ...REMEMBER_ON });
     renderEntry(s);
     expect(screen.queryByRole('checkbox', { name: 'Remember on this device' })).toBeNull();
     expect(screen.getByText(/can’t remember keys/)).toBeTruthy();
     s.dispose();
   });
 
-  it('states the clearing paths and the Safari 7-day note', () => {
-    renderEntry();
+  it('review L1: with the gate off (default), no remember option and no copy about remembering', async () => {
+    const persistence = memoryPersistence();
+    const s = createKeyStore({ persistence, channel: null });
+    s.setUser('user-1');
+    renderEntry(s);
+    const section = screen.getByRole('region', { name: 'Read encrypted names in this browser' });
+    expect(within(section).queryByRole('checkbox')).toBeNull();
+    expect(within(section).queryByRole('button', { name: /remember/i })).toBeNull();
+    expect(section.textContent).not.toMatch(/remember|safari/i);
+    expect(section.textContent).toContain(TAB_ONLY_CLEARING_NOTE);
+    // Using a key keeps it in this tab only; nothing reaches the device store.
+    keyInput().value = await crypto.encodeRecoveryKey(SENTINEL_SECRET);
+    fireEvent.click(screen.getByRole('button', { name: 'Use key' }));
+    const kid = (await crypto.deriveProjectKeys(SENTINEL_SECRET, SLUG)).kid;
+    await screen.findByText(`Key ${kid} loaded in this tab.`, { exact: false });
+    expect(section.textContent).not.toMatch(/remember/i);
+    expect(persistence.save).not.toHaveBeenCalled();
+    s.dispose();
+  });
+
+  it('states the clearing paths and the Safari 7-day note (gate forced on)', () => {
+    const s = createKeyStore({ persistence: memoryPersistence(), channel: null, ...REMEMBER_ON });
+    renderEntry(s);
     const text = document.body.textContent ?? '';
+    // Review M2: exactly the clearing paths that exist (sign-out here or in another tab, any
+    // signed-out page, another account's remembered keys).
     expect(text).toContain(
-      'Signing out, here or in another tab, and an expired session forget every key',
+      'Signing out, here or in another tab, forgets every key in this browser, remembered ones included. So does any page that finds you signed out, for example after your session expires. Keys remembered under another account are deleted, never loaded.',
     );
     expect(text).toContain(
       'Safari may delete keys remembered on this device after 7 days without a visit.',
     );
+    s.dispose();
+  });
+});
+
+describe('review L5 — the per-project "checked" flag is cleared when the class changes', () => {
+  const KID = '0Q12NAV3';
+  const AT = '2026-10-30T12:00:00.000Z';
+  const OTHER = '33333333-3333-4333-8333-333333333333';
+  beforeEach(() => {
+    localStorage.clear();
+    checked.markChecked(PROJECT, KID, AT);
+    checked.markChecked(OTHER, KID, AT);
+  });
+
+  it('lowering succeeds: this project’s flag is gone, other projects keep theirs', async () => {
+    changePrivacyClassAction.mockResolvedValue({ privacyClass: 'L1' });
+    render(<LowerClass projectId={PROJECT} currentClass="L2" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L1…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L1 now' }));
+    await screen.findByText('Privacy class lowered to L1.');
+    expect(checked.newestChecked(PROJECT)).toBeNull();
+    expect(checked.newestChecked(OTHER)).toEqual({ kid: KID, at: AT });
+  });
+
+  it('lowering refused: the flag stays', async () => {
+    changePrivacyClassAction.mockResolvedValue({ error: 'No.' });
+    render(<LowerClass projectId={PROJECT} currentClass="L2" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L0…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L0 now' }));
+    await screen.findByText('No.');
+    expect(checked.newestChecked(PROJECT)).toEqual({ kid: KID, at: AT });
+  });
+
+  it('raising succeeds after the paste-back: the flag is gone', async () => {
+    changePrivacyClassAction.mockResolvedValue({ privacyClass: 'L2' });
+    renderSetup('L1');
+    keyInputAfter(await goToConfirm());
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText('L2 is on for this project.', { exact: false });
+    expect(checked.newestChecked(PROJECT)).toBeNull();
+    expect(checked.newestChecked(OTHER)).toEqual({ kid: KID, at: AT });
+  });
+
+  it('a rotation (no class change) keeps the flag', async () => {
+    renderSetup('L2');
+    keyInputAfter(await goToConfirm());
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    await screen.findByText('New recovery key confirmed.', { exact: false });
+    expect(checked.newestChecked(PROJECT)).toEqual({ kid: KID, at: AT });
   });
 });
 
@@ -361,6 +601,17 @@ describe('lowering the class', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lower to L0 now' }));
     await screen.findByText('Privacy class lowered to L0.');
     expect(changePrivacyClassAction).toHaveBeenCalledExactlyOnceWith(PROJECT, 'L0');
+  });
+
+  it('review L4: lowering to L0 warns that javi init deletes the machine’s key and stored names need another copy', () => {
+    render(<LowerClass projectId={PROJECT} currentClass="L2" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L0…' }));
+    const text = screen.getByRole('group', { name: 'Lower to L0' }).textContent ?? '';
+    expect(text).toContain('javi init --privacy L0');
+    expect(text).toContain('deletes that machine’s copy of the recovery key');
+    expect(text).toMatch(/another copy[^.]*names already stored as L2 can’t be read anymore/);
+    // Lowering to L1 keeps the key on the machine (L1 needs it): no deletion warning there.
+    expect(lowerWarning('L1').join(' ')).not.toMatch(/deletes/);
   });
 
   it('from L2 offers L1 and L0; from L1 only L0', () => {

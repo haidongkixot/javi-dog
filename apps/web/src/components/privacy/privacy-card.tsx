@@ -44,7 +44,7 @@ export function PrivacyCard({
       />
       <div className="grid gap-5 px-5 pt-4 pb-5">
         {privacyClass === 'L2' ? (
-          <PrivacyStatus projectId={projectId} identities={identities} />
+          <PrivacyStatus projectId={projectId} projectSlug={slug} identities={identities} />
         ) : (
           <p className="text-sm font-bold text-ink">{CLASS_SUMMARY[privacyClass]}</p>
         )}
@@ -89,6 +89,8 @@ export function PrivacyCard({
                       <ThreadRef value={i.threadRef} />{' '}
                       <ThreadIdentityLabel
                         projectId={projectId}
+                        projectSlug={slug}
+                        threadRef={i.threadRef}
                         identity={i}
                         className="inline text-xs text-ink"
                       />

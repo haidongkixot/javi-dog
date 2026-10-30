@@ -87,7 +87,12 @@ const identityFor = async (
 const Row = ({ identity, store }: { identity: ThreadIdentity | null; store: KeyStore }) => (
   <KeyStoreProvider store={store}>
     <div data-testid="row">
-      <ThreadIdentityLabel projectId={P1} identity={identity} />
+      <ThreadIdentityLabel
+        projectId={P1}
+        projectSlug="web-app"
+        threadRef="cc_t1"
+        identity={identity}
+      />
     </div>
   </KeyStoreProvider>
 );
@@ -203,6 +208,98 @@ describe('ThreadIdentityLabel — states (ADR-0018 §8)', () => {
   });
 });
 
+describe('review M1 — the AAD comes from the displayed row, never from the server object', () => {
+  const CANARY_TYPE = 'x.javi.collector.installed';
+
+  /** A row as the dashboard shows it: the row's own thread and project slug. */
+  const RowFor = ({
+    store,
+    threadRef,
+    identity,
+  }: {
+    store: KeyStore;
+    threadRef: string;
+    identity: ThreadIdentity | null;
+  }) => (
+    <KeyStoreProvider store={store}>
+      <div data-testid="row">
+        <ThreadIdentityLabel
+          projectId={P1}
+          projectSlug="web-app"
+          threadRef={threadRef}
+          identity={identity}
+        />
+      </div>
+    </KeyStoreProvider>
+  );
+
+  it('thread Y’s untouched identity object in thread X’s row: "Can’t verify…", nothing checked', async () => {
+    const keys = await deriveProjectKeys(generateProjectSecret(), 'web-app');
+    const store = newStore();
+    store.add(P1, keys.kid, keys.l2Key);
+    // Y's identity is valid for Y: its own threadRef, type and slug are the AAD it was sealed with.
+    const y = await identityFor(keys, { repo: 'secret-repo', branch: 'y-branch' });
+    expect(y.threadRef).toBe('cc_t1');
+    render(<RowFor store={store} threadRef="cc_tX" identity={y} />);
+    await settle();
+    await waitFor(() => expect(text(screen.getByTestId('row'))).toBe(LABEL_UNVERIFIABLE));
+    expect(text(screen.getByTestId('row'))).not.toContain('secret-repo');
+    expect(newestChecked(P1)).toBeNull();
+  });
+
+  it('an identity object that names another project slug in this row: "Can’t verify…"', async () => {
+    const keys = await deriveProjectKeys(generateProjectSecret(), 'web-app');
+    const store = newStore();
+    store.add(P1, keys.kid, keys.l2Key);
+    const id = await identityFor(keys, { repo: 'r' });
+    render(<RowFor store={store} threadRef="cc_t1" identity={{ ...id, projectSlug: 'other' }} />);
+    await settle();
+    expect(text(screen.getByTestId('row'))).toBe(LABEL_UNVERIFIABLE);
+    expect(newestChecked(P1)).toBeNull();
+  });
+
+  it('the canary (type and ciphertext) in a thread row is never decrypted and never checks the project', async () => {
+    const keys = await deriveProjectKeys(generateProjectSecret(), 'web-app');
+    const store = newStore();
+    store.add(P1, keys.kid, keys.l2Key);
+    const aad = {
+      eventId: '01JBZ4XQ80000000000000002B',
+      slug: 'web-app',
+      producerId: 'prod_x',
+      threadRef: 'cc_t1',
+      type: CANARY_TYPE,
+    };
+    const encrypted = await encryptL2(keys.l2Key, keys.kid, aad, { canary: true });
+    const canary = {
+      eventId: aad.eventId,
+      producerId: aad.producerId,
+      threadRef: aad.threadRef,
+      type: CANARY_TYPE,
+      projectSlug: 'web-app',
+      privacyClass: 'L2',
+      at: AT,
+      repoHash: null,
+      branchHash: null,
+      cwdHash: null,
+      encrypted,
+    } as unknown as ThreadIdentity;
+    render(<RowFor store={store} threadRef="cc_t1" identity={canary} />);
+    await settle();
+    expect(text(screen.getByTestId('row'))).toBe(LABEL_UNVERIFIABLE);
+    expect(newestChecked(P1)).toBeNull();
+    expect(localStorage.length).toBe(0);
+  });
+
+  it('the matching row still shows the names', async () => {
+    const keys = await deriveProjectKeys(generateProjectSecret(), 'web-app');
+    const store = newStore();
+    store.add(P1, keys.kid, keys.l2Key);
+    const id = await identityFor(keys, { repo: 'javi-dog', branch: 'main' });
+    render(<RowFor store={store} threadRef="cc_t1" identity={id} />);
+    await waitFor(() => expect(text(screen.getByTestId('row'))).toBe('javi-dog · main'));
+  });
+});
+
 describe('PrivacyStatus — project label (ADR-0018 §9)', () => {
   it('says "not checked" until a decryption, then the scoped label, and keeps it after a reload', async () => {
     const keys = await deriveProjectKeys(generateProjectSecret(), 'web-app');
@@ -210,7 +307,7 @@ describe('PrivacyStatus — project label (ADR-0018 §9)', () => {
     const store = newStore();
     const { unmount } = render(
       <KeyStoreProvider store={store}>
-        <PrivacyStatus projectId={P1} identities={[id]} />
+        <PrivacyStatus projectId={P1} projectSlug="web-app" identities={[id]} />
       </KeyStoreProvider>,
     );
     expect(text(screen.getByRole('status'))).toBe(LABEL_L2_NOT_CHECKED);
@@ -220,7 +317,7 @@ describe('PrivacyStatus — project label (ADR-0018 §9)', () => {
     // Reload: a new tab store without keys; the remembered check stays (per project and kid).
     render(
       <KeyStoreProvider store={newStore()}>
-        <PrivacyStatus projectId={P1} identities={[]} />
+        <PrivacyStatus projectId={P1} projectSlug="web-app" identities={[]} />
       </KeyStoreProvider>,
     );
     await waitFor(() => expect(text(screen.getByRole('status'))).toBe(labelL2Checked(keys.kid)));
@@ -240,7 +337,7 @@ describe('PrivacyStatus — project label (ADR-0018 §9)', () => {
     store.add(P1, next.kid, next.l2Key);
     render(
       <KeyStoreProvider store={store}>
-        <PrivacyStatus projectId={P1} identities={[a, b]} />
+        <PrivacyStatus projectId={P1} projectSlug="web-app" identities={[a, b]} />
       </KeyStoreProvider>,
     );
     await waitFor(() => expect(text(screen.getByRole('status'))).toBe(labelL2Checked(next.kid)));
@@ -318,7 +415,12 @@ describe('conformance P03 — thread text', () => {
     render(
       <KeyStoreProvider store={store}>
         <div data-testid="row">
-          <ThreadIdentityLabel projectId={c.event.project_slug} identity={identity} />
+          <ThreadIdentityLabel
+            projectId={c.event.project_slug}
+            projectSlug={c.event.project_slug}
+            threadRef={c.event.thread_ref}
+            identity={identity}
+          />
         </div>
       </KeyStoreProvider>,
     );
@@ -364,11 +466,15 @@ describe('conformance P04 — project label sequences', () => {
           render(
             <KeyStoreProvider store={store}>
               <div data-testid="label">
-                <PrivacyStatus projectId={project} identities={own} />
+                <PrivacyStatus projectId={project} projectSlug={project} identities={own} />
               </div>
               {event && event.project_slug !== project ? (
                 // Another project's event is shown under that project; it never checks this one.
-                <PrivacyStatus projectId={event.project_slug} identities={[toRef(event)]} />
+                <PrivacyStatus
+                  projectId={event.project_slug}
+                  projectSlug={event.project_slug}
+                  identities={[toRef(event)]}
+                />
               ) : null}
             </KeyStoreProvider>,
           );
