@@ -54,6 +54,7 @@ Newest first: date — what changed — commit SHA.
 
 Team log, newest first:
 
+- 2026-10-30 — Orchestrator — Rule 9 slip again: `b8c8e59` was pushed before CI on `c1178c0` was read. That run was green (41126438258). The shell has no GitHub API access, so no script can enforce the rule; reading CI now comes first in every push step.
 - 2026-10-30 — Orchestrator — The research agent read primary texts through their source repositories (many hosts are blocked). The orchestrator re-checked three facts: the `iv` schema gap, X25519 on Node 22.22, and OWASP's PBKDF2 600 000 iterations.
 
 ## Decisions and deviations
