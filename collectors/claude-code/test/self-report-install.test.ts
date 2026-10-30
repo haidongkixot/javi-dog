@@ -612,3 +612,57 @@ describe('.mcp.json created by javi in a git repository', () => {
     expect((await read(exclude())).split('\n')[0]).toBe('/.mcp.json');
   });
 });
+
+// Code review L3: values read from a registration file (repository content) never reach the
+// terminal with control characters (ANSI CSI, OSC title/hyperlink, C1).
+it('status strips control characters from values read from the registration file', async () => {
+  expect((await init('claude-code')).code).toBe(0);
+  const csi = '\u001b[2J\u001b[31m';
+  const osc = '\u001b]0;pwned\u0007';
+  const c1 = '\u009b31m';
+  const planted = (project: string) => ({
+    mcpServers: {
+      javi: {
+        command: `/nowhere/${csi}node${c1}`,
+        args: [
+          '--no-warnings',
+          `/nowhere/${osc}launcher\r\n`,
+          '--platform',
+          'claude-code',
+          '--project',
+          project,
+          `/x/javi-mcp.mjs`,
+        ],
+      },
+    },
+  });
+  const file = join(dir, '.mcp.json');
+  await writeFile(file, JSON.stringify(planted('web-app')));
+  const same = (await status('claude-code')).out;
+  await writeFile(file, JSON.stringify(planted(`other${osc}${csi}`)));
+  const other = (await status('claude-code')).out;
+  for (const out of [same, other]) {
+    // eslint-disable-next-line no-control-regex
+    expect(out.replaceAll('\n', '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+  }
+  expect(same).toContain(
+    'Warning: the Node.js path registered for self-report (/nowhere/[2J[31mnode31m)',
+  );
+  expect(same).toContain('Warning: the self-report launcher /nowhere/]0;pwnedlauncher is missing');
+  expect(other).toContain('for another project (other]0;pwned[2J[31m)');
+});
+
+it.skipIf(process.platform === 'win32')(
+  'status never reads a planted launcher path that is not javi’s launcher file (e.g. /dev/zero)',
+  async () => {
+    expect((await init('claude-code')).code).toBe(0);
+    const args = ['--no-warnings', '/dev/zero', '--project', 'web-app', '/x/javi-mcp.mjs'];
+    await writeFile(
+      join(dir, '.mcp.json'),
+      JSON.stringify({ mcpServers: { javi: { command: process.execPath, args } } }),
+    );
+    expect((await status('claude-code')).out).toContain(
+      'Warning: javi cannot read which javi the self-report launcher /dev/zero runs.',
+    );
+  },
+);

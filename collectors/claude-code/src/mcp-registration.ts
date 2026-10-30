@@ -852,8 +852,17 @@ export interface SelfReportStatus {
   unreadable: boolean;
 }
 
-/** The javi path a launcher written by `mcpLauncherScript` loads, or null. */
+/**
+ * The javi path a launcher written by `mcpLauncherScript` loads, or null. The path comes from a
+ * registration file (repository content), so only a small regular file named like javi's
+ * launcher is read (never a device, a pipe or a large file).
+ */
 const launcherTargetOf = async (launcher: string): Promise<string | null> => {
+  if (!launcher.endsWith(`/${MCP_LAUNCHER_NAME}`) && !launcher.endsWith(`\\${MCP_LAUNCHER_NAME}`)) {
+    return null;
+  }
+  const info = await stat(launcher);
+  if (!info.isFile() || info.size > 64 * 1024) return null;
   const line = /^const cli = (".*");$/m.exec(await readFile(launcher, 'utf8'));
   if (!line) return null;
   const value: unknown = JSON.parse(line[1]!);

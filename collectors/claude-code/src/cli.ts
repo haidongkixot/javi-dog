@@ -1327,6 +1327,14 @@ const initSelfReport = async (
   return true;
 };
 
+/**
+ * A value read from a registration file (repository content) as it may be printed: C0 and C1
+ * control characters removed, so a planted entry cannot drive the terminal (code review L3).
+ */
+const printable = (value: unknown) =>
+  // eslint-disable-next-line no-control-regex
+  typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '') : '';
+
 /** `javi status`: is self-report registered for this platform and project, pre-approved, runnable? */
 const selfReportStatus = async (
   io: Io,
@@ -1345,7 +1353,9 @@ const selfReportStatus = async (
     return;
   }
   if (sr.project !== projectRef) {
-    io.out(`Self-report: registered in ${sr.file} for another project (${sr.project ?? 'none'}).`);
+    io.out(
+      `Self-report: registered in ${sr.file} for another project (${sr.project === null ? 'none' : printable(sr.project)}).`,
+    );
     return;
   }
   io.out(`Self-report: registered in ${sr.file} (MCP server javi).`);
@@ -1364,18 +1374,18 @@ const selfReportStatus = async (
   }
   if (!sr.nodeExists) {
     io.out(
-      `Warning: the Node.js path registered for self-report (${sr.entry.command}) no longer exists, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`,
+      `Warning: the Node.js path registered for self-report (${printable(sr.entry.command)}) no longer exists, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`,
     );
   }
   if (!sr.launcherExists) {
     io.out(
-      `Warning: the self-report launcher ${sr.entry.args[1] ?? ''} is missing. Run ${command} again.`,
+      `Warning: the self-report launcher ${printable(sr.entry.args[1])} is missing. Run ${command} again.`,
     );
   } else if (!sr.launcherTargetExists) {
     io.out(
       sr.launcherTarget
-        ? `Warning: the self-report launcher ${sr.entry.args[1] ?? ''} runs ${sr.launcherTarget}, which is missing, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`
-        : `Warning: javi cannot read which javi the self-report launcher ${sr.entry.args[1] ?? ''} runs. Run ${command} again.`,
+        ? `Warning: the self-report launcher ${printable(sr.entry.args[1])} runs ${printable(sr.launcherTarget)}, which is missing, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`
+        : `Warning: javi cannot read which javi the self-report launcher ${printable(sr.entry.args[1])} runs. Run ${command} again.`,
     );
   }
 };
