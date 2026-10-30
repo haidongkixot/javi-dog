@@ -198,6 +198,12 @@
       "properties": {
         "platform": { "enum": ["claude-code", "codex-cli", "gemini-cli"] },
         "note": { "$ref": "#/definitions/note" },
+        "clockAdvanceMs": {
+          "description": "Optional, the only optional key in the suite (absent = 0). Before this step runs, the pinned clock moves forward by this many milliseconds and stays there for later steps. A runner that cannot move the clock reports the vector BLOCKED.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 86400000
+        },
         "stdin": {
           "type": "object",
           "required": ["session_id", "hook_event_name"],

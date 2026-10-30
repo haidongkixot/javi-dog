@@ -1,0 +1,65 @@
+{
+  "$schema": "./schema.json",
+  "id": "R19",
+  "kind": "reader",
+  "description": "A thread ends while the agent reports waiting: a status-less session.ended clears the agent status, the thread shows the earlier collector waiting (from attention.requested) with source collector, and needs no attention because it has ended.",
+  "contract": "ADR-0017 (a551aed) decision 6 Precedence (\"session.*\" clears the agent status; \"Otherwise … the latest non-null status among events that are not agent statuses, and the source is collector\"), Attention (\"its status is waiting, as today, or … blocked with source agent\"); Changes \"Conformance runner for the M and R groups\" (\"needsAttention for ended threads is unchanged by this ADR\"); ADR-0012 Changes S4a review (\"ThreadState.needsAttention (waiting and not ended)\"; freshness \"ended when the last event is session.ended\")",
+  "ambiguities": ["G6"],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector permission prompt",
+      "event": {
+        "type": "attention.requested",
+        "status": "waiting",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "agent waiting, needs_input",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_input",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_input",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "session.ended without a status: cleared, ended, no attention",
+      "event": {
+        "type": "session.ended",
+        "status": null,
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}
