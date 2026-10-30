@@ -1,0 +1,170 @@
+{
+  "$schema": "./schema.json",
+  "id": "M20",
+  "kind": "mcp",
+  "description": "With javi's hooks for the platform and project not installed, valid calls to either tool answer isError:true with the constant \"not recorded: javi hooks are not installed for this project\".",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 2 Honest answer (\"When they are not installed, the call answers isError with a constant …\"); server option hooksInstalled:false",
+  "ambiguities": ["G3"],
+  "server": {
+    "hooksInstalled": false
+  },
+  "steps": [
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "valid report_status",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "blocked",
+            "reason": "missing_credentials"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "startsWith": "not recorded: javi hooks are not installed for this project",
+                "label": "not-recorded"
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "valid report_task",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "started",
+            "kind": "test"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "startsWith": "not recorded: javi hooks are not installed for this project",
+                "label": "not-recorded"
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "valid report_status without reason",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "working"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "startsWith": "not recorded: javi hooks are not installed for this project",
+                "label": "not-recorded"
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized", "tools/call"],
+  "absentStrings": []
+}

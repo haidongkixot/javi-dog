@@ -1,0 +1,119 @@
+{
+  "$schema": "./schema.json",
+  "id": "R03",
+  "kind": "reader",
+  "description": "task.started, task.completed and task.failed from the collector each clear the agent status; the thread then shows the collector status of that event. Clearing events carry a status here (G6).",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 6 Precedence (\"task.*\")",
+  "ambiguities": ["G6"],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "agent waiting",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "waiting.needs_approval",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_approval",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector task.started clears",
+      "event": {
+        "type": "task.started",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent blocked again",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.ci_failing",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "ci_failing",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector task.completed clears",
+      "event": {
+        "type": "task.completed",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:04Z",
+        "sequence": 4
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "agent blocked again",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "mcp__javi__report_status",
+        "errorCode": "blocked.other",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:05Z",
+        "sequence": 5
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": "other",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector task.failed clears; collector failed needs no attention",
+      "event": {
+        "type": "task.failed",
+        "status": "failed",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:06Z",
+        "sequence": 6
+      },
+      "expect": {
+        "status": "failed",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

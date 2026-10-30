@@ -1,0 +1,65 @@
+{
+  "$schema": "./schema.json",
+  "id": "R11",
+  "kind": "reader",
+  "description": "An agent status is any heartbeat that carries a tool_name, whatever the name (structural match, review L1): the Gemini form and even an unexpected name count.",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 6 Agent status (\"a heartbeat that carries a tool_name\"); Changes D0 L1 (\"Structural match\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "Gemini tool name",
+      "event": {
+        "type": "heartbeat",
+        "status": "waiting",
+        "toolName": "mcp_javi_report_status",
+        "errorCode": "waiting.needs_input",
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "waiting",
+        "statusSource": "agent",
+        "statusReason": "needs_input",
+        "needsAttention": true
+      }
+    },
+    {
+      "note": "collector working clears",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "any tool_name on a heartbeat counts",
+      "event": {
+        "type": "heartbeat",
+        "status": "blocked",
+        "toolName": "Bash",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:03Z",
+        "sequence": 3
+      },
+      "expect": {
+        "status": "blocked",
+        "statusSource": "agent",
+        "statusReason": null,
+        "needsAttention": true
+      }
+    }
+  ]
+}

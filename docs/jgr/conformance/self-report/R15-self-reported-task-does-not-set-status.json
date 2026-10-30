@@ -1,0 +1,47 @@
+{
+  "$schema": "./schema.json",
+  "id": "R15",
+  "kind": "reader",
+  "description": "A heartbeat-less self-report (report_task, which carries tool_name but is not a heartbeat) is not an agent status: only heartbeats with a tool_name are. With no agent heartbeat, the status stays collector.",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 6 Agent status (\"a heartbeat that carries a tool_name\")",
+  "ambiguities": [],
+  "platform": "claude-code",
+  "steps": [
+    {
+      "note": "collector prompt",
+      "event": {
+        "type": "heartbeat",
+        "status": "working",
+        "toolName": null,
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:01Z",
+        "sequence": 1
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    },
+    {
+      "note": "self-reported task.started with a status: not an agent status",
+      "event": {
+        "type": "task.started",
+        "status": "working",
+        "toolName": "mcp__javi__report_task",
+        "errorCode": null,
+        "agent": null,
+        "receivedAt": "2026-10-30T10:00:02Z",
+        "sequence": 2
+      },
+      "expect": {
+        "status": "working",
+        "statusSource": "collector",
+        "statusReason": null,
+        "needsAttention": false
+      }
+    }
+  ]
+}

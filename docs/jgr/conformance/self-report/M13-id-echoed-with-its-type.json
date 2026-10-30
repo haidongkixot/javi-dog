@@ -1,0 +1,409 @@
+{
+  "$schema": "./schema.json",
+  "id": "M13",
+  "kind": "mcp",
+  "description": "The id is echoed exactly, keeping its JSON type: string ids stay strings (\"42\" is not 42), number ids stay numbers (0, negative, 2^53−1), on results and on errors.",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Message rules (\"id is echoed exactly (string or number)\")",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize with string id",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "init-a",
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": "init-a",
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "ping id 0",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 0,
+        "result": {}
+      }
+    },
+    {
+      "note": "ping id \"42\" (string)",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "42",
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": "42",
+        "result": {}
+      }
+    },
+    {
+      "note": "ping id 42 (number)",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 42,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 42,
+        "result": {}
+      }
+    },
+    {
+      "note": "ping id -3",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": -3,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": -3,
+        "result": {}
+      }
+    },
+    {
+      "note": "ping id 9007199254740991",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 9007199254740991,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 9007199254740991,
+        "result": {}
+      }
+    },
+    {
+      "note": "tools/list id \"list-1\"",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "list-1",
+        "method": "tools/list"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": "list-1",
+        "result": {
+          "$open": true,
+          "tools": {
+            "$match": "unorderedArray",
+            "items": [
+              {
+                "$open": true,
+                "name": "report_status",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["working", "waiting", "blocked", "idle", "completed", "failed"]
+                      }
+                    },
+                    "reason": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "needs_input",
+                          "needs_approval",
+                          "missing_credentials",
+                          "missing_access",
+                          "tests_failing",
+                          "ci_failing",
+                          "rate_limited",
+                          "dependency_down",
+                          "conflicting_requirements",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["status"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              },
+              {
+                "$open": true,
+                "name": "report_task",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["started", "completed", "failed"]
+                      }
+                    },
+                    "kind": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "plan",
+                          "research",
+                          "implement",
+                          "test",
+                          "debug",
+                          "review",
+                          "docs",
+                          "build",
+                          "deploy",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["phase", "kind"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "note": "unknown method id \"u-1\"",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "u-1",
+        "method": "x/unknown"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": "u-1",
+        "error": {
+          "code": -32601,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "valid tools/call id \"c-1\"",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "c-1",
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "started",
+            "kind": "test"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": "c-1",
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "invalid tools/call id 77",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 77,
+        "method": "tools/call",
+        "params": {
+          "name": "report_task",
+          "arguments": {
+            "phase": "SENTINEL_PHASE_M13",
+            "kind": "test"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 77,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "label": "report_task.invalid",
+                "containsAll": [
+                  "started",
+                  "completed",
+                  "failed",
+                  "plan",
+                  "research",
+                  "implement",
+                  "test",
+                  "debug",
+                  "review",
+                  "docs",
+                  "build",
+                  "deploy",
+                  "other"
+                ]
+              }
+            }
+          ],
+          "isError": true
+        }
+      }
+    },
+    {
+      "note": "unknown tool id \"t-1\"",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": "t-1",
+        "method": "tools/call",
+        "params": {
+          "name": "report_nothing",
+          "arguments": {}
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": "t-1",
+        "error": {
+          "code": -32602,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    }
+  ],
+  "stderrForbidden": [
+    "initialize",
+    "notifications/initialized",
+    "ping",
+    "tools/call",
+    "tools/list",
+    "x/unknown"
+  ],
+  "absentStrings": ["SENTINEL_PHASE_M13"]
+}

@@ -1,0 +1,332 @@
+{
+  "$schema": "./schema.json",
+  "id": "M07",
+  "kind": "mcp",
+  "description": "Before initialize: tools/list and tools/call get -32600, ping answers {}; after initialize the same requests work.",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Message rules (\"Any request other than initialize and ping that arrives before initialize gets -32600\")",
+  "ambiguities": [],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "tools/list before initialize → -32600",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/list"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "error": {
+          "code": -32600,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "valid tools/call before initialize → -32600",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "working"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "error": {
+          "code": -32600,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "invalid tools/call before initialize → -32600",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "SENTINEL_STATUS_M07"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "error": {
+          "code": -32600,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "ping before initialize → {}",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {}
+      }
+    },
+    {
+      "note": "initialize 2025-06-18",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-06-18",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "protocolVersion": "2025-06-18",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "tools/list after initialize",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "tools/list"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "result": {
+          "$open": true,
+          "tools": {
+            "$match": "unorderedArray",
+            "items": [
+              {
+                "$open": true,
+                "name": "report_status",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["working", "waiting", "blocked", "idle", "completed", "failed"]
+                      }
+                    },
+                    "reason": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "needs_input",
+                          "needs_approval",
+                          "missing_credentials",
+                          "missing_access",
+                          "tests_failing",
+                          "ci_failing",
+                          "rate_limited",
+                          "dependency_down",
+                          "conflicting_requirements",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["status"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              },
+              {
+                "$open": true,
+                "name": "report_task",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["started", "completed", "failed"]
+                      }
+                    },
+                    "kind": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "plan",
+                          "research",
+                          "implement",
+                          "test",
+                          "debug",
+                          "review",
+                          "docs",
+                          "build",
+                          "deploy",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["phase", "kind"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "note": "tools/call after initialize",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "tools/call",
+        "params": {
+          "name": "report_status",
+          "arguments": {
+            "status": "working"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "result": {
+          "$open": true,
+          "content": [
+            {
+              "$open": true,
+              "type": "text",
+              "text": {
+                "$match": "string",
+                "minLength": 1,
+                "noDeliveryClaim": true
+              }
+            }
+          ],
+          "isError": {
+            "$match": "oneOf",
+            "values": [false],
+            "optional": true
+          }
+        }
+      }
+    }
+  ],
+  "stderrForbidden": [
+    "initialize",
+    "notifications/initialized",
+    "ping",
+    "tools/call",
+    "tools/list"
+  ],
+  "absentStrings": ["SENTINEL_STATUS_M07"]
+}

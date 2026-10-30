@@ -1,0 +1,321 @@
+{
+  "$schema": "./schema.json",
+  "id": "M14",
+  "kind": "mcp",
+  "description": "tools/list returns exactly report_status and report_task (any order) with the exact enums, the required keys, additionalProperties:false and the exact annotations readOnlyHint:false, destructiveHint:false, idempotentHint:true, openWorldHint:false. A second call returns the same.",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 2 (vocabularies, Strict arguments, Annotations); Research table (Gemini strips additionalProperties, so the server declares it and validates itself; reading Y2)",
+  "ambiguities": ["Y2"],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "tools/list",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {}
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "$open": true,
+          "tools": {
+            "$match": "unorderedArray",
+            "items": [
+              {
+                "$open": true,
+                "name": "report_status",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["working", "waiting", "blocked", "idle", "completed", "failed"]
+                      }
+                    },
+                    "reason": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "needs_input",
+                          "needs_approval",
+                          "missing_credentials",
+                          "missing_access",
+                          "tests_failing",
+                          "ci_failing",
+                          "rate_limited",
+                          "dependency_down",
+                          "conflicting_requirements",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["status"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              },
+              {
+                "$open": true,
+                "name": "report_task",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["started", "completed", "failed"]
+                      }
+                    },
+                    "kind": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "plan",
+                          "research",
+                          "implement",
+                          "test",
+                          "debug",
+                          "review",
+                          "docs",
+                          "build",
+                          "deploy",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["phase", "kind"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "note": "tools/list again",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/list"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "$open": true,
+          "tools": {
+            "$match": "unorderedArray",
+            "items": [
+              {
+                "$open": true,
+                "name": "report_status",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["working", "waiting", "blocked", "idle", "completed", "failed"]
+                      }
+                    },
+                    "reason": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "needs_input",
+                          "needs_approval",
+                          "missing_credentials",
+                          "missing_access",
+                          "tests_failing",
+                          "ci_failing",
+                          "rate_limited",
+                          "dependency_down",
+                          "conflicting_requirements",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["status"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              },
+              {
+                "$open": true,
+                "name": "report_task",
+                "description": {
+                  "$match": "string",
+                  "minLength": 1,
+                  "optional": true
+                },
+                "inputSchema": {
+                  "$open": true,
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": ["started", "completed", "failed"]
+                      }
+                    },
+                    "kind": {
+                      "$open": true,
+                      "type": "string",
+                      "enum": {
+                        "$match": "setEquals",
+                        "values": [
+                          "plan",
+                          "research",
+                          "implement",
+                          "test",
+                          "debug",
+                          "review",
+                          "docs",
+                          "build",
+                          "deploy",
+                          "other"
+                        ]
+                      }
+                    }
+                  },
+                  "required": {
+                    "$match": "setEquals",
+                    "values": ["phase", "kind"]
+                  },
+                  "additionalProperties": false
+                },
+                "annotations": {
+                  "readOnlyHint": false,
+                  "destructiveHint": false,
+                  "idempotentHint": true,
+                  "openWorldHint": false
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized", "tools/list"],
+  "absentStrings": []
+}

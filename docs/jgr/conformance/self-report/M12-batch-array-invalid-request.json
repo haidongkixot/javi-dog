@@ -1,0 +1,185 @@
+{
+  "$schema": "./schema.json",
+  "id": "M12",
+  "kind": "mcp",
+  "description": "A JSON array (batch) gets a single -32600 response with id null, before and after initialize, whatever it contains (requests, notifications only, or nothing).",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 1 Errors (\"A JSON array (batch) gets -32600\"); id null per reading Y1",
+  "ambiguities": ["Y1"],
+  "server": {
+    "hooksInstalled": true
+  },
+  "steps": [
+    {
+      "note": "batch with ping before initialize",
+      "send": [
+        {
+          "jsonrpc": "2.0",
+          "id": 1,
+          "method": "ping"
+        }
+      ],
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "error": {
+          "code": -32600,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "empty batch",
+      "send": [],
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "error": {
+          "code": -32600,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "initialize 2025-11-25",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "conformance-client",
+            "version": "1.0.0"
+          }
+        }
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "tools": {
+              "listChanged": false
+            }
+          },
+          "serverInfo": {
+            "name": "javi",
+            "version": {
+              "$match": "string",
+              "minLength": 1
+            }
+          },
+          "instructions": {
+            "$match": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "containsAll": ["report_status", "report_task"]
+          }
+        }
+      }
+    },
+    {
+      "note": "notifications/initialized: no response",
+      "send": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      },
+      "rawLine": null,
+      "expect": null
+    },
+    {
+      "note": "batch with ping and tools/call",
+      "send": [
+        {
+          "jsonrpc": "2.0",
+          "id": 3,
+          "method": "ping"
+        },
+        {
+          "jsonrpc": "2.0",
+          "id": 4,
+          "method": "tools/call",
+          "params": {
+            "name": "report_status",
+            "arguments": {
+              "status": "blocked",
+              "reason": "SENTINEL_REASON_M12"
+            }
+          }
+        }
+      ],
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "error": {
+          "code": -32600,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "batch of notifications only",
+      "send": [
+        {
+          "jsonrpc": "2.0",
+          "method": "notifications/initialized"
+        }
+      ],
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": null,
+        "error": {
+          "code": -32600,
+          "message": {
+            "$match": "string"
+          },
+          "data": {
+            "$match": "any",
+            "optional": true
+          }
+        }
+      }
+    },
+    {
+      "note": "ping still answers",
+      "send": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "ping"
+      },
+      "rawLine": null,
+      "expect": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {}
+      }
+    }
+  ],
+  "stderrForbidden": ["initialize", "notifications/initialized", "ping", "tools/call"],
+  "absentStrings": ["SENTINEL_REASON_M12"]
+}

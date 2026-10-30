@@ -1,0 +1,475 @@
+{
+  "$schema": "./schema.json",
+  "id": "H07",
+  "kind": "hook",
+  "description": "Gemini self-reports are matched only on mcp_context.server_name = \"javi\" (exact) and mcp_context.tool_name ∈ {report_status, report_task}. A tool_name that looks like javi's with server_name javi_x, JAVI or absent, no mcp_context, or another mcp_context.tool_name maps as an ordinary tool (tool_name only); its tool_input is never copied. A matching control call maps as a self-report.",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 3 Match (Gemini: \"server_name is the raw config key, so javi_x cannot match\"), Pre-tool hooks (Gemini matched the same way), The one exception (other tools' tool_input unread)",
+  "ambiguities": [],
+  "clock": "2026-10-30T10:00:00Z",
+  "identityGroup": null,
+  "steps": [
+    {
+      "platform": "gemini-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S1/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S1/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "server_name javi_x, tool_name looks like javi's: ordinary tool",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S2/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S2/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S2"
+        },
+        "tool_response": {
+          "llmContent": "output SENTINEL_TOOLRESPONSE_H07_S2",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S2"
+        },
+        "mcp_context": {
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S2/bin/node",
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S2",
+          "server_name": "javi_x"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "server_name absent: ordinary tool",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S3/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S3/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S3"
+        },
+        "tool_response": {
+          "llmContent": "output SENTINEL_TOOLRESPONSE_H07_S3",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S3"
+        },
+        "mcp_context": {
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S3/bin/node",
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S3"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "mcp_context absent: ordinary tool",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S4/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S4/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S4"
+        },
+        "tool_response": {
+          "llmContent": "output SENTINEL_TOOLRESPONSE_H07_S4",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S4"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "server_name JAVI (case differs): ordinary tool",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S5/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S5/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S5"
+        },
+        "tool_response": {
+          "llmContent": "output SENTINEL_TOOLRESPONSE_H07_S5",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S5"
+        },
+        "mcp_context": {
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S5/bin/node",
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S5",
+          "server_name": "JAVI"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "server javi, mcp_context.tool_name report_status_x: ordinary tool",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S6/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S6/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status_x",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S6"
+        },
+        "tool_response": {
+          "llmContent": "output SENTINEL_TOOLRESPONSE_H07_S6",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S6"
+        },
+        "mcp_context": {
+          "tool_name": "report_status_x",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S6/bin/node",
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S6",
+          "server_name": "javi"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status_x"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "server javi, mcp_context.tool_name is the prefixed name: ordinary tool",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S7/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S7/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S7"
+        },
+        "tool_response": {
+          "llmContent": "output SENTINEL_TOOLRESPONSE_H07_S7",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S7"
+        },
+        "mcp_context": {
+          "tool_name": "mcp_javi_report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S7/bin/node",
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S7",
+          "server_name": "javi"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "Claude/Codex-style name on Gemini without mcp_context: ordinary tool",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S8/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S8/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S8"
+        },
+        "tool_response": {
+          "llmContent": "output SENTINEL_TOOLRESPONSE_H07_S8",
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S8"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.completed",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp__javi__report_status"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "BeforeTool, server_name javi_x: ordinary task.started (not silent)",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S9/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S9/web-app",
+        "hook_event_name": "BeforeTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H07_S9"
+        },
+        "mcp_context": {
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S9/bin/node",
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S9",
+          "server_name": "javi_x"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "task.started",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": {
+            "notIn": ["waiting", "blocked"]
+          },
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "control: server_name javi, tool_name report_status: self-report",
+      "stdin": {
+        "session_id": "gm-sess-h07",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H07_S10/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H07_S10/web-app",
+        "hook_event_name": "AfterTool",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "tool_name": "mcp_javi_report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials"
+        },
+        "tool_response": {
+          "llmContent": [
+            {
+              "text": "Noted. SENTINEL_TOOLRESPONSE_H07_S10 status=blocked"
+            }
+          ],
+          "returnDisplay": "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S10"
+        },
+        "mcp_context": {
+          "server_name": "javi",
+          "tool_name": "report_status",
+          "command": "/home/dev/SENTINEL_MCPCMD_H07_S10/bin/node",
+          "args": [
+            "--no-warnings",
+            "/home/dev/SENTINEL_MCPARGS_H07_S10/.javi/bin/javi-mcp.mjs",
+            "--platform",
+            "gemini-cli",
+            "--project",
+            "web-app"
+          ],
+          "cwd": "/home/dev/SENTINEL_MCPCWD_H07_S10/web-app",
+          "url": "https://SENTINEL_MCPURL_H07_S10.example.com/mcp"
+        },
+        "original_request_name": "SENTINEL_ORIGINAL_REQUEST_H07_S10"
+      },
+      "expect": {
+        "record": {
+          "type": "heartbeat",
+          "session": "gm-sess-h07",
+          "agent": null,
+          "status": "blocked",
+          "attributes": {
+            "platform": "gemini-cli",
+            "tool_name": "mcp_javi_report_status",
+            "error_code": "blocked.missing_credentials"
+          },
+          "eventId": {
+            "format": "ulid-at-clock",
+            "idLabel": null
+          }
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H07_S1",
+    "SENTINEL_CWD_H07_S10",
+    "SENTINEL_CWD_H07_S2",
+    "SENTINEL_CWD_H07_S3",
+    "SENTINEL_CWD_H07_S4",
+    "SENTINEL_CWD_H07_S5",
+    "SENTINEL_CWD_H07_S6",
+    "SENTINEL_CWD_H07_S7",
+    "SENTINEL_CWD_H07_S8",
+    "SENTINEL_CWD_H07_S9",
+    "SENTINEL_MCPARGS_H07_S10",
+    "SENTINEL_MCPCMD_H07_S10",
+    "SENTINEL_MCPCMD_H07_S2",
+    "SENTINEL_MCPCMD_H07_S3",
+    "SENTINEL_MCPCMD_H07_S5",
+    "SENTINEL_MCPCMD_H07_S6",
+    "SENTINEL_MCPCMD_H07_S7",
+    "SENTINEL_MCPCMD_H07_S9",
+    "SENTINEL_MCPCWD_H07_S10",
+    "SENTINEL_MCPCWD_H07_S2",
+    "SENTINEL_MCPCWD_H07_S3",
+    "SENTINEL_MCPCWD_H07_S5",
+    "SENTINEL_MCPCWD_H07_S6",
+    "SENTINEL_MCPCWD_H07_S7",
+    "SENTINEL_MCPCWD_H07_S9",
+    "SENTINEL_MCPURL_H07_S10",
+    "SENTINEL_ORIGINAL_REQUEST_H07_S10",
+    "SENTINEL_TOOLINPUT_H07_S2",
+    "SENTINEL_TOOLINPUT_H07_S3",
+    "SENTINEL_TOOLINPUT_H07_S4",
+    "SENTINEL_TOOLINPUT_H07_S5",
+    "SENTINEL_TOOLINPUT_H07_S6",
+    "SENTINEL_TOOLINPUT_H07_S7",
+    "SENTINEL_TOOLINPUT_H07_S8",
+    "SENTINEL_TOOLINPUT_H07_S9",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S10",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S2",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S3",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S4",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S5",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S6",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S7",
+    "SENTINEL_TOOLRESPONSE_DISPLAY_H07_S8",
+    "SENTINEL_TOOLRESPONSE_H07_S10",
+    "SENTINEL_TOOLRESPONSE_H07_S2",
+    "SENTINEL_TOOLRESPONSE_H07_S3",
+    "SENTINEL_TOOLRESPONSE_H07_S4",
+    "SENTINEL_TOOLRESPONSE_H07_S5",
+    "SENTINEL_TOOLRESPONSE_H07_S6",
+    "SENTINEL_TOOLRESPONSE_H07_S7",
+    "SENTINEL_TOOLRESPONSE_H07_S8",
+    "SENTINEL_TRANSCRIPT_H07_S1",
+    "SENTINEL_TRANSCRIPT_H07_S10",
+    "SENTINEL_TRANSCRIPT_H07_S2",
+    "SENTINEL_TRANSCRIPT_H07_S3",
+    "SENTINEL_TRANSCRIPT_H07_S4",
+    "SENTINEL_TRANSCRIPT_H07_S5",
+    "SENTINEL_TRANSCRIPT_H07_S6",
+    "SENTINEL_TRANSCRIPT_H07_S7",
+    "SENTINEL_TRANSCRIPT_H07_S8",
+    "SENTINEL_TRANSCRIPT_H07_S9"
+  ]
+}

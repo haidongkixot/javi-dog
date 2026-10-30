@@ -1,0 +1,199 @@
+{
+  "$schema": "./schema.json",
+  "id": "H13",
+  "kind": "hook",
+  "description": "Permission prompts for javi's tools still map to attention.requested (waiting) as before on every platform; the prompt text and the tool arguments are never copied.",
+  "contract": "ADR-0017 (at 2d4dcc2) decision 3 Pre-tool hooks (\"Permission prompts for these tools still map to attention.requested as before, because that wait is real\"); spec §12 Notification → attention.requested",
+  "ambiguities": ["Y5"],
+  "clock": "2026-10-30T10:00:00Z",
+  "identityGroup": null,
+  "steps": [
+    {
+      "platform": "claude-code",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cc-sess-h13",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H13_S1/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S1/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "SessionStart",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cc-sess-h13",
+          "agent": null,
+          "status": null,
+          "attributes": null,
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "claude-code",
+      "note": "Notification permission_prompt for javi's tool: attention.requested as before",
+      "stdin": {
+        "session_id": "cc-sess-h13",
+        "transcript_path": "/home/dev/.claude/projects/SENTINEL_TRANSCRIPT_H13_S2/s.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S2/web-app",
+        "permission_mode": "default",
+        "hook_event_name": "Notification",
+        "message": "Claude needs your permission to use javi - report_status (MCP) SENTINEL_MESSAGE_H13_CC",
+        "notification_type": "permission_prompt"
+      },
+      "expect": {
+        "record": {
+          "type": "attention.requested",
+          "session": "cc-sess-h13",
+          "agent": null,
+          "status": "waiting",
+          "attributes": {
+            "platform": {
+              "equals": "claude-code",
+              "optional": true
+            }
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H13_S3.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S3/web-app",
+        "hook_event_name": "SessionStart",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "cx-sess-h13",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "codex-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "codex-cli",
+      "note": "PermissionRequest for javi's tool: attention.requested as before",
+      "stdin": {
+        "session_id": "cx-sess-h13",
+        "turn_id": "SENTINEL_TURN_H13_S4",
+        "transcript_path": "/home/dev/.codex/sessions/2026/10/30/rollout-SENTINEL_TRANSCRIPT_H13_S4.jsonl",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S4/web-app",
+        "hook_event_name": "PermissionRequest",
+        "model": "gpt-5.5-codex",
+        "permission_mode": "default",
+        "tool_name": "mcp__javi__report_status",
+        "tool_input": {
+          "status": "blocked",
+          "reason": "missing_credentials",
+          "note": "SENTINEL_TOOLINPUT_H13_CX"
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "attention.requested",
+          "session": "cx-sess-h13",
+          "agent": null,
+          "status": "waiting",
+          "attributes": {
+            "platform": "codex-cli",
+            "tool_name": {
+              "prefixOf": "mcp__javi__report_status",
+              "maxLength": 24,
+              "optional": true
+            }
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "SessionStart",
+      "stdin": {
+        "session_id": "gm-sess-h13",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H13_S5/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S5/web-app",
+        "hook_event_name": "SessionStart",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "source": "startup"
+      },
+      "expect": {
+        "record": {
+          "type": "session.started",
+          "session": "gm-sess-h13",
+          "agent": null,
+          "status": null,
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    },
+    {
+      "platform": "gemini-cli",
+      "note": "Notification ToolPermission for javi's tool: attention.requested as before",
+      "stdin": {
+        "session_id": "gm-sess-h13",
+        "transcript_path": "/home/dev/.gemini/tmp/SENTINEL_TRANSCRIPT_H13_S6/chats/session.json",
+        "cwd": "/home/dev/SENTINEL_CWD_H13_S6/web-app",
+        "hook_event_name": "Notification",
+        "timestamp": "2026-10-30T10:00:00.000Z",
+        "notification_type": "ToolPermission",
+        "message": "Allow mcp_javi_report_status? SENTINEL_MESSAGE_H13_GM",
+        "details": {
+          "tool_name": "mcp_javi_report_status",
+          "server_name": "javi",
+          "args": {
+            "status": "blocked",
+            "note": "SENTINEL_DETAILS_H13_GM"
+          }
+        }
+      },
+      "expect": {
+        "record": {
+          "type": "attention.requested",
+          "session": "gm-sess-h13",
+          "agent": null,
+          "status": "waiting",
+          "attributes": {
+            "platform": "gemini-cli"
+          },
+          "eventId": null
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "SENTINEL_CWD_H13_S1",
+    "SENTINEL_CWD_H13_S2",
+    "SENTINEL_CWD_H13_S3",
+    "SENTINEL_CWD_H13_S4",
+    "SENTINEL_CWD_H13_S5",
+    "SENTINEL_CWD_H13_S6",
+    "SENTINEL_DETAILS_H13_GM",
+    "SENTINEL_MESSAGE_H13_CC",
+    "SENTINEL_MESSAGE_H13_GM",
+    "SENTINEL_TOOLINPUT_H13_CX",
+    "SENTINEL_TRANSCRIPT_H13_S1",
+    "SENTINEL_TRANSCRIPT_H13_S2",
+    "SENTINEL_TRANSCRIPT_H13_S3",
+    "SENTINEL_TRANSCRIPT_H13_S4",
+    "SENTINEL_TRANSCRIPT_H13_S5",
+    "SENTINEL_TRANSCRIPT_H13_S6",
+    "SENTINEL_TURN_H13_S4"
+  ]
+}
