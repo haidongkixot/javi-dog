@@ -347,9 +347,21 @@ Written before the lanes start (ADR-0018). Risk: **HIGH**. This is cryptography,
 | Collector: key from env or hidden prompt only; checksum check; stored at mode 0600; never printed (`status` shows class + `kid`); refused when the server class is lower | High | Process (temp `JAVI_HOME`) | sentinel key absent from stdout, stderr, argv, spool and logs | No |
 | Collector: L1 hashes + L2 payload only on `session.started` and the collector `heartbeat working`, the canary on `installed`, everything else L0; `.git/HEAD` read without spawning git | High | Unit + process | payload → records | QA vectors |
 | Reader returns the newest hashes and the newest `encrypted` with `event_id`/`producer_id`/`kid` as opaque data; no server decryption | Medium | Unit (PGlite) | rows → state | No |
-| Browser: memory by default, IndexedDB only with consent, forget/sign-out clears; label states (set up → checked; missing key; wrong key) | High | Component (jsdom + Node WebCrypto) | rendered text + accessible names | No |
+| Browser: memory by default, IndexedDB only with consent, forget/sign-out clears; label states (set up → checked; missing key; wrong key) | High | Component (jsdom + Node WebCrypto; this is Node's engine, not a browser's) | rendered text + accessible names | No |
 | Key never reaches the server: sentinel key absent from any server action argument, request body, log line and SSR HTML | High | Component + server-action tests | captured requests and logs | No |
 | Class change by owners/admins only; downgrade warning | Medium | Unit (permissions) + action tests | role matrix | No |
 | End to end: `init --privacy L2` → hook → ingest (PGlite) → reader → decrypt → "checked" | High | Process | final label and fields | No |
 | Integrations copy states opt-in, per project, and what the server still sees | Medium | Component | text | No |
+| Lowering the class keeps the status signal: `session.started` and collector `heartbeat working` stay L0; only `x.javi.thread.identity` is rejected; `javi status` shows the code (D0 H1) | High | Process + ingest (PGlite) | stored rows, status output | No |
+| `init --privacy`: the canary is checked before any write; `--no-verify` refused; a UUID project ref refused (D0 H2, H3) | High | Process (temp dirs, local ingest stub) | files absent after refusal | No |
+| AAD: moving a ciphertext to another thread, type or project slug fails; a part containing `pipe` is rejected (D0 M1, H3) | High | Unit (JD-M11) | throws | QA vectors |
+| Padding: every L2 plaintext is exactly 256 bytes; long names are cut to 100 code points (D0 M2) | Medium | Unit | lengths | QA vectors |
+| Key never in a child's environment or argv; `/dev/tty` prompt; key file; `JAVI_PRIVACY_KEY` removed from `process.env` (D0 M3) | High | Process | `/proc/<pid>/environ` of spawned children on Linux; captured argv | No |
+| Hostile `.git`: a FIFO, an oversized file, a symlink, a `gitdir:` file, a worktree, a detached HEAD, NFD names (D0 M4) | High | Unit + process (temp dirs) | no hang (timeout), no read beyond 1 KiB, expected fields | No |
+| Key input attributes and full paste-back confirmation (D0 M5, M6) | Medium | Component | attributes; refusal on mismatch | No |
+| Label for the right `kid` with failed decryption ("changed or damaged") vs wrong key vs no key (D0 M8) | Medium | Component | text | No |
+| Sentinel search covers the decoded key bytes (hex) and the base32 body as substrings, not only the full string (D0 M8) | High | All key-never-on-server tests | substring search | No |
+| CSP: every app route loads with zero CSP violations; `script-src` has a nonce and `'strict-dynamic'` (decision 11) | High | Bounded browser run (Playwright, no screenshots; `next build` + `next start`) | console `securitypolicyviolation` count = 0 | Yes: the only way to see violations |
+| IndexedDB "remember" storage | Medium | Owner's browser run (jsdom has no IndexedDB) | NOT RUN in CI | Owner |
+| Windows file mode for the stored key | Medium | Not testable on POSIX CI | NOT RUN; documented | Owner |
 | Real runs (owner's browser and machine, Windows) | — | Runtime (owner) | labels, fields | NOT RUN until owner run |

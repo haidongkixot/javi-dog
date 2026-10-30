@@ -48,11 +48,12 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
 
 1. **One project secret, held only by people and machines the owner gives it to.**
    - **Generation.** The owner's browser generates 32 random bytes (`crypto.getRandomValues`) on the project page.
-   - **Recovery key.** The browser shows it **once** as `jdk1_<43 base64url>_<4 checksum>`, where the checksum is the first 4 base32 characters of SHA-256 over the 32 bytes. It catches typos and is no secret.
+   - **Recovery key.** The browser shows it **once** as `JDK1-` followed by the 32 bytes in Crockford base32 (52 characters) and a 4-character checksum, in groups of 4 separated by `-` (review M6: base64url breaks on double-click). The checksum is the first 4 base32 characters of SHA-256 over the 32 bytes; it catches typos and is no secret. Parsing ignores case, spaces and dashes.
+   - **Input fields** for the key use `spellcheck=false`, `autocomplete=off` and `autocapitalize=off`, are masked, have no `name`, and are never inside a form that posts to the server (review M6: spellcheck services and password managers).
    - **What the server sees.** Never the secret: not in a request, a log, a server action argument, SSR output or a `NEXT_PUBLIC_*` value.
-   - **Before the class changes.** The owner confirms they saved it (they type its last 4 characters).
+   - **Before the class changes.** The key is hidden, and the owner pastes the **full** key back; the browser checks it. "Download as a file" is offered next to "copy" (review M5: the last 4 characters were the visible checksum and proved nothing).
    - **Lost key.** A lost recovery key means unreadable L2 data. The page says so before generating.
-2. **Everything is derived from the secret with HKDF-SHA256** (empty salt, `info` strings fixed and versioned) in JD-M11:
+2. **Everything is derived from the secret with HKDF-SHA256** (empty salt; `info` strings fixed, versioned and ending in `|<project slug>`, so the same key reused in two projects gives different `kid`s and hashes) in JD-M11:
    - `kid` = the first 8 base32 characters of HKDF(`jgr/kid/v1`). Being derived, it needs no storage or migration, and the browser can check which key an event used.
    - L2 encryption key = HKDF(`jgr/l2/aes-gcm/v1`), AES-256-GCM.
    - L1 key per field = HKDF(`jgr/l1/v1/<field>`), HMAC-SHA256. The fields are `repo`, `branch`, `cwd` and `file`, which gives domain separation.
@@ -63,17 +64,39 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
    - A later GitHub App (JD-M10) must match hashes in the browser.
 4. **L2 payload v1, JSON, at most 4 KiB before encryption:** `{"v":1,"repo":"<display name>","branch":"<branch>"}`. Either field may be absent.
    - `repo` is the basename of the git work-tree root, or of the session folder outside git.
-   - `branch` comes from `.git/HEAD`, read as a file, never by spawning git in a hook. A detached HEAD gives no branch.
+   - `branch` comes from `.git/HEAD`, read as a file, never by spawning git in a hook. A detached HEAD gives no branch. Reading rules (review M4):
+     - `lstat` first, and only a regular file is read, capped at 1 KiB, so FIFOs, devices and huge files are never read;
+     - a `.git` *file* (worktree, submodule) is followed one `gitdir:` level, which must resolve to a directory;
+     - only `^ref: refs/heads/(.+)$` counts;
+     - names are NFC-normalised before hashing (macOS stores NFD);
+     - in a linked worktree, `repo` is the worktree folder's name.
+
+     `mapping.ts` ("cwd never read") and ADR-0010 are updated to say that the session folder is read for L1/L2 projects only.
    - **IV:** 12 random bytes per event. The spec and validator tighten `iv` to exactly 16 base64url characters.
-   - **AAD:** the UTF-8 bytes of `jgr|<canonical event_id>|<project_ref>|<producer_id>|<kid>|L2`. Moving a ciphertext to another event, project, producer or key fails decryption. The collector therefore sets `event_id` itself, which the SDK already allows.
+   - **AAD:** the UTF-8 bytes of `jgr|v1|<canonical event_id>|<project slug>|<producer_id>|<thread_ref>|<type>|<kid>|L2`.
+     - `canonical event_id` is the output of `canonicalEventId()`.
+     - `project slug` is always the slug, never the UUID (review H3); `javi init --privacy` refuses a UUID project ref. Slugs cannot be renamed today, and an L1/L2 project's slug must stay fixed.
+     - `thread_ref` and `type` are included, so that a ciphertext shown under another thread fails (review M1).
+     - No part may contain `|`: the JGR ref patterns and the `kid` alphabet exclude it, and the browser rejects a part that has one.
+     - Moving a ciphertext to another event, thread, project, producer or key fails decryption. The collector therefore sets `event_id` itself, which the SDK already allows.
+     - The server still chooses *which* event the reader treats as newest; the AAD cannot prevent that.
+   - **Padding** (review M2): the JSON is padded with spaces to exactly 256 bytes before encryption. `repo` and `branch` are each cut to 100 code points first, so the payload never exceeds 256 bytes; every L2 payload then has the same length.
    - **Never in L2 or any other class:** prompts, code, commands, file contents, secrets, file paths (spec §7).
-5. **Which events carry identifiers.** In an L1 or L2 project, the collector adds the L1 hashes `repo_hash`, `branch_hash` and `cwd_hash` to `session.started` and to the collector `heartbeat working` (prompt submit). In an L2 project these events also carry the encrypted payload.
-   - These events take the project's class. Every other event stays L0, as today.
+5. **Identifiers travel on their own event** (review H1: if they rode on `session.started` and `heartbeat working`, a class mismatch would drop the status signal for good).
+   - In an L1 or L2 project the collector sends `x.javi.thread.identity` right after `session.started` and after the collector `heartbeat working` (prompt submit), with the same `thread_ref`. It carries the L1 hashes `repo_hash`, `branch_hash` and `cwd_hash`, plus, in an L2 project, the encrypted payload. It takes the project's class.
+   - Every other event, `session.started` and `heartbeat working` included, stays L0. A rejected identity event costs only the names, never the status.
+   - The collector records the last rejection codes per project in its state, and `javi status` shows them (for example `privacy_class_not_allowed`).
    - The installation event `x.javi.collector.installed` in an L2 project is the **canary**: L2 with `{"v":1,"canary":true}`.
    - `file_hash` is defined but not produced in this sprint.
 6. **Collector (`javi init --privacy L1|L2`).**
-   - **Input.** The recovery key is read from `JAVI_PRIVACY_KEY` or a hidden prompt, never from an argument. The checksum is checked, and the key is stored in the project's credentials file under `~/.javi` (mode 0600, next to the token). It is never printed: `javi status` shows only the class and `kid`.
-   - **Ingest ceiling.** If the project's class on the server is lower than requested, ingest rejects the events (`privacy_class_not_allowed`). `init` checks the class through the existing verify call and refuses with a clear message before writing anything.
+   - **Input** (review M3). The recovery key is read in one of three ways, never from an argument:
+     - a hidden prompt read from the terminal itself (`/dev/tty`, `CONIN$` on Windows), so a token piped on stdin does not conflict;
+     - `--privacy-key-file <path>`;
+     - `JAVI_PRIVACY_KEY`. It is deleted from `process.env` right after reading, and every child process javi starts (flush, receiver, git) gets an explicit environment without it.
+
+     The checksum is checked, and the key is stored in the project's credentials file under `~/.javi` (mode 0600 on POSIX; on Windows the user profile's access rules apply, as for the token). It is never printed: `javi status` shows only the class and `kid`.
+   - **Guidance** in the output and the docs: run `javi init --privacy` yourself in a terminal; never paste the key into an agent chat or an agent's command, because it would land in the model provider's transcript.
+   - **Ingest ceiling, checked before anything is written** (review H2: no read API exists, and the old verify ran after the credentials and hooks were saved). With `--privacy`, `init` first sends the canary through an in-memory spool and reads `rejected[].issues[].code`. On `privacy_class_not_allowed` or any other rejection it stops: no token, key or hook is saved. `--privacy` together with `--no-verify` is refused.
    - **Downgrade.** `javi init --privacy L0` removes the stored key.
 7. **Changing a project's class (JD-M04, JD-APP).**
    - Owners and admins can change it with a server action (S5a role rule). It changes one existing column, so no migration is needed.
@@ -81,15 +104,35 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
    - **Lowering the class** warns that stored L1/L2 events stay as they are and that new L1/L2 events will be rejected.
 8. **Reading in the browser (JD-M07, JD-APP).**
    - **Reader.** For each thread it returns the newest `repo_hash` and `branch_hash` and the newest `encrypted` object, with its `event_id`, `producer_id` and `kid`, as opaque data. No server code decrypts or derives anything.
-   - **Key entry.** The key is entered on the project page and imported as non-extractable keys. It is kept in memory for the tab by default, and in IndexedDB only with an explicit "Remember on this device" choice. "Forget on this device" and sign-out clear it.
-   - **Display.** A client component decrypts. Thread rows show `repo · branch` when decryption succeeds. Without the key they show "Encrypted (key `kid`)". With a wrong key they show "Can't decrypt with the key on this device".
+   - **Key entry.** The key is entered on the project page and imported as non-extractable keys. It is kept in memory for the tab by default.
+   - **"Remember on this device"** (IndexedDB, explicit choice) ships only together with the CSP of decision 11 (owner 2026-10-30).
+   - **Clearing.** "Forget on this device", the sign-out button, a `401` from the dashboard snapshot (session expired), and a sign-out in another tab (`BroadcastChannel`) all clear keys. Safari may delete stored keys after 7 days without a visit, and the page says so.
+   - **Display.** A client component decrypts and renders the names as text only, with bidi control characters removed. Thread rows show `repo · branch` when decryption succeeds. The other states:
+     - no key for that `kid`: "Encrypted (key `kid`)";
+     - a key with another `kid`: "Can't decrypt with the key on this device";
+     - the right `kid` but decryption fails: "Can't verify this encrypted data (changed or damaged)" (review M8).
 9. **Honest labels (CLAUDE.md §3).**
    - **"L2 set up. No encrypted event checked yet."** until this browser decrypts the canary or any L2 event of the project with the right AAD.
-   - **Then:** "Encrypted on your machine (key `kid`). Javi's Dog stores only ciphertext and can't read it. It is decrypted here, in your browser."
-   - **The project page always lists what Javi's Dog still sees:** status, timing, token counts, sizes, when identifiers repeat (from L1), and the sender's IP. It also states the limit of any web app: the decrypting code is served by Javi's Dog.
+   - **Then:** "Repo and branch names from javi are encrypted on your machine (key `kid`). Javi's Dog stores them only as ciphertext and can't read them. They are decrypted here, in your browser." The browser remembers per project and `kid` that it checked once (not secret), so the label survives the reader's 24-hour window.
+   - **The project page always lists what Javi's Dog still sees:**
+     - status, timing, token counts and event sizes;
+     - which threads share a repo, branch or folder (L1 hash equality);
+     - the sender's IP.
+
+     It also states two limits:
+     - the decrypting code is served by Javi's Dog, so a compromised deploy could read keys;
+     - anyone holding the key can read the names, whatever their role in the workspace.
    - **Integrations page:** it describes L1/L2 as opt-in and per project, with this wording, and stops claiming they are on.
    - The words "secure" and "zero-knowledge" are not used.
 10. **Rotation.** Generating a new key gives a new `kid`. Old events stay readable only with the old recovery key. The browser can hold several keys, matched by `kid`. Rotate before 2^32 L2 events per key; the UI does not count them in this sprint, which is logged as a follow-up.
+
+11. **Content Security Policy before keys are remembered** (owner 2026-10-30, review M7). A nonce-based CSP covers every page of the app:
+    - `script-src 'self' 'nonce-<per request>' 'strict-dynamic'`, `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, `form-action 'self'`;
+    - `style-src 'self' 'unsafe-inline'` for the CSS that Next.js and Tailwind inline;
+    - pages render dynamically, which nonces require.
+
+    It is checked by a bounded browser run (no screenshots): every app route loads with zero CSP violations. Until it passes, "Remember on this device" stays off.
+12. **Packaging.** `@javis-dog/crypto` is added to `transpilePackages` in `apps/web/next.config.ts`.
 
 ### Rejected
 
@@ -110,7 +153,7 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
 - Bad:
   - **Key loss.** A lost recovery key means lost L2 data, and removing a teammate needs a rotation.
   - **Equality leaks through L1:** the server sees that identifiers repeat and how often.
-  - **XSS or a compromised deploy** could use a key that is in the page. Mitigations: no third-party scripts (checked: none today), no `dangerouslySetInnerHTML` (none today), memory by default. A nonce-based CSP is follow-up F-CSP, with a readiness row.
+  - **XSS or a compromised deploy** could use a key that is in the page. Mitigations: no third-party scripts (checked: none today); one `dangerouslySetInnerHTML` in `packages/ui/src/components/icons.tsx:37`, which renders a static map of icon paths (review M7 corrected the earlier "none"); memory by default; the CSP of decision 11.
   - **No server-side search, grouping or email on L2 fields.** Budget alerts never include them.
 - Neutral:
   - `x.javi.collector.installed` becomes L2 in L2 projects. Receivers store extension events uninterpreted (spec §4).
@@ -129,3 +172,20 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
 ## Changes
 
 - 2026-10-30 — Created (S5f discovery, research and owner decisions).
+- 2026-10-30 — Design review D0, before any code: 3 High, 8 Medium, 12 Low. The orchestrator verified H1 (`jgr-sdk/src/client.ts:224-230`, the whole batch leaves the spool) and H2 (`cli.ts`: credentials and hooks are saved before the verify call). Fixes written into the decisions above:
+
+  | Finding | Problem | Fix |
+  |---|---|---|
+  | H1 | Identifiers on status events: a rejection drops the status signal | Separate `x.javi.thread.identity` event; rejection codes shown in `javi status` |
+  | H2 | A class check `init` claimed but did not have | The canary is sent first through an in-memory spool; `--privacy` with `--no-verify` is refused |
+  | H3 | `project_ref` in the AAD could be a slug or a UUID | Slug only; a UUID ref is refused with `--privacy`; slugs stay fixed |
+  | M1 | A ciphertext could be shown under another thread | `thread_ref` and `type` in the AAD |
+  | M2 | Ciphertext length leaked the name lengths | 256-byte padding |
+  | M3 | The key could leak through env inheritance, shell history, agents and stdin | Deleted from the env, explicit child env, `/dev/tty` prompt or key file, guidance |
+  | M4 | Hostile `.git` files | Strict reading rules |
+  | M5 | The confirmation proved nothing | Full paste-back and a download |
+  | M6 | Key fields leaked to spellcheck and password managers; base64url split on double-click | Field attributes; Crockford base32 groups |
+  | M7 | "No raw HTML injection" was wrong | Corrected (`icons.tsx`); CSP added this sprint by owner decision |
+  | M8 | Test-plan gaps and untestable rows | Rows added; IndexedDB and Windows file-mode rows marked as owner or browser runs |
+
+  Accepted Lows: per-project HKDF `info`, `|` rejection, `canonicalEventId()`, sign-out clearing across tabs and session expiry, a persisted "checked" state, scoped copy, the role note, text-only rendering, `transpilePackages`. Deferred: storing the current `kid` on the server (needs a migration); counting events per key.

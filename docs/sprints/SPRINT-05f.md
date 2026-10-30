@@ -23,6 +23,7 @@
 | K2 | Spec §7 wording (HMAC), `iv` exactly 12 bytes in spec, validator and ingest | JD-M01 | tests; changelog | PLANNED |
 | K3 | `javi init --privacy`, key storage, L1/L2 fields on the named events, canary | JD-C01 | TEST_PLAN collector rows | PLANNED |
 | K4 | Class change action, reader fields, key setup + decrypt UI, honest labels, Integrations copy | JD-M04, JD-M07, JD-APP | TEST_PLAN reader, browser, key-never-on-server and role rows | PLANNED |
+| K6 | Nonce CSP for all app routes; then "Remember on this device" | JD-APP | zero CSP violations in a bounded browser run | PLANNED |
 | K5 | QA vectors (`docs/jgr/conformance/privacy/`) and runner; end-to-end test | QA, all | every vector passes, mutation-checked | PLANNED |
 
 ## Review focus
@@ -54,12 +55,14 @@ Newest first: date — what changed — commit SHA.
 
 Team log, newest first:
 
+- 2026-10-30 — Reviewer — Design review D0 of ADR-0018: 3 High (identifiers on status events, a class check that did not exist, the AAD `project_ref` ambiguity), 8 Medium, 12 Low. The orchestrator verified H1 and H2 in code. All were folded into ADR-0018 (Changes D0). Owner: add the CSP this sprint, then "Remember on this device".
 - 2026-10-30 — Orchestrator — Rule 9 slip again: `b8c8e59` was pushed before CI on `c1178c0` was read. That run was green (41126438258). The shell has no GitHub API access, so no script can enforce the rule; reading CI now comes first in every push step.
 - 2026-10-30 — Orchestrator — The research agent read primary texts through their source repositories (many hosts are blocked). The orchestrator re-checked three facts: the `iv` schema gap, X25519 on Node 22.22, and OWASP's PBKDF2 600 000 iterations.
 
 ## Decisions and deviations
 
 - Owner 2026-10-30: recovery key; L1 keyed by the L2 key; repo and branch names; L1 and L2 end to end (ADR-0018).
+- Owner 2026-10-30 (after the design review): add the CSP this sprint, then remember keys on the device.
 
 ## Retro
 
