@@ -106,6 +106,7 @@ describe('thread state', () => {
       tasksCompleted: 2,
       inputTokens: 0,
       outputTokens: 0,
+      identity: null,
     });
   });
 

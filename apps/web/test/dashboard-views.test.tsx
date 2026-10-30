@@ -45,6 +45,7 @@ const thread = (over: Partial<ThreadState>): ThreadState => ({
   tasksCompleted: 2,
   inputTokens: 1200,
   outputTokens: 300,
+  identity: null,
   ...over,
 });
 

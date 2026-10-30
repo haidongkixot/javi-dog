@@ -7,16 +7,18 @@ export {
   threadFreshness,
   type DashboardReader,
 } from './reader.ts';
-export { STATUS_REASONS } from './types.ts';
+export { STATUS_REASONS, THREAD_IDENTITY_TYPE } from './types.ts';
 export type {
   ActivityItem,
   Counter,
   DashboardSnapshot,
+  EncryptedObject,
   Freshness,
   ProjectFreshness,
   ProjectHealth,
   StatusReason,
   StatusSource,
+  ThreadIdentity,
   ThreadState,
   ThreadStatus,
 } from './types.ts';

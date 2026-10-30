@@ -29,6 +29,47 @@ export type StatusReason = (typeof STATUS_REASONS)[number];
  */
 export type StatusSource = 'agent' | 'collector';
 
+/**
+ * JGR extension type that carries a thread's L1 hashes and, in an L2 project, its encrypted
+ * repo and branch names (ADR-0018 §5). It counts as a signal for freshness, but it is never a
+ * status, a task or an activity item.
+ */
+export const THREAD_IDENTITY_TYPE = 'x.javi.thread.identity';
+
+/** JGR `encrypted` object (spec §7), passed through as opaque strings. Never decrypted here. */
+export interface EncryptedObject {
+  alg: string;
+  kid: string;
+  iv: string;
+  ciphertext: string;
+}
+
+/**
+ * The newest `x.javi.thread.identity` event of a thread (ADR-0018 §8). Opaque data for the
+ * browser: the reader neither decrypts nor derives anything. `eventId`, `producerId`,
+ * `threadRef`, `type` and `projectSlug` are the AAD parts the browser needs; the `kid` is
+ * `encrypted.kid`.
+ */
+export interface ThreadIdentity {
+  /** Canonical `event_id` as stored (JD-M06 accepts canonical ids only). */
+  eventId: string;
+  producerId: string;
+  threadRef: string;
+  type: typeof THREAD_IDENTITY_TYPE;
+  /** The project slug, never the UUID (ADR-0018 §4, review H3). */
+  projectSlug: string;
+  /** The event's own privacy class. */
+  privacyClass: 'L0' | 'L1' | 'L2';
+  /** When the identity event was received. */
+  at: string;
+  /** `sha256:<64 hex>` keyed hashes (L1), or null when absent or not that shape. */
+  repoHash: string | null;
+  branchHash: string | null;
+  cwdHash: string | null;
+  /** The L2 ciphertext, or null when the event carries none (or not a well-shaped one). */
+  encrypted: EncryptedObject | null;
+}
+
 export interface ThreadState {
   projectId: string;
   projectSlug: string;
@@ -44,6 +85,10 @@ export interface ThreadState {
   statusSource: StatusSource;
   /** The self-report's reason from `<status>.<reason>`, only when listed; null otherwise. */
   statusReason: StatusReason | null;
+  /**
+   * Type of the newest event that is not an identity event (an identity event follows a status
+   * event and must not hide it); the identity type only when the thread sent nothing else.
+   */
   lastType: string;
   firstSignalAt: string;
   lastSignalAt: string;
@@ -59,6 +104,8 @@ export interface ThreadState {
   tasksCompleted: number;
   inputTokens: number;
   outputTokens: number;
+  /** The newest identity event in the window, or null when the thread sent none. */
+  identity: ThreadIdentity | null;
 }
 
 export interface ActivityItem {
