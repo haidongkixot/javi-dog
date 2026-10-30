@@ -33,6 +33,8 @@ const thread = (over: Partial<ThreadState>): ThreadState => ({
   projectName: 'Alpha app',
   threadRef: 'cc_0000000000000000000000000000aaaa',
   status: 'working',
+  statusSource: 'collector',
+  statusReason: null,
   lastType: 'agent.heartbeat',
   firstSignalAt: ago(3600),
   lastSignalAt: ago(12),
@@ -91,6 +93,8 @@ const SNAPSHOT: DashboardSnapshot = {
       type: 'tool.completed',
       status: 'working',
       toolName: 'Edit',
+      statusSource: 'collector',
+      statusReason: null,
     },
     {
       at: ago(300),
@@ -99,6 +103,8 @@ const SNAPSHOT: DashboardSnapshot = {
       type: 'permission.requested',
       status: 'waiting',
       toolName: null,
+      statusSource: 'collector',
+      statusReason: null,
     },
   ],
   projects: [
