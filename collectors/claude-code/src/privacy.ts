@@ -208,12 +208,21 @@ export const buildCanaryRecord = async (ctx: CanaryContext): Promise<RecordInput
 
 // --- Reading the recovery key (ADR-0018 §6, review M3): never from argv ---
 
-export type KeyFileResult = { ok: true; text: string } | { ok: false; message: string };
+export type KeyFileResult =
+  { ok: true; text: string; warnings: string[] } | { ok: false; message: string };
+
+/** Security review L8: the key file is open to group or other users (POSIX mode & 0o077). */
+export const KEY_FILE_MODE_WARNING =
+  'Warning: other users can read or change the key file (its group or other permission bits are set). Restrict it to yourself with chmod 600.';
+/** Security review L8: the key file's owner is not the user running javi (POSIX). */
+export const KEY_FILE_OWNER_WARNING =
+  'Warning: the key file belongs to another user. Use a key file that you own.';
 
 /**
  * `--privacy-key-file <path>`: a regular file (symlinks to one are fine) of at most 1 KiB,
  * opened without blocking so a FIFO or device never hangs init. Messages never contain the
- * file's content.
+ * file's content. On POSIX, `warnings` (fixed texts) flag a file open to group or other users
+ * or owned by someone else, read from the opened file itself; the key is read all the same.
  */
 export const readKeyFile = async (path: string): Promise<KeyFileResult> => {
   let handle;
@@ -234,7 +243,13 @@ export const readKeyFile = async (path: string): Promise<KeyFileResult> => {
     if (bytesRead > KEY_FILE_MAX_BYTES) {
       return { ok: false, message: `The key file is larger than ${KEY_FILE_MAX_BYTES} bytes.` };
     }
-    return { ok: true, text: buffer.subarray(0, bytesRead).toString('utf8').trim() };
+    const warnings: string[] = [];
+    if (process.platform !== 'win32') {
+      if (info.mode & 0o077) warnings.push(KEY_FILE_MODE_WARNING);
+      const uid = process.getuid?.();
+      if (uid !== undefined && info.uid !== uid) warnings.push(KEY_FILE_OWNER_WARNING);
+    }
+    return { ok: true, text: buffer.subarray(0, bytesRead).toString('utf8').trim(), warnings };
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code ?? 'unknown error';
     return { ok: false, message: `Could not read the key file (${code}).` };

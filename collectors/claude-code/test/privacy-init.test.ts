@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PGlite } from '@electric-sql/pglite';
@@ -222,6 +222,26 @@ describe('javi init --privacy L2 (canary first, key stored, identity end to end)
     await main(['status', '--project', 'shop-two'], s.value);
     expect(s.out).toContain('Privacy class: L0 (no recovery key stored).');
   });
+
+  it.runIf(process.platform !== 'win32')(
+    'a key file open to other users: warning on stderr, init still succeeds (security review L8)',
+    async () => {
+      const d = await dirs();
+      const file = join(root, `key-open-${n}.txt`);
+      await writeFile(file, `${fixture.key}\n`);
+      await chmod(file, 0o644);
+      const t = io(d, 'shop-two');
+      expect(
+        await main(init('shop-two', ['--privacy', 'L2', '--privacy-key-file', file]), t.value),
+        t.all(),
+      ).toBe(0);
+      expect(t.err).toEqual([
+        'Warning: other users can read or change the key file (its group or other permission bits are set). Restrict it to yourself with chmod 600.',
+      ]);
+      expect(t.out.join('\n')).toContain('Privacy class L2: recovery key stored in');
+      await assertNoLeak(t.all(), d.home, d.projectDir);
+    },
+  );
 
   describe('key-loss warning before the stored key is removed (security review L4)', () => {
     const WARNING =

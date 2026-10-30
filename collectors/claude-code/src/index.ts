@@ -219,6 +219,8 @@ export {
   IDENTITY_TYPE,
   INSTALLED_TYPE,
   isIdentityTrigger,
+  KEY_FILE_MODE_WARNING,
+  KEY_FILE_OWNER_WARNING,
   loadProjectKeys,
   PRIVACY_GUIDANCE,
   promptHiddenFromTerminal,

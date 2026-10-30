@@ -1587,6 +1587,8 @@ const readPrivacyRequest = async (
       io.err(read.message);
       return 2;
     }
+    // Security review L8: fixed texts on stderr, never the key; init goes on.
+    for (const warning of read.warnings) io.err(warning);
     text = read.text;
   } else if (envKey !== undefined) {
     text = envKey;
