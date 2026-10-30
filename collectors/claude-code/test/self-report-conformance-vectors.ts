@@ -34,6 +34,8 @@ export interface HookStep {
   platform: Platform;
   note: string;
   stdin: Record<string, unknown>;
+  /** README "Step clock": milliseconds added to the clock before this step (absent = 0). */
+  clockAdvanceMs?: number;
   expect: { record: ExpectedRecord | null };
 }
 

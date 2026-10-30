@@ -184,9 +184,9 @@ describe('self-report conformance vectors: schema (README "Format")', () => {
     expect(validate({ ...broken, steps: [] }).valid).toBe(false);
   });
 
-  it('the suite has 22 M vectors and 18 R vectors (README "Vectors" totals)', () => {
-    expect(mFiles).toHaveLength(22);
-    expect(rFiles).toHaveLength(18);
+  it('the suite has 23 M vectors and 21 R vectors (README "Vectors" totals)', () => {
+    expect(mFiles).toHaveLength(23);
+    expect(rFiles).toHaveLength(21);
   });
 
   it.each(rFiles)('%s validates against schema.json (JD-M07 has no validator)', (file) => {

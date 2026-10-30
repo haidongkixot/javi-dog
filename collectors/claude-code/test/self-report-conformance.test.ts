@@ -114,9 +114,9 @@ const checkThread = (platform: Platform, session: string, ref: string, where: st
 };
 
 describe('self-report conformance vectors: schema (README "Format")', () => {
-  it('has the hook vectors the README lists (14 vectors, 200 steps)', () => {
-    expect(vectors.length).toBe(14);
-    expect(vectors.reduce((n, [, v]) => n + v.steps.length, 0)).toBe(200);
+  it('has the hook vectors the README lists (15 vectors, 213 steps)', () => {
+    expect(vectors.length).toBe(15);
+    expect(vectors.reduce((n, [, v]) => n + v.steps.length, 0)).toBe(213);
   });
 
   it('the schema validator resolves and is not vacuous', (ctx) => {
@@ -148,6 +148,8 @@ describe('self-report conformance vectors: H group (JD-C01 + JD-C02, collector l
       return ctx.skip(`BLOCKED (${vector.id}): ${why}`);
     };
     const clock = new Date(vector.clock);
+    // README "Step clock" (S5e F2): the vector clock plus every `clockAdvanceMs` so far.
+    let stepClock = new Date(clock.getTime());
     const home = await mkdtemp(join(root, `${vector.id}-`));
     expect(home.includes('/home/dev'), 'temp dirs must not live under /home/dev').toBe(false);
     const javi = join(home, '.javi');
@@ -276,8 +278,10 @@ describe('self-report conformance vectors: H group (JD-C01 + JD-C02, collector l
     /** I1–I3 for one emitted record (x.* included: I1, I2 and I6 apply to them too). */
     const invariants = (e: JgrEvent, where: string, platform: Platform | 'setup') => {
       const atw = `${where} [${e.type} ${e.event_id}]`;
-      const result = validateEvent(e, clock);
-      expect(result.ok, `${atw} I1 JGR v0.1 at clock: ${JSON.stringify(result)}`).toBe(true);
+      const result = validateEvent(e, stepClock);
+      expect(result.ok, `${atw} I1 JGR v0.1 at the step clock: ${JSON.stringify(result)}`).toBe(
+        true,
+      );
       expect(e.privacy_class === undefined || e.privacy_class === 'L0', `${atw} I2 L0`).toBe(true);
       expect('encrypted' in e, `${atw} I2 no encrypted`).toBe(false);
       for (const [key, value] of Object.entries(e.attributes ?? {})) {
@@ -359,7 +363,7 @@ describe('self-report conformance vectors: H group (JD-C01 + JD-C02, collector l
       if (want.eventId !== null) {
         const id = String(record.event_id).toUpperCase();
         expect(id, `${where}: event_id is a ULID`).toMatch(ULID);
-        expect(ulidTimeMs(id), `${where}: ULID time part = vector clock`).toBe(clock.getTime());
+        expect(ulidTimeMs(id), `${where}: ULID time part = step clock`).toBe(stepClock.getTime());
         const label = want.eventId.idLabel;
         if (label !== null) {
           const scope = vector.identityGroup
@@ -485,7 +489,16 @@ describe('self-report conformance vectors: H group (JD-C01 + JD-C02, collector l
                   codexCommands.get('SessionStart')!,
               }
             : hookArgv[step.platform]!;
-        const env: NodeJS.ProcessEnv = { ...childEnv };
+        stepClock = new Date(stepClock.getTime() + (step.clockAdvanceMs ?? 0));
+        vi.setSystemTime(stepClock);
+        if (Date.now() !== stepClock.getTime()) {
+          return blocked(`${where}: cannot move the runner clock to the step clock`);
+        }
+        const env: NodeJS.ProcessEnv = {
+          ...childEnv,
+          // The hook and any flush it starts read this through the clock preload.
+          JAVI_CONFORMANCE_CLOCK: stepClock.toISOString(),
+        };
         if (step.platform === 'claude-code') env.CLAUDE_PROJECT_DIR = project;
         if (step.platform === 'gemini-cli') {
           env.GEMINI_PROJECT_DIR = project;

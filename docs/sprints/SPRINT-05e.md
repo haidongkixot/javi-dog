@@ -17,7 +17,7 @@
 | # | Task | Module | Acceptance criteria | Status |
 |---|---|---|---|---|
 | F1 | "needs you" wording wherever agent-reported `blocked` is counted as attention | JD-APP | web tests red-first; the status label "Waiting for you" stays on `waiting` only | DONE |
-| F2 | Vectors for the S5d coverage gaps: client response object, `report_task` missing arguments, re-fired hook with a moved clock, ended waiting thread | QA (JD-C03 suite) | vectors from the ADR only; runners pass; mutations caught | IN PROGRESS |
+| F2 | Vectors for the S5d coverage gaps: client response object, `report_task` missing arguments, re-fired hook with a moved clock, ended waiting thread | QA (JD-C03 suite) | vectors from the ADR only; runners pass; mutations caught | DONE |
 | F3 | Codex `hooks.json` tracked check fails closed (`codexHooksTracking`, warning on `unknown`) | JD-C01 | unit and CLI tests red-first | DONE |
 | P1 | Fail-closed push scan in the repo (`scripts/secret-scan.sh`, `pnpm secrets:scan`) and TEAM.md rules (check previous tip CI, dead-endpoint probes, module IDs from `module.json`, one-hand lockfile) | process | self-test PASS; TEAM.md updated | DONE |
 
@@ -25,6 +25,11 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-10-30 — F2 merged:
+  - QA added M23, H15 and R19–R21, and extended M18 and H12.
+  - Runners: the vector totals are updated, and the H runner supports `clockAdvanceMs`.
+  - All 59 vectors pass, and a disabled seen-call marker is caught only by H15.
+  - QA gaps G20 and G21 are clarified in ADR-0017.
 - 2026-10-30 — F1, F3 and P1 implemented by the orchestrator (small, red-first). F2 is with QA.
 
 ## Test evidence
@@ -35,6 +40,8 @@ Newest first: date — what changed — commit SHA.
 | F3 red: CLI test against the previous `cli.ts` | 1 | — | — | 1 | — | — | — | warning missing |
 | F1 red: `vitest run test/dashboard-views.test.tsx` (new copy, old components) | 1 | — | 34 | 2 | — | — | — | — |
 | `bash scripts/secret-scan.sh --self-test` | 0 | — | 8 | 0 | — | — | — | — |
+| Runners: `collector-mcp-server`, `realtime`, H runner (`self-report-conformance.test.ts`) | 0 | — | M 23, R 21, H 15 vectors | 0 | 0 | 0 | 0 | 59 of 59 vectors |
+| Mutation: seen-call marker off | 1 (expected) | — | — | H15 only | — | — | — | restored, no diff |
 
 ## Team
 

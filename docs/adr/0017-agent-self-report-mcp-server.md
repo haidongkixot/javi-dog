@@ -252,3 +252,13 @@ Sources:
   | L4 | Keys appended after javi's Codex block silently joined `[mcp_servers.javi]` | The block goes before the first table header after the root keys, and only where the file parses as before; a bare key after the end marker makes `init` and `uninstall` refuse |
 
   L5 (mixed line endings, lone-surrogate quoting) is accepted: no data loss, and the round trip is byte-exact. The Codex `hooks.json` tracked check (`codexHooksTracked`) has the same fail-open pattern but only drives a warning; it is logged as follow-up F3.
+- 2026-10-30 — S5e F2 vectors (QA, from this ADR only):
+  - **New and extended vectors, all passing the S5d implementation unchanged:**
+    - M23: client response objects;
+    - M18: missing arguments for `report_task`;
+    - H15: a re-fired hook at a moved clock, using a new optional per-step `clockAdvanceMs`, which the H runner now honours;
+    - R19–R21: threads that ended while waiting or blocked.
+  - **Mutation check:** with the seen-call marker disabled, only H15 fails.
+  - **Clarifications** (QA gaps G20, G21):
+    - (G20) Any message without a `method` is a response or noise and is never answered, including one with `"id": null` and an `error`. The `-32600` for `"id": null` applies to requests only.
+    - (G21) A self-report that arrives after `session.ended` reopens the thread, as any later event already does under ADR-0012. A late `waiting` or `blocked` therefore needs attention again; that is intended, because the agent is talking again.

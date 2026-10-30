@@ -206,8 +206,8 @@ describe('self-report conformance vectors: R group (JD-M07 thread reader)', () =
     await ctx.client.exec('truncate workspaces, ingest_rate_windows cascade');
   });
 
-  it('the suite has 18 R vectors (README "Vectors" totals)', () => {
-    expect(files).toHaveLength(18);
+  it('the suite has 21 R vectors (README "Vectors" totals)', () => {
+    expect(files).toHaveLength(21);
   });
 
   it('the structural check rejects a broken vector (sanity: the check is not vacuous)', () => {
