@@ -3,7 +3,7 @@
   "id": "R09",
   "kind": "reader",
   "description": "statusReason is the reason part of \"<status>.<reason>\" only when the prefix equals the status and the reason is in the SELF_REPORT list; otherwise null.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Reader (\"accepted only when the prefix equals the status and the reason is in the SELF_REPORT list\", review M2, QA gap G9); decision 2 reasons",
+  "contract": "ADR-0017 (c25cf2d) decision 6 Reader (\"accepted only when the prefix equals the status and the reason is in the SELF_REPORT list\", review M2, QA gap G9); decision 2 reasons",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [

@@ -3,7 +3,7 @@
   "id": "M09",
   "kind": "mcp",
   "description": "After initialize, every method other than initialize, ping, tools/list and tools/call gets -32601, including standard MCP methods the server does not offer.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Methods (\"It handles ping, tools/list and tools/call\"), Errors (\"any other method get -32601\")",
+  "contract": "ADR-0017 (c25cf2d) decision 1 Methods (\"It handles ping, tools/list and tools/call\"), Errors (\"any other method get -32601\")",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

@@ -3,7 +3,7 @@
   "id": "M21",
   "kind": "mcp",
   "description": "Sentinels planted in _meta (Codex sends _meta.sessionId), progress tokens, unknown tools, invalid arguments, unknown methods and broken JSON never reach stdout or stderr; _meta beside name and arguments is not an argument key, so the valid call succeeds.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 stdout and stderr (\"only fixed strings: no method names, no request text, no parse excerpts\"); Research table (Codex _meta.sessionId); D0 L3",
+  "contract": "ADR-0017 (c25cf2d) decision 1 stdout and stderr (\"only fixed strings: no method names, no request text, no parse excerpts\"); Research table (Codex _meta.sessionId); D0 L3",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

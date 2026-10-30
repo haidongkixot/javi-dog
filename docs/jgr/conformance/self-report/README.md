@@ -36,7 +36,7 @@ New in this suite:
 
 ## Sources
 
-All at commit `2d4dcc2` (branch `claude/clever-goldberg-wlurty`, "ADR-0017 design review D0"), plus the orchestrator's amendment of ADR-0017 and TEST_PLAN §S5d made on 2026-10-30 after the first QA report (ADR-0017 Changes entry **"QA spec gaps"**; at the time of writing it was not yet committed on top of `2d4dcc2`). Contract strings in the vectors read `ADR-0017 (2d4dcc2 + QA spec gaps)`.
+All at commit `2d4dcc2` (branch `claude/clever-goldberg-wlurty`, "ADR-0017 design review D0"), plus the orchestrator's amendment of ADR-0017 and TEST_PLAN §S5d made on 2026-10-30 after the first QA report (ADR-0017 Changes entry **"QA spec gaps"**; at the time of writing it was not yet committed on top of `2d4dcc2`). Contract strings in the vectors read `ADR-0017 (c25cf2d)`.
 
 | Source | Sections used |
 |---|---|

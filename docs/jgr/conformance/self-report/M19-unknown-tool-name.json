@@ -3,7 +3,7 @@
   "id": "M19",
   "kind": "mcp",
   "description": "tools/call with a tool name that is not report_status or report_task gets -32602, including the client-side prefixed name and case variants; the name is never echoed.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Errors (\"An unknown tool name gets -32602\")",
+  "contract": "ADR-0017 (c25cf2d) decision 1 Errors (\"An unknown tool name gets -32602\")",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

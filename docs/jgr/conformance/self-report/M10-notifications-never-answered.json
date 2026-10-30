@@ -3,7 +3,7 @@
   "id": "M10",
   "kind": "mcp",
   "description": "A message without an id never gets a response: before and after initialize, for known and unknown notification names, and for request method names sent without an id (even with invalid arguments).",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Message rules (\"A message without an id (a notification) never gets a response\")",
+  "contract": "ADR-0017 (c25cf2d) decision 1 Message rules (\"A message without an id (a notification) never gets a response\")",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true

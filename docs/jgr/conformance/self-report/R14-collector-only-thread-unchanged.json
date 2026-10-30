@@ -3,7 +3,7 @@
   "id": "R14",
   "kind": "reader",
   "description": "A thread without self-reports keeps the existing rule: latest non-null status, source collector, no reason; waiting needs attention.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"Otherwise. The existing rule applies\"), Attention",
+  "contract": "ADR-0017 (c25cf2d) decision 6 Precedence (\"Otherwise. The existing rule applies\"), Attention",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [

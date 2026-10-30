@@ -3,7 +3,7 @@
   "id": "H01",
   "kind": "hook",
   "description": "report_status without a reason maps, on all three platforms, to exactly one heartbeat with that status, attributes.tool_name = the tool name as the agent saw it, no error_code, in the session's thread; event_id is a ULID whose time part is the hook clock.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 3 Match, Only one record per hook call, Mapping, Thread, sequence and ids",
+  "contract": "ADR-0017 (c25cf2d) decision 3 Match, Only one record per hook call, Mapping, Thread, sequence and ids",
   "ambiguities": [],
   "clock": "2026-10-30T10:00:00Z",
   "identityGroup": null,

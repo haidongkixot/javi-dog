@@ -3,7 +3,7 @@
   "id": "R07",
   "kind": "reader",
   "description": "An agent-reported waiting needs attention, with or without a reason.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Attention (\"status is waiting, as today\")",
+  "contract": "ADR-0017 (c25cf2d) decision 6 Attention (\"status is waiting, as today\")",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [

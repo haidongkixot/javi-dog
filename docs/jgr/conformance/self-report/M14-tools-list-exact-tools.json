@@ -3,7 +3,7 @@
   "id": "M14",
   "kind": "mcp",
   "description": "tools/list returns exactly report_status and report_task (any order) with the exact enums, the required keys, additionalProperties:false and the exact annotations readOnlyHint:false, destructiveHint:false, idempotentHint:true, openWorldHint:false. A second call returns the same.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 2 (vocabularies, Strict arguments, Annotations); Research table (Gemini strips additionalProperties, so the server declares it and validates itself; reading Y2)",
+  "contract": "ADR-0017 (c25cf2d) decision 2 (vocabularies, Strict arguments, Annotations); Research table (Gemini strips additionalProperties, so the server declares it and validates itself; reading Y2)",
   "ambiguities": ["Y2"],
   "server": {
     "hooksInstalled": true

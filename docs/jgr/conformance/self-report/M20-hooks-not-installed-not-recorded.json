@@ -3,7 +3,7 @@
   "id": "M20",
   "kind": "mcp",
   "description": "With javi's hooks for the platform and project not installed, valid calls to either tool answer isError:true with the constant \"not recorded: javi hooks are not installed for this project\"; invalid input still gets the validation constant first, and tools/list is unchanged.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 2 Honest answer (\"When they are not installed, the call answers isError with a constant …\"); Strict arguments (\"the arguments are validated first; only valid input is then checked against the hooks state (QA gap G3). tools/list does not depend on the hooks state\"); server option hooksInstalled:false",
+  "contract": "ADR-0017 (c25cf2d) decision 2 Honest answer (\"When they are not installed, the call answers isError with a constant …\"); Strict arguments (\"the arguments are validated first; only valid input is then checked against the hooks state (QA gap G3). tools/list does not depend on the hooks state\"); server option hooksInstalled:false",
   "ambiguities": [],
   "server": {
     "hooksInstalled": false

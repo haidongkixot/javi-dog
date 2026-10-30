@@ -3,7 +3,7 @@
   "id": "R16",
   "kind": "reader",
   "description": "A clearing event without a status (collector task.started / task.completed) clears the agent status; the thread shows the latest non-null status among non-agent events, from before the agent's report, with source collector.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 6 Precedence (\"Otherwise … the latest non-null status among events that are not agent statuses, and the source is collector. A clearing event with no status … shows the collector status that came before the agent's report (QA gap G6)\")",
+  "contract": "ADR-0017 (c25cf2d) decision 6 Precedence (\"Otherwise … the latest non-null status among events that are not agent statuses, and the source is collector. A clearing event with no status … shows the collector status that came before the agent's report (QA gap G6)\")",
   "ambiguities": [],
   "platform": "claude-code",
   "steps": [

@@ -3,7 +3,7 @@
   "id": "M17",
   "kind": "mcp",
   "description": "Invalid report_status inputs (unknown keys holding prompt-like sentinels, wrong types including reason:null, values outside the lists, a reason with working / idle / completed, a missing status, missing or non-object arguments) answer isError:true with one constant text that names the six statuses and never echoes the input.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 2 Strict arguments (\"Unknown keys, wrong types (including reason: null), values outside the lists, a missing required key, arguments that are missing or not an object, or a reason with another status are rejected (QA gaps G2, G10)\" … \"a constant per tool that names the allowed values and never echoes the input\"); D0 L3",
+  "contract": "ADR-0017 (c25cf2d) decision 2 Strict arguments (\"Unknown keys, wrong types (including reason: null), values outside the lists, a missing required key, arguments that are missing or not an object, or a reason with another status are rejected (QA gaps G2, G10)\" … \"a constant per tool that names the allowed values and never echoes the input\"); D0 L3",
   "ambiguities": ["G4"],
   "server": {
     "hooksInstalled": true

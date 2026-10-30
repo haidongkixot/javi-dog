@@ -3,7 +3,7 @@
   "id": "M22",
   "kind": "mcp",
   "description": "A request with \"id\": null gets -32600 with id null, before and after initialize; a second initialize is answered like the first; the server keeps working.",
-  "contract": "ADR-0017 (2d4dcc2 + QA spec gaps) decision 1 Message rules (\"A request with \"id\": null gets -32600 with id: null. A second initialize is answered like the first (QA gap G14)\")",
+  "contract": "ADR-0017 (c25cf2d) decision 1 Message rules (\"A request with \"id\": null gets -32600 with id: null. A second initialize is answered like the first (QA gap G14)\")",
   "ambiguities": [],
   "server": {
     "hooksInstalled": true
