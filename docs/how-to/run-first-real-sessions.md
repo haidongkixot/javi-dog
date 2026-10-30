@@ -101,7 +101,7 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 ```
 
 - **Files written.** `init` adds a `javi` server to `.mcp.json` (Claude Code), `.gemini/settings.json` (Gemini) or `.codex\config.toml` (Codex) in that folder.
-- **Committed files.** If git tracks that file, `init` refuses and changes nothing, because the entry holds paths from your machine. Add `--allow-tracked-config` only if you accept that.
+- **Committed files.** If git tracks that file, `init` refuses and changes nothing, because the entry holds paths from your machine. Add `--allow-tracked-config` only if you accept that. `init` also refuses when it cannot ask git (git missing, or `git status` failing in that folder); fix git, or use the same flag. A `.mcp.json` that javi creates is added to the repository's local exclude list, so `git add -A` does not pick it up.
 - **Approval prompts.**
   - By default, Claude Code and Gemini ask before each report.
   - Add `--allow-self-report` to pre-approve exactly javi's two tools, and nothing else.

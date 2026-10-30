@@ -106,7 +106,7 @@ Sources:
    - **Thread, sequence and ids.**
      - The record uses the hook's own thread ref, agent ref and sequence, so it joins the session's thread for free, including after `/clear`.
      - Its `event_id` is a ULID: the time part is the hook time; the 80 random bits come from HMAC(salt, platform ‖ session id ‖ call id), where the payload has a call id (Claude Code `tool_use_id`, Codex `tool_use_id`). Gemini's `AfterTool` has no call id, so it gets a fresh ULID.
-     - This keeps the spool's time order (review M5) and dedupes a re-run hook. No raw id leaves the machine.
+     - This keeps the spool's time order (review M5). A re-run hook is deduplicated by JD-C01's local **seen-call marker**: `~/.javi/self-report/seen.json` holds the newest 512 keys, each an HMAC of the platform, session id and call id. The event id alone does not deduplicate, because its time part is the hook clock (code review M1). No raw id leaves the machine.
    - **Prompt delivery.** These records are flushed at once, like the existing urgent events (review H2):
      - a self-reported status other than `working`;
      - a self-reported `task.failed`;
@@ -239,3 +239,16 @@ Sources:
   G4, G13 and G18 need no change. G5 was a TEST_PLAN line that contradicted decision 3 and is now fixed.
 - 2026-10-30 — Module labels corrected (Developer B): the reader is JD-M07 `packages/realtime` (JD-M12 is `packages/resilience`), and `ThreadStatusPill` is JD-APP (`apps/web`), not JD-M13. Orchestrator follow-ups to the T4 lane: reasons only on `waiting`, `blocked` and `failed` in the reader too, "CI failing" capitalised, and a test that the reader's reason list equals JD-C02's.
 - 2026-10-30 — Conformance runner for the M and R groups: 40 of 40 vectors pass; 51 of 54 mutations are caught. Clarification from the survivors: the server ignores a JSON-RPC **response** object (`result` or `error` with an `id`) sent by the client, as JD-C03 already does. The success text is not required to be constant (decision 2 makes only the "not recorded" text constant), and `needsAttention` for ended threads is unchanged by this ADR (decision 6).
+- 2026-10-30 — Code review of the implementation (`2d4dcc2..08f7b2e`): 0 High, 3 Medium, 5 Low. Fixed red-first, merged at `0a0c7e9`:
+
+  | Finding | Problem | Fix |
+  |---|---|---|
+  | M1 | A re-fired hook recorded the report twice | Seen-call marker (decision 3) |
+  | M2 | A user's unparsable `.mcp.json` blocked `uninstall` although javi never registered there | Warning, then the hooks are removed; abort only when javi recorded a registration in that file |
+  | M3 | The git-tracked check failed open on git errors | Fails closed: when git is missing, fails, or times out, `--self-report` refuses unless `--allow-tracked-config` |
+  | L1 | The launcher printed a stack trace | One fixed line, `javi mcp: javi is not installed here; run javi init`; `javi status` warns when the launcher's target bundle is missing |
+  | L2 | A javi-created `.mcp.json` was not excluded from git | Added to the repository's `info/exclude`; that line is removed on uninstall |
+  | L3 | `javi status` printed control characters from registration files | Stripped |
+  | L4 | Keys appended after javi's Codex block silently joined `[mcp_servers.javi]` | The block goes before the first table header after the root keys, and only where the file parses as before; a bare key after the end marker makes `init` and `uninstall` refuse |
+
+  L5 (mixed line endings, lone-surrogate quoting) is accepted: no data loss, and the round trip is byte-exact. The Codex `hooks.json` tracked check (`codexHooksTracked`) has the same fail-open pattern but only drives a warning; it is logged as follow-up F3.

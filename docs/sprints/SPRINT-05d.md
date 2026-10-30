@@ -21,10 +21,10 @@
 |---|---|---|---|---|---|
 | T1 | Self-report vocabulary, validator and mappers | JD-C02 | → `SELF_REPORT`, `validateSelfReport()`, `selfReportRecord()` | TEST_PLAN rows 1, 6–8 | DONE (`328beb7`) |
 | T2 | Hand-written stdio MCP server | JD-C03 | JD-C02 → `createMcpServer()` | rows 2–5 | DONE (`328beb7`) |
-| T3 | `javi mcp`, `init --self-report`, uninstall, status, hook wiring for all three platforms | JD-C01 | JD-C02, JD-C03 → CLI | rows 4, 9, 12 | PLANNED |
+| T3 | `javi mcp`, `init --self-report`, uninstall, status, hook wiring for all three platforms | JD-C01 | JD-C02, JD-C03 → CLI | rows 4, 9, 12 | DONE (`e9b2ae4`, review fixes `0a0c7e9`) |
 | T4 | Reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`; pill text in all status pills | JD-M07, JD-APP | → `ThreadState.statusSource`, `statusReason` | precedence, reader and pill rows | DONE (`bd616f6`, `d9b51eb`) |
-| T5 | Conformance vectors (`docs/jgr/conformance/self-report/`) and runner | QA | ADR-0017 → vectors | every vector PASS, mutation-checked | vectors DONE (`c965708`); runner PLANNED |
-| T6 | End-to-end test, docs (how-to, spec §12 Changes, registry, changeset) | all | — | row 11; `docs:check` | PLANNED |
+| T5 | Conformance vectors (`docs/jgr/conformance/self-report/`) and runner | QA | ADR-0017 → vectors | every vector PASS, mutation-checked | DONE: 54 of 54 vectors pass; 71 of 74 mutations caught (`8a0cba7`, `44d88da`) |
+| T6 | End-to-end test, docs (how-to, spec §12 Changes, registry, changeset) | all | — | row 11; `docs:check` | DONE (`44d88da`, `67d8c01`) |
 
 ## Review focus
 
@@ -37,6 +37,13 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-10-30 — Code review fixes merged (fix lane): M1–M3 and L1–L4, all red-first. Behaviour change: on a machine without git, `--self-report` needs `--allow-tracked-config` — `0a0c7e9`.
+- 2026-10-30 — T5 runner part 2 and T6 end-to-end merged (runner lane 2):
+  - H group 14 of 14 vectors pass at the collector layer;
+  - 20 of 20 mutations caught;
+  - end-to-end hook → spool → ingest (PGlite) → reader passes for Claude Code and Codex.
+
+  Commits `44d88da` and lockfile `50f5059`.
 - 2026-10-30 — T5 runner part 1 merged: the M group (22/22, instance layer) and the R group (18/18, PGlite) pass; 51/54 mutations caught. Survivors were logged as coverage gaps; one ADR clarification (client response objects are ignored). The H group waits on T3 — `8a0cba7`.
 - 2026-10-30 — Orchestrator follow-ups to T4: reasons only on `waiting`/`blocked`/`failed` in the reader, "CI failing" capitalised, reader ↔ JD-C02 vocabulary equality test (red-first: 3 new tests failed before the fix) — `d9b51eb`.
 - 2026-10-30 — T4 merged (Developer B): reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`, pill text in squad, feed and agents table — `bd616f6`.

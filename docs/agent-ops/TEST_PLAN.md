@@ -330,6 +330,7 @@ Screenshot budget: **0**.
 | Sentinel strings in any request never appear on stdout responses, stderr, or `isError` text | High | Unit + process | captured streams | No |
 | `javi mcp` answers `isError` "not recorded" when hooks for that platform and project are not installed | Medium | Process | response text | No |
 | `--allow-self-report` adds exactly javi's two allowances; uninstall removes exactly them; git-tracked registration file refused without `--allow-tracked-config`; unversioned `javi-mcp.mjs` | High | Process (temp dirs) | bytes before/after | No |
+| Code review fixes: re-fired hook recorded once (clock advanced); `uninstall` survives a foreign unparsable `.mcp.json`; git check fails closed (128 in a work tree, ENOENT, timeout); launcher prints one fixed line; javi-created `.mcp.json` excluded from git and un-excluded on uninstall; status strips control characters; Codex block placement and bare-key refusal | High | Process (temp dirs, injected git runner) | exit codes, bytes, stderr | No |
 | `statusReason` only from the `SELF_REPORT` list; pill text "Blocked · missing credentials · reported by agent" with an accessible name, also in the activity feed | Medium | Unit (reader) + component | rendered text | No |
 | Claude Code, Gemini CLI and Codex CLI unchanged for every other tool | High | Existing suites + conformance runners | unchanged assertions | No |
 | Real CLI runs (protocol version, approval prompts, Windows spawn) | — | Runtime (owner) | `javi status`, dashboard | NOT RUN until owner run |
