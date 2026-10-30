@@ -1359,6 +1359,12 @@ const selfReportStatus = async (
     io.out(
       `Warning: the self-report launcher ${sr.entry.args[1] ?? ''} is missing. Run ${command} again.`,
     );
+  } else if (!sr.launcherTargetExists) {
+    io.out(
+      sr.launcherTarget
+        ? `Warning: the self-report launcher ${sr.entry.args[1] ?? ''} runs ${sr.launcherTarget}, which is missing, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`
+        : `Warning: javi cannot read which javi the self-report launcher ${sr.entry.args[1] ?? ''} runs. Run ${command} again.`,
+    );
   }
 };
 

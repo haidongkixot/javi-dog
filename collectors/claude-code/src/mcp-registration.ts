@@ -52,8 +52,16 @@ export const GEMINI_SELF_REPORT_TOOLS = [...SELF_REPORT.tools];
 export const mcpLauncherPath = (home: string) => join(home, 'bin', MCP_LAUNCHER_NAME);
 
 /**
+ * The one line the launcher writes to stderr when the javi it names cannot be loaded (code
+ * review L1): a fixed string, never a stack trace or a path (MCP clients copy a server's
+ * stderr into their own logs).
+ */
+export const MCP_LAUNCHER_MISSING = 'javi mcp: javi is not installed here; run javi init';
+
+/**
  * The launcher: pins `JAVI_HOME` (as the Codex hook launcher does), puts the installed javi in
- * `argv[1]` with the `mcp` command after it, and imports it. It prints nothing itself.
+ * `argv[1]` with the `mcp` command after it, and imports it. Its only output of its own is
+ * `MCP_LAUNCHER_MISSING` on stderr (exit 1) when that javi cannot be loaded.
  */
 export const mcpLauncherScript = (cliPath: string, home: string) => {
   for (const word of [cliPath, home]) {
@@ -65,12 +73,18 @@ export const mcpLauncherScript = (cliPath: string, home: string) => {
   }
   return [
     '// Written by javi init --self-report: MCP clients start javi mcp through this file, so a',
-    '// javi upgrade never changes the registered command. It prints nothing itself.',
+    '// javi upgrade never changes the registered command. It prints one fixed line when javi',
+    '// is missing, nothing else.',
     "import { pathToFileURL } from 'node:url';",
     `process.env.JAVI_HOME = ${JSON.stringify(home)};`,
     `const cli = ${JSON.stringify(cliPath)};`,
     "process.argv.splice(1, 1, cli, 'mcp');",
-    'await import(pathToFileURL(cli).href);',
+    'try {',
+    '  await import(pathToFileURL(cli).href);',
+    '} catch {',
+    `  process.stderr.write(${JSON.stringify(`${MCP_LAUNCHER_MISSING}\n`)});`,
+    '  process.exit(1);',
+    '}',
     '',
   ].join('\n');
 };
@@ -767,9 +781,21 @@ export interface SelfReportStatus {
   nodeExists: boolean;
   /** The registered launcher exists. */
   launcherExists: boolean;
+  /** The javi bundle the launcher loads (its `const cli = …` line), or null if unreadable. */
+  launcherTarget: string | null;
+  /** That bundle exists (false when the launcher or its target is missing). */
+  launcherTargetExists: boolean;
   /** The registration file could not be read. */
   unreadable: boolean;
 }
+
+/** The javi path a launcher written by `mcpLauncherScript` loads, or null. */
+const launcherTargetOf = async (launcher: string): Promise<string | null> => {
+  const line = /^const cli = (".*");$/m.exec(await readFile(launcher, 'utf8'));
+  if (!line) return null;
+  const value: unknown = JSON.parse(line[1]!);
+  return typeof value === 'string' ? value : null;
+};
 
 /** What `javi status` reports about self-report for one platform and project folder. */
 export const readSelfReport = async (
@@ -808,6 +834,8 @@ export const readSelfReport = async (
       jsonEqual(entry.includeTools, GEMINI_SELF_REPORT_TOOLS);
   }
   const launcher = entry?.args[1];
+  const launcherTarget =
+    typeof launcher === 'string' ? await launcherTargetOf(launcher).catch(() => null) : null;
   return {
     file,
     entry,
@@ -815,6 +843,8 @@ export const readSelfReport = async (
     preApproved,
     nodeExists: entry !== null && typeof entry.command === 'string' && existsSync(entry.command),
     launcherExists: typeof launcher === 'string' && existsSync(launcher),
+    launcherTarget,
+    launcherTargetExists: launcherTarget !== null && existsSync(launcherTarget),
     unreadable,
   };
 };
