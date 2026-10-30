@@ -82,3 +82,20 @@ Statuses match JD-C01's Claude Code equivalents. Only `session_id`, `hook_event_
 - `codexUsageDelta`: `input_tokens` = max(0, input − cached − cache write), because Codex's input includes both (official test: 100 = 40 + 60); `cache_read_tokens` = cached; `cache_write_tokens` = cache write; `output_tokens` = output; `model`; `estimated: false`. Zero counters are kept; dropping empty records is the caller's job.
 - `codexCostDelta`: only `auth_mode` `ApiKey` (`CODEX_PRICED_AUTH_MODES`) → `{ cost_usd, estimated: false }`, rounded to 1e-9 USD. `Chatgpt`, missing or any other auth mode → `null`: tokens only, no budget impact. A missing cost is never zero; a parsed `"0"` is a real zero. The figure is OpenAI's (or the provider's) estimate, labelled estimated in the UI (ADR-0013).
 - Event ids are not computed here: JD-C01 (`codex-usage.ts`, `codexTokenEventId` / `codexCostEventId`) derives them from the records with a record-kind tag, so that formula has a single source.
+
+## Agent self-report (ADR-0017 §2–§3, S5d)
+
+Shared by the JD-C03 MCP server (`javi mcp`) and JD-C01's post-tool hooks. No free text ever leaves these functions.
+
+| Export | Contract |
+|---|---|
+| `SELF_REPORT` | Deeply frozen: `serverName` `javi`, `tools` (`report_status`, `report_task`), `statuses`, `reasons`, `reasonStatuses` (`waiting`, `blocked`, `failed`), `phases`, `kinds`, and the two MCP `inputSchema`s (`type: object`, `required`, `enum`s, `additionalProperties: false`) |
+| `validateSelfReport(tool, input)` | `{ ok: true, value }` (a fresh object from the fixed lists) or `{ ok: false }` — unknown or symbol keys, wrong types, values outside the lists, a `reason` with another status, a missing required key, a non-plain object. Nothing of a rejected input is returned |
+| `matchJaviTool(platform, payload)` | `{ tool, phase: 'pre' \| 'post' }` or `null`. Claude Code (`PreToolUse`; `PostToolUse`, `PostToolUseFailure`) and Codex (`PreToolUse`; `PostToolUse`): `tool_name` exactly `mcp__javi__report_status` / `mcp__javi__report_task`. Gemini (`BeforeTool`; `AfterTool`): `mcp_context.server_name === 'javi'` and `mcp_context.tool_name` ∈ the two names. Reads only `hook_event_name`, `tool_name` (Claude Code, Codex), `mcp_context.server_name`, then `mcp_context.tool_name` |
+| `selfReportRecord(platform, payload, ctx, base)` | The one record for a post-tool hook of javi's tool, or `null` (pre-tool hook, other tool, invalid `tool_input`, no `session_id`, sub-agent `report_status`). See below |
+| `selfReportEventId({ platform, sessionId, callId, at, salt })` | ULID: 48-bit time = `at`; 80 random bits = first 10 bytes of HMAC-SHA-256(salt, platform ‖ NUL ‖ sessionId ‖ NUL ‖ callId). `null` without a call id (the SDK assigns a fresh ULID) |
+
+- `ctx` = `{ salt, at }` (hook time). `base` = what the platform mapper already derived for the same hook (`project_ref`, `thread_ref`, `agent_ref`, platform `attributes`, optional `occurred_at`); a full `RecordInput` from `mapHook` / `mapGeminiHook` / `mapCodexHook` fits as is, and its `type`, `status`, `sequence` and `event_id` are ignored.
+- `report_status` → `heartbeat` + `status`, plus `attributes.error_code` = `<status>.<reason>` when a reason is given. `report_task` → `task.started` / `task.completed` / `task.failed` + `attributes.task_kind`. Both carry `attributes.tool_name` = the payload's `tool_name` (≤ 128 chars; Gemini falls back to `mcp_context.tool_name` when `tool_name` is missing), `occurred_at` = `base.occurred_at` or `ctx.at`, and `event_id` from `tool_use_id` (Claude Code, Codex; Gemini has no call id).
+- With `agent_id` present (a sub-agent) `report_status` gives `null` and `report_task` keeps `base.agent_ref`.
+- On a post match it also reads `session_id`, `agent_id`, `tool_input` and (Claude Code, Codex) `tool_use_id`. `tool_response` and the rest of `mcp_context` are never read; a Proxy read-recorder test (`test/self-report.test.ts`) asserts this for javi's tools and asserts that nothing beyond the match fields is read for any other tool.
