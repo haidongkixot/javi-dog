@@ -33,7 +33,7 @@ import {
   labelL2Checked,
   labelNoKey,
 } from '@/lib/privacy/copy';
-import { resolveIdentity } from '@/lib/privacy/identity';
+import { resolveThreadIdentity } from '@/lib/privacy/identity';
 import { createKeyStore, type KeyStore } from '@/lib/privacy/key-store';
 
 // S5f K5, TEST_PLAN §S5f rows "End to end: init --privacy L2 → hook → ingest (PGlite) → reader →
@@ -305,9 +305,14 @@ describe('L1/L2 end to end: javi init --privacy L2 → hook → ingest → reade
     stores.push(store);
     const page = render(
       <KeyStoreProvider store={store}>
-        <PrivacyStatus projectId={project.id} identities={identities} />
+        <PrivacyStatus projectId={project.id} projectSlug={SLUG} identities={identities} />
         <div data-testid="row">
-          <ThreadIdentityLabel projectId={project.id} identity={identity} />
+          <ThreadIdentityLabel
+            projectId={project.id}
+            projectSlug={SLUG}
+            threadRef={identity.threadRef}
+            identity={identity}
+          />
         </div>
         <KeyEntry projectId={project.id} slug={SLUG} knownKids={[ownKeys.kid]} />
       </KeyStoreProvider>,
@@ -330,7 +335,12 @@ describe('L1/L2 end to end: javi init --privacy L2 → hook → ingest → reade
       `Repo and branch names from javi are encrypted on your machine (key ${ownKeys.kid}). Javi's Dog stores them only as ciphertext and can't read them. They are decrypted here, in your browser.`,
     );
     expect(newestChecked(project.id)).toEqual({ kid: ownKeys.kid, at: identity.at });
-    expect(await resolveIdentity(identity, store.keysFor(project.id))).toEqual({
+    expect(
+      await resolveThreadIdentity(identity, store.keysFor(project.id), {
+        projectSlug: SLUG,
+        threadRef: identity.threadRef,
+      }),
+    ).toEqual({
       kind: 'names',
       repo: REPO,
       branch: BRANCH,
@@ -349,7 +359,12 @@ describe('L1/L2 end to end: javi init --privacy L2 → hook → ingest → reade
     const other = render(
       <KeyStoreProvider store={otherStore}>
         <div data-testid="row">
-          <ThreadIdentityLabel projectId={project.id} identity={identity} />
+          <ThreadIdentityLabel
+            projectId={project.id}
+            projectSlug={SLUG}
+            threadRef={identity.threadRef}
+            identity={identity}
+          />
         </div>
       </KeyStoreProvider>,
     );
@@ -357,7 +372,12 @@ describe('L1/L2 end to end: javi init --privacy L2 → hook → ingest → reade
       expect(text(screen.getByTestId('row'))).toBe("Can't decrypt with the key on this device"),
     );
     expect(text(screen.getByTestId('row'))).toBe(LABEL_OTHER_KID);
-    expect(await resolveIdentity(identity, otherStore.keysFor(project.id))).toEqual({
+    expect(
+      await resolveThreadIdentity(identity, otherStore.keysFor(project.id), {
+        projectSlug: SLUG,
+        threadRef: identity.threadRef,
+      }),
+    ).toEqual({
       kind: 'other-kid',
     });
     other.unmount();
@@ -380,9 +400,14 @@ describe('L1/L2 end to end: javi init --privacy L2 → hook → ingest → reade
     freshStore.add(project.id, ownKeys.kid, ownKeys.l2Key);
     const damaged = render(
       <KeyStoreProvider store={freshStore}>
-        <PrivacyStatus projectId={project.id} identities={[tampered]} />
+        <PrivacyStatus projectId={project.id} projectSlug={SLUG} identities={[tampered]} />
         <div data-testid="row">
-          <ThreadIdentityLabel projectId={project.id} identity={tampered} />
+          <ThreadIdentityLabel
+            projectId={project.id}
+            projectSlug={SLUG}
+            threadRef={tampered.threadRef}
+            identity={tampered}
+          />
         </div>
       </KeyStoreProvider>,
     );
@@ -396,7 +421,12 @@ describe('L1/L2 end to end: javi init --privacy L2 → hook → ingest → reade
     // A changed ciphertext never flips the project label to "checked".
     expect(text(damaged.container.querySelector('p[role="status"]'))).toBe(LABEL_L2_NOT_CHECKED);
     expect(newestChecked(project.id)).toBeNull();
-    expect(await resolveIdentity(tampered, freshStore.keysFor(project.id))).toEqual({
+    expect(
+      await resolveThreadIdentity(tampered, freshStore.keysFor(project.id), {
+        projectSlug: SLUG,
+        threadRef: tampered.threadRef,
+      }),
+    ).toEqual({
       kind: 'unverifiable',
     });
     damaged.unmount();
