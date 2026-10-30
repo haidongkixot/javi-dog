@@ -19,11 +19,11 @@
 
 | # | Task | Module | Interfaces (consumes → produces) | Acceptance criteria | Status |
 |---|---|---|---|---|---|
-| T1 | Self-report vocabulary, validator and mappers | JD-C02 | → `SELF_REPORT`, `validateSelfReport()`, `selfReportRecord()` | TEST_PLAN rows 1, 6–8 | PLANNED |
-| T2 | Hand-written stdio MCP server | JD-C03 | JD-C02 → `createMcpServer()` | rows 2–5 | PLANNED |
+| T1 | Self-report vocabulary, validator and mappers | JD-C02 | → `SELF_REPORT`, `validateSelfReport()`, `selfReportRecord()` | TEST_PLAN rows 1, 6–8 | DONE (`328beb7`) |
+| T2 | Hand-written stdio MCP server | JD-C03 | JD-C02 → `createMcpServer()` | rows 2–5 | DONE (`328beb7`) |
 | T3 | `javi mcp`, `init --self-report`, uninstall, status, hook wiring for all three platforms | JD-C01 | JD-C02, JD-C03 → CLI | rows 4, 9, 12 | PLANNED |
-| T4 | Reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`; pill text in all status pills | JD-M07, JD-APP | → `ThreadState.statusSource`, `statusReason` | precedence, reader and pill rows | PLANNED |
-| T5 | Conformance vectors (`docs/jgr/conformance/self-report/`) and runner | QA | ADR-0017 → vectors | every vector PASS, mutation-checked | PLANNED |
+| T4 | Reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`; pill text in all status pills | JD-M07, JD-APP | → `ThreadState.statusSource`, `statusReason` | precedence, reader and pill rows | DONE (`bd616f6`, `d9b51eb`) |
+| T5 | Conformance vectors (`docs/jgr/conformance/self-report/`) and runner | QA | ADR-0017 → vectors | every vector PASS, mutation-checked | vectors DONE (`c965708`); runner PLANNED |
 | T6 | End-to-end test, docs (how-to, spec §12 Changes, registry, changeset) | all | — | row 11; `docs:check` | PLANNED |
 
 ## Review focus
@@ -37,12 +37,21 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-10-30 — Orchestrator follow-ups to T4: reasons only on `waiting`/`blocked`/`failed` in the reader, "CI failing" capitalised, reader ↔ JD-C02 vocabulary equality test (red-first: 3 new tests failed before the fix) — `d9b51eb`.
+- 2026-10-30 — T4 merged (Developer B): reader precedence, `statusSource`, `statusReason`, attention for agent `blocked`, pill text in squad, feed and agents table — `bd616f6`.
+- 2026-10-30 — Registry: JD-C03 out of `planned.json` into `REGISTRY.md` — `c59b260`.
+- 2026-10-30 — T1 + T2 merged (Developer A): JD-C02 self-report core, JD-C03 hand-written server, SDK client interop test (dev dependency 1.32.2) — `328beb7`.
+- 2026-10-30 — T5 vectors merged (QA): 54 vectors (M 22, H 14, R 18) — `c965708`, citations `1595b4e`.
 - 2026-10-30 — Discovery, research, owner decisions, ADR-0017, TEST_PLAN §S5d, readiness rows.
 
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm -s test --force` (main tree after T1, T2, T4 merges, `d9b51eb`) | 0 | — | 1997 | 0 | 0 | 0 | 0 | 15 packages; no "Unhandled" |
+| `pnpm -s build`; migration drift check; `format:check`, `lint`, `typecheck`, `docs:check` | 0 | — | — | — | — | — | — | — |
+| CI `c25cf2d` / `1595b4e` | success | — | — | — | — | — | — | runs 41072581103, 41073502748 |
+| QA vector checks (schema, negatives, satisfiability; QA worktree) | 0 | — | 54 + 9 + 181 | 0 | 0 | 0 | 0 | scratch scripts, not committed |
 
 ## Team
 
@@ -58,6 +67,8 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-30 — Orchestrator — Process slip: the gated push of `d9b51eb` chained the secret scan with `;` instead of `&&`. The scan was clean (exit 1), so nothing slipped, and the scan is chained again from the next push.
+- 2026-10-30 — Developer B — Corrected module labels (the reader is JD-M07, the pill is JD-APP). Open: project-level "N waiting for you" now also counts agent-`blocked` threads; the wording is logged as a follow-up (F1), not changed.
 - 2026-10-30 — QA — 50 vectors (M 21, H 14, R 15) from the ADR only, `1f40a78` in the QA worktree. 19 spec gaps; G8 was a design defect: an agent's `working` would have hidden a real permission prompt. All resolved in ADR-0017 (Changes "QA spec gaps"). Developers A and B were told mid-lane, and QA is updating the vectors.
 - 2026-10-30 — Reviewer — Design review D0 of ADR-0017, before any code: 2 High (H1 the end-of-turn `idle` overwrote self-reports; H2 self-reports waited in the spool), 7 Medium, 5 Low. Orchestrator verified H1/H2 in `mapping.ts:103-104`, `queries.ts:21,80-81`, `run.ts:23,228-236`. All folded into ADR-0017 (Changes D0). The orchestrator also found that pre-tool hooks would leave an unmatched `task.started` for javi's tools, now silent. Owner: self-reported `blocked` counts as attention; opt-in `--allow-self-report`.
 - 2026-10-30 — Orchestrator — Research agent report (primary sources). The orchestrator re-checked hook firing for MCP tools in the Codex and Gemini sources. That led to a uniform "hook emits" design, with no server-side Codex path.
