@@ -28,6 +28,8 @@ const { KeyStoreProvider } = await import('@/components/privacy/key-context');
 const { SignInPrompt } = await import('@/components/sign-in-prompt');
 const { AccountMenu } = await import('@/components/account-menu');
 const { createKeyStore } = await import('@/lib/privacy/key-store');
+const { markChecked, newestChecked } = await import('@/lib/privacy/checked');
+const { forgetKeysOnSignOut } = await import('@/lib/privacy/browser');
 /** Review L1: remembering ships off; these tests force the gate on to test the logic. */
 const REMEMBER_ON = { rememberEnabled: true } as const;
 
@@ -77,6 +79,33 @@ afterEach(() => {
   for (const s of stores) s.dispose();
   stores = [];
   vi.unstubAllEnvs();
+});
+
+describe('review L5 — the per-project "checked" flags are cleared with the keys', () => {
+  const KID = '0Q12NAV3';
+  const AT = '2026-10-30T12:00:00.000Z';
+
+  it('a signed-out page clears every project’s flag', async () => {
+    markChecked(P1, KID, AT);
+    markChecked('another-project', KID, AT);
+    const { store } = await storeWithKeys();
+    render(
+      <KeyStoreProvider store={store}>
+        <SignInPrompt what="this project" />
+      </KeyStoreProvider>,
+    );
+    await waitFor(() => expect(newestChecked(P1)).toBeNull());
+    expect(newestChecked('another-project')).toBeNull();
+  });
+
+  it('the sign-out path clears every project’s flag and leaves other storage alone', async () => {
+    markChecked(P1, KID, AT);
+    localStorage.setItem('unrelated', 'kept');
+    const { store } = await storeWithKeys();
+    await forgetKeysOnSignOut('sign-out', store);
+    expect(newestChecked(P1)).toBeNull();
+    expect(localStorage.getItem('unrelated')).toBe('kept');
+  });
 });
 
 describe('a page that renders signed-out forgets every key (memory and device)', () => {

@@ -28,6 +28,7 @@ const { KeySetup } = await import('@/components/privacy/key-setup');
 const { KeyEntry } = await import('@/components/privacy/key-entry');
 const { LowerClass } = await import('@/components/privacy/lower-class');
 const { createKeyStore } = await import('@/lib/privacy/key-store');
+const checked = await import('@/lib/privacy/checked');
 /** Review L1: remembering ships off; these tests force the gate on to test the logic. */
 const REMEMBER_ON = { rememberEnabled: true } as const;
 const { PASTE_MISMATCH, TAB_ONLY_CLEARING_NOTE, lowerWarning } = await import('@/lib/privacy/copy');
@@ -131,6 +132,11 @@ const goToConfirm = async () => {
   const key = shown.textContent ?? '';
   fireEvent.click(screen.getByRole('button', { name: 'I saved it, hide the key' }));
   return key;
+};
+
+/** Pastes the key back into the confirmation field. */
+const keyInputAfter = (key: string) => {
+  keyInput().value = key;
 };
 
 describe('sentinel search', () => {
@@ -370,6 +376,54 @@ describe('key entry for reading', () => {
       'Safari may delete keys remembered on this device after 7 days without a visit.',
     );
     s.dispose();
+  });
+});
+
+describe('review L5 — the per-project "checked" flag is cleared when the class changes', () => {
+  const KID = '0Q12NAV3';
+  const AT = '2026-10-30T12:00:00.000Z';
+  const OTHER = '33333333-3333-4333-8333-333333333333';
+  beforeEach(() => {
+    localStorage.clear();
+    checked.markChecked(PROJECT, KID, AT);
+    checked.markChecked(OTHER, KID, AT);
+  });
+
+  it('lowering succeeds: this project’s flag is gone, other projects keep theirs', async () => {
+    changePrivacyClassAction.mockResolvedValue({ privacyClass: 'L1' });
+    render(<LowerClass projectId={PROJECT} currentClass="L2" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L1…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L1 now' }));
+    await screen.findByText('Privacy class lowered to L1.');
+    expect(checked.newestChecked(PROJECT)).toBeNull();
+    expect(checked.newestChecked(OTHER)).toEqual({ kid: KID, at: AT });
+  });
+
+  it('lowering refused: the flag stays', async () => {
+    changePrivacyClassAction.mockResolvedValue({ error: 'No.' });
+    render(<LowerClass projectId={PROJECT} currentClass="L2" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L0…' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L0 now' }));
+    await screen.findByText('No.');
+    expect(checked.newestChecked(PROJECT)).toEqual({ kid: KID, at: AT });
+  });
+
+  it('raising succeeds after the paste-back: the flag is gone', async () => {
+    changePrivacyClassAction.mockResolvedValue({ privacyClass: 'L2' });
+    renderSetup('L1');
+    keyInputAfter(await goToConfirm());
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText('L2 is on for this project.', { exact: false });
+    expect(checked.newestChecked(PROJECT)).toBeNull();
+    expect(checked.newestChecked(OTHER)).toEqual({ kid: KID, at: AT });
+  });
+
+  it('a rotation (no class change) keeps the flag', async () => {
+    renderSetup('L2');
+    keyInputAfter(await goToConfirm());
+    fireEvent.click(screen.getByRole('button', { name: 'Check key' }));
+    await screen.findByText('New recovery key confirmed.', { exact: false });
+    expect(checked.newestChecked(PROJECT)).toEqual({ kid: KID, at: AT });
   });
 });
 

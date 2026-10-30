@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { changePrivacyClassAction } from '@/app/projects/actions';
+import { clearChecked } from '@/lib/privacy/checked';
 import { lowerWarning } from '@/lib/privacy/copy';
 
 type Lower = 'L0' | 'L1';
@@ -37,7 +38,10 @@ export function LowerClass({
         ? { ok: false, text: res.error }
         : { ok: true, text: `Privacy class lowered to ${res.privacyClass}.` },
     );
-    if (!('error' in res)) setTarget(null);
+    if ('error' in res) return;
+    setTarget(null);
+    // Review L5: the "checked" flag described the old class; it is earned again under the new one.
+    clearChecked(projectId);
   };
 
   return (

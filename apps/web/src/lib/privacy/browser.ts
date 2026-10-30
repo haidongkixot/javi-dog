@@ -2,6 +2,7 @@
 // BroadcastChannel for sign-out in another tab. One store per tab, created on first use. jsdom
 // has no IndexedDB, so the IndexedDB adapter is exercised only in a real browser (owner run,
 // TEST_PLAN §S5f); the store logic is unit-tested with an in-memory fake.
+import { clearChecked } from './checked';
 import {
   createKeyStore,
   type KeyPersistence,
@@ -118,6 +119,8 @@ export const forgetKeysOnSignOut = async (
 ) => {
   try {
     if (typeof window === 'undefined') return;
+    // Review L5: the "checked" flags (localStorage, shared by every tab) go with the keys.
+    clearChecked();
     await (store ?? browserKeyStore()).clearAll(reason);
   } catch {
     // Clearing must never block signing out.

@@ -8,6 +8,7 @@ import {
   parseRecoveryKey,
 } from '@javis-dog/crypto';
 import { changePrivacyClassAction } from '@/app/projects/actions';
+import { clearChecked } from '@/lib/privacy/checked';
 import { COLLECTOR_GUIDANCE, LOST_KEY_WARNING, PASTE_MISMATCH } from '@/lib/privacy/copy';
 import { KeyInput } from './key-input';
 import { useKeyStore } from './key-context';
@@ -126,6 +127,8 @@ export function KeySetup({
         setError(result.error);
         return;
       }
+      // Review L5: the "checked" flag described the old class; it is earned again under this one.
+      clearChecked(projectId);
     }
     store?.add(projectId, keys.kid, keys.l2Key);
     discard();
