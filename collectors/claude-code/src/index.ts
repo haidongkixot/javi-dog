@@ -1,5 +1,5 @@
 // JD-C01 public contract. Import from '@javis-dog/collector-claude-code' only (ADR-0001).
-export { DEFAULT_ENDPOINT, main, type Io } from './cli.ts';
+export { DEFAULT_ENDPOINT, detachedSpawner, main, type Io } from './cli.ts';
 export {
   ATTENTION_NOTIFICATIONS,
   COLLECTOR_VERSION,
@@ -62,7 +62,9 @@ export {
   type GeminiSettingsBefore,
   type GeminiTelemetryWarning,
   type GeminiUsageConfig,
+  type ProjectCredentials,
   type ReceiverInfo,
+  type RejectionRecord,
   type UsageConfig,
 } from './state.ts';
 export {
@@ -209,3 +211,22 @@ export {
   hmacUuid,
   type CodexAttribution,
 } from './codex-usage.ts';
+export { childEnv, PRIVACY_KEY_ENV } from './child-env.ts';
+export {
+  buildCanaryRecord,
+  buildIdentityRecord,
+  IDENTITY_TYPE,
+  INSTALLED_TYPE,
+  isIdentityTrigger,
+  loadProjectKeys,
+  PRIVACY_GUIDANCE,
+  promptHiddenFromTerminal,
+  readKeyFile,
+  ulidAfter,
+  UUID_LIKE,
+  type HiddenPrompt,
+  type HiddenPromptResult,
+  type PrivacyClass,
+  type StoredPrivacy,
+} from './privacy.ts';
+export { GIT_FILE_MAX_BYTES, readSessionFolder, type SessionFolder } from './session-folder.ts';

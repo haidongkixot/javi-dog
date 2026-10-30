@@ -3,6 +3,7 @@ import { chmod, mkdir, readFile, rm, stat } from 'node:fs/promises';
 import { join, win32 } from 'node:path';
 import { CODEX_HOOK_EVENTS } from '@javis-dog/collector-adapters';
 import { parse as parseToml } from 'smol-toml';
+import { childEnv } from './child-env.ts';
 import { writeTarget } from './claude-env.ts';
 import { gitTracking, runGit, type GitRunner, type GitTracking } from './git.ts';
 import { isPlainObject } from './gemini-settings.ts';
@@ -629,7 +630,7 @@ export const probeShellOutput = (
   for (const flag of ['-c', '-lc']) {
     const command = `${shell} ${flag} true`;
     const run = spawnSync(shell, [flag, 'true'], {
-      env,
+      env: childEnv(env),
       cwd,
       timeout: 2_000,
       encoding: 'utf8',

@@ -1,6 +1,6 @@
 # JD-C01 · `@javis-dog/collector-claude-code` — Claude Code collector (`javi`)
 
-Status: **in-progress** (S3c, ADR-0010; Gemini CLI since S5b, Codex CLI since S5c, ADR-0016; agent self-report since S5d, ADR-0017). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. The same `javi` also collects from Gemini CLI with `--platform gemini-cli` ([below](#gemini-cli-s5b-adr-0016)) and from Codex CLI with `--platform codex-cli` ([below](#codex-cli-s5c-adr-0016)). **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage is opt-in (see below).
+Status: **in-progress** (S3c, ADR-0010; Gemini CLI since S5b, Codex CLI since S5c, ADR-0016; agent self-report since S5d, ADR-0017). Sends Claude Code lifecycle, tool and attention signals to Javi's Dog as JGR L0 events. The same `javi` also collects from Gemini CLI with `--platform gemini-cli` ([below](#gemini-cli-s5b-adr-0016)) and from Codex CLI with `--platform codex-cli` ([below](#codex-cli-s5c-adr-0016)). **Never** sends prompts, tool inputs or outputs, assistant messages, file paths or transcript paths. Token usage is opt-in (see below). Projects that opted into privacy class L1 or L2 also get keyed hashes and, for L2, encrypted repo and branch names on one extra event ([below](#privacy-classes-l1-and-l2-s5f-adr-0018)).
 
 ## Set up a project
 
@@ -48,6 +48,7 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 | `--platform <claude-code\|gemini-cli\|codex-cli>` | On `init`, `uninstall`, `status`, `hook`, `mcp`, `usage on\|off`; default `claude-code` (unchanged behaviour) |
 | `javi init … --self-report [--allow-self-report] [--allow-tracked-config]` | Also registers javi's MCP server for agent self-report ([below](#agent-self-report-s5d-adr-0017)) |
 | `javi mcp --platform <p> --project <slug>` | javi's self-report MCP server on stdin/stdout; MCP clients start it |
+| `javi init … --privacy L1\|L2 [--privacy-key-file <path>]` | Stores the project's recovery key after the server accepted a check event in that class ([below](#privacy-classes-l1-and-l2-s5f-adr-0018)); `--privacy L0` removes it |
 
 ## What is sent
 
@@ -61,6 +62,29 @@ Remove-Item Env:JAVI_INGEST_TOKEN
 | Stop | `heartbeat` idle |
 
 Session and agent ids become `cc_…` / `ag_…` refs: HMAC-SHA-256 with a salt that never leaves `~/.javi`.
+
+## Privacy classes L1 and L2 (S5f, ADR-0018)
+
+Opt-in, per project. An owner or admin first raises the project's class on its page, where the browser creates the **recovery key** (`JDK1-…`, shown once). Then, on each machine:
+
+```sh
+JAVI_INGEST_TOKEN='<paste token>' node "<repo>/collectors/claude-code/src/cli.ts" init --project <project-slug> --privacy L2
+# Recovery key for <project-slug> (input hidden):
+```
+
+**Run it yourself, in a terminal.** Never paste the recovery key into an agent chat or an agent's command: it would land in the model provider's transcript. `init` prints this reminder too.
+
+- **Key input, never from argv.** One of: a hidden prompt read from the terminal itself (`/dev/tty`; `CONIN$`/`CONOUT$` on Windows), so a token piped on stdin does not conflict; `--privacy-key-file <path>` (a regular file of at most 1 KiB); or `JAVI_PRIVACY_KEY`, which javi deletes from its environment as soon as it starts. Giving both the file and the variable is refused. Without a terminal and without a file or variable, `init` stops and says so. The checksum is checked; error messages never repeat the input.
+- **Slug only.** `--privacy` refuses a project ref that looks like a UUID: the slug is part of every encrypted event (ADR-0018 §4, review H3).
+- **Check first, then write** (review H2). Before the token, the key, the hooks, `~/.javi/installation.json` or the javi copy are written, `init` sends the installation event `x.javi.collector.installed` in the requested class through an in-memory spool: for L2 the encrypted canary `{"v":1,"canary":true}`; for L1 the event in class L1 with no hashed attribute (the smallest event the validator accepts as L1, enough for the ingest ceiling check). Any rejection (`privacy_class_not_allowed` when the project's class is lower), a refused token or an unreachable endpoint stops `init` with "Nothing was saved: no token, key or hooks." `--privacy` with `--no-verify` is refused.
+- **Storage.** The key is stored in canonical form in the project's entry of `~/.javi/credentials.json` (mode 0600 on POSIX; on Windows the user profile's access rules apply, as for the token). It is never printed. A plain `javi init` (without `--privacy`) keeps a stored key; `javi init --privacy L0` removes it; `javi uninstall --forget-token` removes it with the token.
+- **Child processes.** The background `javi flush`, `javi receive`, git (`init`, self-report checks) and the shell and OS proxy probes are started with an explicit environment without `JAVI_PRIVACY_KEY`. The key is never put on a command line.
+
+**What is sent** in an L1/L2 project: every event above stays L0, unchanged. After `session.started` and after the collector's own `heartbeat working` (Claude Code and Codex `UserPromptSubmit`, a Codex `SessionStart` from `resume` or `compact`, Gemini `BeforeAgent`; never a self-reported status), javi records one extra event `x.javi.thread.identity` with the same `thread_ref` and the project's class. It has no `agent_ref` (it describes the thread's folder, not an agent) and no status. Its attributes are `platform`, `collector_version` and the L1 hashes `cwd_hash`, `repo_hash`, `branch_hash` (only those available): `sha256:` + HMAC-SHA256 with the project key of each field, NFC first. In an L2 project it also carries `encrypted` (AES-256-GCM, 12-byte random IV, the 256-byte padded payload `{"v":1,"repo":…,"branch":…}`); javi sets the event's `event_id` itself so the AAD (`jgr|v1|<event_id>|<slug>|<producer_id>|<thread_ref>|<type>|<kid>|L2`) covers it. A rejected identity event costs only the names, never the status.
+
+**Reading the session folder** (L1/L2 projects only; review M4, G13). The folder is the hook payload's `cwd` exactly as given; without a `cwd` (or a relative one) no identity event is sent. javi never spawns git in a hook: it walks up from the folder to the first `.git` entry, read with `lstat` first and only as a regular file of at most 1 KiB (opened non-blocking and checked again after opening, so a FIFO or device never hangs a hook). A `.git` file (linked worktree, submodule) is followed one `gitdir:` level, which must be a directory. Only `ref: refs/heads/<branch>` in `HEAD` names a branch; a detached `HEAD`, a symlink, an oversized file or anything else gives none. The repo is the name of the folder that holds `.git` (in a linked worktree, the worktree's folder); outside git it is the session folder's own name.
+
+**`javi status`** shows `Privacy class: L2 (key <kid>; the key itself is never shown).` or `Privacy class: L0 (no recovery key stored).`, and the last flush that got rejected events back: when, how many, and the issue codes only (for example `privacy_class_not_allowed` after the project's class was lowered: status events still arrive, only the identity event is refused). The codes are kept in `~/.javi/rejections/<project>.json`; no event content is stored there.
 
 ## Token usage (opt-in)
 
@@ -104,7 +128,7 @@ JAVI_INGEST_TOKEN='<paste token>' node "<repo>/collectors/claude-code/src/cli.ts
 
 The token is never in that file. An existing file is backed up once as `.gemini/settings.json.javi-backup` (added to `.git/info/exclude`). A file javi cannot parse as plain JSON — including one with comments, which Gemini allows — is refused before the token is saved. Re-running `init` replaces only javi's entries; `javi uninstall --project <slug> --platform gemini-cli` removes only them. If you commit `.gemini/settings.json`, javi's entries (paths on this machine) go with it.
 
-**What is sent.** `SessionStart`/`SessionEnd` → `session.started`/`session.ended`; `BeforeAgent`/`AfterAgent` → `heartbeat` working/idle; `BeforeTool`/`AfterTool` → `task.started`/`task.completed` with `tool_name`; `Notification` `ToolPermission` → `attention.requested`. Prompts, responses, tool input and output, `cwd`, transcript paths and notification details are never read into events. Sessions become `gm_…` refs (`attributes.platform: gemini-cli`). Tool failures are not visible (Gemini only reports them inside tool output).
+**What is sent.** `SessionStart`/`SessionEnd` → `session.started`/`session.ended`; `BeforeAgent`/`AfterAgent` → `heartbeat` working/idle; `BeforeTool`/`AfterTool` → `task.started`/`task.completed` with `tool_name`; `Notification` `ToolPermission` → `attention.requested`. Prompts, responses, tool input and output, `cwd`, transcript paths and notification details are never read into these events (in an L1/L2 project, `cwd` is read only for the identity event, [above](#privacy-classes-l1-and-l2-s5f-adr-0018)). Sessions become `gm_…` refs (`attributes.platform: gemini-cli`). Tool failures are not visible (Gemini only reports them inside tool output).
 
 **Good to know.**
 
@@ -164,7 +188,7 @@ JAVI_INGEST_TOKEN='<paste token>' node "<repo>/collectors/claude-code/src/cli.ts
 - `javi uninstall --project <slug> --platform codex-cli` removes only javi's groups (and the file, if nothing else is left). Your groups **after** javi's in the same event move up, so Codex asks you to approve them again: uninstall lists them by event and count.
 - `init` warns when `.codex/hooks.json` is tracked by git (it holds the launcher path with your user name), when the project's `.codex/config.toml` has a `[hooks]` table too, and when your shell prints anything at startup: it runs `$SHELL -c true` and `$SHELL -lc true` (2 s each). Codex passes plain hook output on `SessionStart`, `SubagentStart` and `UserPromptSubmit` to the model as context, and non-JSON output on `Stop` is an error; `javi hook` itself prints nothing.
 
-**What is sent.** `SessionStart`/`SessionEnd` → `session.*` (a `SessionStart` from `compact` or `resume` is a heartbeat); `UserPromptSubmit` → `heartbeat` working; `PreToolUse`/`PostToolUse` → `task.started`/`task.completed` with `tool_name`; `PermissionRequest` → `attention.requested`; `Stop` → `heartbeat` idle; `SubagentStart`/`SubagentStop` → `agent.started`/`agent.stopped`. Prompts, tool input and output, assistant messages, `cwd` and transcript paths are never read into events. Sessions become `cx_…` refs (`attributes.platform: codex-cli`).
+**What is sent.** `SessionStart`/`SessionEnd` → `session.*` (a `SessionStart` from `compact` or `resume` is a heartbeat); `UserPromptSubmit` → `heartbeat` working; `PreToolUse`/`PostToolUse` → `task.started`/`task.completed` with `tool_name`; `PermissionRequest` → `attention.requested`; `Stop` → `heartbeat` idle; `SubagentStart`/`SubagentStop` → `agent.started`/`agent.stopped`. Prompts, tool input and output, assistant messages, `cwd` and transcript paths are never read into these events (in an L1/L2 project, `cwd` is read only for the identity event, [above](#privacy-classes-l1-and-l2-s5f-adr-0018)). Sessions become `cx_…` refs (`attributes.platform: codex-cli`).
 
 **Token usage (opt-in, user-wide, logs only).** `javi usage on --platform codex-cli` appends one marked block to `$CODEX_HOME/config.toml` (default `~/.codex/config.toml`):
 

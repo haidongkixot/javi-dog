@@ -3,6 +3,7 @@ import { mkdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { parse as parseToml } from 'smol-toml';
+import { childEnv } from './child-env.ts';
 import { writeTarget } from './claude-env.ts';
 import { jsonEqual } from './gemini-telemetry.ts';
 import { writeTextAtomic } from './state.ts';
@@ -421,7 +422,13 @@ export const runCommand: CommandRunner = (command, args, timeoutMs) =>
     execFile(
       command,
       args,
-      { timeout: timeoutMs, windowsHide: true, encoding: 'utf8', maxBuffer: 1024 * 1024 },
+      {
+        timeout: timeoutMs,
+        windowsHide: true,
+        encoding: 'utf8',
+        maxBuffer: 1024 * 1024,
+        env: childEnv(),
+      },
       (error, stdout) => {
         resolvePromise(error ? null : { code: 0, stdout: String(stdout) });
       },
