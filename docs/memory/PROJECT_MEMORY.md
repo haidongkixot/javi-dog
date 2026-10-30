@@ -61,6 +61,16 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
   - 41 QA vectors with a runner (14/14 mutations).
 
   The design review (6 high) ran before any code, and the code review (2 high) was fixed red-first. 1698 tests.
+- S5d (2026-10-30, ADR-0017). Owner decisions: JD-C03 next; the hook emits the event; a hand-written server; the reason goes in `error_code`; opt-in registration, plus an opt-in `--allow-self-report`; a self-reported `blocked` needs attention. Built:
+  - JD-C02 self-report vocabulary, validator, matcher and mapper;
+  - JD-C03 hand-written stdio MCP server, with no runtime dependency (the SDK client is used only in tests);
+  - JD-C01: `javi mcp`, `init --self-report`, an unversioned launcher, git-tracked refusal (fail-closed), a seen-call marker, urgent flush for self-reports and end of turn;
+  - JD-M07 precedence rule, `statusSource` and `statusReason`;
+  - JD-APP pill "Blocked · missing credentials · reported by agent";
+  - 54 QA vectors and runners: 71 of 74 mutations caught;
+  - an end-to-end hook → ingest → reader test.
+
+  The design review ran before code (2 high), QA spec gaps (19, including a real design flaw), and the code review (0 high, 3 medium fixed red-first). 2200 tests. Real CLI runs are NOT RUN (owner, how-to step 6).
 
 ## Decisions in force
 
@@ -83,6 +93,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0008 | Accepted 2026-10-23: `events` in JD-M06 (dedupe per project), 30-day raw retention, Postgres per-token rate limit (60/min), receiver codes `project_mismatch` / `privacy_class_not_allowed`, 256 KB after gzip |
 | ADR-0007 | Accepted 2026-10-22: welcome email via Resend REST from `onUserCreated`; PII-free auth logging; `errorURL` → `/sign-in` |
 | ADR-0006 | Accepted 2026-10-22: Better Auth organization plugin mapped onto `workspaces`; personal workspace (owner) on first sign-in; open sign-up; telemetry off; OAuth tokens encrypted |
+| ADR-0017 | Accepted 2026-10-30: agent self-report through javi's local MCP server (`javi mcp`, two tools with fixed lists). The post-tool hook emits the event in the session's thread. A hand-written server; the reason goes in `error_code`; opt-in registration without pre-granted permissions (opt-in `--allow-self-report`). The dashboard labels the agent's own claim and keeps it until real activity |
 | ADR-0016 | Accepted 2026-10-29: one `javi` CLI with pure platform adapters (JD-C02). For Gemini: hooks per project, OTel as a user opt-in with forced `logPrompts:false` and a redirection guard; cost estimated only for per-token auth; `estimated:false` because the tokens are exact. Codex follows in S5c (opt-in logs allowlist); S5c: logs-only Codex usage (statsig untouched), cost only for `ApiKey`, sub-agents attributed to the parent, stable launcher, smol-toml block edit, loopback `NO_PROXY` rule, system-proxy guard, persisted accepted ids |
 | ADR-0015 | Accepted 2026-10-28: production database = Neon `main` (the integration's production branch). Migrations go through drizzle `readMigrationFiles` and the Neon MCP, one transaction each. Cutover is an owner step. Rollback paths have stated limits: 6 h restore. The load-test budget is fixed. Accepted risk: no rotation of the exposed secrets |
 | ADR-0005 | Accepted 2026-10-22: module-owned Drizzle tables composed by JD-M06; offline `generate` + neon-http migrator on `dev-agent` only; ingest tokens `jd_it_…` stored as SHA-256; workspace-scoped repository |
@@ -97,12 +108,13 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 ## Next actions
 
 1. Owner: revoke the ingest token pasted in chat on 2026-10-29 (project `test-01-project-horizos`) and issue a new one.
-2. Owner: run the real Claude Code, Gemini CLI and Codex CLI sessions (`docs/how-to/run-first-real-sessions.md`, e.g. via a local Claude Code) and paste the "Report back" items → closes release-checklist G6 and the UNVERIFIED runtime rows (session-id match, Gemini/Codex hook behaviour, Windows).
+2. Owner: run the real Claude Code, Gemini CLI and Codex CLI sessions (`docs/how-to/run-first-real-sessions.md`, e.g. via a local Claude Code) and paste the "Report back" items → closes release-checklist G6 and the UNVERIFIED runtime rows (session-id match, Gemini/Codex hook behaviour, Windows). Step 6 covers agent self-report (S5d): protocol version, approval prompts, Windows spawn.
 3. Owner: decide the release exceptions in `docs/how-to/release-checklist.md` (G2 cutover deferred; G4/G5 measured on `dev-agent`) and G13 (paid plans / Vercel Hobby terms).
 4. Agent: 2026-10-30 20:20 UTC — verify the first purge run by data (scheduled check) → G9.
 5. Owner: review the G4 Orcasus PR proposal and the `CLAUDE.md` §2 rule-4 proposal in `guru/WISDOM_LOG.md` (nothing opened).
 6. Owner (optional): approve upgrading dev-only tooling with advisories (`markdownlint-cli2`, `drizzle-kit`; readiness "Dependency advisories").
 7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).
+8. Agent (S5d follow-ups): F1 project-level "N waiting for you" wording now that agent `blocked` counts (brand copy decision); F2 QA vectors for the three surviving mutations (client response object, `report_task` missing arguments, ended waiting thread); F3 Codex `hooks.json` tracked check fails open (warning only).
 
 ## Process (owner decisions 2026-10-28)
 

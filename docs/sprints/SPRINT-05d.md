@@ -1,6 +1,6 @@
 # Sprint 05d — Agent self-report MCP server
 
-- Dates: 2026-10-30 → · Status: ACTIVE
+- Dates: 2026-10-30 → 2026-10-30 · Status: CLOSED (code complete; real CLI runs are owner steps)
 - Goal (one sentence): an agent can report its state (status with a reason, task phases) through javi's local MCP server, and the dashboard shows it in the session's thread, labelled "reported by agent".
 - Modules touched: JD-C03 (new), JD-C02, JD-C01, JD-M07, JD-APP
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows "Self-report MCP protocol", "Self-report correlation", "Self-report on Windows", "MCP SDK client for tests"
@@ -110,9 +110,20 @@ Team log, newest first:
 
 ## Retro
 
-- Went well:
-- Hurt:
-- Change next sprint:
+- **Went well:**
+  - Each independent check caught what the previous one missed. Research verified hook firing in source. The design review found the end-of-turn overwrite. QA found the permission-prompt masking (G8). The code review found the re-fire duplicate, which a test with a frozen clock had hidden.
+  - Lanes on disjoint paths merged without a conflict.
+  - Mid-lane ADR amendments reached the developers before they built the wrong rule.
+- **Hurt:**
+  - Two secret-scan slips in the push chain (`;`, then a malformed command that failed open).
+  - `pnpm install` keeps rewriting three unrelated `better-auth` peer strings, so every lockfile edit is made by hand.
+  - The ADR named the wrong module IDs (JD-M12, JD-M13).
+  - The sprint ran well past the 30-minute timebox. The owner's reply time is outside the timebox, but the five lanes were not.
+- **Change next sprint:**
+  - Use the fail-closed `secret-scan` script for every push.
+  - Check module IDs against `module.json` when writing an ADR.
+  - Write tests that move the clock between runs whenever a claim depends on idempotency.
+  - Decide whether to fix the lockfile churn (pin `@babel/core` peer resolution) as a chore.
 
 ## Guru checkpoint
 

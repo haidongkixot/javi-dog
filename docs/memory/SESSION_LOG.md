@@ -2,6 +2,30 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-30 · Session 2 (cloud), continued — S5d agent self-report (JD-C03)
+
+- **Owner decisions:** JD-C03 next; the hook emits the event; a hand-written MCP server; the reason goes in `error_code`; opt-in registration; self-reported `blocked` needs attention; opt-in `--allow-self-report`.
+- **Process:**
+  - research from primary sources;
+  - design review before code (2 high, folded into ADR-0017);
+  - QA vectors from the ADR only (19 spec gaps resolved; G8 was a real design flaw);
+  - three developer lanes and two runner lanes;
+  - code review (0 high, 3 medium, fixed red-first).
+- **State:**
+  - all S5d work is pushed (`66c2250`);
+  - full gate: 2200 tests;
+  - production `/api/health` ok, 6 migrations;
+  - the dashboard ships the "reported by agent" pill.
+- **Slips:**
+  - one push chained the secret scan with `;` instead of `&&`;
+  - one scan command was malformed and failed open.
+
+  Both pushes were clean when re-scanned. Fixed with a fail-closed scan script.
+- **Next:**
+  - 20:20 UTC purge check (G9);
+  - owner real runs, including how-to step 6;
+  - follow-ups: F1 "waiting for you" wording, F2 QA vector gaps, F3 Codex `hooks.json` tracked check that fails open.
+
 ## 2026-10-30 · Session 2 (cloud), continued — Guru G4 and release-gate status
 
 - Guru G4 checkpoint (`23f0394`): 3 new skills, 9 updated, Orcasus PR proposal written (not opened).
