@@ -45,8 +45,13 @@ export const COLLECTOR_GUIDANCE =
 export const SAFARI_NOTE =
   'Safari may delete keys remembered on this device after 7 days without a visit.';
 
+/**
+ * Review M2: exactly the clearing paths the app has. The sign-out button (and the notice it
+ * sends to other tabs), any signed-out page (`SignInPrompt`, `/sign-in`, the account menu with
+ * no session, a 401 from the dashboard) and another account's remembered keys on hydrate.
+ */
 export const CLEARING_NOTE =
-  'Signing out, here or in another tab, and an expired session forget every key on this device, remembered ones included.';
+  'Signing out, here or in another tab, forgets every key in this browser, remembered ones included. So does any page that finds you signed out, for example after your session expires. Keys remembered under another account are deleted, never loaded.';
 
 export const PASTE_MISMATCH = 'This is not the key shown above. Paste the full key you saved.';
 

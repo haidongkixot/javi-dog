@@ -5,14 +5,19 @@
 // - Memory by default, per tab.
 // - "Remember on this device" persists the non-extractable keys through a `KeyPersistence`
 //   (IndexedDB in browsers, an in-memory fake in tests) — only after an explicit choice.
-// - "Forget on this device", the sign-out button, a 401 from the dashboard snapshot and a
-//   sign-out in another tab (`SignOutChannel`, a BroadcastChannel in browsers) clear keys.
+// - "Forget on this device", the sign-out button, a 401 from the dashboard snapshot, a page that
+//   renders signed-out and a sign-out in another tab (`SignOutChannel`, a BroadcastChannel in
+//   browsers) clear keys.
+// - Remembered keys belong to the signed-in user (review M2): each row carries the user id, and
+//   rows of another user (or with none) are deleted on load, never used.
 
-/** What is remembered: the non-extractable AES-GCM key, never the secret. */
+/** What is remembered: the non-extractable AES-GCM key, never the secret, and whose it is. */
 export interface StoredKey {
   projectId: string;
   kid: string;
   l2Key: CryptoKey;
+  /** The signed-in user who chose to remember it (review M2). */
+  userId: string;
 }
 
 /** Device storage for remembered keys. The browser implementation is `idb.ts`. */
@@ -53,13 +58,28 @@ export interface KeyStore {
   /** Whether remembered keys can be stored on this device at all. */
   canRemember(): boolean;
   add(projectId: string, kid: string, l2Key: CryptoKey): void;
-  /** Persists a loaded key (explicit consent). Resolves false when it could not be stored. */
+  /**
+   * Persists a loaded key for the signed-in user (explicit consent). Resolves false when it could
+   * not be stored, or while the user is unknown.
+   */
   remember(projectId: string, kid: string): Promise<boolean>;
   /** "Forget on this device": memory and device storage, this project only. */
   forgetProject(projectId: string): Promise<void>;
-  /** Every key of every project, memory and device storage. Broadcasts unless `other-tab`. */
+  /**
+   * Every key of every project, memory and device storage, and the user binding. Broadcasts
+   * unless `other-tab`.
+   */
   clearAll(reason: ClearReason): Promise<void>;
-  /** Loads remembered keys once (called by the components on mount). */
+  /**
+   * The signed-in user from the session (review M2), or null. A different user forgets the keys
+   * in memory; the new user's remembered keys load.
+   */
+  setUser(userId: string | null): void;
+  /**
+   * Loads the signed-in user's remembered keys once per user (called by the components on mount
+   * and by `setUser`). Rows of another user, or without a user id, are deleted and never loaded.
+   * Does nothing while the user is unknown.
+   */
   hydrate(): Promise<void>;
   /** Stops listening to other tabs (tests). */
   dispose(): void;
@@ -94,6 +114,8 @@ export const createKeyStore = ({
   let hydration: Promise<void> | null = null;
   // Bumped by every clear: a hydration that started before it must not resurrect keys.
   let epoch = 0;
+  // The signed-in user (review M2); null until the session is known and after any clear.
+  let user: string | null = null;
 
   const emit = () => {
     version += 1;
@@ -158,14 +180,15 @@ export const createKeyStore = ({
     },
     async remember(projectId, kid) {
       const entry = projects.get(projectId)?.get(kid);
-      if (!entry || !persistence) return false;
+      const userId = user;
+      if (!entry || !persistence || userId === null) return false;
       try {
-        await persistence.save({ projectId, kid, l2Key: entry.l2Key });
+        await persistence.save({ projectId, kid, l2Key: entry.l2Key, userId });
       } catch {
         return false;
       }
-      // Cleared meanwhile: undo the write rather than keep a key the user just forgot.
-      if (projects.get(projectId)?.get(kid) !== entry) {
+      // Cleared (or another user) meanwhile: undo the write rather than keep a forgotten key.
+      if (projects.get(projectId)?.get(kid) !== entry || user !== userId) {
         await quietly(() => persistence.remove(projectId, kid));
         return false;
       }
@@ -179,6 +202,8 @@ export const createKeyStore = ({
     },
     async clearAll(reason) {
       clearMemory();
+      user = null;
+      hydration = null;
       if (reason !== 'other-tab') channel?.post();
       // The tab that signed out clears the shared device storage; another tab only its memory
       // (the storage is the same, so clearing it again is harmless but not needed).
@@ -186,8 +211,17 @@ export const createKeyStore = ({
         await quicklyAndQuietly(() => persistence.clear());
       }
     },
+    setUser(userId) {
+      if (userId === user) return;
+      // Keys in memory belong to whoever was signed in: another user never inherits them.
+      if (user !== null) clearMemory();
+      user = userId;
+      hydration = null;
+      if (userId !== null) void store.hydrate();
+    },
     hydrate() {
-      if (!persistence) return Promise.resolve();
+      const userId = user;
+      if (!persistence || userId === null) return Promise.resolve();
       hydration ??= (async () => {
         const started = epoch;
         let stored: StoredKey[] = [];
@@ -196,17 +230,26 @@ export const createKeyStore = ({
         } catch {
           return;
         }
-        if (started !== epoch) return;
+        if (started !== epoch || user !== userId) return;
         let added = false;
+        const foreign: Array<[string, string]> = [];
         for (const k of stored) {
-          if (!k || typeof k.projectId !== 'string' || !VALID_KID.test(k.kid)) continue;
-          if (!isSecretKey(k.l2Key)) continue;
+          if (!k || typeof k.projectId !== 'string' || typeof k.kid !== 'string') continue;
+          // Another user's key, or a row stored before rows carried a user (review M2).
+          if (k.userId !== userId) {
+            foreign.push([k.projectId, k.kid]);
+            continue;
+          }
+          if (!VALID_KID.test(k.kid) || !isSecretKey(k.l2Key)) continue;
           if (projects.get(k.projectId)?.has(k.kid)) {
             projects.get(k.projectId)!.get(k.kid)!.remembered = true;
           } else put(k.projectId, k.kid, { l2Key: k.l2Key, remembered: true });
           added = true;
         }
         if (added) emit();
+        for (const [projectId, kid] of foreign) {
+          await quietly(() => persistence.remove(projectId, kid));
+        }
       })();
       return hydration;
     },

@@ -297,6 +297,7 @@ describe('key entry for reading', () => {
   it('"Remember on this device" (ticked) stores the non-extractable key; "Forget" removes it', async () => {
     const persistence = memoryPersistence();
     const s = createKeyStore({ persistence, channel: null });
+    s.setUser('user-1');
     renderEntry(s);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Remember on this device' }));
     keyInput().value = await crypto.encodeRecoveryKey(SENTINEL_SECRET);
@@ -337,8 +338,10 @@ describe('key entry for reading', () => {
   it('states the clearing paths and the Safari 7-day note', () => {
     renderEntry();
     const text = document.body.textContent ?? '';
+    // Review M2: exactly the clearing paths that exist (sign-out here or in another tab, any
+    // signed-out page, another account's remembered keys).
     expect(text).toContain(
-      'Signing out, here or in another tab, and an expired session forget every key',
+      'Signing out, here or in another tab, forgets every key in this browser, remembered ones included. So does any page that finds you signed out, for example after your session expires. Keys remembered under another account are deleted, never loaded.',
     );
     expect(text).toContain(
       'Safari may delete keys remembered on this device after 7 days without a visit.',

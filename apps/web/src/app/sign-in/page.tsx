@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Card, PageHead } from '@javis-dog/ui/components';
+import { ForgetKeysWhenSignedOut } from '@/components/privacy/forget-keys-signed-out';
 import { SignInButtons } from '@/components/sign-in-buttons';
 import { signInProviders } from '@/lib/auth';
 
@@ -22,6 +23,8 @@ export default async function SignInPage({
   const providers = signInProviders();
   return (
     <>
+      {/* Review M2: a signed-out page forgets every privacy key in this browser. */}
+      <ForgetKeysWhenSignedOut />
       <PageHead
         eyebrow="Account"
         title="Sign in to Javi's Dog."

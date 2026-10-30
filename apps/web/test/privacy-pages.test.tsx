@@ -161,7 +161,11 @@ describe('clearing paths', () => {
     render(<AccountMenu />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
     await vi.waitFor(() => expect(signOut).toHaveBeenCalled());
-    expect(forgetKeysOnSignOut).toHaveBeenCalledExactlyOnceWith('sign-out');
+    // The tab's key store is passed along (review M2: the same store the page reads keys from).
+    const calls = forgetKeysOnSignOut.mock.calls as unknown[][];
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.[0]).toBe('sign-out');
+    expect(calls[0]?.[1]).toHaveProperty('clearAll');
     expect(order).toEqual(['forget', 'signOut']);
   });
 

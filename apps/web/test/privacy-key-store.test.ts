@@ -97,6 +97,7 @@ describe('key store — remember on this device (explicit)', () => {
   it('stores the non-extractable key (never a secret) only on remember()', async () => {
     const persistence = fakePersistence();
     const store = createKeyStore({ persistence, channel: null });
+    store.setUser('user-1');
     const a = await keys();
     store.add(P1, a.kid, a.l2Key);
     expect(await store.remember(P1, a.kid)).toBe(true);
@@ -104,6 +105,7 @@ describe('key store — remember on this device (explicit)', () => {
       projectId: P1,
       kid: a.kid,
       l2Key: a.l2Key,
+      userId: 'user-1',
     });
     expect(a.l2Key.extractable).toBe(false);
     expect(store.list(P1)).toEqual([{ kid: a.kid, remembered: true }]);
@@ -113,6 +115,7 @@ describe('key store — remember on this device (explicit)', () => {
     const persistence = fakePersistence();
     vi.mocked(persistence.save).mockRejectedValueOnce(new Error('QuotaExceeded'));
     const store = createKeyStore({ persistence, channel: null });
+    store.setUser('user-1');
     const a = await keys();
     store.add(P1, a.kid, a.l2Key);
     expect(await store.remember(P1, a.kid)).toBe(false);
@@ -122,12 +125,14 @@ describe('key store — remember on this device (explicit)', () => {
   it('a new tab loads remembered keys (hydrate) and marks them remembered', async () => {
     const persistence = fakePersistence();
     const first = createKeyStore({ persistence, channel: null });
+    first.setUser('user-1');
     const a = await keys();
     first.add(P1, a.kid, a.l2Key);
-    await first.remember(P1, a.kid);
+    expect(await first.remember(P1, a.kid)).toBe(true);
 
     const second = createKeyStore({ persistence, channel: null });
     expect(second.keysFor(P1).size).toBe(0);
+    second.setUser('user-1');
     await second.hydrate();
     expect(second.list(P1)).toEqual([{ kid: a.kid, remembered: true }]);
     expect(second.keysFor(P1).get(a.kid)).toBe(a.l2Key);
@@ -135,25 +140,104 @@ describe('key store — remember on this device (explicit)', () => {
 
   it('skips stored rows that are not non-extractable secret keys', async () => {
     const persistence = fakePersistence();
-    persistence.rows.set('x', { projectId: P1, kid: 'ABCDEFGH', l2Key: {} as CryptoKey });
-    persistence.rows.set('y', { projectId: P1, kid: 'bad', l2Key: (await keys()).l2Key });
+    persistence.rows.set('x', {
+      projectId: P1,
+      kid: 'ABCDEFGH',
+      l2Key: {} as CryptoKey,
+      userId: 'user-1',
+    });
+    persistence.rows.set('y', {
+      projectId: P1,
+      kid: 'bad',
+      l2Key: (await keys()).l2Key,
+      userId: 'user-1',
+    });
     const store = createKeyStore({ persistence, channel: null });
+    store.setUser('user-1');
     await store.hydrate();
+    expect(persistence.load).toHaveBeenCalledOnce();
     expect(store.list(P1)).toEqual([]);
   });
 
   it('a hydration that started before a sign-out does not bring keys back', async () => {
     const persistence = fakePersistence();
     const a = await keys();
-    persistence.rows.set('a', { projectId: P1, kid: a.kid, l2Key: a.l2Key });
+    const row = { projectId: P1, kid: a.kid, l2Key: a.l2Key, userId: 'user-1' };
+    persistence.rows.set('a', row);
     let release!: (rows: StoredKey[]) => void;
     vi.mocked(persistence.load).mockReturnValueOnce(new Promise((r) => (release = r)));
     const store = createKeyStore({ persistence, channel: null });
+    store.setUser('user-1');
     const loading = store.hydrate();
+    expect(persistence.load).toHaveBeenCalledOnce();
     await store.clearAll('sign-out');
-    release([{ projectId: P1, kid: a.kid, l2Key: a.l2Key }]);
+    release([row]);
     await loading;
     expect(store.list(P1)).toEqual([]);
+  });
+});
+
+describe('review M2 — remembered keys belong to the signed-in user', () => {
+  it('user A remembers, user B hydrates: nothing is loaded and A’s row is deleted', async () => {
+    const persistence = fakePersistence();
+    const tabA = createKeyStore({ persistence, channel: null });
+    tabA.setUser('user-a');
+    const a = await keys();
+    tabA.add(P1, a.kid, a.l2Key);
+    expect(await tabA.remember(P1, a.kid)).toBe(true);
+    expect([...persistence.rows.values()].map((r) => r.userId)).toEqual(['user-a']);
+
+    const tabB = createKeyStore({ persistence, channel: null });
+    tabB.setUser('user-b');
+    await tabB.hydrate();
+    expect(tabB.list(P1)).toEqual([]);
+    expect(tabB.keysFor(P1).size).toBe(0);
+    expect(persistence.rows.size).toBe(0);
+  });
+
+  it('the same user loads their remembered keys', async () => {
+    const persistence = fakePersistence();
+    const first = createKeyStore({ persistence, channel: null });
+    first.setUser('user-a');
+    const a = await keys();
+    first.add(P1, a.kid, a.l2Key);
+    await first.remember(P1, a.kid);
+    const second = createKeyStore({ persistence, channel: null });
+    second.setUser('user-a');
+    await second.hydrate();
+    expect(second.list(P1)).toEqual([{ kid: a.kid, remembered: true }]);
+  });
+
+  it('rows without a user id (stored before this rule) are never loaded and are deleted', async () => {
+    const persistence = fakePersistence();
+    const a = await keys();
+    persistence.rows.set('legacy', { projectId: P1, kid: a.kid, l2Key: a.l2Key } as StoredKey);
+    const store = createKeyStore({ persistence, channel: null });
+    store.setUser('user-a');
+    await store.hydrate();
+    expect(store.list(P1)).toEqual([]);
+    expect(persistence.rows.size).toBe(0);
+  });
+
+  it('nothing is loaded or remembered while the user is unknown', async () => {
+    const persistence = fakePersistence();
+    const a = await keys();
+    persistence.rows.set('a', { projectId: P1, kid: a.kid, l2Key: a.l2Key, userId: 'user-a' });
+    const store = createKeyStore({ persistence, channel: null });
+    await store.hydrate();
+    expect(persistence.load).not.toHaveBeenCalled();
+    store.add(P2, a.kid, a.l2Key);
+    expect(await store.remember(P2, a.kid)).toBe(false);
+    expect(persistence.save).not.toHaveBeenCalled();
+  });
+
+  it('another user signing in to this tab forgets the previous user’s keys in memory', async () => {
+    const store = createKeyStore({ persistence: fakePersistence(), channel: null });
+    store.setUser('user-a');
+    const a = await keys();
+    store.add(P1, a.kid, a.l2Key);
+    store.setUser('user-b');
+    expect(store.keysFor(P1).size).toBe(0);
   });
 });
 
@@ -161,11 +245,12 @@ describe('key store — clearing paths', () => {
   it('"Forget on this device" removes the project’s keys from memory and the device only', async () => {
     const persistence = fakePersistence();
     const store = createKeyStore({ persistence, channel: null });
+    store.setUser('user-1');
     const [a, b] = [await keys(), await keys('other')];
     store.add(P1, a.kid, a.l2Key);
     store.add(P2, b.kid, b.l2Key);
-    await store.remember(P1, a.kid);
-    await store.remember(P2, b.kid);
+    expect(await store.remember(P1, a.kid)).toBe(true);
+    expect(await store.remember(P2, b.kid)).toBe(true);
     await store.forgetProject(P1);
     expect(store.keysFor(P1).size).toBe(0);
     expect(store.keysFor(P2).size).toBe(1);
@@ -179,9 +264,11 @@ describe('key store — clearing paths', () => {
       const persistence = fakePersistence();
       const channel = fakeChannel();
       const store = createKeyStore({ persistence, channel });
+      store.setUser('user-1');
       const a = await keys();
       store.add(P1, a.kid, a.l2Key);
-      await store.remember(P1, a.kid);
+      expect(await store.remember(P1, a.kid)).toBe(true);
+      expect(persistence.rows.size).toBe(1);
       await store.clearAll(reason);
       expect(store.keysFor(P1).size).toBe(0);
       expect(persistence.clear).toHaveBeenCalledOnce();
