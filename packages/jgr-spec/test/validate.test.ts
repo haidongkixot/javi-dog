@@ -111,3 +111,34 @@ describe('values nested too deeply to measure', () => {
     expect(validateEvent({ ...event(), attributes: { platform: deep } }, now)).toEqual(tooDeep);
   });
 });
+
+// ADR-0018 §4 (S5f K2): AES-GCM uses a 96-bit IV, so `iv` is exactly 12 bytes = 16 base64url
+// characters. 15, 17 and the old 22-character (16-byte) form are rejected.
+describe('L2 encrypted.iv length (ADR-0018)', () => {
+  const l2 = (iv: string) =>
+    event({
+      privacy_class: 'L2',
+      encrypted: { alg: 'A256GCM', kid: 'ABCDEFGH', iv, ciphertext: 'c2VjcmV0LWNvbnRlbnQ' },
+    });
+
+  it('accepts exactly 16 base64url characters (12 bytes)', () => {
+    expect(validateEvent(l2('AAAAAAAAAAAAAAAA'), now).ok).toBe(true);
+    expect(validateEvent(l2('-_az09AZ-_az09AZ'), now).ok).toBe(true);
+  });
+
+  it.each([
+    ['15 characters', 'A'.repeat(15)],
+    ['17 characters', 'A'.repeat(17)],
+    ['22 characters (16 bytes)', 'A'.repeat(22)],
+    ['an empty string', ''],
+    ['standard base64 characters', 'AAAAAAAAAAAAAA+/'],
+  ])('rejects %s as a schema issue on encrypted.iv', (_label, iv) => {
+    const result = validateEvent(l2(iv), now);
+    expect(result.ok).toBe(false);
+    const issues = result.ok ? [] : result.issues.map(({ code, path }) => ({ code, path }));
+    expect(issues.length).toBeGreaterThan(0);
+    expect(new Set(issues.map((i) => `${i.code} ${i.path}`))).toEqual(
+      new Set(['schema encrypted.iv']),
+    );
+  });
+});

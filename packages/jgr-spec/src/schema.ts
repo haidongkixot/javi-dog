@@ -90,12 +90,15 @@ const AttributeValue = z.union([
   z.boolean(),
 ]);
 
-/** Encrypted payload for privacy class L2 (JGR-R10). The platform stores it opaquely. */
+/**
+ * Encrypted payload for privacy class L2 (JGR-R10). The platform stores it opaquely.
+ * `iv` is the 96-bit AES-GCM IV: exactly 12 bytes = 16 base64url characters (ADR-0018 §4).
+ */
 export const EncryptedPayload = z
   .object({
     alg: z.literal('A256GCM'),
     kid: z.string().min(1).max(64),
-    iv: z.base64url().min(16),
+    iv: z.base64url().length(16, 'iv is 12 bytes: exactly 16 base64url characters.'),
     ciphertext: z.base64url().min(1),
   })
   .strict();

@@ -1,0 +1,21 @@
+{
+  "id": "JD-M11",
+  "name": "@javis-dog/crypto",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "JGR privacy classes L1/L2 (ADR-0018): project recovery key (JDK1, Crockford base32 + checksum), HKDF-SHA256 derivations per project slug, derived kid, L1 HMAC-SHA256 hashes per field, L2 payload v1 padded to 256 bytes and AES-256-GCM with the event AAD. WebCrypto only (Node 22 and browsers); keys are non-extractable CryptoKeys.",
+  "owner": "platform",
+  "provides": [
+    "generateProjectSecret()",
+    "encodeRecoveryKey()",
+    "parseRecoveryKey()",
+    "deriveProjectKeys()",
+    "l1Hash()",
+    "buildAad()",
+    "encodeL2Payload() / decodeL2Payload()",
+    "encryptL2()",
+    "decryptL2()",
+    "JDM11 constants (info strings, sizes, alphabet)"
+  ],
+  "consumes": ["JD-M01"]
+}
