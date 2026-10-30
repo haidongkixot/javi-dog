@@ -8,10 +8,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   CLAUDE_SELF_REPORT_ALLOW,
   createState,
+  gitTracking,
   main,
   mcpLauncherPath,
   registrationPath,
   settingsPath,
+  type GitRunner,
   type Io,
   type Platform,
 } from '../src/index.ts';
@@ -443,6 +445,91 @@ it('plain init leaves the registration as it is; uninstall of another project le
   expect(await main(['uninstall', '--project', 'other', '--dir', dir], t.value)).toBe(0);
   expect(await read(file)).toBe(bytes);
   expect((await status('claude-code')).out).toContain('Self-report: registered');
+});
+
+// Code review M3: a git check that cannot answer must not count as "untracked".
+describe('git-tracked check fails closed', () => {
+  type GitResult = ReturnType<GitRunner>;
+  const ok = (stdout = ''): GitResult => ({ status: 0, stdout, stderr: '', signal: null });
+  /** A runner that answers rev-parse and ls-files as given, recording every call. */
+  const fakeGit = (revParse: GitResult, lsFiles: GitResult = ok()) => {
+    const calls: string[][] = [];
+    const run: GitRunner = (args) => {
+      calls.push(args);
+      return args.includes('rev-parse') ? revParse : lsFiles;
+    };
+    return { run, calls };
+  };
+  const initWith = async (run: GitRunner, ...extra: string[]) => {
+    const t = io();
+    t.value.git = run;
+    const code = await main(
+      ['init', '--project', 'web-app', '--dir', dir, '--no-verify', '--self-report', ...extra],
+      t.value,
+    );
+    return { code, out: t.out.join('\n'), err: t.err.join('\n') };
+  };
+  const dubious = "fatal: detected dubious ownership in repository at '/x'";
+
+  it.each<[string, GitResult, GitResult?]>([
+    ['exit 128 inside a work tree', ok('true\n'), { status: 128, stdout: '', stderr: dubious }],
+    ['rev-parse exit 128 (dubious ownership)', { status: 128, stdout: '', stderr: dubious }],
+    [
+      'git missing (ENOENT)',
+      {
+        status: null,
+        stdout: '',
+        stderr: '',
+        error: Object.assign(new Error('x'), { code: 'ENOENT' }),
+      },
+    ],
+    ['git killed by a signal', { status: null, stdout: '', stderr: '', signal: 'SIGTERM' }],
+    ['ls-files killed', ok('true\n'), { status: null, stdout: '', stderr: '', signal: 'SIGKILL' }],
+  ])('%s: refused unless --allow-tracked-config, nothing written', async (_, revParse, lsFiles) => {
+    const { run, calls } = fakeGit(revParse, lsFiles);
+    const refused = await initWith(run);
+    expect(refused.code).toBe(1);
+    expect(refused.err).toContain('could not check whether git tracks');
+    expect(refused.err).toContain(join(dir, '.mcp.json'));
+    expect(refused.err).toContain('--allow-tracked-config');
+    expect(await createState(home).credentials('web-app')).toBeNull();
+    expect(existsSync(join(dir, '.mcp.json'))).toBe(false);
+    // Plain argument lists, never a shell command line.
+    expect(calls[0]).toEqual(['-C', dir, 'rev-parse', '--is-inside-work-tree']);
+    expect((await initWith(run, '--allow-tracked-config')).code).toBe(0);
+  });
+
+  it('outside any repository (git says so): allowed', async () => {
+    const { run, calls } = fakeGit({
+      status: 128,
+      stdout: '',
+      stderr: 'fatal: not a git repository (or any of the parent directories): .git',
+    });
+    expect((await initWith(run)).code).toBe(0);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('inside a work tree: ls-files 0 → tracked (refused), 1 → untracked (allowed)', async () => {
+    const tracked = fakeGit(ok('true\n'), ok('.mcp.json\n'));
+    const refused = await initWith(tracked.run);
+    expect(refused.code).toBe(1);
+    expect(refused.err).toContain('tracked by git');
+    expect(tracked.calls[1]).toEqual(['-C', dir, 'ls-files', '--error-unmatch', '--', '.mcp.json']);
+    const untracked = fakeGit(ok('true\n'), { status: 1, stdout: '', stderr: 'error: pathspec' });
+    expect((await initWith(untracked.run)).code).toBe(0);
+  });
+
+  it('real git: tracked → tracked, untracked → untracked, no repository → untracked', async () => {
+    const file = join(dir, '.mcp.json');
+    expect(gitTracking(dir, file)).toBe('untracked');
+    git('init', '-q');
+    await writeFile(file, '{}\n');
+    expect(gitTracking(dir, file)).toBe('untracked');
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await uninstall('claude-code')).code).toBe(0);
+    git('add', '--', file);
+    expect(gitTracking(dir, file)).toBe('tracked');
+  });
 });
 
 // Code review M2: javi never registered self-report here, so a .mcp.json it cannot parse is not

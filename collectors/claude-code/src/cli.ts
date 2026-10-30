@@ -97,6 +97,7 @@ import {
   registerSelfReport,
   registrationPath,
   unregisterSelfReport,
+  type GitRunner,
 } from './mcp-registration.ts';
 import { PLATFORM_NAMES, PLATFORMS, platformFlag, type Platform } from './platform.ts';
 import {
@@ -134,6 +135,8 @@ export interface Io {
    * `scutil` / `reg` runner; tests inject one (none means no OS check).
    */
   systemProxy?: SystemProxyProbe;
+  /** `init --self-report`: runs git for the tracked check (code review M3); tests inject one. */
+  git?: GitRunner;
   /**
    * `javi mcp` only: the streams the MCP server speaks on (the CLI passes process.stdin,
    * process.stdout and process.stderr for that command only).
@@ -1508,6 +1511,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
           projectDir,
           allowTracked,
           allowSelfReport: preApprove,
+          ...(io.git && { git: io.git }),
         });
         if (!check.ok) {
           io.err(check.message);
