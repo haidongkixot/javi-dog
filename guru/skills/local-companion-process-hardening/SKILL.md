@@ -1,10 +1,10 @@
 ---
 name: local-companion-process-hardening
-description: Harden a local companion process for a developer tool — a CLI that registers hooks in another tool, edits a user-level config file, and runs a background HTTP receiver on localhost (for example an OpenTelemetry/OTLP, webhook or metrics receiver). Covers the listener checklist (loopback bind, bearer secret compared in constant time, Host-header allowlist against DNS rebinding, media-type/encoding/size caps with bounded decompression, non-default port, idle exit only on authenticated traffic), process identity before trusting or signalling a pid, visible port conflicts, neutral hooks that never block or talk to the host tool, and reversible opt-in edits of user config (backup once, refuse on conflicts, revert only unchanged own keys, write through symlinks, fail loudly on unreadable files). Use when building a local agent, collector, daemon, sidecar, IDE/CLI helper, or anything that listens on 127.0.0.1, writes to `~/.<tool>/settings`, `.bashrc`-like files or another tool's config, starts detached background processes, stores a token locally, or sends signals to pids read from a file.
+description: Harden a local companion process for a developer tool — a CLI that registers hooks in another tool, edits a user-level config file, and runs a background HTTP receiver on localhost (for example an OpenTelemetry/OTLP, webhook or metrics receiver). Covers the listener checklist (loopback bind, bearer secret compared in constant time, Host-header allowlist against DNS rebinding, media-type/encoding/size caps with bounded decompression, non-default port, idle exit only on authenticated traffic), process identity before trusting or signalling a pid, visible port conflicts, neutral hooks that never block or talk to the host tool, reversible opt-in edits of user config (backup once, refuse on conflicts, revert only unchanged own keys, write through symlinks, fail loudly on unreadable files), hook silence that survives runtime startup warnings and unhandled promise rejections, and edits of files the host tool also rewrites or trusts by position (append-only, never write the host's trust state, a stable unversioned launcher, blocks identified by content not by an end marker, backups that never hold your own secret, origin records so uninstall never deletes the user's file). Use when building a local agent, collector, daemon, sidecar, IDE/CLI helper, or anything that listens on 127.0.0.1, writes to `~/.<tool>/settings`, `.bashrc`-like files or another tool's config, starts detached background processes, stores a token locally, or sends signals to pids read from a file, or when hook stderr shows Node/Python/runtime warnings.
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G2"
-  confidence: "medium (built, adversarially reviewed with probes, conformance- and mutation-tested); low (behaviour inside a real host-tool session: not yet observed)"
+  version: "0.2.0"
+  origin: "javis-dog G2; updated G4"
+  confidence: "medium (controls: built for three host tools, adversarially reviewed with probes, conformance- and mutation-tested; hook silence under a proxy env: found and fixed by a production end-to-end run); low (behaviour inside a real host-tool session: not yet observed)"
 ---
 
 # Local companion process hardening
@@ -54,6 +54,13 @@ Hooks run inside someone else's loop. Make them:
 - **Detached for slow work:** record locally (file spool), spawn a detached flusher, debounce spawns, one flusher per target under a lock.
 - **Minimal by allowlist:** copy only the fields you map; hash session identifiers with a per-installation salt.
 
+Silence is about the **whole process**, not only your code:
+
+- **Runtime warnings come before your code runs.** An environment variable your users set (in the origin: a proxy switch) makes the runtime print an experimental warning at startup. Start the runtime in the registered hook command with warnings off (for Node, `node --no-warnings <cli> hook …`), and test hook silence **with** the environment variables real users have, not only a clean CI env.
+- **No floating promises.** A promise started eagerly (for example `const ready = mkdir(home)`) and awaited only later becomes an unhandled rejection when it fails first: the runtime prints to stderr and may change the exit code. Mark it handled at creation (`ready.catch(() => {})`) and keep awaiting it where the result matters. Then search the workspace for the same pattern.
+- **Treat "unhandled rejection" in a test run as a product bug candidate,** even when every test passed.
+- **Stdout may become model context.** Some hosts pass plain hook stdout to the model, or treat non-JSON stdout as an error. Shell profile output (login shells, `BASH_ENV`, `.zshenv`) can appear even when your program prints nothing: at setup, run the host's shell the way it will run your hook (`$SHELL -c true`, `$SHELL -lc true`) and warn when it prints.
+
 ## 5. Reversible opt-in edits of user config
 
 When your feature needs a user-level config change (the host ignores the setting at project level, for example):
@@ -68,6 +75,19 @@ When your feature needs a user-level config change (the host ignores the setting
 8. If the file is unreadable at revert time, **fail loudly** with the file name (never values), keep your state, and tell the user how to fix it — no silent success.
 9. Document what you cannot see: organization-managed or server-pushed settings that override or disable your change.
 
+## 6. Editing files the host also rewrites or trusts
+
+Some hosts rewrite their config files themselves (approvals, project lists) and trust hooks by **position plus a hash** of the command. Then:
+
+1. **Append only.** Never reorder or rewrite existing entries; a moved entry loses its approval. Uninstall removes only your entries and tells the user which of theirs shifted and need review again.
+2. **Never write the host's trust state** (approved hashes, trust levels). Approval is the user's decision; your status command reads it (read-only) and says "waiting for approval" until the first event arrives.
+3. **Keep the registered command stable.** Register an unversioned launcher (`~/.<cli>/bin/<cli>-hook` plus a `.cmd` twin on Windows) that calls the current version; upgrades rewrite the launcher, not the host's config, so no re-approval is needed. Refuse launcher paths with spaces or shell metacharacters rather than quoting them per shell.
+4. **Parse comment-preserving formats with a real parser** (TOML, YAML) before and after your edit; refuse when your section already exists in any syntactic form (table, dotted key, inline table); write atomically, keep the file mode.
+5. **Identify your block by its content, not by its end marker.** The host's rewriter may move a trailing comment marker to the end of the file when it appends tables. Remove your lines from the start marker through your last key, remove one standalone end marker wherever it sits, keep what the host added.
+6. **Never claim "off" when you could not remove your block** (it was edited): say what remains and which lines to remove.
+7. **A backup never holds your own secret.** Take it only when the file has no block of yours; remove it after a successful restore.
+8. **Record the file's origin.** If you created the file (or a key in it), record that; uninstall restores from the record and never deletes a file it has no record of creating.
+
 ## Pitfalls
 
 - **"It's only localhost."** Browsers and other local programs can reach it.
@@ -75,6 +95,10 @@ When your feature needs a user-level config change (the host ignores the setting
 - **A taken port treated as "already running".** It may be someone else.
 - **Silent success on revert.** The user believes the change is gone.
 - **Hooks that print.** Output can end up in the host tool's context or block it.
+- **"My code prints nothing."** The runtime and the shell can.
+- **Finding your block by its end marker.** The host may move it.
+- **Uninstall that deletes the whole file.** It may be the user's.
+- **Redirectable opt-ins.** A user-level setting can be overridden by env files, workspace settings or proxies; see `guard-redirectable-tool-config`.
 
 ## Evidence from origin project
 
@@ -87,3 +111,13 @@ Javi's Dog, Sprints 3c and 3e (2026-10-23, 2026-10-28): a CLI that registers Cla
 - Hook process tests: real `node` hook processes exit 0 with empty stdout/stderr and deliver through a detached flusher (`collectors/claude-code/test/process.test.ts`, `SPRINT-03c.md`).
 - Documented, not fixed: settings `env` may reach programs the host runs; managed settings can override the export unseen (`docs/adr/0011-local-otlp-usage-receiver.md` *Changes*).
 - Open: a receiver process test is intermittent in CI (see `diagnose-red-ci-from-history`, G2 finding); idle-timer timing on slow machines is a plausible cause, not established.
+
+### Update at G4 (Sprints 5a–5c, 2026-10-28/29)
+
+Same CLI extended to two more host tools (Gemini CLI, Codex CLI). Confidence unchanged for real sessions (**low**: no real run with either host yet).
+
+- Runtime warning: the production end-to-end smoke's first run found every hook writing to stderr; with `NODE_USE_ENV_PROXY=1` Node prints the `UNDICI-EHPA` warning before the CLI runs (177 B reproduced directly). Gemini shows hook stderr. Fix red-first: registered commands start Node with `--no-warnings` (`183c83d`; `collectors/claude-code/src/settings.ts` l. 41–43, `gemini-settings.ts` l. 113–127, `codex-hooks.ts` l. 58, 71; `test/hook-silence.test.ts`) (`docs/sprints/SPRINT-05a.md` Log).
+- Unhandled rejection: CI run 40878049774 failed with all 440 collector tests passing — vitest reported `ENOENT mkdir` from an eager `mkdir(home)` promise in `createState()`; fix `ready.catch(() => {})` (`d3ebf6d`, `state.ts` l. 193), red first (1 rejection → 0). Twin in the SDK spool fixed next (`ce3f3f7`, `packages/jgr-sdk/src/spool.ts` l. 56) (`SPRINT-05b.md` Log).
+- Position-trusted hooks and host rewrites (Codex): append-only `hooks.json`, never write `[hooks.state]`/`trusted_hash`, unversioned launcher with `node --no-warnings`, launcher-path refusal, shell-output warning at setup (ADR-0016 *Changes* C1, D0 H4/H5, M3). Code review V1-H2: the host's TOML rewriter (toml_edit, probed at the host's lockfile version) moved the `# <<< javi` end marker after appended tables, so "off" falsely claimed success → block identified by content (`codex-config.ts` l. 114–138, 270; `test/codex-config.test.ts` "after Codex rewrote config.toml"). V1-L5: uninstall deleted a user's `hooks.json` → origin record, restore from it (`ffd1bdd`) (ADR-0016 *Changes* V1 and review fixes).
+- Backup holding the CLI's own secret: S5b review R7 for the new host, and the same defect in the original host's path ("R7 twin"), both fixed red-first (`5e2bd33`, `c0bfde2`).
+- Not verified: Windows `cmd.exe`/PowerShell quoting of the launcher; whether login-shell output reaches hook stdout in practice (readiness rows "Codex runtime checks", "Gemini runtime checks").

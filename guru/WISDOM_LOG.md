@@ -2,6 +2,149 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-10-30 · G4 — pre-release, S5 close: production readiness, Gemini CLI and Codex CLI collectors (S5a–S5c) · Orcasus-PR checkpoint
+
+G4 is an Orcasus-PR checkpoint (`CLAUDE.md` §7). The PR text below is a **proposal for owner review only**; Guru opened no PR and touched no other repository (read access to `haidongkixot/orcasus` is not enabled in this session: HTTP 403, so its current layout is UNKNOWN).
+
+- **Window:** `cddc755..76b3a42` — 60 commits: S5a `39b4cf3`…`18b3665` and the production runs `183c83d`, `3d0e5ee`; S5b `8c8c864`…`bb90828`; S5c `fb0d703`…`76b3a42`. HEAD = `origin/claude/clever-goldberg-wlurty` after `git fetch` at the end of the read.
+- **Records read:** `docs/sprints/SPRINT-05a.md`, `05b.md`, `05c.md`; ADR-0015; ADR-0016 incl. every *Changes* entry (S5b QA G5/G15, S5b implementation, review R1–R9 and fixes, S5c design C1–C6, D0, V1, review fixes); `docs/how-to/release-checklist.md`, `run-first-real-sessions.md`; `docs/agent-ops/READINESS_MATRIX.md`, `TEAM.md`, `TEST_PLAN.md` (section list and commit placement); `docs/memory/PROJECT_MEMORY.md`, `SESSION_LOG.md` (S5 entries); commit messages and stats of every fix commit; code at the cited lines (`load-test-lib.ts`, `e2e-smoke.mjs`, `settings.ts`, `gemini-settings.ts`, `codex-hooks.ts`, `codex-config.ts`, `state.ts`, `spool.ts`, root `package.json`); conformance directories (`gemini/`: 20 hook + 33 usage vectors; `codex/`: 19 + 22).
+- **Re-runs by Guru:** none of the project suites. Read-only probes: `gh run list` for the branch and the check-run annotations of both red runs; `git log --diff-filter=D/A` over the window; `git worktree list`; `memory-staleness.mjs` on the origin (7 findings); `npm view smol-toml` (registry metadata); `gate.sh --self-test` and `memory-staleness.mjs --self-test` (both "self-test PASS"); markdownlint on `guru/` after editing.
+
+### CI verification of every S5 push
+
+27 pushed tips, 27 runs: 25 `success`, 2 `failure`, 0 cancelled. `4daa69c` 40713050537 · `bbb3b6a` 40718637866 · `18b3665` 40718921927 · `8c8c864` 40858390962 · `8baec90` 40859738459 · `cce6087` 40861225138 · `8e8c5a9` 40861885693 · `457e1e2` 40862092268 · **`d4f2710` 40867278461 FAIL** · `0cff148` 40876190084 · `bd11886` 40876325086 · **`354bc05` 40878049774 FAIL** · `d3ebf6d` 40879764043 · `ce3f3f7` 40880475250 · `bb90828` 40881848906 · `fefe6d8` 40940899661 · `fb0d703` 40943310142 · `183c83d` 40945961597 · `3d0e5ee` 40948023438 · `6756557` 40964590822 · `e8ab218` 40966715169 · `ad2b5c3` 40967603892 · `1039c02` 40969766125 · `8c1a0fc` 40971268962 · `5574c55` 40975219061 · `f8f5aa3` 40975320265 · `76b3a42` 40976001842 (the last two were running when G4 started; re-read to completion, both `success`). **CI is green on `76b3a42` (run 40976001842)**, the branch head before this commit.
+
+- `d4f2710` annotation: `gemini-hook-process.test.ts:145 AssertionError: expected 1522 to be less than or equal to 1500` — matches the record's diagnosis.
+- `354bc05`: the annotations show only `pnpm run test exited (1)`; the "unhandled rejection `ENOENT mkdir`" text is from the iteration record (`SPRINT-05b.md` Log) and the fix commit message, not re-observed by Guru.
+- Every CI annotation carries a Node.js 20 deprecation warning for `actions/checkout@v4`, `actions/setup-node@v4`, `pnpm/action-setup@v4` (G4-F12).
+
+### Lessons from the brief, checked against evidence
+
+| # | Expected lesson | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Design review before code (S5c D0: 6 high pre-code) vs. S5b, where the review round cost as much as the build | **Verified** (D0), **hypothesis** (cost) | D0: 6 high, 5 medium, recorded as ADR-0016 *Changes* "S5c design review D0" in `2a1131d` before the stubs `6756557` and lanes. S5b retro: "The review round cost as much as the build." Guru's insertion counts: S5b build `41f179b`+`092c0f2` 3 944 vs. fixes `5e2bd33`+`c0bfde2` 1 973 (≈ 50 %); S5c build `214334e`+`bcddab3` 5 342 vs. fixes `ffd1bdd` 1 292 (≈ 24 %). Confounded (second collector, lessons carried over, different tool). V1 still found 2 high, **both in areas D0 had covered** (proxy guard, TOML block) — the design review named the risks, its remedies carried wrong assumptions. → `review-design-before-code` |
+| 2 | Reviewer probes compiled against the target's exact dependency versions turned assumptions into evidence | **Verified by record** (medium) | ADR-0016 *Changes* V1: "probes compiled against hyper-util 0.1.20 and toml_edit 0.24.0 from Codex's Cargo.lock"; `NO_PROXY=*`/`localhost` proxied `127.0.0.1`; the end marker moved. Code and tests encode the probed semantics (`codex-config.ts` l. 376, 513; `codex-config.test.ts` "after Codex rewrote config.toml with toml_edit"). The probe programs are not committed. |
+| 3 | Independent runners caught product defects that developers and reviewers missed (S5c re-send gap; S5b first-export/attribute-series issues) | **Verified for S5c; rejected for S5b** | S5c: runner 39/41, U01/U11 = re-send re-spooled with a new sequence; retro "neither the developers nor the reviewer saw" (`SPRINT-05c.md`). S5b: first export, start-time split and hidden-attribute series were **reviewer** findings (V1 mediums, ADR-0016 *Changes* R2–R4); the runner's 32 pre-fix failures were the expected gaps of those review rules (R2, R5, R9). The S5b runner's own contributions: 30/32 mutations killed, a new vector (U32) for a surviving mutation. |
+| 4 | User-level telemetry opt-ins are redirectable → "detect, refuse, warn" | **Verified** (design, code, vectors); runtime **NOT RUN** | S5b R1 (high): `.env` chain and workspace block override; owner "Detect, refuse, warn"; fix `5e2bd33`. S5c D0 H1 proxies, V1-H1 `NO_PROXY` semantics, V1-M3 macOS/Windows system proxies; fix `ffd1bdd`. Vectors Gemini H19/H20, Codex H18. → `guard-redirectable-tool-config` |
+| 5a | Hook silence broken by a runtime warning, found only by an e2e run on production | **Verified** | `SPRINT-05a.md` Log: first e2e FAIL, `NODE_USE_ENV_PROXY=1` → `UNDICI-EHPA` warning, 177 B vs. 0 B reproduced; fix `183c83d` (`--no-warnings` in all registered commands, `hook-silence.test.ts` red first); re-run PASS. |
+| 5b | Eager floating promises → unhandled rejections | **Verified** | Run 40878049774 failed with all 440 collector tests passing; `d3ebf6d` (`state.ts` l. 193) and twin `ce3f3f7` (`spool.ts` l. 56), red first (1 → 0 rejections); runs 40879764043, 40880475250 green. |
+| 5c | A latency bound measuring harness overhead (stub loader) | **Verified** | Annotation 1522 > 1500; same run: stub path 784–1 522 ms, real 425–540 ms; `354bc05` removed the stub, bound unchanged; `0cff148` "green only by margin". |
+| 5d | CPU oversubscription | **Verified by record** (local runs) | `SPRINT-05a.md` Team log: SDK e2e 30 s timeouts in two forced full runs, 4.1 s alone, ~13 vitest processes on 4 cores; `--concurrency=2` (root `package.json` l. 14): wall 126 → 139 s, test 24.7 → 3.3 s; no timeout raised. |
+| 6a | Pushes held while vectors were ahead of the runner | **Verified** (CI history) | No runs for `3ad3f60`…`64f9f1a`; they went out with `0cff148` after the runner matched the 53 vectors ("expected 53 to be 40"); vector 21's update held until the receiver merged ("expected 404 to be 200"); S5c runner `4f4b42f` went out only with the fixes (`5574c55`). |
+| 6b | One ungated push (`;` instead of `&&`) | **Verified** | `SPRINT-05b.md` Team log, `8baec90`; gate re-run passed; run 40859738459 green. |
+| 6c | A one-off script staged by `git add -A`, caught by `format:check` | **Unverified — not recorded** | No record in sprint files, session log or commit messages. Consistent with history: no file in the window was added and later deleted, so it never reached a commit. Reported to Guru by the orchestrator only. |
+| 6d | A sprint-log claim contradicted by the grep output it cited, corrected | **Verified** | `ce3f3f7` diff of `SPRINT-05b.md`: "No other eager fs promise exists in the workspace (grep)" → "**Correction:** the same grep also found the identical pattern in JD-M02 `createFileSpool` …". |
+| 7a | Owner pasted a token in chat; revocation advised | **Unverified — not recorded** | No entry in `SESSION_LOG.md`, readiness or sprint files. The point-of-use rule exists: `docs/how-to/run-first-real-sessions.md` l. 7. Revocation status unknown (G4-F6). |
+| 7b | Never-print token-file pattern for the production smoke | **Verified** | ADR-0015 §6; `SPRINT-05a.md` Log ("tokens were in scratch files only, never printed"; files removed after cleanup); `e2e-smoke.mjs` l. 9, 270–273 (token from a file, to the CLI on stdin). |
+| 7c | Owner-approved destructive cleanup with before/after counts | **Verified** | `SPRINT-05a.md` Log: cascade delete of the ephemeral workspace; before 1/2/2/5 514, after 0/0/0/0 (workspaces/projects/tokens/events). |
+
+### Further verified lessons (Guru's own)
+
+1. **Fix the class, search for the twin.** Two twins in one sprint: S5b R7 (backup holds the CLI's secret) had a twin in the Claude Code path (`c0bfde2`); the unhandled-rejection pattern had a twin in the SDK spool (`ce3f3f7`). Both found by searching after the first fix. → `review-design-before-code` §4, `diagnose-red-ci-from-history`.
+2. **Money rules derived twice agreed.** Implementation price table (13 rows, quoted fragments) and QA's prices derived from the page text agreed on the checked models across an introductory-price date; two fragments found verbatim exactly once (`SPRINT-05b.md` Team log). → `independent-conformance-vectors`.
+3. **Counter semantics belong in research.** S5b's research did not trace series identity, first export or start times; the review did (retro action). S5c's D0 found the cache-write double count from the vendor's own test (ADR-0016 *Changes* D0 H3). → `primary-source-research-with-agents` 0.3.0, `privacy-first-agent-telemetry-protocol` 0.4.0.
+4. **Test plans before lanes held for all three sprints:** `TEST_PLAN.md` changed in `39b4cf3` (S5a), `8c8c864` (S5b), `fb0d703` (S5c), each before the first lane commit.
+5. **Bounded production checks worked as designed:** budget in ADR-0015 before the run, caps frozen in code (`load-test-lib.ts` `CAPS`), 55/55 × 202, p95 1 529 ms incl. the sandbox proxy, no cap hit; the first e2e run found a product defect. → `bounded-production-verification`.
+6. **A new dependency went in with owner approval** (smol-toml 1.9.1, D0 "Add a TOML parser") — Orcasus rule 4 held — but without a recorded registry/advisory check (G4-F9).
+
+### Findings needing orchestrator action (verified by reading; Guru changed nothing outside `guru/`)
+
+| ID | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| G4-F1 | medium | **Release checklist is not gate-ready as written.** Statuses outside its own vocabulary (G2 "DEFERRED", G9 "IN PROGRESS", G13 "OPEN"); G4/G5 PASS were measured on `dev-agent` while their evidence column requires `main`, with no exception written under "Before tagging"; G11 cites "(S5b)" only; G12 NOT RUN (now satisfiable: CI green on `76b3a42`, run 40976001842, but the release commit will be later); G14 "NOT RUN" (this entry). G6 (real sessions) and G13 (plans) still open. | Add an "Exceptions (owner, dated)" table (G2 deferral; G4/G5 on `dev-agent`); map statuses to the vocabulary; set G14 to PASS after this commit; record G12 on the release commit. |
+| G4-F2 | medium | **CI red recorded late.** Run 40867278461 (`d4f2710`) completed red at 11:45 UTC; `0cff148` (12:47) and `bd11886` (12:48) were pushed and the memory called S5b "built" before the red entry was written (`354bc05`, 12:56). Whether it was known earlier is not recorded. | `TEAM.md` merge checklist: "check the previous pushed tip's CI result before the next push and log it". |
+| G4-F3 | medium | **Undiagnosed local flake.** "A baseline flake (1 of 500, unidentified, passed on re-run)" (`SPRINT-05c.md` Team log, Developer E): no test name, no run, no diagnosis item (Orcasus rule 8). | Record the test name and output in Test evidence; open a diagnosis item. |
+| G4-F4 | medium | **Readiness matrix stale in content.** Header "(S5b Gemini collector built)" although S5c rows exist; "Readiness decision" still "S5a in progress"/S3; Performance row UNKNOWN although p95 1 529 ms was recorded; Delivery row UNKNOWN although the release checklist exists; "Retention purge schedule" row has a column shift (Evidence ends "Earlier:", the next cell starts with ADR-0008 text); Database row still says "rotate before … the S5 release gate" next to the accepted-risk row. | Walk every row (agent-second-memory step 9). |
+| G4-F5 | medium | **Project memory next actions stale.** Next action 1 (load test and e2e "after cutover" — done on `dev-agent`), 2 (`CRON_SECRET` — set), 6 ("Guru G3, then S5 planning"); the S0 line "No auth or ingest yet" (fourth checkpoint: G2-F3, G3-F3); open question B1-rotate superseded by the 2026-10-28 accepted risk; the ADR-0016 row in "Decisions in force" lacks the S5c decisions. | Rewrite "Next actions" and "Open questions"; remove the S0 line. |
+| G4-F6 | medium | **Ingest token pasted in chat: not recorded, revocation unknown.** Reported to Guru by the orchestrator; no repository record. | Record by name (never value) in `SESSION_LOG.md` and readiness, with "revoked and re-issued: yes/no, date". |
+| G4-F7 | low | **Sprint records with dangling or stale statements.** `SPRINT-05a.md` status "ACTIVE", retro empty, Log "CI run 40718637866: in progress" (it succeeded); `SPRINT-05c.md` Log "CI: checked in the next entry" (none; run 40975219061 success), retro "timebox exceeded, recorded as a deviation" (Decisions and deviations has no such entry), Global constraints "No new external package" although smol-toml was added (`2a1131d`). | Close S5a with a retro and "R2 deferred (owner)"; add the S5c deviation and the dependency exception; record the run ids. |
+| G4-F8 | low | **ADR-0015 has no *Changes* entry** for running R6/R7 on `dev-agent` (production's current database) instead of `main` (Decision 6/8), after the owner deferred cutover. | One dated *Changes* line. |
+| G4-F9 | low | **smol-toml 1.9.1: no recorded registry/advisory check.** Guru's `npm view`: `latest`, published 2026-10-09 (20 days before adoption), BSD-3-Clause; advisory check NOT RUN. | Record cooldown and advisory result in ADR-0016 D0 H6 or the sprint log. |
+| G4-F10 | low | **35 lane worktrees** under `.claude/worktrees/` (3.0 GB, oldest from S3), ignored by git and lint. | `git worktree remove` for merged lanes; add "remove the worktree after merge" to `TEAM.md`. |
+| G4-F11 | low | **Process slip not recorded:** the `git add -A` one-off script (lesson 6c). | One line in the S5c or S5b Team log. |
+| G4-F12 | info | CI actions run on deprecated Node.js 20 (forced to Node 24). | Bump the three actions when convenient. |
+| G4-F13 | info | `memory-staleness.mjs`: 7 findings (S3b, S3c, S3e, S4a, S4b, S4c, S5a not closed); still not in `docs:check` (G2 proposal 5, G3 proposal 4 open). | Owner decision on `--warn-only` in CI. |
+
+Carried findings: **G3-F1 fixed** (test renamed at `apps/web/test/budget-alerts.test.ts:95`; ADR-0014 *Changes* "Guru G3-F1"). G3-F2 (final counts only in memory) improved — S5 sprint files carry the forced-gate counts (1233, 1461, 1698). G3-F3 continues as G4-F4/F5. G3-F4 (NOT RUN rows): S5b/S5c record "Real … session NOT RUN (owner)".
+
+### Still NOT RUN / UNVERIFIED at G4
+
+Real Claude Code, Gemini CLI and Codex CLI sessions (release item G6; readiness "OTel session correlation", "Gemini runtime checks", "Codex runtime checks"); production on `main` (cutover deferred by the owner); first purge run (check scheduled 2026-10-30 20:20 UTC); real rollback; rendered layouts (screenshot budget 0); OS system-proxy behaviour at runtime; Windows `cmd.exe`/PowerShell quoting; whether a parent Codex turn's cost includes its sub-agents; the reviewer's probe programs (not committed); Orcasus repository layout (no access).
+
+### Hypotheses (unverified)
+
+- Reviewing the design first lowers total review cost — one confounded comparison (≈ 50 % vs ≈ 24 % fix-to-build insertions).
+- Probing the target's dependencies during research (S5c retro action) would have caught V1-H1/H2 before code — not yet tried.
+- The tail latency (p95 1 529 ms) came from cold starts in the first concurrent burst — the record says "plausibly".
+- The guards catch real users' `.env`/proxy setups — no real run.
+- The persisted accepted-id window (20 000 ids, 7 days) is large enough for real Codex sessions — not measured.
+
+### Rejected or not packaged
+
+- **S5b runner finding the first-export/series defects** (brief item 3, second half): rejected — reviewer findings (table row 3).
+- **Price table contents, auth-mode lists, Codex/Gemini file paths:** product- and vendor-specific; generalized as rules only.
+- **Owner's choice of logs-only usage for Codex, sub-agent attribution to the parent:** product decisions.
+- **Free-plan limits (6 h restore, 512 MiB):** environment facts, already in the readiness matrix and runbooks.
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`review-design-before-code`](skills/review-design-before-code/SKILL.md) | 0.1.0 | new | medium; low (cost) | Brief 1, 2, 3; lesson 1 |
+| [`guard-redirectable-tool-config`](skills/guard-redirectable-tool-config/SKILL.md) | 0.1.0 | new | medium; low (runtime) | Brief 4 |
+| [`bounded-production-verification`](skills/bounded-production-verification/SKILL.md) | 0.1.0 | new (+ `templates/release-checklist.md`) | medium | Brief 5a, 7b, 7c; lesson 5; G4-F1 |
+| [`local-companion-process-hardening`](skills/local-companion-process-hardening/SKILL.md) | 0.1.0 → 0.2.0 | hook silence (runtime warnings, unhandled rejections, shell output); §6 files the host rewrites or trusts by position | medium; low (real sessions) | Brief 5a, 5b; ADR-0016 C1, D0 H4–H6, V1-H2, V1-L5, R7 |
+| [`diagnose-red-ci-from-history`](skills/diagnose-red-ci-from-history/SKILL.md) | 0.1.1 → 0.2.0 | harness-measuring bounds, oversubscription, "all passed" + unhandled rejection, twins, local flakes, check the last tip before pushing; G4 history | medium | Brief 5b–5d, 6b, 6d; G4-F2, F3 |
+| [`independent-conformance-vectors`](skills/independent-conformance-vectors/SKILL.md) | 0.2.0 → 0.3.0 | runner against unfixed code, push holds, money derived twice, vendor-schema validation, explained survivors; G4 suites | high; medium | Brief 3, 6a; lesson 2 |
+| [`orchestrated-agent-team-lanes`](skills/orchestrated-agent-team-lanes/SKILL.md) | 0.2.0 → 0.3.0 | `&&` push gate, explicit staging, check tip before next push, worktree cleanup, design-review pointer, twin search, doubles | medium; high | Brief 6a–6c; G4-F2, F10 |
+| [`primary-source-research-with-agents`](skills/primary-source-research-with-agents/SKILL.md) | 0.2.1 → 0.3.0 | semantics questions (vendor tests), source at a pinned commit, probing target dependencies during research | high; medium; low (probes in research) | Lesson 3; S5c retro |
+| [`privacy-first-agent-telemetry-protocol`](skills/privacy-first-agent-telemetry-protocol/SKILL.md) | 0.3.0 → 0.4.0 | cumulative series identity, first export, counters containing sub-counters, cost by billing mode, de-duplicate before sequencing, logs-only sources; latency once | medium; low | ADR-0016 R2–R6, C4–C5, D0 H3/M1; S5c runner |
+| [`prove-secrets-and-pii-minimization`](skills/prove-secrets-and-pii-minimization/SKILL.md) | 0.1.0 → 0.2.0 | advice by rotation cost, point-of-use rule, branch copies of exposed passwords; §8 own secrets (production checks, backups, inherited env, in-memory hashes) | medium | Brief 7a–7c; ADR-0015 §9; R7, D0 H2 |
+| [`agent-second-memory`](skills/agent-second-memory/SKILL.md) | 0.3.1 → 0.3.2 | claims vs. cited output, dangling pointers, correct dates over stale rows; G4 staleness run | medium | Brief 6d; G4-F4, F5, F7 |
+| [`verify-dependencies-against-registry`](skills/verify-dependencies-against-registry/SKILL.md) | 0.2.0 → 0.2.1 | G4 data point (smol-toml), exception at the constraint | medium | G4-F9 |
+
+### Proposals for the owner
+
+1. **`TEAM.md` additions** (project rule; Guru does not edit it): "check the previous pushed tip's CI before the next push"; "stage explicit paths; scratch files outside the repository"; "remove lane worktrees after merge"; "for third-party integrations, a design review on the ADR draft before lanes, and probes at the target's lockfile versions"; G3 proposal 1 still open.
+2. **Release gate (G4-F1):** decide the written exceptions (G2 deferral, G4/G5 measured on `dev-agent`) or run them on `main` after cutover; decide G13 (plans and terms).
+3. **Ingest token pasted in chat (G4-F6):** revoke it on the project page and issue a new one, if not done; then record it.
+4. **Carried:** `memory-staleness.mjs` in `docs:check --warn-only`; `CLAUDE.md` fetch/one-pusher policy (G2 proposal 6); G3 policy proposal 5 (claims from named contract fields).
+5. **Policy proposal (shared policy; owner review; Guru does not edit `CLAUDE.md`):** add to `CLAUDE.md` §2 rule 4: "For integrations with third-party tools or formats, run an adversarial review of the ADR draft before implementation lanes start, and verify behavioural assumptions about third-party code with probes against the versions it ships."
+
+### Orcasus PR proposal (G4) — for owner review, not opened
+
+Supersedes the G2 proposal (never opened; memory next action 4). **Target:** `haidongkixot/orcasus` (installed here as v1.2.1). Layout UNKNOWN from this session (HTTP 403); paths to follow the repository's conventions after the owner confirms them.
+
+**PR A — agent-operations skills (recommended).** Optional skills next to `project-discovery` and `efficient-testing`; no change to the operating contract text.
+
+| Skill | Version | Confidence | Orcasus rule it operationalizes | Why now |
+|---|---|---|---|---|
+| `orchestrated-agent-team-lanes` | 0.3.0 | medium; high (fetch rule, reviewer with probes) | Role expectations; stop conditions; rule 10 | Nine iterations; one pusher, fetch first, merge-is-not-push holds, `&&`-gated pushes |
+| `independent-conformance-vectors` | 0.3.0 | high; medium | Rules 5, 10; QA role | Seven suites; runners found product defects reviewers missed; mutation evidence |
+| `diagnose-red-ci-from-history` | 0.2.0 | medium | Rules 8, 10 | Four diagnosed red-run classes without blind re-runs; `gate.sh`, `ci-history.sh` |
+| `primary-source-research-with-agents` | 0.3.0 | high (loop); medium; low (probes in research) | Rules 1, 9; Researcher role | Five research runs that changed designs; source-at-commit when docs are blocked |
+| `review-design-before-code` | 0.1.0 | medium; low (cost) | Rule 4 (approve before risky implementation), Reviewer role | Design review found 6 high before code; probes disproved 2 remedies |
+| `vendoring-agent-skills` (optional) | 0.1.0 | medium (one adoption) | Precedence (§1) | How Orcasus itself is adopted; owner's choice |
+
+Before opening (owner): (a) decide whether origin evidence may be public — if not, move each "Evidence from origin project" section to `references/origin-evidence.md` with repository paths and run ids removed, keeping the confidence lines; (b) precedence check: none of these skills uses screenshots (Guru grep at G4: the word appears only in `vendoring-agent-skills`, as an example of a rejected screenshot-based workflow); (c) run `gate.sh --self-test` (and `ci-history.sh` read-only on a public repository) on the target's CI — both self-tests passed here at G4; (d) markdown lint with the target's config; (e) version bump: minor (suggested v1.3.0); (f) confirm the skill names do not collide with existing Orcasus skills.
+
+**Proposed title:** `Add agent-team, conformance-oracle, CI-diagnosis, research and design-review skills (from Javi's Dog G2–G4)`
+
+**Proposed body outline:**
+
+1. *Summary* — five optional skills (plus one optional) that operationalize roles and rules 1, 4, 5, 8, 9, 10; contract text unchanged.
+2. *Why* — one paragraph per skill naming the incident or result: duplicate iteration from two pushing sessions; runner-found re-send defect and mutation results; harness-measuring latency bound and unhandled-rejection red runs diagnosed without re-runs; config-scope and counter-semantics facts that changed designs; design review that found 6 high before code and probes that disproved two remedies.
+3. *Contents* — `SKILL.md` per skill; `templates/lane-brief.md`, `templates/suite-README.md`, `templates/research-brief-and-note.md`, `scripts/gate.sh`, `scripts/ci-history.sh`.
+4. *Evidence and confidence* — per skill, high/medium/low, with the open hypotheses (lane speed-up; cost of design review; probes in research untried).
+5. *Compatibility* — no dependencies beyond bash, `gh`, `git`, Node ≥ 18; no screenshot use; precedence unchanged.
+6. *Testing* — script self-tests; markdown lint.
+7. *Out of scope* — product-engineering skills (below).
+8. *Review asks* — whether "one pushing session per branch, fetch before planning" and "design review before implementation for third-party integrations" belong in the contract's required workflow rather than in skills.
+
+**PR B — product truthfulness (optional; owner decides scope).** `truthful-live-status` 0.1.0, `honest-empty-states` 0.2.1, `prove-secrets-and-pii-minimization` 0.2.0 §3, §7, §8. Orcasus rule 10 covers truthful *reports*; these extend it to UIs and stored data. Recommend deferring unless the owner wants Orcasus to carry product rules.
+
+**Not candidates:** `agent-second-memory` (its G3 condition — the staleness check running in the origin's CI — is unmet), `bounded-production-verification` (one release; propose after a second), `guard-redirectable-tool-config`, `local-companion-process-hardening`, `privacy-first-agent-telemetry-protocol`, `exactly-once-threshold-alerts`, `tenant-isolation-by-construction`, `reviewed-schema-migrations`, `package-node-cli-for-npx`, `presence-only-health-endpoint`, `accessible-brand-tokens`, `verify-dependencies-against-registry` (product engineering or not yet repeated).
+
 ## 2026-10-28 · G3 — Sprint 4 close: live state, usage analytics, budgets and alerts (S4a–S4c)
 
 Not an Orcasus-PR checkpoint (G2 and G4 are, `CLAUDE.md` §7). No PR opened or drafted; G4 candidates are listed below.

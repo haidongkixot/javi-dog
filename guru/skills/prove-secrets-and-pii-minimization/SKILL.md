@@ -1,10 +1,10 @@
 ---
 name: prove-secrets-and-pii-minimization
-description: Design and then prove what an app stores about secrets and personal data — API/ingest tokens kept only as a hash with a recognizable prefix and a display prefix, shown once; third-party OAuth tokens encrypted; fields you do not use (such as an OAuth provider's id_token) not stored at all; logs structured and redacted; failures that leave evidence without leaking; secrets pasted in chat handled by hash comparison and recorded for rotation. The proof step inspects real stored rows by shape (counts, booleans, lengths, prefix classes) and scans every column for plaintext markers, never printing values, and turns each finding into a red-to-green test through the same call path the real flow uses. Use when issuing API keys or personal access tokens, integrating an auth library or OAuth/OIDC sign-in, enabling token encryption at rest, writing auth or error logging, after the first real sign-ins or token issues in an environment, when a user or owner pastes a secret into chat or an issue, or when someone claims data is "hashed", "encrypted" or "not stored".
+description: Design and then prove what an app stores about secrets and personal data — API/ingest tokens kept only as a hash with a recognizable prefix and a display prefix, shown once; third-party OAuth tokens encrypted; fields you do not use (such as an OAuth provider's id_token) not stored at all; logs structured and redacted; failures that leave evidence without leaking; secrets pasted in chat handled by hash comparison and recorded for rotation. The proof step inspects real stored rows by shape (counts, booleans, lengths, prefix classes) and scans every column for plaintext markers, never printing values, and turns each finding into a red-to-green test through the same call path the real flow uses. Use when issuing API keys or personal access tokens, integrating an auth library or OAuth/OIDC sign-in, enabling token encryption at rest, writing auth or error logging, after the first real sign-ins or token issues in an environment, when a user or owner pastes a secret into chat or an issue, when a script or smoke test needs a production credential, when your tool writes its own secret into another tool's config or backups, or when someone claims data is "hashed", "encrypted" or "not stored".
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G2-prep"
-  confidence: medium
+  version: "0.2.0"
+  origin: "javis-dog G2-prep; updated G4"
+  confidence: "medium (sections 1–7: each applied once with recorded results; section 8: production smoke credentials and own-secret hygiene, once each)"
 ---
 
 # Prove secrets and PII minimization
@@ -69,6 +69,16 @@ A failed OAuth callback that silently returns to the home page leaves nothing: n
 - If you need to know whether it matches the stored one, compare hashes (or lengths and prefixes) and record only the outcome ("differs by hash").
 - Record the exposure by **name** in the project memory with a rotation trigger ("rotate before real user data or the release gate"), and tell the owner. A deferral is the owner's decision; record it as such.
 - If you lack permission to set it where it belongs (403 on the platform), hand the action to the owner; do not route around the permission.
+- **Match the advice to the secret's cost of rotation.** A per-project API token can be revoked and re-issued in seconds: advise doing it now. A database password or OAuth client secret needs coordinated changes: record the exposure and let the owner decide (an accepted risk is recorded with name, date and the reason).
+- Put the rule where people paste: the how-to that asks for a token says "enter it only at the prompt; if it was pasted into a chat, revoke it and issue a new one", and uses a hidden prompt (`Read-Host`, `read -s`) instead of a command-line argument.
+- When the owner chooses not to rotate, re-check what the exposure reaches as the system changes: a database branch created later may copy roles **with their passwords**, so an old leak can open a new environment.
+
+## 8. Your own secrets in places you write
+
+- **Production checks:** generate the credential locally, seed only its hash, keep the plaintext in a mode-0600 scratch file outside the repository, pass it on stdin, delete it afterwards (see `bounded-production-verification`).
+- **Backups of files you edit** must never contain your own secret: take the backup only when the file has none of your content, remove it after a successful restore. Write files that hold a bearer with mode 0600 and keep the mode on rewrite.
+- **Inherited environment:** a bearer you export for one tool reaches every child process; a child tool may merge it into its own export to its vendor. Detect your value in the child's environment by in-memory comparison and warn (never print it).
+- **In-memory only:** hashes or ids derived from identity attributes (series identities, auth modes) stay in memory and are never spooled or sent.
 
 ## Pitfalls
 
@@ -92,3 +102,12 @@ Javi's Dog, Sprints 2a–2c (2026-10-22). Confidence **medium**: each practice a
 - Welcome email errors carry the HTTP status only; failure never blocks sign-in (`packages/notify/src/welcome.ts`, `packages/identity/src/auth.ts`, ADR-0007; tested).
 - Secret pasted in chat: compared with the stored one by hash only, never written to the repository; recorded as exposed with rotation tied to the database-credential rotation (`docs/memory/SESSION_LOG.md`, `9b6ea0b`; `docs/memory/PROJECT_MEMORY.md`). The agent's attempt to set it on the platform returned 403; the owner set it.
 - Hypotheses: that the redacted logger will capture the next real sign-in failure (no failure observed since); that a slow hash is unnecessary for these tokens (reasoned in ADR-0005, not measured).
+
+### Update at G4 (Sprints 5a–5c, 2026-10-28/29)
+
+- Production smoke credentials: one ephemeral workspace seeded through the database tool with the token's SHA-256 only; "the tokens were in scratch files only, never printed"; the e2e script reads the token from a file and hands it to the CLI on stdin (`collectors/claude-code/scripts/e2e-smoke.mjs` l. 9, 270–273); after cleanup "the scratch token files were removed" (`docs/sprints/SPRINT-05a.md` Log; ADR-0015 §6).
+- Accepted risk with a new fact: the owner chose "Accept risk, no rotation" for the chat-exposed database password and OAuth client secret; S5a discovery found that the database provider copies roles with their passwords into new branches, so the production branch probably shares the exposed password (UNVERIFIED: the agent never reads passwords); a reset at cutover was offered (ADR-0015 §9; readiness row "Accepted risk: no rotation before release").
+- Ingest token pasted in chat: reported by the orchestrator to Guru (revocation advised); **not recorded** in the session log or readiness matrix (G4 finding). The point-of-use rule exists: `docs/how-to/run-first-real-sessions.md` l. 7 ("Never paste, print or commit an ingest token … If a token was ever pasted into a chat, revoke it") with a `Read-Host` prompt.
+- Own secret in backups: S5b review R7 (a second `usage on` backed up the file with the CLI's own bearer) and its twin in the older platform path, fixed red-first (`5e2bd33`, `c0bfde2`); Codex config backups mode 0600 because the file often holds other tools' tokens (ADR-0016 *Changes* D0 H6).
+- Inherited bearer: D0 H2 — the CLI's exporter header for one host tool is inherited by a second host tool started inside it, which merges it into its default vendor export; owner "Detect and warn" (ADR-0016 *Changes* D0).
+- In memory only: Gemini series hash over all point attributes (incl. user email) and `auth_type` "used only in memory and never copied into the record" (ADR-0016 *Changes* R4, R6).

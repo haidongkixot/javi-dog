@@ -1,10 +1,10 @@
 ---
 name: orchestrated-agent-team-lanes
-description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when deciding what may be pushed to an auto-deploying branch before review, when a session discovers someone else already pushed the work it planned, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
+description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when deciding what may be pushed to an auto-deploying branch before review, when a session discovers someone else already pushed the work it planned, when cleaning up after merged worktrees, when staging commits in a tree with scratch files, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G2; updated G3"
-  confidence: "medium (team pattern, used in six iterations by one orchestrator); high (fetch-before-planning as the fix for duplicate work; adversarial reviewer with probes finding majors the lanes missed: six consecutive rounds); medium (holding user-facing pushes until review: three iterations)"
+  version: "0.3.0"
+  origin: "javis-dog G2; updated G3, G4"
+  confidence: "medium (team pattern, used in nine iterations by one orchestrator); high (fetch-before-planning as the fix for duplicate work; adversarial reviewer with probes finding defects the lanes missed: nine consecutive rounds, majors or highs in eight of them); medium (holding pushes until review or until runner and code catch up: five iterations)"
 ---
 
 # Orchestrated agent team lanes
@@ -69,11 +69,21 @@ A lane that needed one file outside its declared paths is not rejected automatic
 
 **Claim CI only after it finished.** "CI green on `<sha>` (run `<id>`)" is written after the run completed, and the closing run id goes into the iteration record, not only into the memory file.
 
+**Push only through the gate, stage only what you mean.**
+
+- Chain the gate and the push with `&&` (`gate && git push`). One `;` pushes after a failed gate.
+- Stage explicit paths, not `git add -A`. Keep scratch scripts and one-off probes outside the repository (a session scratch directory); a formatter check that flags an unknown file is a hint that something was staged by accident.
+- After a push, check that tip's CI result before the next push and record it.
+
+**Remove lane worktrees after merging.** Merged worktrees left on disk accumulate (the origin had 35 at G4, about 3 GB), slow searches and invite edits in the wrong tree. `git worktree remove <path>` once the lane is merged and its branch is no longer needed.
+
 ## 4. Review adversarially, fix red-first
+
+**Review the design before the code** when the iteration integrates a third-party tool or format: see `review-design-before-code` (design review on the draft, decisions recorded before lanes, code review with probes at the target's dependency versions).
 
 Brief the Reviewer to attack the claims: security of new listeners and endpoints, privacy, data integrity, and whether the evidence supports what the iteration record says. Ask for severity (blocker/major/minor/nit) and for **a probe per major** — a command or test that shows the defect.
 
-Fix majors with tests written first and run against the unfixed code. Record the red count, then the green count. A fix whose test never failed has not been shown to fix anything. Findings you decide not to fix go into the decision record's *Changes* section or the iteration's deviations with a reason — never silently dropped.
+Fix majors with tests written first and run against the unfixed code. Record the red count, then the green count. A fix whose test never failed has not been shown to fix anything. After each fix, search for the same defect in sibling modules or platforms (the "twin") and record the search result. Findings you decide not to fix go into the decision record's *Changes* section or the iteration's deviations with a reason — never silently dropped.
 
 ## 5. Recover when sessions have already diverged
 
@@ -94,6 +104,9 @@ If you discover that another session pushed the work you planned:
 - **Reviewer as a style pass.** Without an adversarial brief and probes, reviewers repeat what the tests already say.
 - **Fixes without a red run.** The test may not exercise the defect.
 - **Two lanes, one migration folder.** Migration numbering and drift checks collide.
+- **`gate; git push`.** The push runs whatever the gate said.
+- **`git add -A` in a tree with scratch files.** Stage paths.
+- **Lanes that only test against doubles of a lane still in progress.** Add an integration test through the real modules at merge.
 - **Pushing a merged-but-unreviewed UI.** On an auto-deploying branch, that is a release of claims nobody checked.
 - **Stop-hook or "session ending" pressure as a reason to push.** Commit locally; push when the review gate is met. (The origin's records show the holds; the pressure itself is not recorded there.)
 
@@ -120,3 +133,14 @@ Javi's Dog, Sprints 3a–3f (2026-10-23 → 2026-10-28). Confidence **medium** f
 - Declared-path deviation accepted and logged: the S4c UI lane changed one file outside its paths (`projects-table.tsx`, +7 lines, the only place the new column could go) (`SPRINT-04c.md` Team log).
 - CI claims after completion: Guru compared commit times with run completion — "CI green on `6377e88`" was committed at 07:01:57 after run 40647195467 completed at 07:01:17; `1993bd8` (run 40652083951) and `e968421` (run 40684915546) likewise. The closing run ids are not in the sprint files (finding G3-F2).
 - Not verified: that holding pushes prevented a user-facing defect from reaching production (no counterfactual); "stop-hook pressure" is not recorded in the repository.
+
+### Update at G4 (Sprints 5a–5c, 2026-10-28/29)
+
+- Same roster in three more iterations, plus a design-review step (S5c D0) and separate fix lanes (S5b Developer D, S5c Developer E) next to the runner lane (Developer C) (`docs/sprints/SPRINT-05a.md`, `05b.md`, `05c.md` Team).
+- Reviewer findings in every round: S5a security review 0 critical/high, 2 medium, 5 low (organization endpoints live over HTTP; no role checks on token actions); S5b 1 high, 5 medium; S5c D0 6 high, V1 2 high, 2 medium. All fixed red-first or logged with owner decisions (ADR-0016 *Changes*; `SPRINT-05a.md` Team log).
+- Holds verified in CI history (runs exist only for pushed tips): S5b held the commits `3ad3f60`…`64f9f1a` (9 by Guru's count; the record says 8) until the runner matched the 53 vectors (`0cff148`); S5c held the runner and fixes until `5574c55`.
+- Ungated push: "`8baec90` … ran `git push` after a `;`" — re-verified harmless (`SPRINT-05b.md` Team log).
+- Accidental staging: reported by the orchestrator to Guru — a one-off script staged by `git add -A` and caught by `format:check` before commit. **Not recorded** in the repository; consistent with history (no file in the window was added and later deleted).
+- Worktrees: `git worktree list` at G4 shows 35 lane worktrees under `.claude/worktrees/` (git- and lint-ignored, 3.0 GB), the oldest from S3.
+- Doubles: S5c retro "Developer B tested against local doubles while A was in progress, so the end-to-end path was only proven at merge."
+- Not verified: that the lanes are faster than one agent; S5c "exceeded the timebox" (retro).

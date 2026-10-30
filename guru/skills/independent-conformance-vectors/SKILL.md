@@ -1,10 +1,10 @@
 ---
 name: independent-conformance-vectors
-description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, or when asked for "conformance tests", "test vectors", "golden files", "contract tests" or "an independent QA pass".
+description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, when money or price rules need a second derivation, when vectors are merged before the runner or the code that satisfies them, or when asked for "conformance tests", "test vectors", "golden files", "contract tests" or "an independent QA pass".
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G2; updated G3"
-  confidence: "high (independent vectors + runner + mutation checks: five suites, five iterations, every mutation failed exactly the expected vectors); medium (ambiguity register catching a defect in the brief: once; strict-tolerance rule: one hidden defect)"
+  version: "0.3.0"
+  origin: "javis-dog G2; updated G3, G4"
+  confidence: "high (independent vectors + runner + mutation checks: seven suites, seven iterations; the runner found product defects that developers and reviewers missed in two of them); medium (ambiguity register catching a defect in the brief: once; strict-tolerance rule: one hidden defect; independent price derivation: once)"
 ---
 
 # Independent conformance vectors
@@ -50,6 +50,22 @@ Runner rules that the origin learned the hard way:
 - **Parallel steps need parallel infrastructure.** On a single-connection embedded engine, concurrent calls interleave at statement level at most: that proves the claim logic, not the database's arbitration between connections. A runner that serialises "parallel" steps reports them NOT RUN; add one check on a real multi-connection server for the claim.
 - **First red: classify before fixing.** When a new runner fails on its first run, decide per failure whether the runner, the vector or the implementation is wrong. In the origin the first state-suite run had 4 FAIL from a runner field-mapping bug (an offset mapped to the wrong timestamp field); the vectors were right.
 
+### Run the runner against the unfixed code
+
+When a review round and a runner run in parallel, run the runner against the code **before** the review fixes and classify each failure: a known review finding (expected red, name it), a vector or runner bug, or a **new product defect**. Record the before-fix counts; they are evidence that the vectors encode the review's rules. In the origin, one runner failed 32 of 54 exactly on the review's open rules; another failed 2 of 41 on a defect nobody had reported.
+
+### Keep vectors, runner and code in step when pushing
+
+Vectors merged ahead of the runner or of the implementation make the shared branch red (`expected 53 to be 40`, `expected 404 to be 200`). On an auto-deploying branch, merge them locally and **hold the push** until runner and code catch up; log the hold and the red that justified it.
+
+### Derive money rules twice
+
+For prices, rates and cost formulas, let QA derive expected values from the vendor's page text independently of the implementation's table, then compare both with the source (find the quoted fragment verbatim, once). Pin every money rule by a vector (cost only for the billing modes that are charged per token; a missing cost is never zero).
+
+### Validate vector inputs against the vendor's schemas
+
+When the vendor publishes schemas for the payloads (hook input schemas, wire formats), validate every vector's input against them, so the oracle never tests a payload the tool cannot send.
+
 ## 5. Prove the runner bites with mutation checks
 
 For each rule that matters (status code for a class of error, a security check, id determinism):
@@ -59,6 +75,8 @@ For each rule that matters (status code for a class of error, a security check, 
 3. Restore, re-run green, and record the mutation, the failing vector numbers and the exit codes in the iteration's test evidence.
 
 "Exactly" matters: zero failures means the rule is untested; a flood means vectors are coupled and failures will be hard to read.
+
+A **surviving** mutation is either a missing vector (add one; in the origin a new vector killed a shared-baseline mutation) or a mutation that cannot occur under the implementation's invariants. Record which, with the reason; do not count unexplained survivors as killed.
 
 If your environment blocks running mutations (an agent permission classifier did in the origin's first attempt), record the check as BLOCKED and ask for permission up front next time.
 
@@ -71,6 +89,8 @@ If your environment blocks running mutations (an agent permission classifier did
 - **A green suite as evidence of detection.** Only a mutation that turns it red shows that.
 - **Widening a tolerance in the runner.** It turns a contract into a suggestion and hides edge-of-tolerance defects.
 - **Parallel steps on one connection reported as PASS.**
+- **Pushing vectors ahead of their runner or implementation** on a deploying branch.
+- **Lanes testing only against local doubles.** The end-to-end path is then first exercised at merge; add one integration test through the real adapters.
 
 ## Evidence from origin project
 
@@ -96,3 +116,17 @@ Three more suites, each for a new read model or write path, each with a runner w
 - Parallel steps: the budgets README (l. 111) states that PGlite interleaves at statement level and that a serialising runner must report NOT RUN; the orchestrator added a real-Postgres check (5 parallel claims over separate connections → exactly 1 job) (ADR-0014 *Changes*).
 - QA ambiguity registers kept surfacing gaps that later became review findings: state A7 ("attention on ended threads untested") matched the S4a reviewer's first major (ended threads counted as attention in the UI).
 - Not verified: that vectors keep *several* implementations consistent (still one implementation per suite).
+
+### Update at G4 (Sprints 5b and 5c, 2026-10-29)
+
+Two more suites for two third-party CLI collectors, each with a runner by a lane that wrote neither the vectors nor the code (`docs/sprints/SPRINT-05b.md`, `SPRINT-05c.md` Team log and Test evidence):
+
+| Suite | Vectors / spec-silent decisions | Runner before fixes | After fixes | Mutations |
+|---|---|---|---|---|
+| Gemini CLI (`docs/jgr/conformance/gemini/`, 20 hook + 33 usage) | 53 (40 first, 13 for the review rules) / 20 ambiguities | 22 pass, 32 fail — all mapped to open review rules R2, R5, R9 | 54/54 tests (as recorded for 53 vectors) | 32: 30 killed; 2 survivors "cannot happen under D's series identity"; vector U32 added to kill the shared-baseline mutation |
+| Codex CLI (`docs/jgr/conformance/codex/`, 19 hook + 22 usage) | 41 / 26 (X1–X26); inputs validated against the official hook schemas | 39 pass, 2 fail (U01, U11) — a **new product defect**: a re-sent record was spooled with a new sequence, which the server shows as possible signal loss | 41/41 | 14/14 killed |
+
+- The Codex defect was missed by the developers and by the code reviewer (retro: "The independent runner caught a defect that neither the developers nor the reviewer saw"); fixed by persisting accepted event ids and skipping duplicates before they get a sequence (`ffd1bdd`; ADR-0016 *Changes* "S5c review fixes").
+- Independent money derivation: the implementation lane's 13-row price table and QA's prices derived from the page text agreed on the checked models before and after an introductory-price end date; the orchestrator found two fragments verbatim and exactly once in the page text (`SPRINT-05b.md` Team log).
+- Push holds verified in CI history: no run exists for `3ad3f60`…`64f9f1a` — they went out with `0cff148`, after the runner was updated ("held back on purpose … the runner failed with `expected 53 to be 40`"); vector 21's update was held until the receiver lane merged ("before B it failed with `expected 404 to be 200`"); the Codex runner `4f4b42f` (red against pre-fix code) went out only with the fixes (`5574c55`).
+- Doubles: "Developer B tested against local doubles while A was in progress, so the end-to-end path was only proven at merge" (S5c retro); the fix lanes added integration tests through the real adapters (`codex-integration.test.ts`).

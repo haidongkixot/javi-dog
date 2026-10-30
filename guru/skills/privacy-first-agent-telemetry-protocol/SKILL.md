@@ -1,10 +1,10 @@
 ---
 name: privacy-first-agent-telemetry-protocol
-description: Design a small, strict, privacy-first event protocol for telemetry from AI coding agents, CLIs, hooks, SDKs or any producer you do not fully control — a minimal envelope with unknown fields rejected, privacy classes enforced at the envelope by allowlist (reject, do not strip), token/cost usage as deltas, per-event IDs for deduplication, per-thread sequence numbers for gap detection, receiver-derived "stale" status, stable error codes, partial batch acceptance, normative rule IDs, shared JSON conformance vectors, canonical event IDs, delivery status codes that tell producers whether to keep or drop data, liveness that survives retries, and translating tool-native OpenTelemetry (OTLP) into the envelope where the data is born (a local receiver) so identity and content never cross the network. Use when defining an ingest API or webhook contract, an observability or analytics event schema, an agent heartbeat/status protocol, a telemetry SDK, when deciding between OTLP, CloudEvents or a custom envelope, when building an ingest endpoint, collector, SDK spool or OTLP receiver for agent telemetry, or when payloads might carry prompts, code, paths, emails or secrets.
+description: Design a small, strict, privacy-first event protocol for telemetry from AI coding agents, CLIs, hooks, SDKs or any producer you do not fully control — a minimal envelope with unknown fields rejected, privacy classes enforced at the envelope by allowlist (reject, do not strip), token/cost usage as deltas, per-event IDs for deduplication, per-thread sequence numbers for gap detection, receiver-derived "stale" status, stable error codes, partial batch acceptance, normative rule IDs, shared JSON conformance vectors, canonical event IDs, delivery status codes that tell producers whether to keep or drop data, liveness that survives retries, and translating tool-native OpenTelemetry (OTLP) into the envelope where the data is born (a local receiver) so identity and content never cross the network. Use when defining an ingest API or webhook contract, an observability or analytics event schema, an agent heartbeat/status protocol, a telemetry SDK, when deciding between OTLP, CloudEvents or a custom envelope, when building an ingest endpoint, collector, SDK spool or OTLP receiver for agent telemetry, when translating cumulative OTLP counters or log records from several vendor CLIs into usage and cost, or when payloads might carry prompts, code, paths, emails or secrets.
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G1; updated G2-prep, G2, G3"
-  confidence: "medium (envelope, vectors, ingest delivery, local OTLP translation, receiver-derived freshness, receipt-time aggregation); low (gap detection, latency and size targets, behaviour on real host-tool traffic)"
+  version: "0.4.0"
+  origin: "javis-dog G1; updated G2-prep, G2, G3, G4"
+  confidence: "medium (envelope, vectors, ingest delivery, local OTLP translation for three tools incl. cumulative series and log records, receiver-derived freshness, receipt-time aggregation, ingest latency measured once on production); low (gap detection on real traffic, behaviour on real host-tool sessions)"
 ---
 
 # Privacy-first agent telemetry protocol
@@ -122,9 +122,15 @@ Receiver rules that the origin's audit and review turned into fixes:
 Many tools already export OTLP. Translate it into your envelope, then validate. Prefer translating **on the user's machine** (a local receiver in your collector) over a public server endpoint: a server edge receives identity attributes over the network before it can drop them, and needs a new public endpoint. Because you cannot fix a third-party tool's configuration, the translator **reads by allowlist** — it never copies anything else:
 
 - Read only the metric names you map and, from their attributes, only the keys you need (the origin: session id, model, token type). Identity (`user.email`, account/organization IDs), terminal and resource attributes are never copied. Put canary values for them in your test vectors and scan the output.
-- Turn only the signals you need on (metrics), never logs or traces that can carry prompt or tool content; turn off optional identity attributes where the tool allows.
+- Turn only the signals you need on (metrics), never logs or traces that can carry prompt or tool content; turn off optional identity attributes where the tool allows. If a tool carries the counters you need **only in logs**, give that tool its own receiver path, cap the body, read only the allowlisted record names and attributes, drop everything else in memory, answer parse errors with a constant message (no body snippets), and sink other tools' logs and traces unparsed.
 - Hash session identifiers with a per-installation salt — the same function your hooks use, so both sources land on one thread.
 - **Temporality:** use delta points as-is; turn cumulative points into deltas against a per-series baseline where the first point only sets the baseline (it can under-count once after a restart; it never double-counts) and a counter going backwards starts a new baseline.
+- **Cumulative series identity** is every point attribute plus the start time, including attributes you do not map (experiment ids, auth mode, user identity). Hash them **in memory only**, keep one baseline per series and sum series deltas into your group; merging series by your mapped keys turns their interleaving into fake resets.
+- **First export:** a series whose start time is at or after your receiver's own start time counts from 0 (the receiver saw it begin); otherwise its first point only sets a baseline. A new sibling series of an already-baselined group (caching starts mid-session) counts from 0.
+- **Group by export end time** when several series of one export share it; detect resets per series.
+- **Know what each counter contains.** Vendors' `input` may include cached reads and cache writes; a total may equal the sum of others; reasoning may be a subset of output. Subtract the parts you report separately (clamp at 0), never add totals or subsets — settle each from the vendor's source or tests, not from names.
+- **Cost only where billing is per token.** Price from a dated table with its source; only for auth or billing modes charged per token; unknown models or modes → tokens only. A missing cost is never 0, and an `estimated` flag that means "counts are not exact" is not set just because cost is estimated.
+- **De-duplicate before sequencing.** If re-sent records get new sequence numbers, the server's de-duplication leaves a sequence gap that looks like data loss. Persist recently accepted event ids (bounded count, TTL, atomic writes) and skip duplicates before assigning a sequence.
 - **Attribution:** telemetry is often machine-wide. Forward only sessions you can attribute to an opted-in project (a local session → project map written by your hooks); drop the rest **locally** and count them in a status command.
 - **Label approximations.** If the tool calls its cost figures approximations, mark cost as estimated wherever you display it, even when token counts are exact.
 - Pin semantic-convention versions per collector release while conventions are experimental.
@@ -151,6 +157,9 @@ The receiver itself is a localhost listener; harden it with the `local-companion
 - **Server-side stripping of data you could have never sent.** Translate locally when you control the collector.
 - **Bucketing by producer time.** Late or skewed events land in the wrong day.
 - **Retention shorter than the reporting period.** Day 31 loses day 1.
+- **Series keyed by your mapped attributes only.** Hidden attributes split the vendor's series.
+- **Re-sequencing re-sent records.** A false gap.
+- **Pricing every session.** Subscription sign-ins are not billed per token.
 
 ## Evidence from origin project
 
@@ -177,3 +186,11 @@ Javi's Dog, Sprint 1b (2026-10-20); at G1 confidence was **medium** for sections
   - Estimated: `estimatedReports` per day, model, project and total (`da6b7a7`); carried into the budget status contract from its first scaffold (`025e35d`).
   - Retention: cutoff keeps the current UTC month (ADR-0008 *Changes*, `packages/event-store/src/events.ts` l. 88–94).
   - Still not verified: all of the above on real producer traffic (production had no real events at G3).
+- G4 update (2026-10-29, Sprints 5a–5c): local translation extended to two more tools (Gemini CLI cumulative metrics, Codex CLI log records).
+  - Cumulative series: first export, grouping by end time, series identity over all attributes (hash in memory only), sibling series from 0 — all from the S5b review (R2–R4) and QA decisions G5/G21, after the first build missed them (ADR-0016 *Changes*; fix `5e2bd33`; Gemini vectors U26–U31).
+  - Counters: Gemini `input` includes cache → input − cache (vendor SDK `types.ts:3782`); Codex `input` = cached + cache write (vendor test cited in ADR-0016 *Changes* D0 H3) → input − cached − cache write; `tool_token_count` (= total) and `reasoning_token_count` (subset) never added (C4).
+  - Cost: only for `vertex-ai`/`gemini-api-key` (R6) and Codex `ApiKey` (C5); `estimated: false` for exact Gemini tokens, superseding the first build (R5); costs still labelled estimated in the UI (ADR-0013).
+  - Logs-only source for one tool: own path `/v1/logs/codex-cli`, 5 MiB cap, constant parse errors; other tools' logs/traces drained unparsed (D0 M1, S5b R9).
+  - Re-send gap: found by the independent runner (Codex U01/U11), fixed with persisted accepted ids — newest 20 000, 7-day sweep, atomic under a lock (`collectors/claude-code/src/state.ts` l. 141; ADR-0016 *Changes* "S5c review fixes").
+  - Ingest latency measured once on production: p95 1 529 ms client-side including a proxy, near-limit batches accepted (`docs/sprints/SPRINT-05a.md` Log) — the "< 2 s" target is met once, not an SLO.
+  - Still not verified: any of this on a real Gemini or Codex session (readiness rows "Gemini runtime checks", "Codex runtime checks").

@@ -2,8 +2,8 @@
 name: agent-second-memory
 description: Bootstrap and maintain a repository's "second memory" so coding agents (and humans) can resume work across sessions without re-deriving context — project memory, append-only session log, sprint records with a team log, ADRs, a readiness matrix, a generated module registry, CI checks for markdown lint, broken links, stale generated docs, doc drift and stale memory (dates, unclosed iterations, empty retros), and short timeboxed iterations that are split and rolled over truthfully. Use when starting a new repository or project with AI agents, when agents keep losing context between sessions, when asked to set up docs-as-code, ADRs, handoff notes, a project log or "memory", when docs drift from code, when an owner sets a short timebox per sprint or iteration, or before a long multi-session build.
 metadata:
-  version: "0.3.1"
-  origin: "javis-dog G0; updated G1, G2-prep, G2, G3"
+  version: "0.3.2"
+  origin: "javis-dog G0; updated G1, G2-prep, G2, G3, G4"
   confidence: medium
 ---
 
@@ -101,6 +101,9 @@ If the same drift recurs after it was written down as a rule, stop relying on th
 - **Linting vendored docs.** Third-party files will fail your style rules; exclude them rather than reformatting them (which breaks upstream diffs).
 - **Unverifiable claims.** "Tests pass" without the command, exit code and counts is not evidence.
 - **Inserting into an empty list section.** Appending the first entry under an empty `## Log` heading without blank lines before the next heading fails markdown lint (MD022/MD032). Start every list section with a placeholder line or a first dated entry when the record is created.
+- **A claim that its own cited output contradicts.** "No other instance exists (grep)" while the grep listed one. Re-read the output you cite before writing the sentence; when you correct it, say "Correction:" in place rather than deleting the wrong line.
+- **Pointers to records that do not exist.** "Recorded as a deviation" or "CI: checked in the next entry" needs the entry. Write the entry first, then the pointer.
+- **A correct date over stale rows.** A same-day "Last updated" passes a date check while rows still say UNKNOWN for something measured that day; walk rows whose status contradicts the latest iteration's evidence.
 - **Final numbers only in the memory file.** The post-review gate count and the closing CI run id belong in the iteration's test evidence; the memory file summarizes and points there.
 
 ## Evidence from origin project
@@ -143,3 +146,10 @@ Javi's Dog, Sprint 0 (2026-10-20), single cloud session. Confidence **medium**: 
 - Lint slip: "the empty-`## Log` blank-line slip recurred (third time)" (`docs/sprints/SPRINT-04a.md` Retro; caught before push — all S4 runs green). S4b and S4c records were created with a first dated Log entry ("Sprint start …"); no recurrence is recorded after that.
 - Final numbers: the post-review full-gate counts (776, 888, 1105 tests) appear only in `docs/memory/PROJECT_MEMORY.md`; the sprint files' Test evidence stops at the pre-review gate (759, 865, 1037) and records run ids only for the early pushes (finding G3-F2).
 - Staleness check re-run read-only at G3 (`memory-staleness.mjs --log SESSION_LOG.md --dated READINESS_MATRIX.md --dated PROJECT_MEMORY.md --iterations docs/sprints`): 6 findings — S3b and S3c still unclosed with empty retros (G2-F4 still open), S3e and S4a "BUILT" with newer iterations. The check is still not in the origin's `docs:check`. Content drift it cannot see: `PROJECT_MEMORY.md` "Current state" still carries the Sprint 0 line "No auth or ingest yet" (G2-F3, partly fixed); the readiness "Retention purge schedule" row still says "30 days" after the month-keeping change.
+
+### Update at G4 (Sprints 5a–5c, 2026-10-28/29)
+
+- Corrected claim, kept visible: the S5b log first said "No other eager fs promise exists in the workspace (grep)"; the same grep had found a second instance. The entry now reads "**Correction:** the same grep also found the identical pattern … The first version of this entry wrongly said there were no others" (`ce3f3f7`, `docs/sprints/SPRINT-05b.md` Log).
+- Dangling pointers (G4 findings): `SPRINT-05c.md` retro says the exceeded timebox was "recorded as a deviation" — its Decisions and deviations section has no such entry; its Log ends "CI: checked in the next entry" with no next entry (Guru read run 40975219061: success); `SPRINT-05a.md` Log still says "CI run 40718637866: in progress" (it succeeded).
+- Staleness check re-run read-only at G4: 7 findings (S3b, S3c, S3e, S4a–S4c, S5a "not closed" with newer iterations), exit 1; still not in the origin's `docs:check` (G2 proposal 5 open). `SPRINT-05a.md` is "ACTIVE" with an empty retro although all items but the owner-deferred cutover are done.
+- Content drift a date check missed: `READINESS_MATRIX.md` is dated 2026-10-29 (same day as the newest log entry) but its header still says "(S5b …)", its "Readiness decision" still describes S5a in progress and S3, and the Performance row is UNKNOWN although the production load test recorded p95 1 529 ms that day. `PROJECT_MEMORY.md` next actions 1, 2 and 6 describe done work (load test "after cutover", `CRON_SECRET`, "Guru G3 then S5 planning"), and "No auth or ingest yet" is still there — the fourth checkpoint in a row.

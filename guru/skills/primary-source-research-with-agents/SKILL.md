@@ -1,10 +1,10 @@
 ---
 name: primary-source-research-with-agents
-description: Run fast, trustworthy technical research with a parallel research agent while the main agent keeps building — a scoped question list, one primary-source URL per fact, explicit NOT VERIFIED marking, official source repositories as fallback when documentation sites are blocked, orchestrator spot-checks of the facts that drive decisions, recorded rejections of the researcher's suggestions, and a findings-to-decisions table that ties every spec change to a source. Use when designing a protocol, integration, collector, SDK or API against third-party tools or standards, when an agent's web access is partly blocked by a proxy or sandbox, when facts about vendor defaults, telemetry, config flags, settings scopes or RFC status matter, when a design assumes where a tool reads its configuration or which runtime behaviour it has, or when asked to "research", "check the docs" or "verify sources" before deciding.
+description: Run fast, trustworthy technical research with a parallel research agent while the main agent keeps building — a scoped question list, one primary-source URL per fact, explicit NOT VERIFIED marking, official source repositories as fallback when documentation sites are blocked, orchestrator spot-checks of the facts that drive decisions, recorded rejections of the researcher's suggestions, and a findings-to-decisions table that ties every spec change to a source. Use when designing a protocol, integration, collector, SDK or API against third-party tools or standards, when an agent's web access is partly blocked by a proxy or sandbox, when facts about vendor defaults, telemetry, config flags, settings scopes or RFC status matter, when a design assumes where a tool reads its configuration or which runtime behaviour it has, when a design depends on how a vendor's counters, series or override precedence behave, or when asked to "research", "check the docs" or "verify sources" before deciding.
 metadata:
-  version: "0.2.1"
-  origin: "javis-dog G1; updated G2, G3"
-  confidence: "high (research loop with orchestrator spot-checks changed designs in three iterations); medium (local runtime probes, defensive fallbacks for undocumented facts)"
+  version: "0.3.0"
+  origin: "javis-dog G1; updated G2, G3, G4"
+  confidence: "high (research loop with orchestrator spot-checks changed designs in five iterations); medium (local runtime probes, defensive fallbacks for undocumented facts, source-at-a-commit when docs are blocked); low (probing the target's dependencies during research: proposed by a retro, not yet tried)"
 ---
 
 # Primary-source research with agents
@@ -52,6 +52,22 @@ When the docs are silent on a fact your design needs (where an attribute appears
 
 List the vendor pages a design will depend on (API semantics such as idempotency windows, rate limits, timeouts) in discovery and fetch each once from the environment that will do the work. A sandbox or proxy allowlist that blocks them turns a design question into an UNVERIFIED fact mid-iteration. If a page stays unreachable, design for the weaker assumption (for example, do not rely on a vendor de-duplicating a reused key with a different body), record the limitation, and keep a readiness row for the check.
 
+### Research the semantics, not only the names
+
+For integrations that consume another tool's telemetry or config, the expensive defects in the origin came from semantics the research had not traced: how cumulative series are identified (all attributes plus start time, including attributes the docs do not mention), what the first export after a restart means, whether `input` already includes cached and cache-write tokens, and which files and variables override a user setting in which order. Add these questions to the brief:
+
+- For each counter: does it include sub-counts reported separately? Look for the vendor's **own tests** (an assertion like `input 100 = cached 40 + cache_write 60` settles it).
+- For each series: what identifies it, what resets it, what is its start time?
+- For each setting: the full precedence chain (env files and their lookup order, workspace merges, flags, proxies). See `guard-redirectable-tool-config`.
+
+### Read the source at a pinned commit when the docs are blocked
+
+When the vendor's docs site is unreachable, the official repository at a named commit is a primary source for behaviour (`path/file.rs:993` "session_id is equal to the root thread's ID"). Record the commit; re-check decisive lines yourself. Documentation *wording* stays unquoted and marked as such.
+
+### Probe the target's real parser or matcher during research
+
+When a design depends on how a library inside the target behaves (proxy matching, TOML/YAML rewriting, glob or path matching), run a small probe against the **version in the target's lockfile** while researching — not only later in review (see `review-design-before-code`).
+
 ## 4. Record blocked sources as such
 
 When the environment blocks sites, list them in the note's method section. For each affected item, record which fallback was used ("via the official GitHub source of the docs") or NOT VERIFIED. Do not upgrade a fallback to "verified against the official site".
@@ -98,3 +114,10 @@ Confidence raised to **high** for the research loop: in S1b, S3c and S3e a resea
 ### Update at G3 (Sprint 4c, 2026-10-28)
 
 - The email provider's documentation was outside the session's allowed domains, so its idempotency-key behaviour (reused key, different body) and rate limits stayed UNVERIFIED. The design took the weaker assumption — a key unique per attempt, cross-attempt de-duplication not relied on, the duplicate case written down as a known limitation (`e968421`; ADR-0014 *Changes*). Retro action: "allow-list vendor docs needed for verification before the sprint starts" (`docs/sprints/SPRINT-04c.md`).
+
+### Update at G4 (Sprints 5b and 5c, 2026-10-29)
+
+- Two more research runs on two vendor CLIs, primary sources only: the official repositories at named commits (S5b `b8fa817` and `7c11b80`, S5c `fa4ebe8`); docs sites `docs.cloud.google.com`, `ai.google.dev` blocked, and `developers.openai.com/codex` redirecting to a blocked host, so documentation wording stays unquoted (`docs/adr/0016-gemini-and-codex-collectors.md` Context and *Changes* S5c design; `docs/sprints/SPRINT-05b.md`, `05c.md` Team log). The orchestrator re-checked three facts per run in source (for example `core/src/session/session.rs:993`, `hooks/src/config_rules.rs:12-13`, `PROJECT_LOCAL_CONFIG_DENYLIST` at `codex-rs/config/src/loader/mod.rs:89-102`, `promptTokenCount` in the vendor SDK's `types.ts:3782`).
+- Research-driven design changes again: Gemini prompt logging defaults to on → forced off; Codex ignores project-level OTel → user-level edit; Codex hook trust is positional and user-only → append-only hooks, never write trust (ADR-0016).
+- Semantics the S5b research had not traced, found by the code review instead: first export lost, input − cache split across start times, series merged across hidden attributes (`SPRINT-05b.md` Retro: "have the Researcher trace the telemetry SDK's series semantics … and the env and override precedence"). S5c's design review found the cache-write double count from the vendor's official test ("input 100 = cached 40 + cache write 60", ADR-0016 *Changes* D0 H3).
+- S5c retro: "write a probe of the target's real parser or matcher behaviour as part of the research, not only during review" — after two highs that only compiled probes revealed. Not yet applied in a later iteration (**low**).

@@ -1,10 +1,10 @@
 ---
 name: diagnose-red-ci-from-history
-description: Diagnose a red CI run from the branch's run history instead of re-running it — find the first red run of the same assertion, separate pre-existing and flaky failures from regressions (a red run on a docs-only commit cannot come from its diff), reproduce timing races deterministically by delaying the collaborator, fix the wait rather than the assertion, keep the delay in the test so the race stays covered, and report "green on <sha>" precisely. Also covers fail-fast local gates (a gate that keeps going after a failed step lets a red change be pushed) and CI concurrency cancellation that leaves a pushed commit never evaluated. Includes a fail-fast gate script with a self-test and a read-only CI-history script that flags likely flakes. Use when CI is red after your change, when inheriting a branch or baseline from another session or teammate, before declaring an iteration closed, when a test passes locally but fails in CI, when real-process, network or timer-based tests fail intermittently, or when tempted to "just re-run CI".
+description: Diagnose a red CI run from the branch's run history instead of re-running it — find the first red run of the same assertion, separate pre-existing and flaky failures from regressions (a red run on a docs-only commit cannot come from its diff), reproduce timing races deterministically by delaying the collaborator, fix the wait rather than the assertion, keep the delay in the test so the race stays covered, and report "green on <sha>" precisely. Also covers fail-fast local gates (a gate that keeps going after a failed step lets a red change be pushed) and CI concurrency cancellation that leaves a pushed commit never evaluated. Includes a fail-fast gate script with a self-test and a read-only CI-history script that flags likely flakes. Use when CI is red after your change, when inheriting a branch or baseline from another session or teammate, before declaring an iteration closed, when a test passes locally but fails in CI, when real-process, network or timer-based tests fail intermittently, when a latency or timeout bound fails "by a few milliseconds", when tests time out only in full parallel runs, when a run fails with "unhandled rejection" although every test passed, or when tempted to "just re-run CI".
 metadata:
-  version: "0.1.1"
-  origin: "javis-dog G2; updated G3"
-  confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded flakes found at G2)"
+  version: "0.2.0"
+  origin: "javis-dog G2; updated G3, G4"
+  confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded flakes found at G2; harness-overhead bound, oversubscription and unhandled-rejection diagnoses: once each, G4)"
 ---
 
 # Diagnose red CI from history
@@ -46,6 +46,22 @@ Typical intermittent shapes in process tests:
 - Short idle or exit timers in the code under test that can elapse while a slow CI runner starts the next process.
 - Shared state left by another run (caches, temp directories, ports).
 
+### Bounds that measure the harness
+
+A latency bound (`expect(ms).toBeLessThanOrEqual(1500)`) that fails by a few milliseconds is tempting to raise. First compare, **in the same run**, the path under test with any test-only scaffolding around it (stub loaders, `--import` hooks, mock servers). In the origin, the stubbed path took 784–1 522 ms while the real path took 425–540 ms in the same CI run: the bound measured the harness. Remove the scaffolding, keep the bound, and note when an earlier green was "green only by margin".
+
+### Timeouts that grow with parallel load
+
+A test that takes 4 s alone and times out at 30 s in a full run is usually starved, not slow. Measure it alone and in the full run at the default concurrency; count the worker processes (each test runner process with its own WASM or browser workers) against the CPU cores. Cap the orchestrator's concurrency (for example `turbo run test --concurrency=2`) and record wall time before and after. Do not raise the timeout or skip the test.
+
+### "All tests passed" but the run failed
+
+Test runners report unhandled promise rejections after the tests and fail the run. That is usually a **product** bug (an eager promise left floating that fails first), not test noise: find the creator of the promise, mark it handled where it is created, keep awaiting it where it matters, red-first (count rejections before and after), then search for the same pattern.
+
+### Twins and "no others"
+
+After fixing a pattern, search for it across the workspace and **read the output before writing "no others"**. In the origin the first log entry said there were none; the same search had listed a second instance, fixed in the next commit and the entry corrected.
+
 ## 3. Make the local gate fail fast
 
 A gate that runs every step regardless (`a; b; c`, or a loop that prints failures and continues) lets a later green step hide an earlier red one, and the push goes out. Chain steps so the first failure stops the gate and prints which step failed:
@@ -67,6 +83,8 @@ The same applies to **any scripted edit-then-commit sequence** (a script that up
 - Write the claim only after the run has **completed**, and put the run id into the iteration record that closes on it — a memory file that says "green on `<sha>`" without the id makes the next checkpoint re-derive it.
 - Re-read the history at iteration close: a later docs-only commit going red is a flake signal about tests that are already merged.
 - Record flakes in the iteration's test evidence with run ids, even when you do not fix them yet, and open a diagnosis item. Never quarantine, skip or loosen a test to make the history green.
+- **A local flake that "passed on re-run" is still a flake:** record the test name, the count (1 of 500) and the seed or log, and open a diagnosis item.
+- **Check the last pushed tip's run before the next push.** A red result discovered after two more pushes is harder to attribute and leaves the record claiming "built" over a red branch.
 
 ## Pitfalls
 
@@ -75,6 +93,8 @@ The same applies to **any scripted edit-then-commit sequence** (a script that up
 - **Fixing the assertion.** Loosening `status: 'ok'` to "any result" hides the bug the test exists for.
 - **Removing the delay after fixing.** Then nothing exercises the ordering again.
 - **Trusting a cancelled run's commit.** It was never tested.
+- **Raising a latency bound or a timeout.** Measure the harness and the load first.
+- **`;` in a push command.** `gate; git push` pushes after a failed gate; use `&&`.
 
 ## Evidence from origin project
 
@@ -91,3 +111,14 @@ Javi's Dog, Sprints 3c–3f (2026-10-23 → 2026-10-28), GitHub Actions. Confide
 - Every "CI green on `<sha>`" in the memory files was written after its run completed (commit times vs. run completion). The sprint files record run ids only for the early pushes of each iteration, not for the closing push.
 - Non-chained script: "a memory-update script failed mid-way and the commit chain continued (script not chained) — memory completed in the next commit" (`docs/memory/SESSION_LOG.md`, S4a entry; follow-up `6ed8beb`). It was pushed; CI passed because the half-update was valid markdown.
 - Environment leak: an async page made a shell test depend on `DATABASE_URL`, which was set only in the session; the test now pins it empty (`68c68f4`, `SPRINT-04a.md` Team log).
+
+### Update at G4 (Sprints 5a–5c, 2026-10-28/29)
+
+History read by Guru (`gh run list`, check-run annotations): 27 pushed tips from `4daa69c` to `76b3a42`: 23 `success`, 2 `failure`, 0 cancelled, and 2 (`f8f5aa3`, `76b3a42`) still running when the G4 read started; re-read at the end of G4: both `success` (runs 40975320265, 40976001842). So 25 of 27 green, 2 red, both diagnosed.
+
+- `d4f2710` (docs-only tip; run 40867278461): annotation `gemini-hook-process.test.ts:145 expected 1522 to be less than or equal to 1500`. Diagnosis in the record: the stub-loader path took 784–1 522 ms, the real path 425–540 ms in the same run; `0cff148` was "green only by margin" (run 40876190084). Fix `354bc05`: stub run removed, checks on the real adapters, bound unchanged (`docs/sprints/SPRINT-05b.md` Log).
+- `354bc05` (run 40878049774): all 440 collector tests passed; vitest reported one unhandled rejection (`ENOENT mkdir`) → product bug in `createState()`, fixed red-first (`d3ebf6d`, run 40879764043 green); twin in the SDK spool (`ce3f3f7`, run 40880475250 green). The log's first "no other eager fs promise exists (grep)" was corrected in `ce3f3f7`. The annotation API shows only the exit code for this run; the rejection text is from the iteration record.
+- Oversubscription (local, S5a): `jgr-sdk` e2e test timed out at 30 s in two forced full runs; 4.1 s alone; ~13 vitest processes with PGlite WASM workers on 4 cores; fix `--concurrency=2`: wall 126 s → 139 s, that test 24.7 s → 3.3 s; no timeout raised (`SPRINT-05a.md` Team log; root `package.json`).
+- Timing gap (G4 finding): run 40867278461 completed red at 11:45 UTC; the next two pushes (`0cff148` 12:47, `bd11886` 12:48) went out and the memory commit called S5b "built" before the red was recorded (`354bc05`, 12:56). Whether it was known earlier is not recorded.
+- Ungated push: "the `8baec90` push command ran `git push` after a `;`, so it was not gated"; gate re-run afterwards passed; CI on `8baec90` green (run 40859738459) (`SPRINT-05b.md` Team log).
+- Local flake: "a baseline flake (1 of 500, unidentified, passed on re-run) was noted and is being watched" (`SPRINT-05c.md` Team log, Developer E) — no test name recorded (G4 finding).
