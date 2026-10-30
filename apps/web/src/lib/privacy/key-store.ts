@@ -73,12 +73,20 @@ const isSecretKey = (value: unknown): value is CryptoKey =>
   (value as CryptoKey).type === 'secret' &&
   (value as CryptoKey).extractable === false;
 
+/**
+ * Review L6: how long signing out waits for the device store to clear. Memory is cleared before
+ * the wait; a device store that hangs (a blocked IndexedDB open) must never block signing out.
+ */
+export const DEVICE_CLEAR_TIMEOUT_MS = 1_500;
+
 export const createKeyStore = ({
   persistence,
   channel,
+  deviceClearTimeoutMs = DEVICE_CLEAR_TIMEOUT_MS,
 }: {
   persistence: KeyPersistence | null;
   channel: SignOutChannel | null;
+  deviceClearTimeoutMs?: number;
 }): KeyStore => {
   const projects = new Map<string, Map<string, Entry>>();
   const listeners = new Set<() => void>();
@@ -110,6 +118,19 @@ export const createKeyStore = ({
       await work();
     } catch {
       // Device storage can be unavailable (private mode, blocked site data): memory still clears.
+    }
+  };
+
+  /** `quietly`, but never waits longer than `deviceClearTimeoutMs` (review L6). */
+  const quicklyAndQuietly = async (work: () => Promise<void>) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, deviceClearTimeoutMs);
+    });
+    try {
+      await Promise.race([quietly(work), timeout]);
+    } finally {
+      clearTimeout(timer);
     }
   };
 
@@ -161,7 +182,9 @@ export const createKeyStore = ({
       if (reason !== 'other-tab') channel?.post();
       // The tab that signed out clears the shared device storage; another tab only its memory
       // (the storage is the same, so clearing it again is harmless but not needed).
-      if (persistence && reason !== 'other-tab') await quietly(() => persistence.clear());
+      if (persistence && reason !== 'other-tab') {
+        await quicklyAndQuietly(() => persistence.clear());
+      }
     },
     hydrate() {
       if (!persistence) return Promise.resolve();

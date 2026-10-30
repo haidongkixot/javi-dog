@@ -205,6 +205,31 @@ describe('key store — clearing paths', () => {
     store.dispose();
   });
 
+  it('review L6: a device store that never settles cannot block signing out (1.5 s bound)', async () => {
+    const a = await keys();
+    vi.useFakeTimers();
+    try {
+      const persistence = fakePersistence();
+      vi.mocked(persistence.clear).mockReturnValue(new Promise<void>(() => {}));
+      const store = createKeyStore({ persistence, channel: null });
+      store.add(P1, a.kid, a.l2Key);
+      let settled = false;
+      const clearing = store.clearAll('sign-out').then(() => {
+        settled = true;
+      });
+      // Memory is cleared at once; only the wait for the device store is bounded.
+      expect(store.keysFor(P1).size).toBe(0);
+      await vi.advanceTimersByTimeAsync(1_499);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(true);
+      await clearing;
+      expect(persistence.clear).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('clears memory even when the device store throws', async () => {
     const persistence = fakePersistence();
     vi.mocked(persistence.clear).mockRejectedValueOnce(new Error('blocked'));
