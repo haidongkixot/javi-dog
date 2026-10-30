@@ -142,6 +142,10 @@ const AGENT_REF = /^[A-Za-z0-9_:-]{1,128}$/;
 export const ACCEPTED_IDS_MAX = 20_000;
 const EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PLATFORM_NAME = /^[a-z][a-z-]{0,31}$/;
+/** Self-report seen-call keys kept (code review M1), newest last. */
+export const SEEN_CALLS_MAX = 512;
+/** A seen-call key: hex HMAC-SHA-256, never a raw session or call id. */
+const SEEN_KEY = /^[0-9a-f]{64}$/;
 const WARNING_PREFIX = 'gemini-telemetry.';
 const CODEX_WARNING_PREFIX = 'codex-env.';
 
@@ -612,6 +616,31 @@ export const createState = (home: string) => {
 
     removeSelfReportRegistration: (platform: string, file: string) =>
       rm(registrationFile(platform, file), { force: true }),
+
+    /**
+     * Self-report seen-call marker (code review M1): checks and sets `key` (hex HMAC of
+     * platform, session id and call id) in `self-report/seen.json`, newest `max` keys kept. True
+     * when the key is new (record the report), false when a hook already recorded this call. A
+     * corrupt or missing file counts as empty.
+     */
+    markSelfReportSeen: async (key: string, max = SEEN_CALLS_MAX): Promise<boolean> => {
+      if (!SEEN_KEY.test(key)) throw new Error('A seen-call key must be a hex HMAC.');
+      return withLock('self-report-seen', async () => {
+        const file = path('self-report', 'seen.json');
+        const stored = await readJson<{ keys?: unknown }>(file);
+        const keys =
+          stored && Array.isArray(stored.keys)
+            ? stored.keys.filter((k): k is string => typeof k === 'string' && SEEN_KEY.test(k))
+            : [];
+        if (keys.includes(key)) return false;
+        await mkdir(path('self-report'), { recursive: true, mode: 0o700 });
+        await writeTextAtomic(
+          file,
+          `${JSON.stringify({ v: 1, keys: [...keys, key].slice(-max) })}\n`,
+        );
+        return true;
+      });
+    },
 
     /** Every recorded registration (for `javi mcp`: where a project's hooks live). */
     selfReportRegistrations: async (): Promise<SelfReportRegistration[]> => {

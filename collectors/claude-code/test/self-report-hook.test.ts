@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { selfReportEventId } from '@javis-dog/collector-adapters';
@@ -335,6 +335,71 @@ it('a re-run hook of the same javi call gets the same event id (deduped in the s
   await hook('codex-cli', call);
   const records = await spooled();
   expect(records).toHaveLength(1);
+});
+
+// Code review M1: the event id's time part is the hook clock, so a re-run 50 ms later has
+// another id; JD-C01's seen-call marker (HMAC of platform, session and call id) drops it.
+describe('seen-call marker (code review M1)', () => {
+  const hookAt = (platform: Platform, payload: Record<string, unknown>, ms: number) =>
+    runHook({
+      state,
+      projectRef: 'web-app',
+      platform,
+      stdin: JSON.stringify(payload),
+      now: () => new Date(CLOCK.getTime() + ms),
+      spawnFlush: () => {
+        flushes += 1;
+      },
+      env: {},
+      cwd: home,
+    });
+
+  it.each(['claude-code', 'codex-cli'] as const)(
+    '%s: the same call re-run 50 ms later records nothing the second time',
+    async (platform) => {
+      const call = javiCall(platform, 'post', 'report_task', { phase: 'completed', kind: 'build' });
+      expect(await hookAt(platform, call, 0)).toBe('recorded');
+      expect(await hookAt(platform, call, 50)).toBe('ignored');
+      const records = await spooled();
+      expect(records).toHaveLength(1);
+      expect(records[0]!.sequence).toBe(0);
+      // The marker file holds hashes only, never the raw session or call id.
+      const seen = await readFile(join(home, 'self-report', 'seen.json'), 'utf8');
+      expect(seen).not.toContain(sessionOf(platform));
+      expect(seen).not.toContain('call-1');
+      expect(seen).toMatch(/[0-9a-f]{64}/);
+    },
+  );
+
+  it('another call id in the same session is recorded', async () => {
+    const first = javiCall('claude-code', 'post', 'report_status', { status: 'blocked' });
+    const second = { ...first, tool_use_id: 'call-2' };
+    expect(await hookAt('claude-code', first, 0)).toBe('recorded');
+    expect(await hookAt('claude-code', second, 50)).toBe('recorded');
+    expect(await spooled()).toHaveLength(2);
+  });
+
+  it('Gemini (no call id) is unchanged: every AfterTool is recorded', async () => {
+    const call = javiCall('gemini-cli', 'post', 'report_status', { status: 'blocked' });
+    expect(await hookAt('gemini-cli', call, 0)).toBe('recorded');
+    expect(await hookAt('gemini-cli', call, 50)).toBe('recorded');
+    expect(await spooled()).toHaveLength(2);
+  });
+
+  it('a corrupt marker file counts as empty; the file keeps the newest 512 keys', async () => {
+    await mkdir(join(home, 'self-report'), { recursive: true });
+    await writeFile(join(home, 'self-report', 'seen.json'), '{not json');
+    const call = javiCall('codex-cli', 'post', 'report_status', { status: 'idle' });
+    expect(await hookAt('codex-cli', call, 0)).toBe('recorded');
+    for (let i = 0; i < 520; i++) await state.markSelfReportSeen(`${i}`.padStart(64, 'a'));
+    const file = JSON.parse(await readFile(join(home, 'self-report', 'seen.json'), 'utf8')) as {
+      keys: string[];
+    };
+    expect(file.keys).toHaveLength(512);
+    expect(file.keys.at(-1)).toBe('519'.padStart(64, 'a'));
+    // The first call's key was pushed out, so it would be recorded again (bounded memory).
+    expect(await hookAt('codex-cli', call, 100)).toBe('recorded');
+  });
 });
 
 // --- Prompt flush (ADR-0017 §3 "Prompt delivery", review H2) ---
