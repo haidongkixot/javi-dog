@@ -444,6 +444,17 @@ describe('lowering the class', () => {
     expect(changePrivacyClassAction).toHaveBeenCalledExactlyOnceWith(PROJECT, 'L0');
   });
 
+  it('review L4: lowering to L0 warns that javi init deletes the machine’s key and stored names need another copy', () => {
+    render(<LowerClass projectId={PROJECT} currentClass="L2" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Lower to L0…' }));
+    const text = screen.getByRole('group', { name: 'Lower to L0' }).textContent ?? '';
+    expect(text).toContain('javi init --privacy L0');
+    expect(text).toContain('deletes that machine’s copy of the recovery key');
+    expect(text).toMatch(/another copy[^.]*names already stored as L2 can’t be read anymore/);
+    // Lowering to L1 keeps the key on the machine (L1 needs it): no deletion warning there.
+    expect(lowerWarning('L1').join(' ')).not.toMatch(/deletes/);
+  });
+
   it('from L2 offers L1 and L0; from L1 only L0', () => {
     const { unmount } = render(<LowerClass projectId={PROJECT} currentClass="L2" />);
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([

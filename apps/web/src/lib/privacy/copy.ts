@@ -69,8 +69,9 @@ export const lowerWarning = (target: 'L0' | 'L1') => {
   return [
     `Events already stored as ${above} stay as they are. From now on, new ${above} events for this project are rejected.`,
     'Status signals keep arriving: javi always sends them as L0. Only the identity events that carry repo and branch names are rejected, and javi status shows the code privacy_class_not_allowed.',
+    // Review L4: say plainly what `javi init --privacy L0` deletes and what that costs.
     target === 'L0'
-      ? 'Run javi init --privacy L0 on each machine to stop sending them; it also removes the stored key.'
+      ? 'Run javi init --privacy L0 on each machine to stop sending them. It deletes that machine’s copy of the recovery key: without another copy (your password manager or the downloaded file), repo and branch names already stored as L2 can’t be read anymore.'
       : 'Run javi init --privacy L1 on each machine to stop sending encrypted names.',
   ] as const;
 };
