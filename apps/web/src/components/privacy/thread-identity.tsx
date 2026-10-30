@@ -4,31 +4,45 @@ import { useEffect, useState } from 'react';
 import type { ThreadIdentity } from '@javis-dog/realtime';
 import { LABEL_NO_KEY_PREFIX, LABEL_OTHER_KID, LABEL_UNVERIFIABLE } from '@/lib/privacy/copy';
 import { markChecked } from '@/lib/privacy/checked';
-import { initialIdentityView, resolveIdentity, type IdentityView } from '@/lib/privacy/identity';
+import {
+  initialThreadView,
+  resolveThreadIdentity,
+  type IdentityView,
+} from '@/lib/privacy/identity';
 import { useKeyStore } from './key-context';
 
 /**
  * `repo · branch` of a thread, decrypted in this browser (ADR-0018 §8), or the label that says
  * why it is not shown. Names are rendered as text only, with bidi controls removed. Renders
  * nothing for a thread without encrypted names (L0, L1).
+ *
+ * Review M1: `threadRef` and `projectSlug` are the DISPLAYED row's own values. The AAD is built
+ * from them and the constant identity type, so an identity object the server moved from another
+ * thread (or a canary passed as an identity) shows "Can't verify…" and never checks the project.
  */
 export function ThreadIdentityLabel({
   projectId,
+  projectSlug,
+  threadRef,
   identity,
   className = 'block truncate text-xs text-muted',
 }: {
   projectId: string;
+  projectSlug: string;
+  threadRef: string;
   identity: ThreadIdentity | null;
   className?: string;
 }) {
   const { store, version } = useKeyStore();
   // The same first state on the server and in the browser: "Encrypted (key …)" or nothing.
-  const [view, setView] = useState<IdentityView>(() => initialIdentityView(identity));
+  const [view, setView] = useState<IdentityView>(() =>
+    initialThreadView(identity, { threadRef, projectSlug }),
+  );
 
   useEffect(() => {
     let live = true;
     const keys = store?.keysFor(projectId) ?? new Map<string, CryptoKey>();
-    void resolveIdentity(identity, keys).then((next) => {
+    void resolveThreadIdentity(identity, keys, { threadRef, projectSlug }).then((next) => {
       if (!live) return;
       setView(next);
       // ADR-0018 §9: an AAD-verified decryption in this browser flips the project label.
@@ -37,7 +51,7 @@ export function ThreadIdentityLabel({
     return () => {
       live = false;
     };
-  }, [store, version, projectId, identity]);
+  }, [store, version, projectId, projectSlug, threadRef, identity]);
 
   switch (view.kind) {
     case 'none':

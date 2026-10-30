@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CHECKED_EVENT, markChecked, newestChecked } from '@/lib/privacy/checked';
 import { LABEL_L2_NOT_CHECKED, labelL2Checked } from '@/lib/privacy/copy';
-import { resolveIdentity, type L2EventRef } from '@/lib/privacy/identity';
+import { resolveProjectEvent, type L2EventRef } from '@/lib/privacy/identity';
 import { useKeyStore } from './key-context';
 
 /**
@@ -13,9 +13,12 @@ import { useKeyStore } from './key-context';
  */
 export function PrivacyStatus({
   projectId,
+  projectSlug,
   identities,
 }: {
   projectId: string;
+  /** The project's own slug (from the project record), the AAD slug of every check. */
+  projectSlug: string;
   /** This project's L2 events (identity events, or the canary), each with its receive time. */
   identities: Array<L2EventRef & { at: string }>;
 }) {
@@ -40,14 +43,14 @@ export function PrivacyStatus({
     const keys = store.keysFor(projectId);
     if (keys.size === 0) return;
     for (const identity of identities) {
-      void resolveIdentity(identity, keys).then((view) => {
+      void resolveProjectEvent(identity, keys, projectSlug).then((view) => {
         if (live && view.kind === 'names') markChecked(projectId, view.kid, identity.at);
       });
     }
     return () => {
       live = false;
     };
-  }, [store, version, projectId, identities]);
+  }, [store, version, projectId, projectSlug, identities]);
 
   return (
     <p role="status" className="text-sm font-bold text-ink">
