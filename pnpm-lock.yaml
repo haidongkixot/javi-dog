@@ -44,6 +44,9 @@ importers:
       '@javis-dog/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
+      '@javis-dog/crypto':
+        specifier: workspace:*
+        version: link:../../packages/crypto
       '@javis-dog/event-store':
         specifier: workspace:*
         version: link:../../packages/event-store

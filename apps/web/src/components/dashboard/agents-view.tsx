@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { DashboardSnapshot, ThreadState } from '@javis-dog/realtime';
 import { Card, CardHead, EmptyState, Icon, MetricCard } from '@javis-dog/ui/components';
+import { ThreadIdentityLabel } from '@/components/privacy/thread-identity';
 import { byAttention, formatNumber, windowLabel } from './format';
 import { FreshnessLabel, FreshnessPill, SignalTime, ThreadRef, ThreadStatusPill } from './signal';
 
@@ -147,6 +148,11 @@ function ThreadTable({
               </th>
               <td className="px-4 py-3 text-muted">
                 <ThreadRef value={t.threadRef} />
+                <ThreadIdentityLabel
+                  projectId={t.projectId}
+                  identity={t.identity}
+                  className="mt-1 block max-w-64 truncate text-xs text-muted"
+                />
               </td>
               <td className="px-4 py-3">
                 <ThreadStatusPill

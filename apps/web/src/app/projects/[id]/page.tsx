@@ -10,9 +10,11 @@ import { revokeTokenAction } from '@/app/projects/actions';
 import { ProjectUsage } from '@/components/analytics/usage-panels';
 import { BudgetCard } from '@/components/budget/budget-card';
 import { SignInPrompt } from '@/components/sign-in-prompt';
+import { PrivacyCard } from '@/components/privacy/privacy-card';
 import { IssueTokenForm } from '@/components/token-panel';
 import { analyticsDeps, loadUsage } from '@/lib/analytics';
 import { budgetDeps, canManageBudget, loadBudget } from '@/lib/budgets';
+import { dashboardDeps, loadDashboard } from '@/lib/dashboard';
 import { canManageProject } from '@/lib/permissions';
 import { getViewer, isUuid } from '@/lib/viewer';
 
@@ -28,7 +30,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   // Scoped by the viewer's workspace: another workspace's project id is simply not found.
   const project = isUuid(id) ? await viewer.projects.getProject(viewer.workspaceId, id) : null;
   if (!project) notFound();
-  const [tokens, usage, budget] = await Promise.all([
+  const [tokens, usage, budget, dashboard] = await Promise.all([
     viewer.projects.listTokens(viewer.workspaceId, project.id),
     // The project id comes from the workspace-scoped lookup above, never from the URL directly;
     // the viewer is reused, so the reader is scoped to the same workspace (ADR-0013). Usage by
@@ -39,7 +41,19 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     ),
     // Same rule for the budget (ADR-0014); read once per visit, no polling.
     loadBudget({ ...budgetDeps, getViewer: async () => viewer }, project.id),
+    // The newest identity events of this project's threads (JD-M07), as opaque data for the
+    // browser's key check (ADR-0018 §8, §9). Same viewer, same workspace scope.
+    loadDashboard({ ...dashboardDeps, getViewer: async () => viewer }),
   ]);
+  const identities =
+    dashboard.kind === 'ready'
+      ? dashboard.snapshot.threads
+          .filter((t) => t.projectId === project.id && t.identity?.encrypted)
+          .flatMap((t) => (t.identity ? [t.identity] : []))
+          .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+      : [];
+  const privacyClass =
+    (['L0', 'L1', 'L2'] as const).find((c) => c === project.privacyClass) ?? 'L0';
 
   // Owners and admins issue and revoke tokens; members read the list (S5a review L1).
   const canManage = canManageProject(viewer.role);
@@ -135,6 +149,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </p>
         )}
       </Card>
+      <PrivacyCard
+        projectId={project.id}
+        slug={project.slug}
+        privacyClass={privacyClass}
+        canManage={canManage}
+        identities={identities}
+      />
       <Card labelledBy="project-usage-title">
         <CardHead
           id="project-usage-title"

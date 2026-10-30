@@ -2,6 +2,7 @@
 
 import type { DashboardSnapshot } from '@javis-dog/realtime';
 import { useEffect, useState } from 'react';
+import { forgetKeysOnSignOut } from '@/lib/privacy/browser';
 
 /** ADR-0012: re-fetch every 10 s while the tab is visible. */
 export const POLL_INTERVAL_MS = 10_000;
@@ -137,6 +138,8 @@ export function useDashboardSnapshot(initial: DashboardSnapshot | null): Dashboa
         if (res.status === 401) {
           clearTimeout(deadline);
           stopped = true;
+          // The session ended: forget privacy keys too (ADR-0018 §8).
+          void forgetKeysOnSignOut('session-ended');
           setState((s) => ({ ...s, error: null, signedOut: true }));
           return;
         }

@@ -74,18 +74,18 @@ const envelope = [
 const privacy = [
   {
     n: 'L0',
-    title: 'Operational metadata only (default)',
-    body: 'Status, timings and counters. No prompts, code or secrets.',
+    title: 'Operational metadata only (the default)',
+    body: 'Status, timings and token counts. No prompts, code, secrets, file paths or repo and branch names.',
   },
   {
     n: 'L1',
-    title: 'Hashed identifiers',
-    body: 'File and branch names are hashed before they leave your machine.',
+    title: 'Keyed hashes of names (opt-in, per project)',
+    body: 'Off until a project owner or admin turns it on. javi then sends repo, branch and folder names only as keyed hashes (HMAC) made with the project’s recovery key. Javi’s Dog can’t reverse them, but it sees which threads share a repo, branch or folder, and how often.',
   },
   {
     n: 'L2',
-    title: 'End-to-end encrypted payloads',
-    body: 'Encrypted with a key only you hold; the server cannot aggregate these fields.',
+    title: 'Encrypted repo and branch names (opt-in, per project)',
+    body: 'L1, plus repo and branch names encrypted on your machine with the project’s recovery key. Javi’s Dog stores only the ciphertext; a browser that holds the key decrypts them. Status, timing, token counts, event sizes and the sender’s IP stay visible to Javi’s Dog, and anyone holding the key can read the names.',
   },
 ] as const;
 
@@ -148,7 +148,7 @@ export default function IntegrationsPage() {
           <CardHead
             id="privacy-title"
             title="Privacy classes"
-            subtitle="Planned defaults — each project chooses what to share"
+            subtitle="L0 by default. L1 and L2 are opt-in per project, set up on the project page and with javi init --privacy"
           />
           <RuleList items={privacy} />
         </Card>
