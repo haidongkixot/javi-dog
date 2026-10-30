@@ -1,0 +1,54 @@
+{
+  "$schema": "./schema.json",
+  "id": "K01",
+  "kind": "recovery-key-format",
+  "description": "Fixed fake 32-byte secrets \u2192 JDK1- recovery key: 52-character Crockford base32 body, 4-character checksum (first 4 base32 characters of SHA-256 over the 32 bytes), all in groups of 4 separated by \"-\".",
+  "contract": "ADR-0018 (e3a2ad5) decision 1 Recovery key",
+  "ambiguities": ["G1"],
+  "cases": [
+    {
+      "label": "S1",
+      "note": "bytes 0x00..0x1f",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "expect": {
+        "body": "000G40R40M30E209185GR38E1W8124GK2GAHC5RR34D1P70X3RFG",
+        "checksum": "CC6W",
+        "sha256Hex": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+        "recoveryKey": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W"
+      }
+    },
+    {
+      "label": "S2",
+      "note": "32 x 0x00",
+      "secretHex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expect": {
+        "body": "0000000000000000000000000000000000000000000000000000",
+        "checksum": "CSM7",
+        "sha256Hex": "66687aadf862bd776c8fc18b8e9f8e20089714856ee233b3902a591d0d5f2925",
+        "recoveryKey": "JDK1-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-0000-CSM7"
+      }
+    },
+    {
+      "label": "S3",
+      "note": "32 x 0xff",
+      "secretHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "expect": {
+        "body": "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZG",
+        "checksum": "NYB1",
+        "sha256Hex": "af9613760f72635fbdb44a5a0a63c39f12af30f950a6ee5c971be188e89c4051",
+        "recoveryKey": "JDK1-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZG-NYB1"
+      }
+    },
+    {
+      "label": "S4",
+      "note": "ASCII \"JAVIS-DOG-QA-FAKE-KEY-NOT-REAL-1\"",
+      "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+      "expect": {
+        "body": "990NCJAK5N24YHSDA50JTHJ19D2JTJT5B4PMWKTM5N94AGAC5MRG",
+        "checksum": "4WZY",
+        "sha256Hex": "273fe0b6ca8859009ae26abc621eb8fdb2fed2d4f50f9856c54e9d433a9d1cd9",
+        "recoveryKey": "JDK1-990N-CJAK-5N24-YHSD-A50J-THJ1-9D2J-TJT5-B4PM-WKTM-5N94-AGAC-5MRG-4WZY"
+      }
+    }
+  ]
+}

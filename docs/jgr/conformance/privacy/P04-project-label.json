@@ -1,0 +1,191 @@
+{
+  "$schema": "./schema.json",
+  "id": "P04",
+  "kind": "label-sequence",
+  "description": "Project page label: \"L2 set up. No encrypted event checked yet.\" until this browser decrypts the canary or any L2 event of the project with the right AAD; then the checked label naming the kid, remembered per project and kid across reloads.",
+  "contract": "ADR-0018 (e3a2ad5) decision 9 Honest labels",
+  "ambiguities": ["G9"],
+  "project": {
+    "slug": "web-app",
+    "privacyClass": "L2",
+    "kid": "0Q12NAV3"
+  },
+  "sequences": [
+    {
+      "label": "canary-path",
+      "steps": [
+        {
+          "action": "open",
+          "note": "project in L2 with kid 0Q12NAV3, no key on the device, nothing checked",
+          "deviceKeys": [],
+          "event": null,
+          "expect": {
+            "projectLabel": "L2 set up. No encrypted event checked yet."
+          }
+        },
+        {
+          "action": "decrypt",
+          "note": "the canary arrives; no key on the device: nothing checked",
+          "deviceKeys": [],
+          "event": {
+            "event_id": "01JBZ4XQ80000000000000002B",
+            "project_slug": "web-app",
+            "producer_id": "prod_conformance",
+            "thread_ref": "cc_privacy_install",
+            "type": "x.javi.collector.installed",
+            "privacy_class": "L2",
+            "encrypted": {
+              "alg": "A256GCM",
+              "kid": "0Q12NAV3",
+              "iv": "sLGys7S1tre4ubq7",
+              "ciphertext": "XV-nSmB3U3h5VB2aC2L9tQ2dXXm4XmeJGsz2R1LA1XMdyae5C6Kvr2HKXHOwVxxxuCPwoZ5binuZoWlZQm6TgayHVeEerjTj-u81k5odYlkA7_K-eanJvfCUyHMxJDXHpjXJrW7gExB2wiF-73uxpJtM5RseEYnhOngU4mCDDstd9xWMjERZSJUG1-8vo14vaa55YnwZiyFsPKyu38ANdzb4FyXjrv3vXUh1nJRkCW_eR8TlPT12HeS_fanizfumm1U5SiGJuOY0YnCmdQPDtQ2B8kocf_2nuNe6akzGCy7so3EMyF2Ie4tM3yD5yv8ZNRsRVPTi_isdct4a0sPVnVlSQPDUB_934u35W5tiCkY"
+            }
+          },
+          "expect": {
+            "projectLabel": "L2 set up. No encrypted event checked yet."
+          }
+        },
+        {
+          "action": "decrypt",
+          "note": "a damaged canary with the right key: a failed decryption does not count",
+          "deviceKeys": [
+            {
+              "secret": "S1",
+              "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+              "slug": "web-app"
+            }
+          ],
+          "event": {
+            "event_id": "01JBZ4XQ80000000000000002B",
+            "project_slug": "web-app",
+            "producer_id": "prod_conformance",
+            "thread_ref": "cc_privacy_install",
+            "type": "x.javi.collector.installed",
+            "privacy_class": "L2",
+            "encrypted": {
+              "alg": "A256GCM",
+              "kid": "0Q12NAV3",
+              "iv": "sLGys7S1tre4ubq7",
+              "ciphertext": "XF-nSmB3U3h5VB2aC2L9tQ2dXXm4XmeJGsz2R1LA1XMdyae5C6Kvr2HKXHOwVxxxuCPwoZ5binuZoWlZQm6TgayHVeEerjTj-u81k5odYlkA7_K-eanJvfCUyHMxJDXHpjXJrW7gExB2wiF-73uxpJtM5RseEYnhOngU4mCDDstd9xWMjERZSJUG1-8vo14vaa55YnwZiyFsPKyu38ANdzb4FyXjrv3vXUh1nJRkCW_eR8TlPT12HeS_fanizfumm1U5SiGJuOY0YnCmdQPDtQ2B8kocf_2nuNe6akzGCy7so3EMyF2Ie4tM3yD5yv8ZNRsRVPTi_isdct4a0sPVnVlSQPDUB_934u35W5tiCkY"
+            }
+          },
+          "expect": {
+            "projectLabel": "L2 set up. No encrypted event checked yet."
+          }
+        },
+        {
+          "action": "decrypt",
+          "note": "an event with another kid (other project key on the device): nothing checked",
+          "deviceKeys": [
+            {
+              "secret": "S1",
+              "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+              "slug": "web-app"
+            },
+            {
+              "secret": "S4",
+              "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+              "slug": "javis-dog-web-app"
+            }
+          ],
+          "event": {
+            "event_id": "01JBZ4XQ80000000000000003C",
+            "project_slug": "javis-dog-web-app",
+            "producer_id": "prod_conformance_b",
+            "thread_ref": "gm_privacy_t2",
+            "type": "x.javi.thread.identity",
+            "privacy_class": "L2",
+            "encrypted": {
+              "alg": "A256GCM",
+              "kid": "9WPMQ21J",
+              "iv": "wMHCw8TFxsfIycrL",
+              "ciphertext": "hck7fY8foNGfZj8LopU85jiRF9LKy_at-K3DgITwW-EQnv-7JUOMZV9vNAEo84WiPpjr0wd_2sjbJUa5v4pvzBP1u95RibPlV5fw61hryT2Qa-XObdx9HVeSu6BNUfvluePrlTV8g7nhBKce7L41OPypBArzTli6yap9SO5Su9e0AsIHOCJdpanqDEJBDdRJrYSrJualj3F7dY6ocjRpBRq86644F2yKYhkRxf6xGabagx3ir0U11lVnZ9Mop3BVnxy4vFGxFQPrpszVWEYuExt_xwj-Mb0G6ddBPS_YLFP1HOCDJ9wZF6GYvmp4lIXXaMYu102saJ4OzlnClIv7LeUHxRMZOqA-pLVekq9kKrU"
+            }
+          },
+          "expect": {
+            "projectLabel": "L2 set up. No encrypted event checked yet."
+          }
+        },
+        {
+          "action": "decrypt",
+          "note": "the canary decrypts with the right AAD: checked",
+          "deviceKeys": [
+            {
+              "secret": "S1",
+              "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+              "slug": "web-app"
+            }
+          ],
+          "event": {
+            "event_id": "01JBZ4XQ80000000000000002B",
+            "project_slug": "web-app",
+            "producer_id": "prod_conformance",
+            "thread_ref": "cc_privacy_install",
+            "type": "x.javi.collector.installed",
+            "privacy_class": "L2",
+            "encrypted": {
+              "alg": "A256GCM",
+              "kid": "0Q12NAV3",
+              "iv": "sLGys7S1tre4ubq7",
+              "ciphertext": "XV-nSmB3U3h5VB2aC2L9tQ2dXXm4XmeJGsz2R1LA1XMdyae5C6Kvr2HKXHOwVxxxuCPwoZ5binuZoWlZQm6TgayHVeEerjTj-u81k5odYlkA7_K-eanJvfCUyHMxJDXHpjXJrW7gExB2wiF-73uxpJtM5RseEYnhOngU4mCDDstd9xWMjERZSJUG1-8vo14vaa55YnwZiyFsPKyu38ANdzb4FyXjrv3vXUh1nJRkCW_eR8TlPT12HeS_fanizfumm1U5SiGJuOY0YnCmdQPDtQ2B8kocf_2nuNe6akzGCy7so3EMyF2Ie4tM3yD5yv8ZNRsRVPTi_isdct4a0sPVnVlSQPDUB_934u35W5tiCkY"
+            }
+          },
+          "expect": {
+            "projectLabel": "Repo and branch names from javi are encrypted on your machine (key 0Q12NAV3). Javi's Dog stores them only as ciphertext and can't read them. They are decrypted here, in your browser."
+          }
+        },
+        {
+          "action": "reload",
+          "note": "tab reloaded: in-memory keys are gone, the remembered check (per project and kid) stays",
+          "deviceKeys": [],
+          "event": null,
+          "expect": {
+            "projectLabel": "Repo and branch names from javi are encrypted on your machine (key 0Q12NAV3). Javi's Dog stores them only as ciphertext and can't read them. They are decrypted here, in your browser."
+          }
+        }
+      ]
+    },
+    {
+      "label": "identity-event-path",
+      "steps": [
+        {
+          "action": "open",
+          "note": "fresh browser, project in L2 with kid 0Q12NAV3",
+          "deviceKeys": [],
+          "event": null,
+          "expect": {
+            "projectLabel": "L2 set up. No encrypted event checked yet."
+          }
+        },
+        {
+          "action": "decrypt",
+          "note": "any L2 event of the project counts, not only the canary: the identity event decrypts",
+          "deviceKeys": [
+            {
+              "secret": "S1",
+              "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+              "slug": "web-app"
+            }
+          ],
+          "event": {
+            "event_id": "01JBZ4XQ80000000000000001A",
+            "project_slug": "web-app",
+            "producer_id": "prod_conformance",
+            "thread_ref": "cc_privacy_t1",
+            "type": "x.javi.thread.identity",
+            "privacy_class": "L2",
+            "encrypted": {
+              "alg": "A256GCM",
+              "kid": "0Q12NAV3",
+              "iv": "oKGio6Slpqeoqaqr",
+              "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+            }
+          },
+          "expect": {
+            "projectLabel": "Repo and branch names from javi are encrypted on your machine (key 0Q12NAV3). Javi's Dog stores them only as ciphertext and can't read them. They are decrypted here, in your browser."
+          }
+        }
+      ]
+    }
+  ]
+}

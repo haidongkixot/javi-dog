@@ -1,0 +1,143 @@
+{
+  "$schema": "./schema.json",
+  "id": "E02",
+  "kind": "aad",
+  "description": "No AAD part may contain \"|\": building the AAD (encrypting or decrypting) MUST refuse such a part instead of joining it.",
+  "contract": "ADR-0018 (e3a2ad5) decision 4 AAD (\"No part may contain |\"; \"the browser rejects a part that has one\")",
+  "ambiguities": [],
+  "cases": [
+    {
+      "label": "pipe-slug",
+      "note": "project slug contains |",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web|app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": false,
+        "aadUtf8": null,
+        "aadHex": null,
+        "reason": "aad_part_pipe"
+      }
+    },
+    {
+      "label": "pipe-producer",
+      "note": "producer_id contains |",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod|conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": false,
+        "aadUtf8": null,
+        "aadHex": null,
+        "reason": "aad_part_pipe"
+      }
+    },
+    {
+      "label": "pipe-thread",
+      "note": "thread_ref contains | (could otherwise shift a part boundary)",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy|t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": false,
+        "aadUtf8": null,
+        "aadHex": null,
+        "reason": "aad_part_pipe"
+      }
+    },
+    {
+      "label": "pipe-type",
+      "note": "type contains |",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread|identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": false,
+        "aadUtf8": null,
+        "aadHex": null,
+        "reason": "aad_part_pipe"
+      }
+    },
+    {
+      "label": "pipe-kid",
+      "note": "kid contains |",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12|AV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": false,
+        "aadUtf8": null,
+        "aadHex": null,
+        "reason": "aad_part_pipe"
+      }
+    },
+    {
+      "label": "pipe-class",
+      "note": "class contains |",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2|"
+      },
+      "expect": {
+        "ok": false,
+        "aadUtf8": null,
+        "aadHex": null,
+        "reason": "aad_part_pipe"
+      }
+    },
+    {
+      "label": "pipe-shift",
+      "note": "thread_ref \"cc_privacy_t1|x.javi.thread.identity\" with type \"x\": the joined string would collide with a different split",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1|x.javi.thread.identity",
+        "type": "x",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": false,
+        "aadUtf8": null,
+        "aadHex": null,
+        "reason": "aad_part_pipe"
+      }
+    }
+  ]
+}

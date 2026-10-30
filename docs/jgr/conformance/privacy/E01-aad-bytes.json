@@ -1,0 +1,124 @@
+{
+  "$schema": "./schema.json",
+  "id": "E01",
+  "kind": "aad",
+  "description": "AAD = UTF-8 bytes of \"jgr|v1|<canonical event_id>|<project slug>|<producer_id>|<thread_ref>|<type>|<kid>|L2\"; event_id canonicalised (ULID upper-case, UUID lower-case).",
+  "contract": "ADR-0018 (e3a2ad5) decision 4 AAD; JGR v0.1 sections 3 and 9 (canonical event_id)",
+  "ambiguities": ["G1", "G3"],
+  "cases": [
+    {
+      "label": "identity",
+      "note": "identity event, ULID already canonical",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": true,
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2",
+        "aadHex": "6a67727c76317c30314a425a3458513830303030303030303030303030303031417c7765622d6170707c70726f645f636f6e666f726d616e63657c63635f707269766163795f74317c782e6a6176692e7468726561642e6964656e746974797c305131324e4156337c4c32",
+        "reason": null
+      }
+    },
+    {
+      "label": "ulid-lower",
+      "note": "same event with a lower-case ULID: canonicalEventId upper-cases it, same bytes as \"identity\"",
+      "input": {
+        "event_id": "01jbz4xq80000000000000001a",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": true,
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2",
+        "aadHex": "6a67727c76317c30314a425a3458513830303030303030303030303030303031417c7765622d6170707c70726f645f636f6e666f726d616e63657c63635f707269766163795f74317c782e6a6176692e7468726561642e6964656e746974797c305131324e4156337c4c32",
+        "reason": null
+      }
+    },
+    {
+      "label": "ulid-mixed",
+      "note": "mixed-case ULID",
+      "input": {
+        "event_id": "01jbz4XQ80000000000000001a",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": true,
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2",
+        "aadHex": "6a67727c76317c30314a425a3458513830303030303030303030303030303031417c7765622d6170707c70726f645f636f6e666f726d616e63657c63635f707269766163795f74317c782e6a6176692e7468726561642e6964656e746974797c305131324e4156337c4c32",
+        "reason": null
+      }
+    },
+    {
+      "label": "uuid-upper",
+      "note": "UUID event_id in upper case: canonical form is lower case",
+      "input": {
+        "event_id": "018F2C3A-7B1D-7C2E-9A4B-5D6E7F8A9B0C",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": true,
+        "aadUtf8": "jgr|v1|018f2c3a-7b1d-7c2e-9a4b-5d6e7f8a9b0c|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2",
+        "aadHex": "6a67727c76317c30313866326333612d376231642d376332652d396134622d3564366537663861396230637c7765622d6170707c70726f645f636f6e666f726d616e63657c63635f707269766163795f74317c782e6a6176692e7468726561642e6964656e746974797c305131324e4156337c4c32",
+        "reason": null
+      }
+    },
+    {
+      "label": "canary",
+      "note": "the canary on x.javi.collector.installed",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000002B",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.collector.installed",
+        "kid": "0Q12NAV3",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": true,
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000002B|web-app|prod_conformance|cc_privacy_t1|x.javi.collector.installed|0Q12NAV3|L2",
+        "aadHex": "6a67727c76317c30314a425a3458513830303030303030303030303030303032427c7765622d6170707c70726f645f636f6e666f726d616e63657c63635f707269766163795f74317c782e6a6176692e636f6c6c6563746f722e696e7374616c6c65647c305131324e4156337c4c32",
+        "reason": null
+      }
+    },
+    {
+      "label": "other-project",
+      "note": "S4 kid under javis-dog-web-app",
+      "input": {
+        "event_id": "01JBZ4XQ80000000000000003C",
+        "project_slug": "javis-dog-web-app",
+        "producer_id": "prod_conformance_b",
+        "thread_ref": "gm_privacy_t2",
+        "type": "x.javi.thread.identity",
+        "kid": "9WPMQ21J",
+        "privacy_class": "L2"
+      },
+      "expect": {
+        "ok": true,
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000003C|javis-dog-web-app|prod_conformance_b|gm_privacy_t2|x.javi.thread.identity|9WPMQ21J|L2",
+        "aadHex": "6a67727c76317c30314a425a3458513830303030303030303030303030303033437c6a617669732d646f672d7765622d6170707c70726f645f636f6e666f726d616e63655f627c676d5f707269766163795f74327c782e6a6176692e7468726561642e6964656e746974797c3957504d5132314a7c4c32",
+        "reason": null
+      }
+    }
+  ]
+}

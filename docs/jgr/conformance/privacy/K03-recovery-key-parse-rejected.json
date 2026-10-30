@@ -1,0 +1,190 @@
+{
+  "$schema": "./schema.json",
+  "id": "K03",
+  "kind": "recovery-key-parse",
+  "description": "Recovery-key inputs that MUST be refused: typos caught by the checksum, wrong length, wrong prefix, characters outside the alphabet. The reason is informative.",
+  "contract": "ADR-0018 (e3a2ad5) decision 1 Recovery key (checksum \"catches typos\"; prefix JDK1)",
+  "ambiguities": ["G1", "G2"],
+  "cases": [
+    {
+      "label": "body-char-substituted",
+      "note": "body character 10 (index 9) changed",
+      "input": "JDK1-000G-40R4-0730-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "checksum"
+      }
+    },
+    {
+      "label": "body-first-char-substituted",
+      "note": "first body character changed",
+      "input": "JDK1-700G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "checksum"
+      }
+    },
+    {
+      "label": "checksum-char-substituted",
+      "note": "last checksum character changed",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC67",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "checksum"
+      }
+    },
+    {
+      "label": "adjacent-transposition",
+      "note": "body characters 21 and 22 swapped",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-3R8E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "checksum"
+      }
+    },
+    {
+      "label": "char-missing",
+      "note": "one body character dropped (55 after the prefix)",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24K2-GAHC-5RR3-4D1P-70X3-RFGC-C6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "length"
+      }
+    },
+    {
+      "label": "char-extra",
+      "note": "one character inserted (57 after the prefix)",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-247G-K2GA-HC5R-R34D-1P70-X3RF-GCC6-W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "length"
+      }
+    },
+    {
+      "label": "checksum-missing",
+      "note": "the checksum group left out",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "length"
+      }
+    },
+    {
+      "label": "empty",
+      "note": "empty input [G2]",
+      "input": "",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "prefix"
+      }
+    },
+    {
+      "label": "prefix-jdk2",
+      "note": "prefix JDK2 instead of JDK1",
+      "input": "JDK2-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "prefix"
+      }
+    },
+    {
+      "label": "prefix-missing",
+      "note": "body and checksum only, no JDK1 [G2]",
+      "input": "000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "prefix"
+      }
+    },
+    {
+      "label": "char-u",
+      "note": "a body character replaced by U (not in the alphabet)",
+      "input": "JDK1-000G-40R4-0U30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "character"
+      }
+    },
+    {
+      "label": "char-underscore",
+      "note": "an underscore between groups (only spaces and dashes are ignored) [G2]",
+      "input": "JDK1_000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "character"
+      }
+    },
+    {
+      "label": "char-underscore-inside",
+      "note": "an underscore between two body groups [G2]",
+      "input": "JDK1-000G_40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "character"
+      }
+    },
+    {
+      "label": "alias-o-for-zero",
+      "note": "O typed for the 0 at body position 1 [G2]",
+      "input": "JDK1-O00G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "character"
+      }
+    },
+    {
+      "label": "alias-l-for-one",
+      "note": "L typed for the 1 at body position 17 [G2]",
+      "input": "JDK1-000G-40R4-0M30-E209-L85G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "character"
+      }
+    },
+    {
+      "label": "alias-i-for-one",
+      "note": "I typed for the 1 at body position 17 [G2]",
+      "input": "JDK1-000G-40R4-0M30-E209-I85G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "character"
+      }
+    },
+    {
+      "label": "nonzero-pad-bits",
+      "note": "52nd body character G \u2192 H: same 32 bytes under a lenient decoder, non-zero padding bits [G1, G2]",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFH-CC6W",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "noncanonical"
+      }
+    },
+    {
+      "label": "other-key-checksum",
+      "note": "S1 body with the S4 checksum",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-4WZY",
+      "expect": {
+        "ok": false,
+        "secretHex": null,
+        "reason": "checksum"
+      }
+    }
+  ]
+}

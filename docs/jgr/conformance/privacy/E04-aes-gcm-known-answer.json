@@ -1,0 +1,165 @@
+{
+  "$schema": "./schema.json",
+  "id": "E04",
+  "kind": "aes-gcm",
+  "description": "AES-256-GCM known answers: L2 key (HKDF, K04) + fixed 12-byte IV + 256-byte padded plaintext + AAD (E01 rule) \u2192 ciphertext\u2016128-bit tag, and the resulting encrypted object {alg, kid, iv, ciphertext} in unpadded base64url (iv 16 characters, ciphertext 363). Fixed IVs exist only to make answers reproducible; producers MUST draw 12 random bytes per event.",
+  "contract": "ADR-0018 (e3a2ad5) decision 2 (L2 key), decision 4 (IV, AAD, padding); JGR v0.1 section 7 encrypted object",
+  "ambiguities": ["G1", "G3", "G7"],
+  "cases": [
+    {
+      "label": "identity-s1",
+      "note": "identity event, S1 / web-app, payload {\"v\":1,\"repo\":\"javi-dog\",\"branch\":\"main\"}",
+      "key": {
+        "secret": "S1",
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "slug": "web-app"
+      },
+      "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+      "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+      "plaintextHex": "7b2276223a312c227265706f223a226a6176692d646f67222c226272616e6368223a226d61696e227d2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020",
+      "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2",
+      "expect": {
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "tagHex": "738205412d92e02e365f6e99085ed87e",
+        "event": {
+          "event_id": "01JBZ4XQ80000000000000001A",
+          "project_slug": "web-app",
+          "producer_id": "prod_conformance",
+          "thread_ref": "cc_privacy_t1",
+          "type": "x.javi.thread.identity",
+          "privacy_class": "L2",
+          "encrypted": {
+            "alg": "A256GCM",
+            "kid": "0Q12NAV3",
+            "iv": "oKGio6Slpqeoqaqr",
+            "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+          }
+        }
+      }
+    },
+    {
+      "label": "canary-s1",
+      "note": "canary on x.javi.collector.installed, S1 / web-app, payload {\"v\":1,\"canary\":true}",
+      "key": {
+        "secret": "S1",
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "slug": "web-app"
+      },
+      "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+      "ivHex": "b0b1b2b3b4b5b6b7b8b9babb",
+      "plaintextHex": "7b2276223a312c2263616e617279223a747275657d20202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020",
+      "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000002B|web-app|prod_conformance|cc_privacy_install|x.javi.collector.installed|0Q12NAV3|L2",
+      "expect": {
+        "ciphertextAndTagHex": "5d5fa74a6077537879541d9a0b62fdb50d9d5d79b85e67891accf64752c0d5731dc9a7b90ba2afaf61ca5c73b0571c71b823f0a19e5b8a7b99a16959426e9381ac8755e11eae34e3faef35939a1d625900eff2be79a9c9bdf094c873312435c7a635c9ad6ee0131076c2217eef7bb1a49b4ce51b1e1189e13a7814e260830ecb5df7158c8c4459489506d7ef2fa35e2f69ae79627c198b216c3cacaedfc00d7736f81725e3aefdef5d48759c9464096fde47c4e53d3d761de4bf7da9e2cdfba69b55394a2189b8e6346270a67503c3b50d81f24a1c7ffda7b8d7ba6a4cc60b2eeca3710cc85d887b8b4cdf20f9caff19351b1154f4e2fe2b1d72de1ad2c3d59d595240f0d407ff77e2edf95b9b620a46",
+        "tagHex": "595240f0d407ff77e2edf95b9b620a46",
+        "event": {
+          "event_id": "01JBZ4XQ80000000000000002B",
+          "project_slug": "web-app",
+          "producer_id": "prod_conformance",
+          "thread_ref": "cc_privacy_install",
+          "type": "x.javi.collector.installed",
+          "privacy_class": "L2",
+          "encrypted": {
+            "alg": "A256GCM",
+            "kid": "0Q12NAV3",
+            "iv": "sLGys7S1tre4ubq7",
+            "ciphertext": "XV-nSmB3U3h5VB2aC2L9tQ2dXXm4XmeJGsz2R1LA1XMdyae5C6Kvr2HKXHOwVxxxuCPwoZ5binuZoWlZQm6TgayHVeEerjTj-u81k5odYlkA7_K-eanJvfCUyHMxJDXHpjXJrW7gExB2wiF-73uxpJtM5RseEYnhOngU4mCDDstd9xWMjERZSJUG1-8vo14vaa55YnwZiyFsPKyu38ANdzb4FyXjrv3vXUh1nJRkCW_eR8TlPT12HeS_fanizfumm1U5SiGJuOY0YnCmdQPDtQ2B8kocf_2nuNe6akzGCy7so3EMyF2Ie4tM3yD5yv8ZNRsRVPTi_isdct4a0sPVnVlSQPDUB_934u35W5tiCkY"
+          }
+        }
+      }
+    },
+    {
+      "label": "identity-s4-other-project",
+      "note": "identity event, S4 / javis-dog-web-app, repo only",
+      "key": {
+        "secret": "S4",
+        "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+        "slug": "javis-dog-web-app"
+      },
+      "l2KeyHex": "b993c9ea673275d3494ac1e4d81181e42bc8760e984212b41f725490d53e9701",
+      "ivHex": "c0c1c2c3c4c5c6c7c8c9cacb",
+      "plaintextHex": "7b2276223a312c227265706f223a226a617669732d646f67227d2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020",
+      "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000003C|javis-dog-web-app|prod_conformance_b|gm_privacy_t2|x.javi.thread.identity|9WPMQ21J|L2",
+      "expect": {
+        "ciphertextAndTagHex": "85c93b7d8f1fa0d19f663f0ba2953ce6389117d2cacbf6adf8adc38084f05be1109effbb25438c655f6f340128f385a23e98ebd3077fdac8db2546b9bf8a6fcc13f5bbde5189b3e55797f0eb586bc93d906be5ce6ddc7d1d5792bba04d51fbe5b9e3eb95357c83b9e104a71eecbe3538fca9040af34e58bac9aa7d48ee52bbd7b402c20738225da5a9ea0c42410dd449ad84ab26e6a58f717b758ea8723469051abcebae38176c8a621911c5feb119a6da831de2af4535d6556767d328a770559f1cb8bc51b11503eba6ccd558462e131b7fc708fe31bd06e9d7413d2fd82c53f51ce08327dc1917a198be6a789485d768c62ed74dac689e0ece59c2948bfb2de507c513193aa03ea4b55e92af642ab5",
+        "tagHex": "e507c513193aa03ea4b55e92af642ab5",
+        "event": {
+          "event_id": "01JBZ4XQ80000000000000003C",
+          "project_slug": "javis-dog-web-app",
+          "producer_id": "prod_conformance_b",
+          "thread_ref": "gm_privacy_t2",
+          "type": "x.javi.thread.identity",
+          "privacy_class": "L2",
+          "encrypted": {
+            "alg": "A256GCM",
+            "kid": "9WPMQ21J",
+            "iv": "wMHCw8TFxsfIycrL",
+            "ciphertext": "hck7fY8foNGfZj8LopU85jiRF9LKy_at-K3DgITwW-EQnv-7JUOMZV9vNAEo84WiPpjr0wd_2sjbJUa5v4pvzBP1u95RibPlV5fw61hryT2Qa-XObdx9HVeSu6BNUfvluePrlTV8g7nhBKce7L41OPypBArzTli6yap9SO5Su9e0AsIHOCJdpanqDEJBDdRJrYSrJualj3F7dY6ocjRpBRq86644F2yKYhkRxf6xGabagx3ir0U11lVnZ9Mop3BVnxy4vFGxFQPrpszVWEYuExt_xwj-Mb0G6ddBPS_YLFP1HOCDJ9wZF6GYvmp4lIXXaMYu102saJ4OzlnClIv7LeUHxRMZOqA-pLVekq9kKrU"
+          }
+        }
+      }
+    },
+    {
+      "label": "identity-s1-unicode-bidi",
+      "note": "identity event, S1 / web-app, NFC non-ASCII repo with a U+202E bidi control (kept in the payload; removed only at display) and an astral branch",
+      "key": {
+        "secret": "S1",
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "slug": "web-app"
+      },
+      "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+      "ivHex": "d0d1d2d3d4d5d6d7d8d9dadb",
+      "plaintextHex": "7b2276223a312c227265706f223a22636166c3a92de280ae646f67222c226272616e6368223a22666561742ff09f90b6227d2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020",
+      "aadUtf8": "jgr|v1|018f2c3a-7b1d-7c2e-9a4b-5d6e7f8a9b0c|web-app|prod_conformance|cc_privacy_t3|x.javi.thread.identity|0Q12NAV3|L2",
+      "expect": {
+        "ciphertextAndTagHex": "b12713a50f34afe7fcb9ad87e387480cb1af64d8fde6a233ed9c5958c707b0a49854e26800e540229a1de9dae38bd815d704b74095b790b1c4645689f9d1346411e711c492f385fdae770145a0b7832075ff04803db0e9181687a7c23450c83053575e6b52f5297b00781401822ed882c9c77ab6663cae4051411beb14503767ece9a99f389018b63519d71322e13eaf2c89d07ebce4de126d3767c86450adc0dd5970021d9553d90ea63bf8f768411e5a26f593303b2e3afec5702d2ea9a6c093d67081478cab6b635b4f9bfc1559e51f7937d56950822d5e9d0f1342637c379627191bfb4914ed173c51be0f3802fecae5e01b23baed0c6e58a830e0b9e5489f6e2d117248ebca4a7b1eda878cc728",
+        "tagHex": "9f6e2d117248ebca4a7b1eda878cc728",
+        "event": {
+          "event_id": "018f2c3a-7b1d-7c2e-9a4b-5d6e7f8a9b0c",
+          "project_slug": "web-app",
+          "producer_id": "prod_conformance",
+          "thread_ref": "cc_privacy_t3",
+          "type": "x.javi.thread.identity",
+          "privacy_class": "L2",
+          "encrypted": {
+            "alg": "A256GCM",
+            "kid": "0Q12NAV3",
+            "iv": "0NHS09TV1tfY2drb",
+            "ciphertext": "sScTpQ80r-f8ua2H44dIDLGvZNj95qIz7ZxZWMcHsKSYVOJoAOVAIpod6drji9gV1wS3QJW3kLHEZFaJ-dE0ZBHnEcSS84X9rncBRaC3gyB1_wSAPbDpGBaHp8I0UMgwU1dea1L1KXsAeBQBgi7YgsnHerZmPK5AUUEb6xRQN2fs6amfOJAYtjUZ1xMi4T6vLInQfrzk3hJtN2fIZFCtwN1ZcAIdlVPZDqY7-PdoQR5aJvWTMDsuOv7FcC0uqabAk9ZwgUeMq2tjW0-b_BVZ5R95N9VpUIItXp0PE0JjfDeWJxkb-0kU7Rc8Ub4POAL-yuXgGyO67QxuWKgw4LnlSJ9uLRFySOvKSnse2oeMxyg"
+          }
+        }
+      }
+    },
+    {
+      "label": "identity-s1-branch-only",
+      "note": "identity event, S1 / web-app, branch only",
+      "key": {
+        "secret": "S1",
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "slug": "web-app"
+      },
+      "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+      "ivHex": "e0e1e2e3e4e5e6e7e8e9eaeb",
+      "plaintextHex": "7b2276223a312c226272616e6368223a226d61696e227d2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020",
+      "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000004D|web-app|prod_conformance|cc_privacy_t4|x.javi.thread.identity|0Q12NAV3|L2",
+      "expect": {
+        "ciphertextAndTagHex": "91f8d2d4b175b1eb085b26c1c6b0987b151dba5e15be4db220d203e779c1df717b98f5470d1edc102d332842134f68a91884a7a7df772414f225dd91749c712472716c432320714a5bf0eca0fe618096d2d7bdefb4d39adba98ec715b690043c95dace026570e0972d8b85ae2ad9de732a5c45efbc0e19ad164e3cd700b4a523ee2a2870811bd20639a46758d8da8024da62ec620f80e7e0e9b63431650f14972837fe4889c886a8802446b99f5d6ba79780a7f47424f6da8f0c954551c8e0e193c2a7dc88cd55ce55cf61502a86351621fb4b4e46f539beea0c8ce2524055531995168ec383371c4f61b7fd321a18f9377ff277c5f2110af861f28b6a345cdde436fd33a0c7553383dada8e1cfa4012",
+        "tagHex": "e436fd33a0c7553383dada8e1cfa4012",
+        "event": {
+          "event_id": "01JBZ4XQ80000000000000004D",
+          "project_slug": "web-app",
+          "producer_id": "prod_conformance",
+          "thread_ref": "cc_privacy_t4",
+          "type": "x.javi.thread.identity",
+          "privacy_class": "L2",
+          "encrypted": {
+            "alg": "A256GCM",
+            "kid": "0Q12NAV3",
+            "iv": "4OHi4-Tl5ufo6err",
+            "ciphertext": "kfjS1LF1sesIWybBxrCYexUdul4Vvk2yINID53nB33F7mPVHDR7cEC0zKEITT2ipGISnp993JBTyJd2RdJxxJHJxbEMjIHFKW_DsoP5hgJbS173vtNOa26mOxxW2kAQ8ldrOAmVw4Jcti4WuKtnecypcRe-8DhmtFk481wC0pSPuKihwgRvSBjmkZ1jY2oAk2mLsYg-A5-DptjQxZQ8Ulyg3_kiJyIaogCRGuZ9da6eXgKf0dCT22o8MlUVRyODhk8Kn3IjNVc5Vz2FQKoY1FiH7S05G9Tm-6gyM4lJAVVMZlRaOw4M3HE9ht_0yGhj5N3_yd8XyEQr4YfKLajRc3eQ2_TOgx1Uzg9rajhz6QBI"
+          }
+        }
+      }
+    }
+  ]
+}

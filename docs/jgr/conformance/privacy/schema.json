@@ -1,0 +1,758 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://javis-dog.dev/jgr/conformance/privacy/schema.json",
+  "title": "Privacy classes L1/L2 conformance vector (ADR-0018, S5f)",
+  "description": "One vector file. K*: recovery key and HKDF/HMAC derivations. E*: AAD, padding, AES-256-GCM and decryption. P*: payload shape and browser labels. Every key is always present; null means 'not applicable'.",
+  "oneOf": [
+    { "$ref": "#/definitions/recoveryKeyFormatVector" },
+    { "$ref": "#/definitions/recoveryKeyParseVector" },
+    { "$ref": "#/definitions/deriveVector" },
+    { "$ref": "#/definitions/l1HashVector" },
+    { "$ref": "#/definitions/aadVector" },
+    { "$ref": "#/definitions/payloadVector" },
+    { "$ref": "#/definitions/aesGcmVector" },
+    { "$ref": "#/definitions/decryptVector" },
+    { "$ref": "#/definitions/labelVector" },
+    { "$ref": "#/definitions/labelSequenceVector" }
+  ],
+  "definitions": {
+    "head": {
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities"],
+      "properties": {
+        "$schema": { "const": "./schema.json" },
+        "description": { "type": "string", "minLength": 1 },
+        "contract": { "type": "string", "pattern": "^ADR-0018 \\(e3a2ad5\\) " },
+        "ambiguities": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[GY][0-9]+$" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "label": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*$" },
+    "note": { "type": "string", "minLength": 1 },
+    "hex": { "type": "string", "pattern": "^([0-9a-f]{2})*$" },
+    "hex32": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "hex12": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+    "slug": { "type": "string", "pattern": "^[A-Za-z0-9_:-]{1,128}$" },
+    "kid": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{8}$" },
+    "secretLabel": { "enum": ["S1", "S2", "S3", "S4"] },
+    "field": { "enum": ["repo", "branch", "cwd", "file"] },
+    "l1Value": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "reason": {
+      "description": "Informative failure category; never compared.",
+      "enum": [
+        "prefix",
+        "character",
+        "length",
+        "noncanonical",
+        "checksum",
+        "aad_part_pipe",
+        "no_key",
+        "kid_mismatch",
+        "auth_failed",
+        "iv_length",
+        "encoding",
+        "alg"
+      ]
+    },
+    "keyRef": {
+      "type": "object",
+      "required": ["secret", "secretHex", "slug"],
+      "additionalProperties": false,
+      "properties": {
+        "secret": { "$ref": "#/definitions/secretLabel" },
+        "secretHex": { "$ref": "#/definitions/hex32" },
+        "slug": { "$ref": "#/definitions/slug" }
+      }
+    },
+    "perField": {
+      "type": "object",
+      "required": ["repo", "branch", "cwd", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": { "type": "string" },
+        "branch": { "type": "string" },
+        "cwd": { "type": "string" },
+        "file": { "type": "string" }
+      }
+    },
+    "perFieldHex32": {
+      "type": "object",
+      "required": ["repo", "branch", "cwd", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "repo": { "$ref": "#/definitions/hex32" },
+        "branch": { "$ref": "#/definitions/hex32" },
+        "cwd": { "$ref": "#/definitions/hex32" },
+        "file": { "$ref": "#/definitions/hex32" }
+      }
+    },
+    "payloadObject": {
+      "description": "The L2 payload v1 as an object: v, then either canary or the optional repo and branch.",
+      "type": "object",
+      "required": ["v"],
+      "additionalProperties": false,
+      "properties": {
+        "v": { "const": 1 },
+        "repo": { "type": "string" },
+        "branch": { "type": "string" },
+        "canary": { "const": true }
+      }
+    },
+    "encrypted": {
+      "type": "object",
+      "required": ["alg", "kid", "iv", "ciphertext"],
+      "additionalProperties": false,
+      "properties": {
+        "alg": { "type": "string" },
+        "kid": { "type": "string" },
+        "iv": { "type": "string" },
+        "ciphertext": { "type": "string" }
+      }
+    },
+    "event": {
+      "description": "The envelope values the AAD and the decryption use. project_slug is the project_ref slug.",
+      "type": "object",
+      "required": [
+        "event_id",
+        "project_slug",
+        "producer_id",
+        "thread_ref",
+        "type",
+        "privacy_class",
+        "encrypted"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": { "type": "string" },
+        "project_slug": { "type": "string" },
+        "producer_id": { "type": "string" },
+        "thread_ref": { "type": "string" },
+        "type": { "type": "string" },
+        "privacy_class": { "type": "string" },
+        "encrypted": { "$ref": "#/definitions/encrypted" }
+      }
+    },
+    "deviceKeys": {
+      "description": "Keys held in the browser tab (or passed to JD-M11), each derived from secretHex for slug.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/keyRef" }
+    },
+
+    "recoveryKeyFormatVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^K[0-9]{2}$" },
+        "kind": { "const": "recovery-key-format" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "note", "secretHex", "expect"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "secretHex": { "$ref": "#/definitions/hex32" },
+              "expect": {
+                "type": "object",
+                "required": ["body", "checksum", "sha256Hex", "recoveryKey"],
+                "additionalProperties": false,
+                "properties": {
+                  "body": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{51}[0G]$" },
+                  "checksum": { "type": "string", "pattern": "^[0-9A-HJKMNP-TV-Z]{4}$" },
+                  "sha256Hex": { "$ref": "#/definitions/hex32" },
+                  "recoveryKey": {
+                    "type": "string",
+                    "pattern": "^JDK1(-[0-9A-HJKMNP-TV-Z]{4}){14}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "recoveryKeyParseVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^K[0-9]{2}$" },
+        "kind": { "const": "recovery-key-parse" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "note", "input", "expect"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "input": { "type": "string" },
+              "expect": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["ok", "secretHex", "reason"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ok": { "const": true },
+                      "secretHex": { "$ref": "#/definitions/hex32" },
+                      "reason": { "type": "null" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["ok", "secretHex", "reason"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ok": { "const": false },
+                      "secretHex": { "type": "null" },
+                      "reason": { "$ref": "#/definitions/reason" }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "deriveVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^K[0-9]{2}$" },
+        "kind": { "const": "derive" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "note", "secretHex", "slug", "expect"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "secretHex": { "$ref": "#/definitions/hex32" },
+              "slug": { "$ref": "#/definitions/slug" },
+              "expect": {
+                "type": "object",
+                "required": ["info", "kidOkm5Hex", "kid", "l2KeyHex", "l1KeyHex"],
+                "additionalProperties": false,
+                "properties": {
+                  "info": {
+                    "type": "object",
+                    "required": ["kid", "l2", "l1"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "kid": { "type": "string", "pattern": "^jgr/kid/v1\\|" },
+                      "l2": { "type": "string", "pattern": "^jgr/l2/aes-gcm/v1\\|" },
+                      "l1": { "$ref": "#/definitions/perField" }
+                    }
+                  },
+                  "kidOkm5Hex": { "type": "string", "pattern": "^[0-9a-f]{10}$" },
+                  "kid": { "$ref": "#/definitions/kid" },
+                  "l2KeyHex": { "$ref": "#/definitions/hex32" },
+                  "l1KeyHex": { "$ref": "#/definitions/perFieldHex32" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "l1HashVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": [
+        "$schema",
+        "id",
+        "kind",
+        "description",
+        "contract",
+        "ambiguities",
+        "cases",
+        "plainSha256"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^K[0-9]{2}$" },
+        "kind": { "const": "l1-hash" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "plainSha256": {
+          "description": "null, or value → 'sha256:' + plain SHA-256 hex, which no L1 value in the file may equal.",
+          "oneOf": [
+            { "type": "null" },
+            { "type": "object", "additionalProperties": { "$ref": "#/definitions/l1Value" } }
+          ]
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "note",
+              "secretHex",
+              "slug",
+              "field",
+              "value",
+              "valueUtf8Hex",
+              "expect"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "secretHex": { "$ref": "#/definitions/hex32" },
+              "slug": { "$ref": "#/definitions/slug" },
+              "field": { "$ref": "#/definitions/field" },
+              "value": { "type": "string", "minLength": 1 },
+              "valueUtf8Hex": { "$ref": "#/definitions/hex" },
+              "expect": {
+                "type": "object",
+                "required": ["nfcUtf8Hex", "hash"],
+                "additionalProperties": false,
+                "properties": {
+                  "nfcUtf8Hex": { "$ref": "#/definitions/hex" },
+                  "hash": { "$ref": "#/definitions/l1Value" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "aadInput": {
+      "type": "object",
+      "required": [
+        "event_id",
+        "project_slug",
+        "producer_id",
+        "thread_ref",
+        "type",
+        "kid",
+        "privacy_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event_id": { "type": "string" },
+        "project_slug": { "type": "string" },
+        "producer_id": { "type": "string" },
+        "thread_ref": { "type": "string" },
+        "type": { "type": "string" },
+        "kid": { "type": "string" },
+        "privacy_class": { "type": "string" }
+      }
+    },
+    "aadVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^E[0-9]{2}$" },
+        "kind": { "const": "aad" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "note", "input", "expect"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "input": { "$ref": "#/definitions/aadInput" },
+              "expect": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["ok", "aadUtf8", "aadHex", "reason"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ok": { "const": true },
+                      "aadUtf8": {
+                        "type": "string",
+                        "pattern": "^jgr\\|v1\\|[^|]+(\\|[^|]+){5}\\|L2$"
+                      },
+                      "aadHex": { "$ref": "#/definitions/hex" },
+                      "reason": { "type": "null" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["ok", "aadUtf8", "aadHex", "reason"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ok": { "const": false },
+                      "aadUtf8": { "type": "null" },
+                      "aadHex": { "type": "null" },
+                      "reason": { "const": "aad_part_pipe" }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "payloadVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^[EP][0-9]{2}$" },
+        "kind": { "const": "payload" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "note", "input", "expect"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "input": {
+                "type": "object",
+                "required": ["repo", "branch", "canary"],
+                "additionalProperties": false,
+                "properties": {
+                  "repo": { "type": ["string", "null"] },
+                  "branch": { "type": ["string", "null"] },
+                  "canary": { "type": "boolean" }
+                }
+              },
+              "expect": {
+                "type": "object",
+                "required": [
+                  "payload",
+                  "json",
+                  "jsonByteLength",
+                  "paddedByteLength",
+                  "paddedSha256Hex",
+                  "paddedHex"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "payload": { "$ref": "#/definitions/payloadObject" },
+                  "json": { "type": "string", "pattern": "^\\{\"v\":1" },
+                  "jsonByteLength": { "type": "integer", "minimum": 7, "maximum": 256 },
+                  "paddedByteLength": { "const": 256 },
+                  "paddedSha256Hex": { "$ref": "#/definitions/hex32" },
+                  "paddedHex": { "type": "string", "pattern": "^([0-9a-f]{2}){256}$" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "aesGcmVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^E[0-9]{2}$" },
+        "kind": { "const": "aes-gcm" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "note",
+              "key",
+              "l2KeyHex",
+              "ivHex",
+              "plaintextHex",
+              "aadUtf8",
+              "expect"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "key": { "$ref": "#/definitions/keyRef" },
+              "l2KeyHex": { "$ref": "#/definitions/hex32" },
+              "ivHex": { "$ref": "#/definitions/hex12" },
+              "plaintextHex": { "type": "string", "pattern": "^([0-9a-f]{2}){256}$" },
+              "aadUtf8": { "type": "string", "minLength": 1 },
+              "expect": {
+                "type": "object",
+                "required": ["ciphertextAndTagHex", "tagHex", "event"],
+                "additionalProperties": false,
+                "properties": {
+                  "ciphertextAndTagHex": { "type": "string", "pattern": "^([0-9a-f]{2}){272}$" },
+                  "tagHex": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+                  "event": {
+                    "allOf": [{ "$ref": "#/definitions/event" }],
+                    "properties": {
+                      "privacy_class": { "const": "L2" },
+                      "encrypted": {
+                        "type": "object",
+                        "properties": {
+                          "alg": { "const": "A256GCM" },
+                          "kid": { "$ref": "#/definitions/kid" },
+                          "iv": { "type": "string", "pattern": "^[A-Za-z0-9_-]{16}$" },
+                          "ciphertext": { "type": "string", "pattern": "^[A-Za-z0-9_-]{363}$" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "decryptVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^E[0-9]{2}$" },
+        "kind": { "const": "decrypt" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "note", "layer", "deviceKeys", "event", "aead", "expect"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "layer": { "enum": ["envelope", "aead"] },
+              "deviceKeys": { "$ref": "#/definitions/deviceKeys" },
+              "event": { "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/event" }] },
+              "aead": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "object",
+                    "required": ["l2KeyHex", "ivHex", "ciphertextAndTagHex", "aadUtf8"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "l2KeyHex": { "$ref": "#/definitions/hex32" },
+                      "ivHex": { "$ref": "#/definitions/hex12" },
+                      "ciphertextAndTagHex": { "$ref": "#/definitions/hex" },
+                      "aadUtf8": { "type": "string" }
+                    }
+                  }
+                ]
+              },
+              "expect": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["ok", "payload", "aadUtf8", "reason"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ok": { "const": true },
+                      "payload": { "$ref": "#/definitions/payloadObject" },
+                      "aadUtf8": { "type": "string", "minLength": 1 },
+                      "reason": { "type": "null" }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["ok", "payload", "aadUtf8", "reason"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "ok": { "const": false },
+                      "payload": { "type": "null" },
+                      "aadUtf8": { "type": "null" },
+                      "reason": { "$ref": "#/definitions/reason" }
+                    }
+                  }
+                ]
+              }
+            },
+            "oneOf": [
+              {
+                "properties": {
+                  "layer": { "const": "envelope" },
+                  "event": { "type": "object" },
+                  "aead": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "layer": { "const": "aead" },
+                  "deviceKeys": { "maxItems": 0 },
+                  "event": { "type": "null" },
+                  "aead": { "type": "object" }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+
+    "labelVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^P[0-9]{2}$" },
+        "kind": { "const": "label" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "note", "deviceKeys", "event", "expect"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "note": { "$ref": "#/definitions/note" },
+              "deviceKeys": { "$ref": "#/definitions/deviceKeys" },
+              "event": { "$ref": "#/definitions/event" },
+              "expect": {
+                "type": "object",
+                "required": ["state", "threadText"],
+                "additionalProperties": false,
+                "properties": {
+                  "state": { "enum": ["no-key", "other-kid", "failed", "decrypted"] },
+                  "threadText": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "labelSequenceVector": {
+      "allOf": [{ "$ref": "#/definitions/head" }],
+      "type": "object",
+      "required": [
+        "$schema",
+        "id",
+        "kind",
+        "description",
+        "contract",
+        "ambiguities",
+        "project",
+        "sequences"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": true,
+        "id": { "type": "string", "pattern": "^P[0-9]{2}$" },
+        "kind": { "const": "label-sequence" },
+        "description": true,
+        "contract": true,
+        "ambiguities": true,
+        "project": {
+          "type": "object",
+          "required": ["slug", "privacyClass", "kid"],
+          "additionalProperties": false,
+          "properties": {
+            "slug": { "$ref": "#/definitions/slug" },
+            "privacyClass": { "const": "L2" },
+            "kid": { "$ref": "#/definitions/kid" }
+          }
+        },
+        "sequences": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["label", "steps"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "$ref": "#/definitions/label" },
+              "steps": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["action", "note", "deviceKeys", "event", "expect"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "action": { "enum": ["open", "decrypt", "reload"] },
+                    "note": { "$ref": "#/definitions/note" },
+                    "deviceKeys": { "$ref": "#/definitions/deviceKeys" },
+                    "event": { "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/event" }] },
+                    "expect": {
+                      "type": "object",
+                      "required": ["projectLabel"],
+                      "additionalProperties": false,
+                      "properties": { "projectLabel": { "type": "string", "minLength": 1 } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

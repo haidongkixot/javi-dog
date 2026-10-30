@@ -1,0 +1,172 @@
+{
+  "$schema": "./schema.json",
+  "id": "K04",
+  "kind": "derive",
+  "description": "HKDF-SHA256 (empty salt, IKM = the 32 secret bytes) per project slug: kid (first 8 base32 characters of the output), the AES-256-GCM key and one HMAC-SHA256 key per L1 field. Every kid and key in this file is distinct; S1 and S4 appear under two slugs (per-project separation).",
+  "contract": "ADR-0018 (e3a2ad5) decision 2",
+  "ambiguities": ["G1", "G3", "G4"],
+  "cases": [
+    {
+      "label": "S1-web-app",
+      "note": "S1 under project slug web-app",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "expect": {
+        "info": {
+          "kid": "jgr/kid/v1|web-app",
+          "l2": "jgr/l2/aes-gcm/v1|web-app",
+          "l1": {
+            "repo": "jgr/l1/v1/repo|web-app",
+            "branch": "jgr/l1/v1/branch|web-app",
+            "cwd": "jgr/l1/v1/cwd|web-app",
+            "file": "jgr/l1/v1/file|web-app"
+          }
+        },
+        "kidOkm5Hex": "05c22aab63",
+        "kid": "0Q12NAV3",
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "l1KeyHex": {
+          "repo": "e60277755a020a3f530e3b754daa3fbdf35b396dfd237f25d9b9512eefb2af5e",
+          "branch": "ee5b7d787227833d00b4179a0d5ffa87842bcf24fbb8c614c43aba8c01748cff",
+          "cwd": "91d311e39c7a71191f2599139f7afc4d824ef8931d0eac6ad18d605fa79c9a89",
+          "file": "10194be46d38d43449ff26fa3cd5fd0efe3669f07287ad5146a772a9fce82876"
+        }
+      }
+    },
+    {
+      "label": "S1-javis-dog-web-app",
+      "note": "S1 under project slug javis-dog-web-app",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "javis-dog-web-app",
+      "expect": {
+        "info": {
+          "kid": "jgr/kid/v1|javis-dog-web-app",
+          "l2": "jgr/l2/aes-gcm/v1|javis-dog-web-app",
+          "l1": {
+            "repo": "jgr/l1/v1/repo|javis-dog-web-app",
+            "branch": "jgr/l1/v1/branch|javis-dog-web-app",
+            "cwd": "jgr/l1/v1/cwd|javis-dog-web-app",
+            "file": "jgr/l1/v1/file|javis-dog-web-app"
+          }
+        },
+        "kidOkm5Hex": "0d616f5935",
+        "kid": "1NGPYP9N",
+        "l2KeyHex": "af8def753f34ca256922956680225e694374bcb15e96c90696a603a6b3b88c16",
+        "l1KeyHex": {
+          "repo": "5f4ab3387205cfec03f4bd99bb833d6b4d7abc8cc2b967f8d9d15e37f10e9ec2",
+          "branch": "3e45e22bed43a0baa67277a1d3c5a4534927200b892913715899a05e0b3086a6",
+          "cwd": "d860e4dd15f811f7e15b55c829fb584a78b116e1d532035504ad65a8de83ea25",
+          "file": "16ca9ff3403d057334f71ebe00c1c9500bc81e933fd55742bf695869e87b4e39"
+        }
+      }
+    },
+    {
+      "label": "S2-web-app",
+      "note": "S2 under project slug web-app",
+      "secretHex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "slug": "web-app",
+      "expect": {
+        "info": {
+          "kid": "jgr/kid/v1|web-app",
+          "l2": "jgr/l2/aes-gcm/v1|web-app",
+          "l1": {
+            "repo": "jgr/l1/v1/repo|web-app",
+            "branch": "jgr/l1/v1/branch|web-app",
+            "cwd": "jgr/l1/v1/cwd|web-app",
+            "file": "jgr/l1/v1/file|web-app"
+          }
+        },
+        "kidOkm5Hex": "8b6dffb6cf",
+        "kid": "HDPZZDPF",
+        "l2KeyHex": "28454163966791e0dbedebad4b18ebfa1d7158f98cf93a72fa6610713d58010c",
+        "l1KeyHex": {
+          "repo": "e2a5e1719db4ac0ebd322ca0395aec63c38dfe13d7f0d91b1527d1e7ae76f497",
+          "branch": "e43d50260f74d83c9fa88f7cf7c13644936c11e0509f57ebd6532504b8277656",
+          "cwd": "65496a1d0320c496b33d3c7befacba3421ec164f078b70ea91a53c56441e21c5",
+          "file": "8efa02ba2ab20705ec285fc58e97d4dcc5a9d7bf7e1f1c140fb1eafe4d5579f7"
+        }
+      }
+    },
+    {
+      "label": "S3-web-app",
+      "note": "S3 under project slug web-app",
+      "secretHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "slug": "web-app",
+      "expect": {
+        "info": {
+          "kid": "jgr/kid/v1|web-app",
+          "l2": "jgr/l2/aes-gcm/v1|web-app",
+          "l1": {
+            "repo": "jgr/l1/v1/repo|web-app",
+            "branch": "jgr/l1/v1/branch|web-app",
+            "cwd": "jgr/l1/v1/cwd|web-app",
+            "file": "jgr/l1/v1/file|web-app"
+          }
+        },
+        "kidOkm5Hex": "bf42dea8ec",
+        "kid": "QX1DXA7C",
+        "l2KeyHex": "d7b5e03df64b0962255503c2bee432e415db81790beb61e5cce4c9385b7eca4f",
+        "l1KeyHex": {
+          "repo": "5cad157486b2060125994a4e06148ab3e75b62b6cb6b0040006fa3aa4ec813f8",
+          "branch": "58a6aeb590ce6cde719b7f5b6ed88601697e2009b0b15f504d8b07601ae18186",
+          "cwd": "1ec5c64c2f9bb9b0b2e094badcb8c03aa81a6b3adcfc574e9250f49e007fd385",
+          "file": "f039334e974059ede7ca501c14ce27542f64b4a6af1b8780bc832c311da4cfcc"
+        }
+      }
+    },
+    {
+      "label": "S4-web-app",
+      "note": "S4 under project slug web-app",
+      "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+      "slug": "web-app",
+      "expect": {
+        "info": {
+          "kid": "jgr/kid/v1|web-app",
+          "l2": "jgr/l2/aes-gcm/v1|web-app",
+          "l1": {
+            "repo": "jgr/l1/v1/repo|web-app",
+            "branch": "jgr/l1/v1/branch|web-app",
+            "cwd": "jgr/l1/v1/cwd|web-app",
+            "file": "jgr/l1/v1/file|web-app"
+          }
+        },
+        "kidOkm5Hex": "2b822d304a",
+        "kid": "5E12TC2A",
+        "l2KeyHex": "0bea5dbd1418c3bc44f07d376ded6237b4bc72814180bc226a4d06874481e63d",
+        "l1KeyHex": {
+          "repo": "c12ca7f358240730f062c9f33fd348178e5e14951c2e3f06c429fd4632af8976",
+          "branch": "60195fadf6f774d9fbfcb199402616cbdf1a86c1f255846a6c6361a56dc7cd18",
+          "cwd": "7b0568ac0b6231a60d8c177503397719409a65b8a0f1f01da3fc946b5131c5ff",
+          "file": "6e869ea213525009f73e69f966041a3365e404c2e62d5f85280c90f4f48b77e9"
+        }
+      }
+    },
+    {
+      "label": "S4-javis-dog-web-app",
+      "note": "S4 under project slug javis-dog-web-app",
+      "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+      "slug": "javis-dog-web-app",
+      "expect": {
+        "info": {
+          "kid": "jgr/kid/v1|javis-dog-web-app",
+          "l2": "jgr/l2/aes-gcm/v1|javis-dog-web-app",
+          "l1": {
+            "repo": "jgr/l1/v1/repo|javis-dog-web-app",
+            "branch": "jgr/l1/v1/branch|javis-dog-web-app",
+            "cwd": "jgr/l1/v1/cwd|javis-dog-web-app",
+            "file": "jgr/l1/v1/file|javis-dog-web-app"
+          }
+        },
+        "kidOkm5Hex": "4f2d4b8832",
+        "kid": "9WPMQ21J",
+        "l2KeyHex": "b993c9ea673275d3494ac1e4d81181e42bc8760e984212b41f725490d53e9701",
+        "l1KeyHex": {
+          "repo": "70d98772dd446d723f9279023a0b5256bbe1d6c439912a802f25f852d4fdcfce",
+          "branch": "45d5072f9af65f0d5846d6ae1a0a345637df80738a437c0e5185d3f5fa5a0319",
+          "cwd": "957b8642961966a3bb145ececfbd640691bbd6a1aac6a7e3797d909d9ecbcd2a",
+          "file": "05e7900c81466bfec8c4e262a8c0380b06e0d8de8736c89913e28b1f3b627b77"
+        }
+      }
+    }
+  ]
+}

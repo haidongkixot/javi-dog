@@ -1,0 +1,333 @@
+{
+  "$schema": "./schema.json",
+  "id": "P03",
+  "kind": "label",
+  "description": "Thread row text for an L2 identity event in each browser state: no key for the kid, a key with another kid, the right kid but failed decryption, and success (\"repo \u00b7 branch\", bidi controls removed, text only).",
+  "contract": "ADR-0018 (e3a2ad5) decision 8 Display (review M8)",
+  "ambiguities": ["G8", "G9"],
+  "cases": [
+    {
+      "label": "no-key",
+      "note": "no key on this device [G9]",
+      "deviceKeys": [],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "expect": {
+        "state": "no-key",
+        "threadText": "Encrypted (key 0Q12NAV3)"
+      }
+    },
+    {
+      "label": "other-kid",
+      "note": "device holds S4 / web-app only [G9]",
+      "deviceKeys": [
+        {
+          "secret": "S4",
+          "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "expect": {
+        "state": "other-kid",
+        "threadText": "Can't decrypt with the key on this device"
+      }
+    },
+    {
+      "label": "other-kids-several",
+      "note": "device holds S4 / web-app and S2 / web-app, neither matches [G9]",
+      "deviceKeys": [
+        {
+          "secret": "S4",
+          "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+          "slug": "web-app"
+        },
+        {
+          "secret": "S2",
+          "secretHex": "0000000000000000000000000000000000000000000000000000000000000000",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "expect": {
+        "state": "other-kid",
+        "threadText": "Can't decrypt with the key on this device"
+      }
+    },
+    {
+      "label": "right-kid-moved",
+      "note": "right kid, ciphertext moved to another thread",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t9",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "expect": {
+        "state": "failed",
+        "threadText": "Can't verify this encrypted data (changed or damaged)"
+      }
+    },
+    {
+      "label": "right-kid-damaged",
+      "note": "right kid, one ciphertext bit changed",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZgHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "expect": {
+        "state": "failed",
+        "threadText": "Can't verify this encrypted data (changed or damaged)"
+      }
+    },
+    {
+      "label": "right-kid-truncated",
+      "note": "right kid, tag truncated",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2A"
+        }
+      },
+      "expect": {
+        "state": "failed",
+        "threadText": "Can't verify this encrypted data (changed or damaged)"
+      }
+    },
+    {
+      "label": "success",
+      "note": "right key: \"repo \u00b7 branch\"",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "expect": {
+        "state": "decrypted",
+        "threadText": "javi-dog \u00b7 main"
+      }
+    },
+    {
+      "label": "success-several-keys",
+      "note": "right key among several",
+      "deviceKeys": [
+        {
+          "secret": "S4",
+          "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+          "slug": "web-app"
+        },
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "expect": {
+        "state": "decrypted",
+        "threadText": "javi-dog \u00b7 main"
+      }
+    },
+    {
+      "label": "success-repo-only",
+      "note": "only repo in the payload [G8]",
+      "deviceKeys": [
+        {
+          "secret": "S4",
+          "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+          "slug": "javis-dog-web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000003C",
+        "project_slug": "javis-dog-web-app",
+        "producer_id": "prod_conformance_b",
+        "thread_ref": "gm_privacy_t2",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "9WPMQ21J",
+          "iv": "wMHCw8TFxsfIycrL",
+          "ciphertext": "hck7fY8foNGfZj8LopU85jiRF9LKy_at-K3DgITwW-EQnv-7JUOMZV9vNAEo84WiPpjr0wd_2sjbJUa5v4pvzBP1u95RibPlV5fw61hryT2Qa-XObdx9HVeSu6BNUfvluePrlTV8g7nhBKce7L41OPypBArzTli6yap9SO5Su9e0AsIHOCJdpanqDEJBDdRJrYSrJualj3F7dY6ocjRpBRq86644F2yKYhkRxf6xGabagx3ir0U11lVnZ9Mop3BVnxy4vFGxFQPrpszVWEYuExt_xwj-Mb0G6ddBPS_YLFP1HOCDJ9wZF6GYvmp4lIXXaMYu102saJ4OzlnClIv7LeUHxRMZOqA-pLVekq9kKrU"
+        }
+      },
+      "expect": {
+        "state": "decrypted",
+        "threadText": "javis-dog"
+      }
+    },
+    {
+      "label": "success-branch-only",
+      "note": "only branch in the payload [G8]",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000004D",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t4",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "4OHi4-Tl5ufo6err",
+          "ciphertext": "kfjS1LF1sesIWybBxrCYexUdul4Vvk2yINID53nB33F7mPVHDR7cEC0zKEITT2ipGISnp993JBTyJd2RdJxxJHJxbEMjIHFKW_DsoP5hgJbS173vtNOa26mOxxW2kAQ8ldrOAmVw4Jcti4WuKtnecypcRe-8DhmtFk481wC0pSPuKihwgRvSBjmkZ1jY2oAk2mLsYg-A5-DptjQxZQ8Ulyg3_kiJyIaogCRGuZ9da6eXgKf0dCT22o8MlUVRyODhk8Kn3IjNVc5Vz2FQKoY1FiH7S05G9Tm-6gyM4lJAVVMZlRaOw4M3HE9ht_0yGhj5N3_yd8XyEQr4YfKLajRc3eQ2_TOgx1Uzg9rajhz6QBI"
+        }
+      },
+      "expect": {
+        "state": "decrypted",
+        "threadText": "main"
+      }
+    },
+    {
+      "label": "success-bidi-removed",
+      "note": "U+202E removed from the displayed repo; the astral branch kept",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "018f2c3a-7b1d-7c2e-9a4b-5d6e7f8a9b0c",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t3",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "0NHS09TV1tfY2drb",
+          "ciphertext": "sScTpQ80r-f8ua2H44dIDLGvZNj95qIz7ZxZWMcHsKSYVOJoAOVAIpod6drji9gV1wS3QJW3kLHEZFaJ-dE0ZBHnEcSS84X9rncBRaC3gyB1_wSAPbDpGBaHp8I0UMgwU1dea1L1KXsAeBQBgi7YgsnHerZmPK5AUUEb6xRQN2fs6amfOJAYtjUZ1xMi4T6vLInQfrzk3hJtN2fIZFCtwN1ZcAIdlVPZDqY7-PdoQR5aJvWTMDsuOv7FcC0uqabAk9ZwgUeMq2tjW0-b_BVZ5R95N9VpUIItXp0PE0JjfDeWJxkb-0kU7Rc8Ub4POAL-yuXgGyO67QxuWKgw4LnlSJ9uLRFySOvKSnse2oeMxyg"
+        }
+      },
+      "expect": {
+        "state": "decrypted",
+        "threadText": "caf\u00e9-dog \u00b7 feat/\ud83d\udc36"
+      }
+    }
+  ]
+}
