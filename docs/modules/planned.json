@@ -14,13 +14,5 @@
     "status": "planned",
     "sprint": "S5",
     "description": "Envelope and end-to-end encryption (WebCrypto)"
-  },
-  {
-    "id": "JD-C03",
-    "name": "@javis-dog/collector-mcp-server",
-    "path": "collectors/mcp-server",
-    "status": "planned",
-    "sprint": "S5",
-    "description": "Javi MCP server for agent self-report"
   }
 ]
