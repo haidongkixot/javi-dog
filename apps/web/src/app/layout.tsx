@@ -1,6 +1,7 @@
 import '@fontsource-variable/inter';
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
+import { connection } from 'next/server';
 import type { ReactNode } from 'react';
 import { palette } from '@javis-dog/ui';
 import { DemoBanner } from '@javis-dog/ui/components';
@@ -20,7 +21,11 @@ export const viewport: Viewport = {
   themeColor: palette.packNight,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+// Every page renders per request: the CSP nonce (ADR-0018 decision 11, `src/proxy.ts`) only reaches
+// Next.js's scripts during request-time rendering; a prerendered page would carry none and its
+// scripts would be blocked.
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  await connection();
   return (
     <html lang="en" data-theme="light">
       <body className="antialiased">
