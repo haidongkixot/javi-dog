@@ -16,6 +16,10 @@
 // Codex CLI (ADR-0016 Changes S5c): `--platform codex-cli` on the same commands installs the
 //   stable launcher ~/.javi/bin/javi-hook, appends javi's groups to the project's
 //   .codex/hooks.json and appends a marked [otel] block (logs only) to $CODEX_HOME/config.toml.
+// Agent self-report (ADR-0017): `init --self-report [--allow-self-report] [--allow-tracked-config]`
+//   registers javi's MCP server (`javi mcp`) for the platform in the project and installs the
+//   hooks; `javi mcp --platform <p> --project <slug>` serves it on stdin/stdout (MCP clients
+//   start it through ~/.javi/bin/javi-mcp.mjs); uninstall removes the entry before the hooks.
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { realpathSync } from 'node:fs';
@@ -24,6 +28,7 @@ import { createServer } from 'node:net';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { serveStdio } from '@javis-dog/collector-mcp-server';
 import { createFileSpool, createJgrClient } from '@javis-dog/jgr-sdk';
 import {
   DEFAULT_USAGE_PORT,
@@ -82,6 +87,17 @@ import {
   type GeminiBackup,
 } from './gemini-telemetry.ts';
 import { COLLECTOR_VERSION, opaqueRef } from './mapping.ts';
+import {
+  CLAUDE_SELF_REPORT_ALLOW,
+  SELF_REPORT_BLOCK_START,
+  checkSelfReport,
+  installMcpLauncher,
+  mcpLauncherPath,
+  readSelfReport,
+  registerSelfReport,
+  registrationPath,
+  unregisterSelfReport,
+} from './mcp-registration.ts';
 import { PLATFORM_NAMES, PLATFORMS, platformFlag, type Platform } from './platform.ts';
 import {
   RECEIVER_IDLE_MS,
@@ -118,6 +134,15 @@ export interface Io {
    * `scutil` / `reg` runner; tests inject one (none means no OS check).
    */
   systemProxy?: SystemProxyProbe;
+  /**
+   * `javi mcp` only: the streams the MCP server speaks on (the CLI passes process.stdin,
+   * process.stdout and process.stderr for that command only).
+   */
+  stdio?: {
+    stdin: NodeJS.ReadableStream;
+    stdout: NodeJS.WritableStream;
+    stderr: NodeJS.WritableStream;
+  };
 }
 
 const flag = (argv: string[], name: string) => {
@@ -1177,6 +1202,212 @@ const hooksFileFor = (platform: Platform, projectDir: string) =>
       ? codexHooksPath(projectDir)
       : settingsPath(projectDir);
 
+// --- Agent self-report (ADR-0017) ---
+
+/**
+ * `javi mcp`: are javi's hooks for `platform` and `projectRef` installed? An MCP client's
+ * working directory is not guaranteed to be the project folder, so the folders `init
+ * --self-report` recorded for this platform and project come first, then the working
+ * directory. Either way the platform's hooks file itself must hold javi's hook for the project.
+ * Never reads credentials.json (the token).
+ */
+const selfReportHooksInstalled = async (
+  state: CollectorState,
+  platform: Platform,
+  projectRef: string,
+  cwd: string,
+) => {
+  const dirs = (await state.selfReportRegistrations())
+    .filter((r) => r.platform === platform && r.project === projectRef)
+    .map((r) => r.dir);
+  for (const dir of new Set([...dirs, cwd])) {
+    if (await hooksInstalledFor(platform, dir, projectRef)) return true;
+  }
+  return false;
+};
+
+const selfReportCommand = (platform: Platform) =>
+  `javi init --self-report${platform === 'claude-code' ? '' : ` --platform ${platform}`}`;
+
+/** `init --self-report`, after the hooks: launcher, MCP entry, optional pre-approval. */
+const initSelfReport = async (
+  io: Io,
+  state: CollectorState,
+  platform: Platform,
+  projectDir: string,
+  cliPath: string,
+  projectRef: string,
+  preApprove: boolean,
+): Promise<boolean> => {
+  const file = registrationPath(platform, projectDir);
+  let launcher: string;
+  let result: Awaited<ReturnType<typeof registerSelfReport>>;
+  try {
+    launcher = await installMcpLauncher(state.home, cliPath);
+    result = await registerSelfReport({
+      platform,
+      projectDir,
+      projectRef,
+      nodePath: process.execPath,
+      launcher,
+      preApprove,
+      previous: await state.selfReportRegistration(platform, file),
+    });
+    await state.saveSelfReportRegistration(result.record);
+  } catch (e) {
+    io.err(
+      `Self-report not registered: ${(e as Error).message} javi's hooks and the token are in place; re-run ${selfReportCommand(platform)} once the file is fixed.`,
+    );
+    return false;
+  }
+  const name = PLATFORM_NAMES[platform];
+  io.out(`Self-report launcher written: ${launcher}.`);
+  io.out(
+    `  It runs ${cliPath} mcp; javi init rewrites it, so the registered command stays the same after an upgrade.`,
+  );
+  io.out(
+    result.changed
+      ? `Self-report MCP server "javi" registered in ${result.file}.`
+      : `Self-report MCP server "javi" already registered in ${result.file}; nothing changed.`,
+  );
+  io.out(
+    `  ${name} starts: ${process.execPath} --no-warnings ${launcher} --platform ${platform} --project ${projectRef} (no token, no environment variables).`,
+  );
+  io.out(
+    `  If you commit ${result.file}, javi's entry (paths on this machine) goes with it. If Node.js moves, run ${selfReportCommand(platform)} again; javi status warns about it.`,
+  );
+  if (platform === 'claude-code') {
+    io.out('Claude Code asks once whether to use the MCP servers of a project .mcp.json.');
+    if (preApprove) {
+      io.out(
+        result.allowAdded.length
+          ? `Pre-approved in ${settingsPath(projectDir)}: ${result.allowAdded.join(', ')} (javi uninstall removes exactly what javi added).`
+          : `Pre-approval already in ${settingsPath(projectDir)}: ${CLAUDE_SELF_REPORT_ALLOW.join(', ')}.`,
+      );
+    } else {
+      if (result.allowRemoved.length) {
+        io.out(
+          `Removed javi's earlier pre-approval from ${settingsPath(projectDir)}: ${result.allowRemoved.join(', ')}.`,
+        );
+      }
+      io.out(
+        'Not pre-approved: Claude Code asks before each report (you can choose to always allow it there), or re-run with --allow-self-report.',
+      );
+    }
+  } else if (platform === 'gemini-cli') {
+    io.out('Gemini CLI starts stdio MCP servers only in a trusted folder.');
+    io.out(
+      preApprove
+        ? 'Pre-approved: trust and includeTools (report_status, report_task) are set on the javi entry only.'
+        : 'Not pre-approved: Gemini CLI asks before each report, or re-run with --allow-self-report.',
+    );
+  } else {
+    io.out(
+      `Codex CLI reads ${result.file} only in a trusted project. It decides about approval from the tools' annotations, so there is nothing to pre-approve${preApprove ? ' (--allow-self-report writes nothing for Codex CLI)' : ''}.`,
+    );
+  }
+  io.out(
+    `Self-report needs javi's ${name} hooks: they record each report for the dashboard, labelled "reported by agent".`,
+  );
+  return true;
+};
+
+/** `javi status`: is self-report registered for this platform and project, pre-approved, runnable? */
+const selfReportStatus = async (
+  io: Io,
+  platform: Platform,
+  projectDir: string,
+  projectRef: string,
+) => {
+  const sr = await readSelfReport(platform, projectDir);
+  const command = selfReportCommand(platform);
+  if (!sr.entry) {
+    io.out(
+      sr.unreadable
+        ? `Self-report: javi cannot read ${sr.file}.`
+        : `Self-report: not registered in ${sr.file} (${command} adds it).`,
+    );
+    return;
+  }
+  if (sr.project !== projectRef) {
+    io.out(`Self-report: registered in ${sr.file} for another project (${sr.project ?? 'none'}).`);
+    return;
+  }
+  io.out(`Self-report: registered in ${sr.file} (MCP server javi).`);
+  if (sr.preApproved === null) {
+    io.out("Self-report pre-approval: not needed (Codex CLI decides from the tools' annotations).");
+  } else if (sr.preApproved) {
+    io.out(
+      platform === 'claude-code'
+        ? `Self-report pre-approval: on (${CLAUDE_SELF_REPORT_ALLOW.join(', ')} in ${settingsPath(projectDir)}).`
+        : 'Self-report pre-approval: on (trust and includeTools on the javi entry).',
+    );
+  } else {
+    io.out(
+      `Self-report pre-approval: off (${PLATFORM_NAMES[platform]} asks before each report; ${command} --allow-self-report pre-approves).`,
+    );
+  }
+  if (!sr.nodeExists) {
+    io.out(
+      `Warning: the Node.js path registered for self-report (${sr.entry.command}) no longer exists, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`,
+    );
+  }
+  if (!sr.launcherExists) {
+    io.out(
+      `Warning: the self-report launcher ${sr.entry.args[1] ?? ''} is missing. Run ${command} again.`,
+    );
+  }
+};
+
+/**
+ * `javi uninstall`, before the hooks: javi's MCP entry for this project and the allow rules javi
+ * added. False when the file cannot be read or javi's block was edited (nothing removed).
+ */
+const uninstallSelfReport = async (
+  io: Io,
+  state: CollectorState,
+  platform: Platform,
+  projectDir: string,
+  projectRef: string,
+): Promise<boolean> => {
+  const file = registrationPath(platform, projectDir);
+  const record = await state.selfReportRegistration(platform, file);
+  let result: Awaited<ReturnType<typeof unregisterSelfReport>>;
+  try {
+    result = await unregisterSelfReport({ platform, projectDir, projectRef, record });
+  } catch (e) {
+    io.err((e as Error).message);
+    return false;
+  }
+  if (result.outcome === 'changed') {
+    io.err(
+      `javi's self-report block in ${file} was edited, so javi left the file as it is and removed nothing.`,
+    );
+    io.err(
+      `Remove javi's lines yourself, '${SELF_REPORT_BLOCK_START}' through '${CODEX_BLOCK_END}' included, then run javi uninstall again.`,
+    );
+    return false;
+  }
+  if (result.outcome === 'removed') io.out(`Removed javi's self-report MCP server from ${file}.`);
+  if (result.outcome === 'deleted') {
+    io.out(`${file} held only javi's self-report MCP server, so the file was removed.`);
+  }
+  if (result.allowRemoved.length) {
+    io.out(
+      `Removed javi's self-report pre-approval from ${settingsPath(projectDir)}: ${result.allowRemoved.join(', ')}.`,
+    );
+  }
+  if (result.outcome !== 'absent') {
+    io.out(
+      `The launcher ${mcpLauncherPath(state.home)} stays: other projects may use it, and it holds no token.`,
+    );
+  }
+  if (record?.project === projectRef || result.outcome !== 'absent') {
+    await state.removeSelfReportRegistration(platform, file);
+  }
+  return true;
+};
+
 export const main = async (argv: string[], io: Io): Promise<number> => {
   const [command] = argv;
   const projectRef = flag(argv, 'project');
@@ -1201,6 +1432,23 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         ...(io.systemProxy && { systemProxy: io.systemProxy }),
       });
     }
+    return 0;
+  }
+
+  if (command === 'mcp') {
+    // MCP server on stdin/stdout (ADR-0017 §1): stdout carries JSON-RPC only, so every message
+    // here goes to stderr. No token is read, no receiver started, no flush.
+    const stdio = io.stdio;
+    if (!platform || !projectRef || !REF.test(projectRef) || !stdio) {
+      io.err(`Usage: javi mcp --platform <${PLATFORMS.join('|')}> --project <project slug>`);
+      return 2;
+    }
+    await serveStdio(stdio.stdin, stdio.stdout, stdio.stderr, {
+      version: COLLECTOR_VERSION,
+      hooksInstalled: () => selfReportHooksInstalled(state, platform, projectRef, io.cwd),
+    });
+    // Let the last response reach the pipe before the process exits.
+    await new Promise<void>((done) => stdio.stdout.write('', () => done()));
     return 0;
   }
 
@@ -1229,6 +1477,13 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
 
   switch (command) {
     case 'init': {
+      const selfReport = argv.includes('--self-report');
+      const preApprove = argv.includes('--allow-self-report');
+      const allowTracked = argv.includes('--allow-tracked-config');
+      if (!selfReport && (preApprove || allowTracked)) {
+        io.err('--allow-self-report and --allow-tracked-config only apply with --self-report.');
+        return 2;
+      }
       const token = (io.env.JAVI_INGEST_TOKEN ?? (await io.readStdin())).trim();
       if (!TOKEN.test(token)) {
         io.err('Provide the project ingest token via JAVI_INGEST_TOKEN or stdin (jd_it_…).');
@@ -1240,6 +1495,20 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         return 2;
       }
       const projectDir = resolve(io.cwd, flag(argv, 'dir') ?? '.');
+      if (selfReport) {
+        // Before anything is written: a tracked, unreadable or foreign registration file stops
+        // init with no token saved and no hooks registered.
+        const check = await checkSelfReport({
+          platform,
+          projectDir,
+          allowTracked,
+          allowSelfReport: preApprove,
+        });
+        if (!check.ok) {
+          io.err(check.message);
+          return 1;
+        }
+      }
       // From the bundle: hooks run a stable, versioned copy. From a repo checkout: this .ts file,
       // as before. The copy comes first: if it fails, no token is saved and no hook registered.
       let cliPath = fileURLToPath(import.meta.url);
@@ -1274,6 +1543,12 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         io.out(
           `Hooks registered in ${path} (${await ensureIgnored(projectDir, settingsPath(projectDir))}).`,
         );
+      }
+      if (
+        selfReport &&
+        !(await initSelfReport(io, state, platform, projectDir, cliPath, projectRef, preApprove))
+      ) {
+        return 1;
       }
       const installation = await state.installation();
       io.out(`Token stored in ${join(state.home, 'credentials.json')} as ${masked(token)}`);
@@ -1333,12 +1608,10 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       io.out(`Project ${projectRef}: endpoint ${creds.endpoint}, token ${masked(creds.token)}`);
       io.out(`Spooled events: ${spooled}`);
       io.out(`Last flush: ${JSON.stringify((await state.lastFlush(projectRef)) ?? 'never')}`);
-      if (platform === 'gemini-cli') {
-        await geminiHookStatus(io, state, resolve(io.cwd, flag(argv, 'dir') ?? '.'), projectRef);
-      }
-      if (platform === 'codex-cli') {
-        await codexHookStatus(io, state, resolve(io.cwd, flag(argv, 'dir') ?? '.'), projectRef);
-      }
+      const statusDir = resolve(io.cwd, flag(argv, 'dir') ?? '.');
+      if (platform === 'gemini-cli') await geminiHookStatus(io, state, statusDir, projectRef);
+      if (platform === 'codex-cli') await codexHookStatus(io, state, statusDir, projectRef);
+      await selfReportStatus(io, platform, statusDir, projectRef);
       await usageStatus(io, state);
       return 0;
     }
@@ -1349,6 +1622,8 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
       let removed: boolean;
       let shifts: CodexShift[] = [];
       let deleted = false;
+      // ADR-0017 §5: javi's MCP entry first, then the hooks.
+      if (!(await uninstallSelfReport(io, state, platform, projectDir, projectRef))) return 1;
       if (platform === 'gemini-cli' || platform === 'codex-cli') {
         try {
           if (platform === 'gemini-cli')
@@ -1445,6 +1720,10 @@ if (isEntryPoint()) {
     spawnFlush: (projectRef) => detached(['flush', '--project', projectRef, '--quiet']),
     spawnReceiver: () => detached(['receive']),
     systemProxy: { platform: process.platform, run: runCommand },
+    // Only `javi mcp` touches process.stdin as a stream (other commands keep their behaviour).
+    ...(process.argv[2] === 'mcp' && {
+      stdio: { stdin: process.stdin, stdout: process.stdout, stderr: process.stderr },
+    }),
   }).then(
     (code) => process.exit(code),
     () => process.exit(process.argv[2] === 'hook' ? 0 : 1),

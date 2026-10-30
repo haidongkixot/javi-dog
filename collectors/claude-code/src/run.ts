@@ -2,9 +2,16 @@ import {
   codexSubagentLink,
   mapCodexHook,
   mapGeminiHook,
+  matchJaviTool,
+  selfReportRecord,
   type AdapterContext,
 } from '@javis-dog/collector-adapters';
-import { createFileSpool, createJgrClient, type FlushResult } from '@javis-dog/jgr-sdk';
+import {
+  createFileSpool,
+  createJgrClient,
+  type FlushResult,
+  type RecordInput,
+} from '@javis-dog/jgr-sdk';
 import { codexEnvRisks, codexHome, type SystemProxyProbe } from './codex-config.ts';
 import { codexThreadRef } from './codex-usage.ts';
 import { geminiHome } from './gemini-settings.ts';
@@ -21,6 +28,35 @@ export const FLUSH_INTERVAL_MS = 30_000;
 export const FLUSH_DEBOUNCE_MS = 3_000;
 /** Events that should reach the dashboard promptly. */
 const URGENT = new Set(['attention.requested', 'session.ended', 'session.started']);
+/** The end-of-turn hook of each platform: its `heartbeat idle` is flushed at once too. */
+const END_OF_TURN: Readonly<Record<Platform, string>> = {
+  'claude-code': 'Stop',
+  'codex-cli': 'Stop',
+  'gemini-cli': 'AfterAgent',
+};
+
+/**
+ * Prompt delivery (ADR-0017 §3, review H2): besides `URGENT`, a self-reported status other than
+ * `working`, a self-reported `task.failed`, and the end-of-turn `heartbeat idle` (Claude Code
+ * and Codex `Stop`, Gemini `AfterAgent`) start a flush at once. `selfReported` is true only for
+ * a record built by the self-report path (javi's own tool), never inferred from its shape.
+ */
+export const isUrgent = (
+  input: Pick<RecordInput, 'type' | 'status'>,
+  ctx: { platform: Platform; hookEvent: unknown; selfReported: boolean },
+): boolean => {
+  if (URGENT.has(input.type)) return true;
+  if (ctx.selfReported) {
+    return (
+      (input.type === 'heartbeat' && input.status !== 'working') || input.type === 'task.failed'
+    );
+  }
+  return (
+    input.type === 'heartbeat' &&
+    input.status === 'idle' &&
+    ctx.hookEvent === END_OF_TURN[ctx.platform]
+  );
+};
 
 export interface HookDeps {
   state: CollectorState;
@@ -150,6 +186,13 @@ const hookEventName = (raw: unknown) =>
 /**
  * One hook invocation: map → persist sequence → spool → maybe start a background flush.
  * Never throws and never writes to stdout: a hook must not change Claude Code's behaviour.
+ *
+ * javi's own self-report tools (ADR-0017 §3, JD-C02 `matchJaviTool`): a pre-tool hook records
+ * nothing; a post-tool hook records only `selfReportRecord(…)`, built on the platform mapper's
+ * record for the same hook as its base (same thread, agent and platform attributes), or
+ * nothing when the input is invalid. Never the generic tool event. When the platform mapper
+ * returns null (no `session_id` or no event name) nothing is recorded: `selfReportRecord`
+ * needs the session id too, so no valid base could exist. Every other tool maps as before.
  */
 export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 'error'> => {
   try {
@@ -171,14 +214,29 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
         .catch(() => {});
       if (hookEventName(raw) === 'SessionStart') await checkCodexEnv(deps);
     }
-    const input = mapForPlatform(raw, deps, salt);
-    if (!input) return 'ignored';
+    const platform = deps.platform ?? 'claude-code';
+    const mapped = mapForPlatform(raw, deps, salt);
+    if (!mapped) return 'ignored';
     if (gemini) {
       // For `javi status`: proof that Gemini runs our hooks (an untrusted folder never does).
       await deps.state
         .markHookSeen(deps.projectRef, 'gemini-cli', deps.now?.() ?? new Date())
         .catch(() => {});
-      if (input.type === 'session.started') await checkGeminiTelemetry(deps);
+      if (mapped.type === 'session.started') await checkGeminiTelemetry(deps);
+    }
+    let input: RecordInput = mapped;
+    const javi = matchJaviTool(platform, raw);
+    if (javi) {
+      // Pre-tool: silent (no task.started without an end). Post-tool: the report or nothing.
+      if (javi.phase === 'pre') return 'ignored';
+      const report = selfReportRecord(
+        platform,
+        raw,
+        { salt, at: deps.now?.() ?? new Date() },
+        mapped,
+      );
+      if (!report) return 'ignored';
+      input = report;
     }
 
     // Usage attribution (ADR-0011), only while usage is on: the receiver forwards only sessions
@@ -225,7 +283,11 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
     if (!result.ok) return 'error';
 
     const now = (deps.now?.() ?? new Date()).getTime();
-    const urgent = URGENT.has(input.type);
+    const urgent = isUrgent(input, {
+      platform,
+      hookEvent: hookEventName(raw),
+      selfReported: javi !== null,
+    });
     if (!urgent && now - (await deps.state.flushRequestedAt(deps.projectRef)) < FLUSH_DEBOUNCE_MS) {
       return 'recorded';
     }

@@ -3,7 +3,7 @@
   "name": "@javis-dog/collector-claude-code",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Claude Code collector. S3c: `javi` CLI (init, hook, flush, status, uninstall), exec-form async command hooks, allowlist mapping to JGR L0 with salted session/agent refs, persistent per-thread sequences, file spool with detached delivery (ADR-0010). S3e: token/cost usage from Claude Code OTel metrics via a local OTLP receiver (ADR-0011). S3f: self-contained bundle + tarball (`npx ./javis-dog-javi-<version>.tgz`), stable copy under ~/.javi/bin. S5b: `--platform gemini-cli` (ADR-0016) — Gemini CLI hooks in the project's .gemini/settings.json, opt-in user-level Gemini telemetry to the same receiver (logs/traces drained unread), Gemini token usage with estimated cost via JD-C02. S5c: `--platform codex-cli` (ADR-0016 Changes S5c) — stable launcher ~/.javi/bin/javi-hook, append-only groups in the project's .codex/hooks.json (approval left to Codex), logs-only [otel] block in $CODEX_HOME/config.toml, receiver path /v1/logs/codex-cli (tokens, API-key cost, sub-agents attributed to their parent), proxy and header guards.",
+  "description": "Claude Code collector. S3c: `javi` CLI (init, hook, flush, status, uninstall), exec-form async command hooks, allowlist mapping to JGR L0 with salted session/agent refs, persistent per-thread sequences, file spool with detached delivery (ADR-0010). S3e: token/cost usage from Claude Code OTel metrics via a local OTLP receiver (ADR-0011). S3f: self-contained bundle + tarball (`npx ./javis-dog-javi-<version>.tgz`), stable copy under ~/.javi/bin. S5b: `--platform gemini-cli` (ADR-0016) — Gemini CLI hooks in the project's .gemini/settings.json, opt-in user-level Gemini telemetry to the same receiver (logs/traces drained unread), Gemini token usage with estimated cost via JD-C02. S5c: `--platform codex-cli` (ADR-0016 Changes S5c) — stable launcher ~/.javi/bin/javi-hook, append-only groups in the project's .codex/hooks.json (approval left to Codex), logs-only [otel] block in $CODEX_HOME/config.toml, receiver path /v1/logs/codex-cli (tokens, API-key cost, sub-agents attributed to their parent), proxy and header guards. S5d: agent self-report (ADR-0017) — post-tool hooks of all three platforms record javi's own `report_status` / `report_task` calls as one JD-C02 self-report record (pre-tool silent, invalid input dropped, prompt flush for non-working statuses, self-reported task.failed and the end-of-turn idle); `javi mcp` serves JD-C03 on stdio; `init --self-report [--allow-self-report] [--allow-tracked-config]` registers `mcpServers.javi` in .mcp.json / .gemini/settings.json or a marked `[mcp_servers.javi]` block in the project .codex/config.toml through the unversioned launcher ~/.javi/bin/javi-mcp.mjs (git-tracked and unparsable files refused); uninstall removes the entry first; status reports registration, pre-approval and a missing Node path.",
   "owner": "platform",
   "provides": [
     "javi CLI",
@@ -29,7 +29,12 @@
     "installCodexLauncher() / installCodexHooks() / uninstallCodexHooks() / codexHookGroup()",
     "enableCodexOtel() / disableCodexOtel() / codexOtelBlock() / codexEnvRisks() / readCodexApproval()",
     "receiver /v1/logs/codex-cli (5 MiB, JD-C02 allowlist)",
-    "codexTokenRecordInput() / codexCostRecordInput() / codexTokenEventId() / codexCostEventId()"
+    "codexTokenRecordInput() / codexCostRecordInput() / codexTokenEventId() / codexCostEventId()",
+    "javi mcp --platform <p> --project <slug>",
+    "javi init --self-report [--allow-self-report] [--allow-tracked-config]",
+    "isUrgent()",
+    "checkSelfReport() / registerSelfReport() / unregisterSelfReport() / readSelfReport()",
+    "installMcpLauncher() / mcpLauncherScript() / mcpLauncherPath() / mcpEntry() / codexMcpBlock() / registrationPath()"
   ],
-  "consumes": ["JD-C02", "JD-M01", "JD-M02"]
+  "consumes": ["JD-C02", "JD-C03", "JD-M01", "JD-M02"]
 }

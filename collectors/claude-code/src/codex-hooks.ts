@@ -148,11 +148,11 @@ export const isCodexJaviGroup = (group: unknown) =>
 
 // --- A JSON text with positions, for edits that keep the user's bytes ---
 
-type JsonNode =
+export type JsonNode =
   | { kind: 'object'; start: number; end: number; members: JsonMember[] }
   | { kind: 'array'; start: number; end: number; items: JsonNode[] }
   | { kind: 'scalar'; start: number; end: number };
-interface JsonMember {
+export interface JsonMember {
   key: string;
   start: number;
   end: number;
@@ -160,7 +160,7 @@ interface JsonMember {
 }
 
 /** Spans of a text that `JSON.parse` accepted. */
-const spans = (text: string): JsonNode => {
+export const spans = (text: string): JsonNode => {
   let i = 0;
   const ws = () => {
     while (i < text.length && ' \t\n\r'.includes(text[i]!)) i += 1;
@@ -230,25 +230,26 @@ const spans = (text: string): JsonNode => {
 };
 
 /** Leading whitespace of the line holding `pos`, when `pos` is the line's first token. */
-const tokenIndent = (text: string, pos: number): string | null => {
+export const tokenIndent = (text: string, pos: number): string | null => {
   const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
   const lead = text.slice(lineStart, pos);
   return /^[ \t]*$/.test(lead) ? lead : null;
 };
-const lineIndent = (text: string, pos: number) => {
+export const lineIndent = (text: string, pos: number) => {
   const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
   return /^[ \t]*/.exec(text.slice(lineStart))![0];
 };
 const reindent = (json: string, indent: string) => json.split('\n').join(`\n${indent}`);
 /** Pretty JSON indented to `indent`; `null`: compact, for a container written on one line. */
-const pretty = (value: unknown, indent: string | null) =>
+export const pretty = (value: unknown, indent: string | null) =>
   indent === null ? JSON.stringify(value) : reindent(JSON.stringify(value, null, 2), indent);
 
-type Splice = { from: number; to: number; text: string };
-const apply = (text: string, s: Splice) => text.slice(0, s.from) + s.text + text.slice(s.to);
+export type Splice = { from: number; to: number; text: string };
+export const applySplice = (text: string, s: Splice) =>
+  text.slice(0, s.from) + s.text + text.slice(s.to);
 
 /** Removes element `i` of a container's elements (array items or object members). */
-const removeAt = (
+export const removeAt = (
   container: { start: number; end: number },
   elems: Array<{ start: number; end: number }>,
   i: number,
@@ -259,7 +260,7 @@ const removeAt = (
 };
 
 /** Appends `json(indent)` as the last element of a container. */
-const appendTo = (
+export const appendTo = (
   text: string,
   container: { start: number; end: number },
   elems: Array<{ start: number; end: number }>,
@@ -353,7 +354,7 @@ const editedText = (text: string, target: Record<string, unknown>): string => {
   for (let round = 0; round < 200; round++) {
     const edit = nextEdit(next, target);
     if (!edit) break;
-    next = apply(next, edit);
+    next = applySplice(next, edit);
   }
   try {
     if (jsonEqual(JSON.parse(next), target)) return next;

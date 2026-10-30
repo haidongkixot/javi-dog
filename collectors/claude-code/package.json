@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@javis-dog/collector-adapters": "workspace:*",
+    "@javis-dog/collector-mcp-server": "workspace:*",
     "@javis-dog/jgr-sdk": "workspace:*",
     "@javis-dog/jgr-spec": "workspace:*",
     "smol-toml": "1.9.1"
