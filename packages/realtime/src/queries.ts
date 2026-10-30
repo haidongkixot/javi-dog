@@ -28,11 +28,13 @@ const isSelfReport = sql`(e.type = 'heartbeat' and e.status is not null
                           and e.attributes ->> 'tool_name' is not null)`;
 
 /**
- * Collector activity that ends a self-report's hold on the thread status (ADR-0017 §6):
- * `task.*`, `session.*`, `agent.*`, or a `heartbeat working` without a `tool_name` (a new prompt).
- * A collector `heartbeat idle`, `attention.requested`, `usage.reported` and `error` do not.
+ * Activity that ends a self-report's hold on the thread status (ADR-0017 §6, QA gaps G7, G8):
+ * `task.*` (collector or self-reported), `attention.requested`, `session.*`, `agent.*`, or a
+ * `heartbeat working` without a `tool_name` (a new prompt). A collector `heartbeat idle`,
+ * `usage.reported` and `error` do not.
  */
 const clearsSelfReport = sql`(e.type in ('task.started', 'task.completed', 'task.failed',
+                                         'attention.requested',
                                          'session.started', 'session.ended',
                                          'agent.started', 'agent.stopped')
                               or (e.type = 'heartbeat' and e.status = 'working'
@@ -72,6 +74,7 @@ export interface ThreadRow {
   first_ms: number | string;
   last_ms: number | string;
   last_type: string;
+  /** Latest non-null status of an event that is not a self-report (ADR-0017 §6, QA gap G6). */
   status: string | null;
   /** The self-reported status while no later clearing activity exists, else null. */
   agent_status: string | null;
@@ -92,6 +95,7 @@ export interface ThreadRow {
  * the token-burn (last 60 min) and tasks-completed counters. `agent_status` takes the latest
  * event that is either a self-report or clearing activity (full `LATEST_FIRST` order) and keeps
  * its status only when that event is the self-report, so one scan decides the precedence.
+ * `status` is the collector fallback: self-reports never count towards it (QA gap G6).
  */
 export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => {
   const isUsage = sql`e.type = 'usage.reported'`;
@@ -105,7 +109,7 @@ export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => 
              ${epochMs(sql`max(e.received_at)`)} as last_ms,
              (array_agg(e.type order by ${LATEST_FIRST}))[1] as last_type,
              (array_agg(e.status order by ${LATEST_FIRST})
-                filter (where e.status is not null))[1] as status,
+                filter (where e.status is not null and not ${isSelfReport}))[1] as status,
              (array_agg(case when ${isSelfReport} then e.status end order by ${LATEST_FIRST})
                 filter (where ${isSelfReport} or ${clearsSelfReport}))[1] as agent_status,
              (array_agg(${selfReportCode} order by ${LATEST_FIRST})

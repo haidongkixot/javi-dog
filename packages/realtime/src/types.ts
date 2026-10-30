@@ -36,8 +36,8 @@ export interface ThreadState {
   /** Opaque, hashed by the producer (e.g. `cc_…`). */
   threadRef: string;
   /**
-   * The agent's latest self-reported status while no later collector activity cleared it
-   * (ADR-0017 §6); otherwise the last non-null `status` in the window, or null if none was sent.
+   * The agent's latest self-reported status while no later activity cleared it (ADR-0017 §6);
+   * otherwise the last non-null `status` of an event that is not a self-report, or null.
    */
   status: ThreadStatus | null;
   /** `agent` when `status` is the agent's self-report, else `collector`. */

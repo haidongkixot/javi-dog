@@ -114,11 +114,6 @@ const cases: Case[] = [
     },
   },
   {
-    name: 'survives a later attention.requested',
-    steps: [BLOCKED_CREDS, { type: 'attention.requested', status: 'waiting', ageMs: 2 * MIN }],
-    want: { status: 'blocked', statusSource: 'agent', statusReason: 'missing_credentials' },
-  },
-  {
     name: 'survives a later usage.reported',
     steps: [BLOCKED_CREDS, { type: 'usage.reported', ageMs: 2 * MIN }],
     want: { status: 'blocked', statusSource: 'agent', statusReason: 'missing_credentials' },
@@ -172,9 +167,54 @@ const cases: Case[] = [
         agent('waiting', 3 * MIN, 'waiting.needs_approval'),
         { type, ...(type.startsWith('task.') ? { tool: 'Bash' } : {}), ageMs: 2 * MIN },
       ],
-      want: { status: 'waiting', statusSource: 'collector', statusReason: null },
+      // G6: the status from before the agent's report, never the agent's own.
+      want: {
+        status: 'working',
+        statusSource: 'collector',
+        statusReason: null,
+        attention: false,
+      },
     }),
   ),
+  {
+    name: 'G8: cleared by a later attention.requested (a real permission prompt)',
+    steps: [BLOCKED_CREDS, { type: 'attention.requested', status: 'waiting', ageMs: 2 * MIN }],
+    want: {
+      status: 'waiting',
+      statusSource: 'collector',
+      statusReason: null,
+      attention: true,
+      needsAttention: true,
+    },
+  },
+  {
+    name: 'G8: an attention.requested hides an agent working, not the prompt',
+    steps: [
+      agent('working', 3 * MIN),
+      { type: 'attention.requested', status: 'waiting', ageMs: 2 * MIN },
+    ],
+    want: {
+      status: 'waiting',
+      statusSource: 'collector',
+      statusReason: null,
+      attention: true,
+    },
+  },
+  {
+    name: 'G6: cleared with no collector status before it gives null',
+    steps: [BLOCKED_CREDS, { type: 'task.started', tool: 'Bash', ageMs: 2 * MIN }],
+    want: { status: null, statusSource: 'collector', statusReason: null, attention: false },
+  },
+  {
+    name: 'G6: older self-reports never count as the collector status',
+    steps: [
+      { type: 'heartbeat', status: 'idle', ageMs: 6 * MIN },
+      agent('failed', 5 * MIN, 'failed.ci_failing'),
+      agent('blocked', 4 * MIN, 'blocked.missing_access'),
+      { type: 'task.completed', tool: 'Edit', ageMs: 3 * MIN },
+    ],
+    want: { status: 'idle', statusSource: 'collector', statusReason: null, attention: false },
+  },
   {
     name: 'cleared by a later session.ended',
     steps: [
@@ -182,20 +222,22 @@ const cases: Case[] = [
       { type: 'session.ended', ageMs: 2 * MIN },
     ],
     want: {
-      status: 'waiting',
+      status: null,
       statusSource: 'collector',
       statusReason: null,
       freshness: 'ended',
+      attention: false,
       needsAttention: false,
     },
   },
   {
-    name: 'a self-reported task.* clears an older self-reported status too',
+    name: 'G7: a self-reported task.* clears an older self-reported status too',
     steps: [
+      { type: 'heartbeat', status: 'working', ageMs: 4 * MIN },
       BLOCKED_CREDS,
       { type: 'task.started', tool: 'mcp__javi__report_task', ageMs: 2 * MIN },
     ],
-    want: { status: 'blocked', statusSource: 'collector', statusReason: null, attention: false },
+    want: { status: 'working', statusSource: 'collector', statusReason: null, attention: false },
   },
   // --- a clearing event older than the self-report does not clear it ---
   {
