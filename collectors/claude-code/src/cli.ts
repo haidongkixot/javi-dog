@@ -91,11 +91,13 @@ import {
   CLAUDE_SELF_REPORT_ALLOW,
   SELF_REPORT_BLOCK_START,
   checkSelfReport,
+  excludeFromGit,
   installMcpLauncher,
   mcpLauncherPath,
   readSelfReport,
   registerSelfReport,
   registrationPath,
+  removeExcludeLine,
   unregisterSelfReport,
   type GitRunner,
 } from './mcp-registration.ts';
@@ -1245,8 +1247,10 @@ const initSelfReport = async (
   const file = registrationPath(platform, projectDir);
   let launcher: string;
   let result: Awaited<ReturnType<typeof registerSelfReport>>;
+  let excludeNote = '';
   try {
     launcher = await installMcpLauncher(state.home, cliPath);
+    const previous = await state.selfReportRegistration(platform, file);
     result = await registerSelfReport({
       platform,
       projectDir,
@@ -1254,9 +1258,16 @@ const initSelfReport = async (
       nodePath: process.execPath,
       launcher,
       preApprove,
-      previous: await state.selfReportRegistration(platform, file),
+      previous,
     });
-    await state.saveSelfReportRegistration(result.record);
+    // Code review L2: a .mcp.json javi created stays out of commits, like settings.local.json.
+    let excluded = previous?.excluded ?? null;
+    if (platform === 'claude-code' && result.record.created && !excluded) {
+      const ignored = await excludeFromGit(projectDir, file);
+      excludeNote = ignored.note;
+      excluded = ignored.added;
+    }
+    await state.saveSelfReportRegistration({ ...result.record, excluded });
   } catch (e) {
     io.err(
       `Self-report not registered: ${(e as Error).message} javi's hooks and the token are in place; re-run ${selfReportCommand(platform)} once the file is fixed.`,
@@ -1276,6 +1287,7 @@ const initSelfReport = async (
   io.out(
     `  ${name} starts: ${process.execPath} --no-warnings ${launcher} --platform ${platform} --project ${projectRef} (no token, no environment variables).`,
   );
+  if (excludeNote) io.out(`  javi created ${result.file}: ${excludeNote}.`);
   io.out(
     `  If you commit ${result.file}, javi's entry (paths on this machine) goes with it. If Node.js moves, run ${selfReportCommand(platform)} again; javi status warns about it.`,
   );
@@ -1417,6 +1429,9 @@ const uninstallSelfReport = async (
     );
   }
   if (record?.project === projectRef || result.outcome !== 'absent') {
+    if (record?.excluded && (await removeExcludeLine(record.excluded))) {
+      io.out(`Removed ${record.excluded.line} from ${record.excluded.exclude}.`);
+    }
     await state.removeSelfReportRegistration(platform, file);
   }
   return true;

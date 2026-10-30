@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chmod, mkdir, readFile, rm, stat } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { appendFile, chmod, mkdir, readFile, rm, stat } from 'node:fs/promises';
+import { join, relative, resolve, sep } from 'node:path';
 import { SELF_REPORT } from '@javis-dog/collector-adapters';
 import { parse as parseToml } from 'smol-toml';
 import { writeTarget } from './claude-env.ts';
@@ -405,7 +405,70 @@ export interface SelfReportRegistration {
   allow: string[];
   /** Claude Code: javi created `permissions` (`'permissions'`) or only its `allow` (`'allow'`). */
   allowCreated: 'permissions' | 'allow' | null;
+  /**
+   * Claude Code: the line javi added to the repository's `.git/info/exclude` for a `.mcp.json`
+   * it created (code review L2); uninstall removes exactly that line. Absent in older records.
+   */
+  excluded?: ExcludeLine | null;
 }
+
+/** One line javi appended to a git exclude file. */
+export interface ExcludeLine {
+  /** The exclude file (absolute). */
+  exclude: string;
+  /** The exact line, e.g. `/.mcp.json`. */
+  line: string;
+}
+
+/**
+ * Keeps `file` (a file javi created inside `projectDir`) out of commits through the
+ * repository's `.git/info/exclude`, as `.claude/settings.local.json` is (code review L2). The
+ * line is anchored at the repository root (`/<path from the root>`). Returns what happened, and
+ * the line when javi added it. Never throws.
+ */
+export const excludeFromGit = async (
+  projectDir: string,
+  file: string,
+  git: GitRunner = runGit,
+): Promise<{ note: string; added: ExcludeLine | null }> => {
+  const ok = (r: GitResult) => !r.error && !r.signal && r.status === 0;
+  const check = git(['-C', projectDir, 'check-ignore', '-q', '--', relative(projectDir, file)]);
+  if (ok(check)) return { note: 'already ignored by git', added: null };
+  if (check.error || check.signal || check.status !== 1) return { note: '', added: null };
+  const prefix = git(['-C', projectDir, 'rev-parse', '--show-prefix']);
+  const gitPath = git(['-C', projectDir, 'rev-parse', '--git-path', 'info/exclude']);
+  const path = `${prefix.stdout.trim()}${relative(projectDir, file).split(sep).join('/')}`;
+  const line = `/${path.replace(/[*?[\\]/g, '\\$&')}`;
+  const failed = { note: `could not update git excludes — add ${line} to .gitignore`, added: null };
+  if (!ok(prefix) || !ok(gitPath) || /[\r\n]/.test(line) || !gitPath.stdout.trim()) return failed;
+  try {
+    const exclude = resolve(projectDir, gitPath.stdout.trim());
+    const current = await readFile(exclude, 'utf8').catch(() => '');
+    if (current.split(/\r?\n/).includes(line))
+      return { note: `${line} already in .git/info/exclude`, added: null };
+    await mkdir(join(exclude, '..'), { recursive: true });
+    await appendFile(exclude, `${current.endsWith('\n') || !current ? '' : '\n'}${line}\n`);
+    return { note: `${line} added to .git/info/exclude`, added: { exclude, line } };
+  } catch {
+    return failed;
+  }
+};
+
+/** Removes the last line equal to `excluded.line` from its exclude file. True when removed. */
+export const removeExcludeLine = async (excluded: ExcludeLine): Promise<boolean> => {
+  try {
+    const loaded = await loadText(excluded.exclude);
+    if (!loaded) return false;
+    const lines = loaded.text.split('\n');
+    const i = lines.map((l) => l.replace(/\r$/, '')).lastIndexOf(excluded.line);
+    if (i < 0) return false;
+    lines.splice(i, 1);
+    await writeTextAtomic(excluded.exclude, lines.join('\n'), loaded.mode);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export type SelfReportCheck = { ok: true } | { ok: false; message: string };
 

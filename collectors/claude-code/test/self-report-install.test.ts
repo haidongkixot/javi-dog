@@ -535,7 +535,7 @@ describe('git-tracked check fails closed', () => {
 // Code review M2: javi never registered self-report here, so a .mcp.json it cannot parse is not
 // javi's business: uninstall warns once, removes the hooks, and leaves the file as it is.
 it.each([
-  ['a BOM', '﻿{"mcpServers": {}}\n'],
+  ['a BOM', '\uFEFF{"mcpServers": {}}\n'],
   ['garbage', 'not json at all {'],
   ['an array', '[1, 2]\n'],
 ])(
@@ -557,11 +557,58 @@ it.each([
 it('uninstall still refuses an unparsable .mcp.json in which javi recorded a registration', async () => {
   expect((await init('claude-code', '--self-report')).code).toBe(0);
   const file = join(dir, '.mcp.json');
-  const broken = `﻿${await read(file)}`;
+  const broken = `\uFEFF${await read(file)}`;
   await writeFile(file, broken);
   const result = await uninstall('claude-code');
   expect(result.code).toBe(1);
   expect(result.err).toContain(file);
   expect(await read(file)).toBe(broken);
   expect(await read(settingsPath(dir))).toContain('javi-collector');
+});
+
+// Code review L2: a .mcp.json javi created in a git repository is kept out of commits the way
+// .claude/settings.local.json is, and uninstall takes back only the line javi added.
+describe('.mcp.json created by javi in a git repository', () => {
+  const exclude = () => join(dir, '.git', 'info', 'exclude');
+  const porcelain = () =>
+    execFileSync('git', ['-C', dir, 'status', '--porcelain', '--untracked-files=all'], {
+      encoding: 'utf8',
+      env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
+    });
+
+  it('is added to .git/info/exclude, and uninstall removes exactly that line', async () => {
+    git('init', '-q');
+    const before = await read(exclude());
+    const result = await init('claude-code', '--self-report');
+    expect(result.code).toBe(0);
+    expect(result.out).toContain('/.mcp.json added to .git/info/exclude');
+    expect((await read(exclude())).split('\n')).toContain('/.mcp.json');
+    expect(porcelain()).not.toContain('.mcp.json');
+    // A re-run adds nothing twice.
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await read(exclude())).split('\n').filter((l) => l === '/.mcp.json')).toHaveLength(1);
+
+    expect((await uninstall('claude-code')).code).toBe(0);
+    expect(existsSync(join(dir, '.mcp.json'))).toBe(false);
+    const after = await read(exclude());
+    expect(after.split('\n')).not.toContain('/.mcp.json');
+    // Everything that was there before javi is still there, in order.
+    expect(after.startsWith(before)).toBe(true);
+  });
+
+  it('a .mcp.json that existed before is not excluded (javi did not create it)', async () => {
+    git('init', '-q');
+    await writeFile(join(dir, '.mcp.json'), '{}\n');
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await read(exclude())).split('\n')).not.toContain('/.mcp.json');
+  });
+
+  it('a line the user had already is never removed', async () => {
+    git('init', '-q');
+    await writeFile(exclude(), '/.mcp.json\n');
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await uninstall('claude-code')).code).toBe(0);
+    // The user's line stays (javi's own .claude/settings.local.json line is S3 behaviour).
+    expect((await read(exclude())).split('\n')[0]).toBe('/.mcp.json');
+  });
 });

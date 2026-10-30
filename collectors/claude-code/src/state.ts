@@ -219,7 +219,12 @@ export const createState = (home: string) => {
       typeof r.separator === 'string' &&
       Array.isArray(r.allow) &&
       r.allow.every((a) => typeof a === 'string') &&
-      (r.allowCreated === null || r.allowCreated === 'permissions' || r.allowCreated === 'allow')
+      (r.allowCreated === null || r.allowCreated === 'permissions' || r.allowCreated === 'allow') &&
+      (r.excluded === undefined ||
+        r.excluded === null ||
+        (typeof r.excluded === 'object' &&
+          typeof r.excluded.exclude === 'string' &&
+          typeof r.excluded.line === 'string'))
     );
   };
   const originFile = (hooksPath: string) =>
