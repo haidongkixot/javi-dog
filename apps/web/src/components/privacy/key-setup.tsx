@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
   deriveProjectKeys,
   encodeRecoveryKey,
@@ -21,7 +22,8 @@ import { useKeyStore } from './key-context';
 type Raise = 'L1' | 'L2';
 type Step =
   | { step: 'intro' }
-  | { step: 'show'; key: string }
+  // Review L9: the key text is never React state; it lives only in the shown DOM node.
+  | { step: 'show' }
   | { step: 'confirm' }
   | { step: 'saving' }
   | { step: 'done'; kid: string; privacyClass: Raise; changed: boolean };
@@ -88,6 +90,14 @@ export function KeySetup({
   // The secret lives in a ref (never in rendered state) until the paste-back succeeds.
   const secret = useRef<Uint8Array | null>(null);
   const pasted = useRef<HTMLInputElement | null>(null);
+  // Review L9: the node that shows the key. The text is written into it directly (never through
+  // React state or props) and wiped when the node is hidden or unmounted.
+  const keyNode = useRef<HTMLElement | null>(null);
+  const attachKeyNode = useCallback((node: HTMLElement | null) => {
+    if (keyNode.current && keyNode.current !== node) keyNode.current.textContent = '';
+    keyNode.current = node;
+  }, []);
+  const shownKey = () => keyNode.current?.textContent ?? '';
 
   const discard = () => {
     secret.current?.fill(0);
@@ -101,14 +111,26 @@ export function KeySetup({
     setCopied(false);
     const fresh = generateProjectSecret();
     secret.current = fresh;
-    setState({ step: 'show', key: await encodeRecoveryKey(fresh) });
+    const text = await encodeRecoveryKey(fresh);
+    // Render the (empty) node now, then put the text into it: React never holds the key.
+    flushSync(() => setState({ step: 'show' }));
+    if (keyNode.current) keyNode.current.textContent = text;
+  };
+
+  const hideKey = () => {
+    if (keyNode.current) keyNode.current.textContent = '';
+    setError(null);
+    setState({ step: 'confirm' });
   };
 
   const confirm = async () => {
     const expected = secret.current;
     if (!expected || state.step !== 'confirm') return;
     setError(null);
-    const parsed = await parseRecoveryKey(pasted.current?.value ?? '');
+    // Review L9: read the pasted key once and empty the field on every outcome.
+    const typed = pasted.current?.value ?? '';
+    if (pasted.current) pasted.current.value = '';
+    const parsed = await parseRecoveryKey(typed);
     if (!parsed.ok) {
       setError(parsed.message);
       return;
@@ -194,19 +216,19 @@ export function KeySetup({
           <p className="text-xs font-bold text-ink">
             Your recovery key. It is shown once and never sent to Javi’s Dog.
           </p>
+          {/* No children: `generate` writes the key text into this node (review L9). */}
           <code
+            ref={attachKeyNode}
             data-recovery-key=""
             className="block font-mono text-sm tracking-wide break-all text-ink select-all"
-          >
-            {state.key}
-          </code>
+          />
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               className={buttonSecondary}
               onClick={async () => {
                 try {
-                  await navigator.clipboard.writeText(state.key);
+                  await navigator.clipboard.writeText(shownKey());
                   setCopied(true);
                 } catch {
                   setError('Copying failed. Select the key and copy it, or download it.');
@@ -218,18 +240,11 @@ export function KeySetup({
             <button
               type="button"
               className={buttonSecondary}
-              onClick={() => downloadKey(state.key, slug)}
+              onClick={() => downloadKey(shownKey(), slug)}
             >
               Download as a file
             </button>
-            <button
-              type="button"
-              className={buttonPrimary}
-              onClick={() => {
-                setError(null);
-                setState({ step: 'confirm' });
-              }}
-            >
+            <button type="button" className={buttonPrimary} onClick={hideKey}>
               I saved it, hide the key
             </button>
           </div>

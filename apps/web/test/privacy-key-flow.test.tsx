@@ -273,6 +273,122 @@ describe('key setup flow (owner or admin)', () => {
   });
 });
 
+/**
+ * Every string React holds for the tree under `container`: props and hook state of each fiber
+ * and of its alternate (the previous render), two levels deep. React internals, read-only; the
+ * L9 tests use it to show the key is never React state or a prop.
+ */
+const reactHeldStrings = (container: Element): string[] => {
+  const rootKey = Object.keys(container).find((k) => k.startsWith('__reactContainer$'));
+  const out: string[] = [];
+  const collect = (v: unknown, depth: number) => {
+    if (typeof v === 'string') out.push(v);
+    else if (depth > 0 && v !== null && typeof v === 'object' && !(v instanceof Node)) {
+      for (const x of Object.values(v as Record<string, unknown>)) collect(x, depth - 1);
+    }
+  };
+  type Fiber = {
+    memoizedProps: unknown;
+    memoizedState: unknown;
+    child: Fiber | null;
+    sibling: Fiber | null;
+    alternate: Fiber | null;
+  };
+  const read = (f: Fiber) => {
+    collect(f.memoizedProps, 2);
+    let hook = f.memoizedState as { memoizedState?: unknown; next?: unknown } | null;
+    for (let i = 0; hook && typeof hook === 'object' && i < 50; i += 1) {
+      collect('memoizedState' in hook ? hook.memoizedState : hook, 2);
+      hook = (hook.next ?? null) as typeof hook;
+    }
+  };
+  const stack: Fiber[] = rootKey ? [(container as unknown as Record<string, Fiber>)[rootKey]!] : [];
+  const seen = new Set<Fiber>();
+  while (stack.length) {
+    const f = stack.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    read(f);
+    if (f.alternate) read(f.alternate);
+    if (f.child) stack.push(f.child);
+    if (f.sibling) stack.push(f.sibling);
+  }
+  return out;
+};
+
+describe('review L9 — no key text left behind', () => {
+  it('the shown key is never React state or a prop, only text in one DOM node', async () => {
+    const { container } = renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const shown = await screen.findByText(/^JDK1-/);
+    const key = shown.textContent ?? '';
+    expect(key).toBe(await crypto.encodeRecoveryKey(SENTINEL_SECRET));
+    const held = reactHeldStrings(container);
+    expect(held.length).toBeGreaterThan(10);
+    expect(held.flatMap(findSentinel)).toEqual([]);
+  });
+
+  it('after "hide" no key text exists in the DOM, not even in the detached key node', async () => {
+    const { container } = renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const node = await screen.findByText(/^JDK1-/);
+    fireEvent.click(screen.getByRole('button', { name: 'I saved it, hide the key' }));
+    expect(node.isConnected).toBe(false);
+    expect(node.textContent).toBe('');
+    expect(findSentinel(document.documentElement.outerHTML)).toEqual([]);
+    expect(reactHeldStrings(container).flatMap(findSentinel)).toEqual([]);
+  });
+
+  it('copy and download still use the shown key', async () => {
+    const blobs: Blob[] = [];
+    vi.spyOn(URL, 'createObjectURL').mockImplementation((b) => {
+      blobs.push(b as Blob);
+      return 'blob:l9-test';
+    });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    renderSetup();
+    fireEvent.click(screen.getByRole('button', { name: 'Generate recovery key' }));
+    const key = (await screen.findByText(/^JDK1-/)).textContent ?? '';
+    fireEvent.click(screen.getByRole('button', { name: 'Copy key' }));
+    await screen.findByRole('button', { name: 'Copied' });
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(key);
+    fireEvent.click(screen.getByRole('button', { name: 'Download as a file' }));
+    expect(blobs).toHaveLength(1);
+    expect(await blobs[0]!.text()).toContain(key);
+  });
+
+  it('a failed confirmation clears the paste-back field (mismatch and typo)', async () => {
+    renderSetup();
+    const key = await goToConfirm();
+    sentinelNext.value = false;
+    keyInput().value = await crypto.encodeRecoveryKey(crypto.generateProjectSecret());
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText(PASTE_MISMATCH);
+    expect(keyInput().value).toBe('');
+    keyInput().value = `${key.slice(0, -1)}${key.endsWith('0') ? '1' : '0'}`;
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).not.toBe(PASTE_MISMATCH));
+    expect(keyInput().value).toBe('');
+  });
+
+  it('a refused action clears the field too, and success leaves no field with the key', async () => {
+    changePrivacyClassAction.mockResolvedValueOnce({ error: 'Try again.' });
+    renderSetup();
+    const key = await goToConfirm();
+    keyInput().value = key;
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText('Try again.');
+    expect(keyInput().value).toBe('');
+    keyInput().value = key;
+    const field = keyInput();
+    fireEvent.click(screen.getByRole('button', { name: 'Check key and turn on L2' }));
+    await screen.findByText('L2 is on for this project.', { exact: false });
+    expect(field.value).toBe('');
+    expect(findSentinel(document.documentElement.outerHTML)).toEqual([]);
+  });
+});
+
 describe('review L3 — download and copy', () => {
   it('the download URL stays valid for about 40 s, then is revoked', async () => {
     const created: string[] = [];
