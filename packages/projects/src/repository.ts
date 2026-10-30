@@ -1,7 +1,7 @@
 import { and, count, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import { ingestTokens, projects, projectTables, workspaces } from './db/tables.ts';
-import { normalizeProjectInput, normalizeWorkspaceInput } from './schema.ts';
+import { normalizeProjectInput, normalizeWorkspaceInput, PrivacyClass } from './schema.ts';
 import { displayPrefix, generateIngestToken, hashIngestToken, parseIngestToken } from './tokens.ts';
 
 /** Any Drizzle Postgres handle that knows the JD-M04 tables (neon-http in the app, PGlite in tests). */
@@ -112,6 +112,23 @@ export const createProjectRepository = (db: ProjectsDb) => {
         .orderBy(projects.createdAt, projects.id),
 
     getProject: findProject,
+
+    /**
+     * Sets a project's privacy class (ADR-0018 §7): one existing column, no migration. Scoped by
+     * `workspaceId`; returns the updated `{ id, privacyClass }` or `null` when the project is
+     * not in this workspace. Throws a ZodError for a value outside `L0`, `L1`, `L2`.
+     * Callers decide who may change it (owners and admins) and how a raise is confirmed (the
+     * browser key setup flow); this method never sees a key.
+     */
+    async setPrivacyClass(workspaceId: string, projectId: string, raw: unknown) {
+      const privacyClass = PrivacyClass.parse(raw);
+      const [row] = await db
+        .update(projects)
+        .set({ privacyClass })
+        .where(and(eq(projects.workspaceId, workspaceId), eq(projects.id, projectId)))
+        .returning({ id: projects.id, privacyClass: projects.privacyClass });
+      return row ?? null;
+    },
 
     /** Returns the plaintext token once. Callers must show it and then drop it. */
     async issueToken(workspaceId: string, projectId: string, name: string) {
