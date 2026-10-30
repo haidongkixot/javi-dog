@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { deriveProjectKeys, parseRecoveryKey } from '@javis-dog/crypto';
-import { CLEARING_NOTE, SAFARI_NOTE } from '@/lib/privacy/copy';
+import { CLEARING_NOTE, SAFARI_NOTE, TAB_ONLY_CLEARING_NOTE } from '@/lib/privacy/copy';
+import { REMEMBER_ON_DEVICE_ENABLED } from '@/lib/privacy/remember-gate';
 import { KeyInput } from './key-input';
 import { useKeyStore } from './key-context';
 
@@ -11,9 +12,10 @@ const button =
 
 /**
  * Key entry for reading L2 names (ADR-0018 §8). The key is parsed and derived in this browser,
- * imported as non-extractable keys and kept in memory for this tab. "Remember on this device"
- * stores those keys (never the key text) in IndexedDB, only when ticked; "Forget on this device"
- * removes them from memory and the device. Nothing is sent to the server.
+ * imported as non-extractable keys and kept in memory for this tab. Nothing is sent to the
+ * server. "Remember on this device" (keys, never the key text, in IndexedDB, only when ticked)
+ * is offered only once the ADR-0018 §11 gate is released (`remember-gate.ts`, review L1); until
+ * then nothing here offers or mentions remembering.
  */
 export function KeyEntry({
   projectId,
@@ -32,7 +34,9 @@ export function KeyEntry({
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const loaded = store?.list(projectId) ?? [];
-  const canRemember = store?.canRemember() ?? false;
+  // The server has no store: it renders the gate's default, which the browser matches.
+  const offered = store?.rememberOffered() ?? REMEMBER_ON_DEVICE_ENABLED;
+  const canRemember = offered && (store?.canRemember() ?? false);
 
   const applyKey = async () => {
     if (!store || busy) return;
@@ -76,8 +80,9 @@ export function KeyEntry({
         Read encrypted names in this browser
       </h3>
       <p id="key-entry-hint" className="text-xs text-muted">
-        Enter the project’s recovery key. It is checked and used here, in your browser, and kept in
-        memory for this tab unless you choose to remember it.
+        {offered
+          ? 'Enter the project’s recovery key. It is checked and used here, in your browser, and kept in memory for this tab unless you choose to remember it.'
+          : 'Enter the project’s recovery key. It is checked and used here, in your browser, and kept in memory for this tab only.'}
       </p>
       {/* Not a <form>: the key can never be posted. */}
       <KeyInput
@@ -97,11 +102,11 @@ export function KeyEntry({
           />
           Remember on this device
         </label>
-      ) : (
+      ) : offered ? (
         <p className="text-xs text-muted">
           This browser can’t remember keys; they stay in this tab.
         </p>
-      )}
+      ) : null}
       <div>
         <button type="button" className={button} disabled={busy} onClick={() => void applyKey()}>
           {busy ? 'Checking…' : 'Use key'}
@@ -119,7 +124,10 @@ export function KeyEntry({
       ) : null}
 
       {loaded.length > 0 ? (
-        <ul aria-label="Keys on this device" className="grid gap-2">
+        <ul
+          aria-label={offered ? 'Keys on this device' : 'Keys in this tab'}
+          className="grid gap-2"
+        >
           {loaded.map((k) => (
             <li key={k.kid} className="flex flex-wrap items-center gap-2 text-xs text-ink">
               <span>
@@ -150,15 +158,19 @@ export function KeyEntry({
             className={button}
             onClick={async () => {
               await store?.forgetProject(projectId);
-              setNotice('Keys for this project are forgotten on this device.');
+              setNotice(
+                offered
+                  ? 'Keys for this project are forgotten on this device.'
+                  : 'Keys for this project are forgotten in this tab.',
+              );
             }}
           >
-            Forget on this device
+            {offered ? 'Forget on this device' : 'Forget in this tab'}
           </button>
         </div>
       ) : null}
       <p className="text-xs text-muted">
-        {CLEARING_NOTE} {SAFARI_NOTE}
+        {offered ? `${CLEARING_NOTE} ${SAFARI_NOTE}` : TAB_ONLY_CLEARING_NOTE}
       </p>
     </section>
   );

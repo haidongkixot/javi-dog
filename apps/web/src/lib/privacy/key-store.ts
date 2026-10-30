@@ -4,12 +4,15 @@
 //
 // - Memory by default, per tab.
 // - "Remember on this device" persists the non-extractable keys through a `KeyPersistence`
-//   (IndexedDB in browsers, an in-memory fake in tests) — only after an explicit choice.
+//   (IndexedDB in browsers, an in-memory fake in tests) — only after an explicit choice, and
+//   only while the release gate is on (`remember-gate.ts`, review L1, ADR-0018 §11). With the
+//   gate off the device store is used for one thing only: deleting rows left by earlier builds.
 // - "Forget on this device", the sign-out button, a 401 from the dashboard snapshot, a page that
 //   renders signed-out and a sign-out in another tab (`SignOutChannel`, a BroadcastChannel in
 //   browsers) clear keys.
 // - Remembered keys belong to the signed-in user (review M2): each row carries the user id, and
 //   rows of another user (or with none) are deleted on load, never used.
+import { REMEMBER_ON_DEVICE_ENABLED } from './remember-gate';
 
 /** What is remembered: the non-extractable AES-GCM key, never the secret, and whose it is. */
 export interface StoredKey {
@@ -55,7 +58,9 @@ export interface KeyStore {
   /** The project's keys by `kid`, as `decryptL2` takes them. */
   keysFor(projectId: string): ReadonlyMap<string, CryptoKey>;
   list(projectId: string): LoadedKeyInfo[];
-  /** Whether remembered keys can be stored on this device at all. */
+  /** Whether "Remember on this device" is released at all (review L1, ADR-0018 §11). */
+  rememberOffered(): boolean;
+  /** Whether remembered keys can be stored on this device: released and a device store. */
   canRemember(): boolean;
   add(projectId: string, kid: string, l2Key: CryptoKey): void;
   /**
@@ -103,11 +108,17 @@ export const createKeyStore = ({
   persistence,
   channel,
   deviceClearTimeoutMs = DEVICE_CLEAR_TIMEOUT_MS,
+  rememberEnabled = REMEMBER_ON_DEVICE_ENABLED,
 }: {
   persistence: KeyPersistence | null;
   channel: SignOutChannel | null;
   deviceClearTimeoutMs?: number;
+  /** Tests only: forces the release gate (review L1). The app always uses the default. */
+  rememberEnabled?: boolean;
 }): KeyStore => {
+  // Gate off: the device store is never written or read, only cleared (see `hydrate`).
+  const remembering = rememberEnabled ? persistence : null;
+  let purge: Promise<void> | null = null;
   const projects = new Map<string, Map<string, Entry>>();
   const listeners = new Set<() => void>();
   let version = 0;
@@ -171,7 +182,8 @@ export const createKeyStore = ({
         .map(([kid, e]) => ({ kid, remembered: e.remembered }))
         .sort((a, b) => (a.kid < b.kid ? -1 : a.kid > b.kid ? 1 : 0));
     },
-    canRemember: () => persistence !== null,
+    rememberOffered: () => rememberEnabled,
+    canRemember: () => remembering !== null,
     add(projectId, kid, l2Key) {
       if (!VALID_KID.test(kid)) throw new TypeError('A kid is 8 Crockford base32 characters.');
       const existing = projects.get(projectId)?.get(kid);
@@ -181,15 +193,16 @@ export const createKeyStore = ({
     async remember(projectId, kid) {
       const entry = projects.get(projectId)?.get(kid);
       const userId = user;
-      if (!entry || !persistence || userId === null) return false;
+      const device = remembering;
+      if (!entry || !device || userId === null) return false;
       try {
-        await persistence.save({ projectId, kid, l2Key: entry.l2Key, userId });
+        await device.save({ projectId, kid, l2Key: entry.l2Key, userId });
       } catch {
         return false;
       }
       // Cleared (or another user) meanwhile: undo the write rather than keep a forgotten key.
       if (projects.get(projectId)?.get(kid) !== entry || user !== userId) {
-        await quietly(() => persistence.remove(projectId, kid));
+        await quietly(() => device.remove(projectId, kid));
         return false;
       }
       entry.remembered = true;
@@ -220,13 +233,19 @@ export const createKeyStore = ({
       if (userId !== null) void store.hydrate();
     },
     hydrate() {
+      // Gate off (review L1): nothing is loaded; rows an earlier build stored are deleted once.
+      if (persistence && !remembering) {
+        purge ??= quietly(() => persistence.clear());
+        return purge;
+      }
       const userId = user;
-      if (!persistence || userId === null) return Promise.resolve();
+      const device = remembering;
+      if (!device || userId === null) return Promise.resolve();
       hydration ??= (async () => {
         const started = epoch;
         let stored: StoredKey[] = [];
         try {
-          stored = await persistence.load();
+          stored = await device.load();
         } catch {
           return;
         }
@@ -248,7 +267,7 @@ export const createKeyStore = ({
         }
         if (added) emit();
         for (const [projectId, kid] of foreign) {
-          await quietly(() => persistence.remove(projectId, kid));
+          await quietly(() => device.remove(projectId, kid));
         }
       })();
       return hydration;

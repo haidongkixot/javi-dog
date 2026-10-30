@@ -41,12 +41,20 @@ export const LOST_KEY_WARNING =
 export const COLLECTOR_GUIDANCE =
   'Run javi init --privacy yourself, in a terminal, on each machine, and paste the key at its hidden prompt. Never paste the key into an agent chat or an agent’s command: it would land in the model provider’s transcript.';
 
-/** ADR-0018 §8: Safari may evict stored keys. */
+/**
+ * Review L1: the clearing note while "Remember on this device" is off (`remember-gate.ts`).
+ * Keys live only in the tab's memory, so it never mentions remembering.
+ */
+export const TAB_ONLY_CLEARING_NOTE =
+  'Keys stay in this tab’s memory only: reloading or closing the tab forgets them. Signing out, here or in another tab, forgets them too, and so does any page that finds you signed out.';
+
+/** ADR-0018 §8: Safari may evict stored keys. Shown only while remembering is offered. */
 export const SAFARI_NOTE =
   'Safari may delete keys remembered on this device after 7 days without a visit.';
 
 /**
- * Review M2: exactly the clearing paths the app has. The sign-out button (and the notice it
+ * Shown only while "Remember on this device" is offered (review L1); otherwise
+ * `TAB_ONLY_CLEARING_NOTE`. Review M2: exactly the clearing paths the app has. The sign-out button (and the notice it
  * sends to other tabs), any signed-out page (`SignInPrompt`, `/sign-in`, the account menu with
  * no session, a 401 from the dashboard) and another account's remembered keys on hydrate.
  */

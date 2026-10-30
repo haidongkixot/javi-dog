@@ -28,7 +28,9 @@ const { KeySetup } = await import('@/components/privacy/key-setup');
 const { KeyEntry } = await import('@/components/privacy/key-entry');
 const { LowerClass } = await import('@/components/privacy/lower-class');
 const { createKeyStore } = await import('@/lib/privacy/key-store');
-const { PASTE_MISMATCH, lowerWarning } = await import('@/lib/privacy/copy');
+/** Review L1: remembering ships off; these tests force the gate on to test the logic. */
+const REMEMBER_ON = { rememberEnabled: true } as const;
+const { PASTE_MISMATCH, TAB_ONLY_CLEARING_NOTE, lowerWarning } = await import('@/lib/privacy/copy');
 
 const PROJECT = '22222222-2222-4222-8222-222222222222';
 const SLUG = 'web-app';
@@ -280,7 +282,7 @@ describe('key entry for reading', () => {
 
   it('keeps a key in memory only by default, and clears the field', async () => {
     const persistence = memoryPersistence();
-    const s = createKeyStore({ persistence, channel: null });
+    const s = createKeyStore({ persistence, channel: null, ...REMEMBER_ON });
     renderEntry(s);
     keyInput().value = await crypto.encodeRecoveryKey(SENTINEL_SECRET);
     fireEvent.click(screen.getByRole('button', { name: 'Use key' }));
@@ -296,7 +298,7 @@ describe('key entry for reading', () => {
 
   it('"Remember on this device" (ticked) stores the non-extractable key; "Forget" removes it', async () => {
     const persistence = memoryPersistence();
-    const s = createKeyStore({ persistence, channel: null });
+    const s = createKeyStore({ persistence, channel: null, ...REMEMBER_ON });
     s.setUser('user-1');
     renderEntry(s);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Remember on this device' }));
@@ -327,16 +329,37 @@ describe('key entry for reading', () => {
     expectNoLeak();
   });
 
-  it('without device storage, offers no remember option and says so', () => {
-    const s = createKeyStore({ persistence: null, channel: null });
+  it('without device storage, offers no remember option and says so (gate forced on)', () => {
+    const s = createKeyStore({ persistence: null, channel: null, ...REMEMBER_ON });
     renderEntry(s);
     expect(screen.queryByRole('checkbox', { name: 'Remember on this device' })).toBeNull();
     expect(screen.getByText(/can’t remember keys/)).toBeTruthy();
     s.dispose();
   });
 
-  it('states the clearing paths and the Safari 7-day note', () => {
-    renderEntry();
+  it('review L1: with the gate off (default), no remember option and no copy about remembering', async () => {
+    const persistence = memoryPersistence();
+    const s = createKeyStore({ persistence, channel: null });
+    s.setUser('user-1');
+    renderEntry(s);
+    const section = screen.getByRole('region', { name: 'Read encrypted names in this browser' });
+    expect(within(section).queryByRole('checkbox')).toBeNull();
+    expect(within(section).queryByRole('button', { name: /remember/i })).toBeNull();
+    expect(section.textContent).not.toMatch(/remember|safari/i);
+    expect(section.textContent).toContain(TAB_ONLY_CLEARING_NOTE);
+    // Using a key keeps it in this tab only; nothing reaches the device store.
+    keyInput().value = await crypto.encodeRecoveryKey(SENTINEL_SECRET);
+    fireEvent.click(screen.getByRole('button', { name: 'Use key' }));
+    const kid = (await crypto.deriveProjectKeys(SENTINEL_SECRET, SLUG)).kid;
+    await screen.findByText(`Key ${kid} loaded in this tab.`, { exact: false });
+    expect(section.textContent).not.toMatch(/remember/i);
+    expect(persistence.save).not.toHaveBeenCalled();
+    s.dispose();
+  });
+
+  it('states the clearing paths and the Safari 7-day note (gate forced on)', () => {
+    const s = createKeyStore({ persistence: memoryPersistence(), channel: null, ...REMEMBER_ON });
+    renderEntry(s);
     const text = document.body.textContent ?? '';
     // Review M2: exactly the clearing paths that exist (sign-out here or in another tab, any
     // signed-out page, another account's remembered keys).
@@ -346,6 +369,7 @@ describe('key entry for reading', () => {
     expect(text).toContain(
       'Safari may delete keys remembered on this device after 7 days without a visit.',
     );
+    s.dispose();
   });
 });
 

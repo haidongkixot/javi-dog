@@ -28,6 +28,8 @@ const { KeyStoreProvider } = await import('@/components/privacy/key-context');
 const { SignInPrompt } = await import('@/components/sign-in-prompt');
 const { AccountMenu } = await import('@/components/account-menu');
 const { createKeyStore } = await import('@/lib/privacy/key-store');
+/** Review L1: remembering ships off; these tests force the gate on to test the logic. */
+const REMEMBER_ON = { rememberEnabled: true } as const;
 
 const P1 = '11111111-1111-4111-8111-111111111111';
 
@@ -50,7 +52,7 @@ let stores: KeyStore[] = [];
 /** A store holding one key in memory and the same key remembered for `user-a`. */
 const storeWithKeys = async () => {
   const persistence = fakePersistence();
-  const store = createKeyStore({ persistence, channel: null });
+  const store = createKeyStore({ persistence, channel: null, ...REMEMBER_ON });
   stores.push(store);
   const k = await deriveProjectKeys(generateProjectSecret(), 'web-app');
   store.setUser('user-a');
@@ -107,7 +109,7 @@ describe('a page that renders signed-out forgets every key (memory and device)',
 describe('the account menu binds keys to the session user', () => {
   it('signed in as the same user: remembered keys load', async () => {
     const { persistence, kid } = await storeWithKeys();
-    const tab = createKeyStore({ persistence, channel: null });
+    const tab = createKeyStore({ persistence, channel: null, ...REMEMBER_ON });
     stores.push(tab);
     render(
       <KeyStoreProvider store={tab}>
@@ -120,7 +122,7 @@ describe('the account menu binds keys to the session user', () => {
   it('signed in as another user: nothing loads and the other user’s row is deleted', async () => {
     const { persistence } = await storeWithKeys();
     session.value = signedIn('user-b');
-    const tab = createKeyStore({ persistence, channel: null });
+    const tab = createKeyStore({ persistence, channel: null, ...REMEMBER_ON });
     stores.push(tab);
     render(
       <KeyStoreProvider store={tab}>

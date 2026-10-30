@@ -132,6 +132,17 @@ describe('project page — privacy card', () => {
     expect(within(c).getByRole('button', { name: 'Lower to L0…' })).toBeTruthy();
   });
 
+  it('review L1: the page offers no "Remember on this device" and never mentions remembering', async () => {
+    for (const role of ['member', 'owner']) {
+      state.privacyClass = 'L2';
+      state.viewer = viewerAs(role);
+      const { unmount } = render(await page());
+      expect(within(card()).queryByRole('checkbox')).toBeNull();
+      expect(card().textContent).not.toMatch(/remember|safari/i);
+      unmount();
+    }
+  });
+
   it('never says secure, zero-knowledge or end-to-end', async () => {
     for (const cls of ['L0', 'L1', 'L2']) {
       state.privacyClass = cls;
