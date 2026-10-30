@@ -58,6 +58,7 @@ Roster per `docs/agent-ops/TEAM.md`.
 
 Team log, newest first:
 
+- 2026-10-30 — QA — 50 vectors (M 21, H 14, R 15) from the ADR only, `1f40a78` in the QA worktree. 19 spec gaps; G8 was a design defect: an agent's `working` would have hidden a real permission prompt. All resolved in ADR-0017 (Changes "QA spec gaps"). Developers A and B were told mid-lane, and QA is updating the vectors.
 - 2026-10-30 — Reviewer — Design review D0 of ADR-0017, before any code: 2 High (H1 the end-of-turn `idle` overwrote self-reports; H2 self-reports waited in the spool), 7 Medium, 5 Low. Orchestrator verified H1/H2 in `mapping.ts:103-104`, `queries.ts:21,80-81`, `run.ts:23,228-236`. All folded into ADR-0017 (Changes D0). The orchestrator also found that pre-tool hooks would leave an unmatched `task.started` for javi's tools, now silent. Owner: self-reported `blocked` counts as attention; opt-in `--allow-self-report`.
 - 2026-10-30 — Orchestrator — Research agent report (primary sources). The orchestrator re-checked hook firing for MCP tools in the Codex and Gemini sources. That led to a uniform "hook emits" design, with no server-side Codex path.
 

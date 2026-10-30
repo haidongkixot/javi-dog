@@ -58,7 +58,8 @@ Sources:
      - `id` is echoed exactly (string or number).
      - Any request other than `initialize` and `ping` that arrives before `initialize` gets `-32600`.
    - **Errors.**
-     - `server/discover` and any other method get `-32601`, which makes modern clients fall back to `initialize`.
+     - `server/discover` and any other method get `-32601`, which makes modern clients fall back to `initialize`. This holds before `initialize` too (QA gap G1). Only the known methods `tools/list` and `tools/call` get `-32600` before `initialize`.
+     - A request with `"id": null` gets `-32600` with `id: null`. A second `initialize` is answered like the first (QA gap G14).
      - Malformed JSON gets `-32700` with `id: null`.
      - A JSON array (batch) gets `-32600`.
      - An unknown tool name gets `-32602`.
@@ -76,7 +77,8 @@ Sources:
      - `phase` ∈ `started`, `completed`, `failed`.
      - `kind` ∈ `plan`, `research`, `implement`, `test`, `debug`, `review`, `docs`, `build`, `deploy` or `other`.
    - **Strict arguments.**
-     - Unknown keys, wrong types, values outside the lists, or a `reason` with another status are rejected.
+     - Unknown keys, wrong types (including `reason: null`), values outside the lists, a missing required key, `arguments` that are missing or not an object, or a `reason` with another status are rejected (QA gaps G2, G10).
+     - Order of checks: the arguments are validated first; only valid input is then checked against the hooks state (QA gap G3). `tools/list` does not depend on the hooks state.
      - The tool result then has `isError: true`. Its text is a constant per tool that names the allowed values and never echoes the input.
    - **Annotations:** `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`. These are honest: the tool writes only to javi's local spool, and `javi` delivers it later to the user's own project. They also let Codex skip its approval prompt in Auto mode.
    - **Instructions.** The `initialize` result carries short `instructions` (≤ 1 000 characters):
@@ -94,6 +96,7 @@ Sources:
      - Gemini: `mcp_context.server_name` = `javi` and `mcp_context.tool_name` ∈ {`report_status`, `report_task`}. Gemini's `tool_name` is `mcp_javi_<tool>` (`mcp-tool.ts:725-731`). `server_name` is the raw config key, so `javi_x` cannot match.
    - **Only one record per hook call.** For javi's own tools, the hook emits only the self-report record, or nothing when the input is invalid. It emits no generic tool event: the call is the report, so `tasksCompleted` is not inflated (review L2), and no hook ever produces two records (review M5). Every other tool maps exactly as before.
    - **Pre-tool hooks stay silent for javi's tools.** Claude Code and Codex `PreToolUse` and Gemini `BeforeTool`, which carries `mcp_context` too (`hookEventHandler.ts` `fireBeforeToolEvent`), emit nothing for javi's two tools. They match the same way. So no `task.started` is left without a matching end. Permission prompts for these tools still map to `attention.requested` as before, because that wait is real.
+   - **Independent of registration.** The mapping does not depend on `--self-report`: a hook maps javi's tools whenever they appear (QA gap G11). The hook time is javi's own clock, never a time inside the payload (QA gap G12). `attributes.tool_name` is the payload's tool name as given, up to 128 characters (QA gap G19).
    - **Validation.** It validates `tool_input` with the same strict validator as the server. Only the tool name, `tool_input`, `mcp_context.server_name` and `mcp_context.tool_name` are read. `tool_response` and the rest of `mcp_context` are never read.
    - **Mapping.**
      - `report_status` maps to `heartbeat` with `status`, plus `attributes.error_code` = `<status>.<reason>` (for example `blocked.missing_credentials`) when a reason is given.
@@ -150,16 +153,19 @@ Sources:
    - **Agent status.** An agent status is the latest self-reported status in a thread: a `heartbeat` that carries a `tool_name`. No collector heartbeat has a `tool_name` (review L1).
    - **Precedence** (review H1).
      - **What clears it.** The agent status stays the thread's status until a later piece of collector activity:
-       - `task.*`;
+       - `task.*`, from the collector or self-reported;
+       - `attention.requested`;
        - `session.*`;
        - `agent.*`;
        - a `heartbeat` with status `working` and no `tool_name` (Claude Code and Codex `UserPromptSubmit`, Gemini `BeforeAgent`).
-     - **What does not clear it.** A later collector `heartbeat idle` (end of turn), `attention.requested`, `usage.reported` or `error`.
-     - **Otherwise.** The existing rule applies: the latest non-null `status`.
+     - A later `attention.requested` also clears it (QA gap G8). A real permission prompt is collector evidence that the thread waits for a human, so the thread shows `waiting` with attention.
+     - A later self-reported `task.*` clears it too: the agent has resumed work (QA gap G7).
+     - **What does not clear it.** A later collector `heartbeat idle` (end of turn), `usage.reported` or `error`.
+     - **Otherwise.** When there is no agent status, or it has been cleared, the status is the latest non-null status among events that are not agent statuses, and the source is `collector`. A clearing event with no status, such as a collector `task.started`, therefore shows the collector status that came before the agent's report (QA gap G6). If there is no such status, the status is null.
      - **Ordering.** The reader's existing order is used (`received_at`, then `sequence`, then row id).
    - **Reader** (JD-M12). The thread reader returns:
      - `statusSource`: `agent` or `collector`;
-     - `statusReason`: the reason from `<status>.<reason>` in `error_code`, accepted only when it is in the `SELF_REPORT` list (review M2).
+     - `statusReason`: the reason from `<status>.<reason>` in `error_code`, accepted only when the prefix equals the status and the reason is in the `SELF_REPORT` list (review M2, QA gap G9). Otherwise it is null.
 
      No migration is needed: these are aggregates over existing columns.
    - **Attention (owner, 2026-10-30).** A thread needs attention when its status is `waiting`, as today, or when its status is `blocked` with source `agent` (review M1).
@@ -213,3 +219,21 @@ Sources:
   | L3 | Text could leak through stderr and `isError` | Fixed strings only |
   | L4 | `error_code` reuse | Spec note |
   | L5 | CLIs diverge on failed calls | Documented |
+
+- 2026-10-30 — QA spec gaps (vectors T5, before any runner). The clarifications are written into decisions 1–3 and 6:
+
+  | Gap | Resolution |
+  |---|---|
+  | G1 | `-32601` for unknown methods before `initialize` too |
+  | G2, G10 | Missing keys, non-object `arguments` and `reason: null` give `isError` |
+  | G3 | Validation before the hooks check |
+  | G6 | After clearing, the latest non-agent status |
+  | G7 | A self-reported `task.*` clears an agent status |
+  | G8 | `attention.requested` clears an agent status; the review D0 wording (H1) had kept it, which would have hidden a real permission prompt behind an agent's `working` |
+  | G9 | The reason prefix must equal the status |
+  | G11 | Mapping does not depend on registration |
+  | G12 | Hook time is javi's clock |
+  | G14 | `id: null` gives `-32600`; a repeated `initialize` is answered |
+  | G19 | `tool_name` is taken as given |
+
+  G4, G13 and G18 need no change. G5 was a TEST_PLAN line that contradicted decision 3 and is now fixed.
