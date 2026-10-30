@@ -1,0 +1,24 @@
+{
+  "name": "@javis-dog/crypto",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-M11 — JGR privacy classes L1/L2 (ADR-0018): project recovery key, HKDF derivations, kid, L1 keyed hashes and L2 AES-256-GCM payloads. WebCrypto only, the same code in Node and browsers",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@javis-dog/jgr-spec": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "jsdom": "30.1.3",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
