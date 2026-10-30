@@ -3,7 +3,7 @@
   "name": "@javis-dog/collector-adapters",
   "version": "0.1.0",
   "status": "in-progress",
-  "description": "Pure platform adapters used by the javi collector (JD-C01), ADR-0016. S5b: Gemini CLI hook mapper, `gemini_cli.token.usage` allowlist parser, input-minus-cache delta rule and a dated Vertex AI price table for estimated cost. S5c: Codex CLI hook mapper, OTLP logs allowlist parser (`response.completed`, `codex.turn_cost`), cache-aware delta rule, cost for API-key auth only. No I/O.",
+  "description": "Pure platform adapters used by the javi collector (JD-C01), ADR-0016. S5b: Gemini CLI hook mapper, `gemini_cli.token.usage` allowlist parser, input-minus-cache delta rule and a dated Vertex AI price table for estimated cost. S5c: Codex CLI hook mapper, OTLP logs allowlist parser (`response.completed`, `codex.turn_cost`), cache-aware delta rule, cost for API-key auth only. S5d: agent self-report vocabulary (`SELF_REPORT`), strict validator, javi-tool matcher and hook mapper for all three CLIs, HMAC-seeded ULIDs (ADR-0017). No I/O.",
   "owner": "platform",
   "provides": [
     "mapGeminiHook()",
@@ -23,7 +23,12 @@
     "codexThreadRef() / codexAgentRef()",
     "CODEX_HOOK_EVENTS",
     "CODEX_AUTH_MODES / CODEX_PRICED_AUTH_MODES",
-    "CODEX_LOGS_PARSE_ERROR"
+    "CODEX_LOGS_PARSE_ERROR",
+    "SELF_REPORT",
+    "validateSelfReport()",
+    "matchJaviTool()",
+    "selfReportRecord()",
+    "selfReportEventId()"
   ],
   "consumes": ["JD-M02"]
 }

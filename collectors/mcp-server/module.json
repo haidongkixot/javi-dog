@@ -1,0 +1,21 @@
+{
+  "id": "JD-C03",
+  "name": "@javis-dog/collector-mcp-server",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "Javi MCP server for agent self-report (ADR-0017). S5d: hand-written stdio JSON-RPC server with no runtime dependency beyond JD-C02 — `initialize` (known protocol versions echoed, else 2025-11-25), `ping`, `tools/list` and `tools/call` for `report_status` and `report_task` with fixed vocabularies, constant result texts that never echo input, fixed stderr strings only. Interop-tested with the official SDK client (dev dependency). Started by `javi mcp` (JD-C01).",
+  "owner": "platform",
+  "provides": [
+    "createMcpServer()",
+    "serveStdio()",
+    "MCP_TOOLS",
+    "MCP_INSTRUCTIONS",
+    "MCP_TOOL_ANNOTATIONS",
+    "MCP_RESULT_TEXTS",
+    "MCP_LOG_MESSAGES",
+    "MCP_PROTOCOL_VERSIONS / MCP_DEFAULT_PROTOCOL_VERSION",
+    "JSON_RPC_ERRORS",
+    "MCP_MAX_LINE_LENGTH"
+  ],
+  "consumes": ["JD-C02"]
+}

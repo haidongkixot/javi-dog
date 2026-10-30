@@ -1,0 +1,24 @@
+{
+  "name": "@javis-dog/collector-mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-C03 — hand-written stdio MCP server for agent self-report (`report_status`, `report_task`), no runtime dependency beyond JD-C02 (ADR-0017)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@javis-dog/collector-adapters": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}

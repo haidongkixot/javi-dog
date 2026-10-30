@@ -49,3 +49,25 @@ export type {
   CodexSubagentLink,
   CodexTokenRecord,
 } from './codex.ts';
+export {
+  SELF_REPORT,
+  matchJaviTool,
+  selfReportEventId,
+  selfReportRecord,
+  validateSelfReport,
+} from './self-report.ts';
+export type {
+  ReportStatusInput,
+  ReportTaskInput,
+  SelfReportBase,
+  SelfReportContext,
+  SelfReportEventIdInput,
+  SelfReportKind,
+  SelfReportMatch,
+  SelfReportPhase,
+  SelfReportPlatform,
+  SelfReportReason,
+  SelfReportStatus,
+  SelfReportToolName,
+  SelfReportValidation,
+} from './self-report.ts';
