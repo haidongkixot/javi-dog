@@ -208,3 +208,30 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
   | G14 | After a rotation, the "checked" label names the `kid` of the newest successfully decrypted event. |
 
   G11 was two stale TEST_PLAN rows, now fixed. Encrypt-direction known answers need a test-only IV input on the encrypt function; it is documented as test-only.
+- 2026-10-30 — Implementation decisions taken by the lanes, accepted by the orchestrator:
+  - The identity event's `event_id` is the trigger's ULID + 1; it has no `agent_ref`.
+  - The L1 canary is class L1 with no hashes.
+  - No usable `cwd` means no identity event.
+  - The reader keeps identity events out of tasks, status and the activity feed.
+  - The canary alone does not flip the project label; the first decrypted identity event does.
+  - Signing out also clears keys remembered on the device.
+- 2026-10-30 — Security review of the implementation (`e3a2ad5..0b2179d`): 0 High, 3 Medium, 9 Low. No path was found where the key reaches the server. Fixed red-first (`9805ba9`, `e8fb1bc`):
+
+  | Finding | Problem | Fix |
+  |---|---|---|
+  | M1 | Row swap | The browser builds the AAD from the row it displays and the identity type, never from the server's identity fields; a mismatch gives "Can't verify". |
+  | M2 | Keys outlived a session or a user | Keys remembered on the device carry the user id; signed-out pages and a different user clear them. |
+  | M3 | The key prompt inside an agent's terminal | The prompt refuses when an agent marker is set or a stream is not a terminal, and points to `--privacy-key-file`. The terminal is restored on every exit path. |
+
+  The Lows were fixed too:
+  - **L1:** "Remember on this device" is off behind `REMEMBER_ON_DEVICE_ENABLED` until the owner's signed-in CSP run on the project page passes (decision 11).
+  - **L2:** the API policy adds `default-src 'none'; script-src 'none'`.
+  - **L3:** the download link is revoked after 40 s, with "copied isn't saved" copy.
+  - **L4:** a warning before a step deletes the machine's copy of the key.
+  - **L5:** the "checked" flag is cleared on sign-out and on a class change.
+  - **L6:** sign-out never blocks.
+  - **L7:** tests that can now fail (row swap, sentinel through the real server action, the bundled loader).
+  - **L8:** a warning for a key file open to other users.
+  - **L9:** no key text is left in React state or in the inputs.
+- 2026-10-30 — Decision 6 amended: the hidden prompt needs all three streams to be terminals. A token can no longer be piped on stdin when the prompt is used; give it with `JAVI_INGEST_TOKEN` instead. The no-terminal message points only to `--privacy-key-file`, because an agent would put `JAVI_PRIVACY_KEY` into its own command. `JAVI_PRIVACY_KEY` still works.
+- 2026-10-30 — Decision 8, clearing list updated: keys are also cleared on any page that renders signed out (`/sign-in`, `SignInPrompt`). Visiting `/sign-in` while signed in also clears them.

@@ -2,6 +2,25 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-31 · Session 2 (cloud), continued — S5f privacy classes L1/L2 (JD-M11)
+
+- **G9 PASS:** the first purge was verified by data (`c1178c0`).
+- **S5f design and decisions:**
+  - ADR-0018 with owner decisions: recovery key, HMAC L1, repo and branch names, end to end, CSP then remember.
+  - Research from source repositories, because many hosts are blocked.
+  - Design review D0 (3 High) and 14 QA byte-level gaps, folded in before code.
+- **Lanes:** QA vectors; crypto; CSP; runner; collector; web; end-to-end; security review; two fix lanes. Each was merged with a full gate.
+- **State:**
+  - everything is pushed;
+  - the CSP is live (6 public production routes, 0 violations);
+  - L1/L2 is usable once an owner raises a project;
+  - "Remember on this device" is off.
+- **Slips:**
+  - rule 9 twice, logged;
+  - one gate broke on the shared Vitest cache;
+  - a registry table broke on a module description.
+- **Next:** owner runs (how-to step 7) and release decisions; JD-M10 needs the owner's GitHub App.
+
 ## 2026-10-30 · Session 2 (cloud), continued — S5e follow-ups and push gate
 
 - **Guru checkpoint `ad-hoc-self-report`** (`c5132d0`): 2 new skills and 11 updated. It found two red CI runs that had gone unread (SR-F1). Both were flaky tests, fixed in tests only (`a551aed`):

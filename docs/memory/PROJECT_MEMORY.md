@@ -79,6 +79,21 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
   2212 tests; CI green on `ec20396`.
 
+- S5f (2026-10-30/31, ADR-0018). Owner decisions: JD-M11; recovery key; L1 keyed by the L2 key; repo and branch names; L1 and L2 end to end; add a CSP, then remember keys. Built:
+  - JD-M11 `@javis-dog/crypto` (WebCrypto only: recovery key, HKDF, HMAC L1, AES-GCM L2 with AAD and padding);
+  - the spec's `iv` set to 12 bytes and §7 HMAC wording;
+  - a nonce CSP on every page;
+  - `javi init --privacy` (canary first, safe key input, identity event, hardened `.git` reading);
+  - the reader's identity fields and the class change;
+  - the browser key setup and decryption with honest labels.
+
+  Checks:
+  - 153 QA known-answer vectors from two reference implementations;
+  - an end-to-end test;
+  - a design review (3 High) and a security review (0 High, 3 Medium), all fixed red-first.
+
+  2686+ tests. "Remember on this device" is off until the owner's signed-in CSP run. Owner runs: how-to step 7.
+
 ## Decisions in force
 
 | Ref | Decision |
@@ -100,6 +115,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0008 | Accepted 2026-10-23: `events` in JD-M06 (dedupe per project), 30-day raw retention, Postgres per-token rate limit (60/min), receiver codes `project_mismatch` / `privacy_class_not_allowed`, 256 KB after gzip |
 | ADR-0007 | Accepted 2026-10-22: welcome email via Resend REST from `onUserCreated`; PII-free auth logging; `errorURL` → `/sign-in` |
 | ADR-0006 | Accepted 2026-10-22: Better Auth organization plugin mapped onto `workspaces`; personal workspace (owner) on first sign-in; open sign-up; telemetry off; OAuth tokens encrypted |
+| ADR-0018 | Accepted 2026-10-30: privacy classes L1/L2 with an owner-held recovery key. HKDF per project gives the `kid`, the HMAC keys for L1 and the AES-GCM key for L2. Identifiers travel on `x.javi.thread.identity`; the AAD binds the event, thread, type, slug, producer and `kid`; payloads are padded to 256 bytes. Decryption happens only in the browser, with honest labels. A nonce CSP covers every page, and remembering keys waits for the owner's signed-in CSP run |
 | ADR-0017 | Accepted 2026-10-30: agent self-report through javi's local MCP server (`javi mcp`, two tools with fixed lists). The post-tool hook emits the event in the session's thread. A hand-written server; the reason goes in `error_code`; opt-in registration without pre-granted permissions (opt-in `--allow-self-report`). The dashboard labels the agent's own claim and keeps it until real activity |
 | ADR-0016 | Accepted 2026-10-29: one `javi` CLI with pure platform adapters (JD-C02). For Gemini: hooks per project, OTel as a user opt-in with forced `logPrompts:false` and a redirection guard; cost estimated only for per-token auth; `estimated:false` because the tokens are exact. Codex follows in S5c (opt-in logs allowlist); S5c: logs-only Codex usage (statsig untouched), cost only for `ApiKey`, sub-agents attributed to the parent, stable launcher, smol-toml block edit, loopback `NO_PROXY` rule, system-proxy guard, persisted accepted ids |
 | ADR-0015 | Accepted 2026-10-28: production database = Neon `main` (the integration's production branch). Migrations go through drizzle `readMigrationFiles` and the Neon MCP, one transaction each. Cutover is an owner step. Rollback paths have stated limits: 6 h restore. The load-test budget is fixed. Accepted risk: no rotation of the exposed secrets |
@@ -121,7 +137,8 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 5. Owner: review the G4 Orcasus PR proposal and the `CLAUDE.md` §2 rule-4 proposal in `guru/WISDOM_LOG.md` (nothing opened).
 6. Owner (optional): approve upgrading dev-only tooling with advisories (`markdownlint-cli2`, `drizzle-kit`; readiness "Dependency advisories").
 7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).
-8. Agent: the S5d follow-ups F1–F3 are done (S5e). Next development candidates are JD-M11 privacy L1/L2 (needs an ADR and owner decisions) and JD-M10 GitHub App (blocked on the owner creating the app).
+8. Agent: JD-M11 is built (S5f). The remaining S5 roadmap module is JD-M10 GitHub App (blocked on the owner creating the app).
+9. Owner: L1/L2 runs (how-to step 7): key setup in the browser with the console checked for CSP errors, which unlocks "Remember on this device"; `javi init --privacy L2` on your machine, including Windows' hidden prompt; the dashboard names after pasting the key.
 
 ## Process (owner decisions 2026-10-28)
 

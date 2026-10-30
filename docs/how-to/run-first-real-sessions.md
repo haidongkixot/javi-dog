@@ -1,6 +1,6 @@
 # How to run the first real Claude Code, Gemini CLI and Codex CLI sessions (Windows)
 
-The owner (or a local Claude Code session on the owner's machine) follows these steps to close the runtime checks that the cloud sandbox cannot do. That is release-checklist item G6, plus the UNVERIFIED rows "OTel session correlation" and "Gemini runtime checks" in the readiness matrix. Decisions: ADR-0010, ADR-0011, ADR-0016, ADR-0017.
+The owner (or a local Claude Code session on the owner's machine) follows these steps to close the runtime checks that the cloud sandbox cannot do. That is release-checklist item G6, plus the UNVERIFIED rows "OTel session correlation" and "Gemini runtime checks" in the readiness matrix. Decisions: ADR-0010, ADR-0011, ADR-0016, ADR-0017, ADR-0018.
 
 ## Rules for whoever runs this
 
@@ -115,6 +115,40 @@ Remove-Item Env:JAVI_INGEST_TOKEN
   - Within a minute, the dashboard should show "Blocked · missing credentials · reported by agent" and "Needs you".
   - It should switch back to working after your next prompt.
   - `javi status --project test-01-project-horizos` (add `--platform …`) prints a `Self-report:` line.
+
+## 7. Privacy classes L1/L2 (optional, ADR-0018)
+
+This hides repo and branch names from Javi's Dog. Only browsers and machines that have your **recovery key** can read them.
+
+1. **Set up the key (dashboard).**
+   - Sign in, open the project (as owner or admin) and choose **L2** in the privacy card.
+   - Read the warning (a lost key means unreadable names), then select **Generate recovery key**.
+   - Keep the `JDK1-…` key somewhere safe, such as your password manager or the downloaded file. **A copied key isn't saved yet.**
+   - Select **I saved it**, paste the whole key back to confirm, and the project switches to L2.
+   - Open the browser console (F12) on this page and look for any line mentioning "Content Security Policy". Report it, or report "none". This check is what lets "Remember on this device" be switched on later.
+2. **Give the key to javi.** Do this yourself, in a terminal, **never through an agent**:
+
+   ```powershell
+   cd "D:\path\to\your\project"
+   $env:JAVI_INGEST_TOKEN = Read-Host 'Ingest token'
+   npx "D:\Claude Projects\javisdog\javi-dog\collectors\claude-code\dist\javis-dog-javi-0.1.0.tgz" init --project test-01-project-horizos --privacy L2
+   Remove-Item Env:JAVI_INGEST_TOKEN
+   ```
+
+   - javi asks for the recovery key with the input hidden.
+   - If the terminal prompt does not work on Windows, save the key in a file only you can read and add `--privacy-key-file <path>`. Delete the file afterwards.
+   - javi sends a small encrypted check event first and saves nothing if Javi's Dog refuses it.
+3. **Use it.**
+   - Start a new agent session in that folder and send a prompt.
+   - On the dashboard, the thread shows "Encrypted (key …)" until you paste the key into the **Read encrypted names** field. Then it shows `repo · branch`.
+   - The project card switches to the checked text.
+4. **Report back:**
+   - the `init` output;
+   - `javi status --project test-01-project-horizos`, which shows the class, the key id and rejections, never the key;
+   - what the dashboard showed before and after pasting the key;
+   - any console line about Content Security Policy.
+
+`javi init --project test-01-project-horizos --privacy L0` turns it off on that machine and **deletes that machine's copy of the key**. Keep another copy if you still want to read the stored names.
 
 ## Report back (paste into the cloud session)
 

@@ -362,6 +362,6 @@ Written before the lanes start (ADR-0018). Risk: **HIGH**. This is cryptography,
 | Label for the right `kid` with failed decryption ("changed or damaged") vs wrong key vs no key (D0 M8) | Medium | Component | text | No |
 | Sentinel search covers the decoded key bytes (hex) and the base32 body as substrings, not only the full string (D0 M8) | High | All key-never-on-server tests | substring search | No |
 | CSP: every app route loads with zero CSP violations; `script-src` has a nonce and `'strict-dynamic'` (decision 11) | High | Bounded browser run (Playwright, no screenshots; `next build` + `next start`) | console `securitypolicyviolation` count = 0 | Yes: the only way to see violations |
-| IndexedDB "remember" storage | Medium | Owner's browser run (jsdom has no IndexedDB) | NOT RUN in CI | Owner |
+| IndexedDB "remember" storage | Medium | Owner's browser run (jsdom has no IndexedDB); the feature is off until then (`REMEMBER_ON_DEVICE_ENABLED`) | NOT RUN in CI; logic tested with an in-memory fake and the gate forced on | Owner |
 | Windows file mode for the stored key | Medium | Not testable on POSIX CI | NOT RUN; documented | Owner |
 | Real runs (owner's browser and machine, Windows) | — | Runtime (owner) | labels, fields | NOT RUN until owner run |
