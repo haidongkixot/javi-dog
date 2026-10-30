@@ -299,14 +299,17 @@ const str = (value: unknown) => (typeof value === 'string' && value.length > 0 ?
 /**
  * The one JGR record for a post-tool hook call of javi's own tool, or `null` (ADR-0017 §3):
  *
- * - not javi's tool, a pre-tool hook, no `session_id`, or `tool_input` invalid → `null`;
+ * - not javi's tool, a pre-tool hook, no `session_id`, no `tool_name`, or `tool_input` invalid
+ *   → `null`;
  * - `report_status` → `heartbeat` + `status` (+ `attributes.error_code` = `<status>.<reason>`),
  *   but `null` from a sub-agent (`agent_id` present: a sub-agent never sets the thread status);
  * - `report_task` → `task.<phase>` + `attributes.task_kind`, keeping `base.agent_ref`.
  *
- * Both carry `attributes.tool_name` = the payload's `tool_name` (≤ 128 chars; for Gemini,
- * `mcp_context.tool_name` when `tool_name` is missing) and, when the payload has a call id, a
- * deterministic `event_id` (`selfReportEventId`). Reads only what `matchJaviTool` reads, plus
+ * Both carry `attributes.tool_name` = the payload's `tool_name` as given (≤ 128 chars, QA gap
+ * G19) and, when the payload has a call id, a deterministic `event_id` (`selfReportEventId`).
+ * The mapping does not depend on registration (G11), and its time is the caller's clock
+ * (`ctx.at` / `base.occurred_at`), never a time inside the payload (G12). Reads only what
+ * `matchJaviTool` reads, plus
  * `session_id`, `agent_id`, `tool_input` and `tool_use_id` (Claude Code, Codex) on a post
  * match; `tool_response` and the rest of `mcp_context` are never read.
  */
@@ -328,7 +331,9 @@ export const selfReportRecord = (
   const checked = validateSelfReport(match.tool, input);
   if (!checked.ok) return null;
 
-  const toolName = (str(own(hook, 'tool_name')) ?? match.tool).slice(0, MAX_TOOL_NAME_LENGTH);
+  // Provenance is the tool name as the agent's CLI gave it (QA gap G19); never invented.
+  const toolName = str(own(hook, 'tool_name'))?.slice(0, MAX_TOOL_NAME_LENGTH);
+  if (!toolName) return null;
   const callId = platform === 'gemini-cli' ? null : str(own(hook, 'tool_use_id'));
   const eventId = selfReportEventId({ platform, sessionId, callId, at: ctx.at, salt: ctx.salt });
   const platformAttributes = Object.fromEntries(

@@ -677,14 +677,23 @@ describe('selfReportRecord (ADR-0017 §3 mapping)', () => {
     valid(record);
   });
 
-  it('Gemini: falls back to mcp_context.tool_name when tool_name is missing; caps at 128 chars', () => {
+  it('Gemini: tool_name is taken as given (G19): never invented, capped at 128 chars', () => {
     const noName: Record<string, unknown> = gemini('AfterTool', 'report_task', {
       phase: 'started',
       kind: 'plan',
     });
     delete noName.tool_name;
-    expect(selfReportRecord('gemini-cli', noName, ctx, base)?.attributes?.tool_name).toBe(
+    expect(selfReportRecord('gemini-cli', noName, ctx, base)).toBeNull();
+    const odd = gemini(
+      'AfterTool',
       'report_task',
+      { phase: 'started', kind: 'plan' },
+      {
+        tool_name: 'Some_Other-Name',
+      },
+    );
+    expect(selfReportRecord('gemini-cli', odd, ctx, base)?.attributes?.tool_name).toBe(
+      'Some_Other-Name',
     );
     const long = gemini(
       'AfterTool',
@@ -697,6 +706,18 @@ describe('selfReportRecord (ADR-0017 §3 mapping)', () => {
     expect(selfReportRecord('gemini-cli', long, ctx, base)?.attributes?.tool_name).toBe(
       'x'.repeat(128),
     );
+  });
+
+  it('time is the caller clock, never a payload timestamp (G12)', () => {
+    const payload = cc(
+      'PostToolUse',
+      'report_status',
+      { status: 'idle' },
+      { timestamp: '2001-01-01T00:00:00.000Z', occurred_at: '2001-01-01T00:00:00.000Z' },
+    );
+    const record = selfReportRecord('claude-code', payload, ctx, base);
+    expect(record?.occurred_at).toBe(AT.toISOString());
+    expect(record?.event_id?.slice(0, 10)).toBe(createUlid()(AT.getTime()).slice(0, 10));
   });
 
   it('keeps base.occurred_at when the caller sets it', () => {
