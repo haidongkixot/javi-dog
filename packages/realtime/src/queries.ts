@@ -20,6 +20,29 @@ const usageCounter = (key: 'input_tokens' | 'output_tokens') =>
 /** Latest-first order for events: received time, then sequence, then row id. */
 const LATEST_FIRST = sql`e.received_at desc, e.sequence desc, e.id desc`;
 
+/**
+ * An agent's self-report (ADR-0017 §6): a `heartbeat` with a status and a `tool_name`. The rule
+ * is structural, with no list of tool names; no collector heartbeat carries a `tool_name`.
+ */
+const isSelfReport = sql`(e.type = 'heartbeat' and e.status is not null
+                          and e.attributes ->> 'tool_name' is not null)`;
+
+/**
+ * Activity that ends a self-report's hold on the thread status (ADR-0017 §6, QA gaps G7, G8):
+ * `task.*` (collector or self-reported), `attention.requested`, `session.*`, `agent.*`, or a
+ * `heartbeat working` without a `tool_name` (a new prompt). A collector `heartbeat idle`,
+ * `usage.reported` and `error` do not.
+ */
+const clearsSelfReport = sql`(e.type in ('task.started', 'task.completed', 'task.failed',
+                                         'attention.requested',
+                                         'session.started', 'session.ended',
+                                         'agent.started', 'agent.stopped')
+                              or (e.type = 'heartbeat' and e.status = 'working'
+                                  and e.attributes ->> 'tool_name' is null))`;
+
+/** `error_code` of a self-report only (it carries `<status>.<reason>`); null for every other event. */
+const selfReportCode = sql`case when ${isSelfReport} then e.attributes ->> 'error_code' end`;
+
 export interface Scope {
   workspaceId: string;
   /** The snapshot clock as an ISO string (database clock unless pinned). */
@@ -51,7 +74,12 @@ export interface ThreadRow {
   first_ms: number | string;
   last_ms: number | string;
   last_type: string;
+  /** Latest non-null status of an event that is not a self-report (ADR-0017 §6, QA gap G6). */
   status: string | null;
+  /** The self-reported status while no later clearing activity exists, else null. */
+  agent_status: string | null;
+  /** That self-report's raw `error_code`, or null. */
+  agent_error_code: string | null;
   agents: number | string;
   tasks_completed: number | string;
   last_task_ms: number | string | null;
@@ -64,7 +92,10 @@ export interface ThreadRow {
 
 /**
  * Query 1: one row per `(project_id, thread_ref)` in the window, plus the per-thread inputs of
- * the token-burn (last 60 min) and tasks-completed counters.
+ * the token-burn (last 60 min) and tasks-completed counters. `agent_status` takes the latest
+ * event that is either a self-report or clearing activity (full `LATEST_FIRST` order) and keeps
+ * its status only when that event is the self-report, so one scan decides the precedence.
+ * `status` is the collector fallback: self-reports never count towards it (QA gap G6).
  */
 export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => {
   const isUsage = sql`e.type = 'usage.reported'`;
@@ -78,7 +109,11 @@ export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => 
              ${epochMs(sql`max(e.received_at)`)} as last_ms,
              (array_agg(e.type order by ${LATEST_FIRST}))[1] as last_type,
              (array_agg(e.status order by ${LATEST_FIRST})
-                filter (where e.status is not null))[1] as status,
+                filter (where e.status is not null and not ${isSelfReport}))[1] as status,
+             (array_agg(case when ${isSelfReport} then e.status end order by ${LATEST_FIRST})
+                filter (where ${isSelfReport} or ${clearsSelfReport}))[1] as agent_status,
+             (array_agg(${selfReportCode} order by ${LATEST_FIRST})
+                filter (where ${isSelfReport} or ${clearsSelfReport}))[1] as agent_error_code,
              count(distinct e.agent_ref)::int as agents,
              (count(*) filter (where ${isTask}))::int as tasks_completed,
              ${epochMs(sql`max(e.received_at) filter (where ${isTask})`)} as last_task_ms,
@@ -105,14 +140,21 @@ export interface ActivityRow {
   type: string;
   status: string | null;
   tool_name: string | null;
+  self_report: boolean;
+  /** Raw `error_code` of a self-report row only; null for every other row. */
+  agent_error_code: string | null;
 }
 
-/** Query 2: the newest events in the window. Reads `tool_name` and no other attribute. */
+/**
+ * Query 2: the newest events in the window. Reads `tool_name`, and `error_code` of self-reports
+ * only (for their listed reason); no other attribute.
+ */
 export const readActivity = async (db: AnyDb, s: Scope, limit: number): Promise<ActivityRow[]> =>
   rowsOf<ActivityRow>(
     await db.execute(sql`
       select ${epochMs(sql`e.received_at`)} as at_ms, p.slug as project_slug, e.thread_ref,
-             e.type, e.status, e.attributes ->> 'tool_name' as tool_name
+             e.type, e.status, e.attributes ->> 'tool_name' as tool_name,
+             ${isSelfReport} as self_report, ${selfReportCode} as agent_error_code
         from events e
         join projects p on p.id = e.project_id and p.workspace_id = e.workspace_id
        where ${inWindow(s)} and p.workspace_id = ${s.workspaceId}::uuid

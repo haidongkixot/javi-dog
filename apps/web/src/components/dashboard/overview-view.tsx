@@ -171,8 +171,10 @@ function Activity({ snapshot: s }: { snapshot: DashboardSnapshot }) {
               {a.projectSlug} · <ThreadRef value={a.threadRef} />
             </p>
           </div>
-          <div className="flex flex-none flex-col items-end gap-1 text-xs text-muted">
-            {a.status ? <ThreadStatusPill status={a.status} /> : null}
+          <div className="flex max-w-[55%] flex-none flex-col items-end gap-1 text-xs text-muted">
+            {a.status ? (
+              <ThreadStatusPill status={a.status} source={a.statusSource} reason={a.statusReason} />
+            ) : null}
             <SignalTime at={a.at} now={s.generatedAt} />
           </div>
         </li>
@@ -245,7 +247,12 @@ function SquadMember({ t, now, notCurrent }: { t: ThreadState; now: string; notC
         </p>
       </div>
       <div className="flex flex-none flex-col items-end gap-1 text-xs">
-        <ThreadStatusPill status={t.status} needsAttention={t.needsAttention} />
+        <ThreadStatusPill
+          status={t.status}
+          needsAttention={t.needsAttention}
+          source={t.statusSource}
+          reason={t.statusReason}
+        />
         <FreshnessLabel
           freshness={t.freshness}
           at={t.lastSignalAt}

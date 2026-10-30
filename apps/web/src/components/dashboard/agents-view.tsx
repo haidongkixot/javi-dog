@@ -149,7 +149,12 @@ function ThreadTable({
                 <ThreadRef value={t.threadRef} />
               </td>
               <td className="px-4 py-3">
-                <ThreadStatusPill status={t.status} needsAttention={t.needsAttention} />
+                <ThreadStatusPill
+                  status={t.status}
+                  needsAttention={t.needsAttention}
+                  source={t.statusSource}
+                  reason={t.statusReason}
+                />
               </td>
               <td className="px-4 py-3">
                 <FreshnessPill freshness={t.freshness} notCurrent={notCurrent} />

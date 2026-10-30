@@ -94,6 +94,8 @@ describe('thread state', () => {
       projectName: 'Web App',
       threadRef: t,
       status: 'working',
+      statusSource: 'collector',
+      statusReason: null,
       lastType: 'task.started',
       firstSignalAt: ago(NOW, 10 * MIN).toISOString(),
       lastSignalAt: ago(NOW, 2 * MIN).toISOString(),
@@ -419,7 +421,7 @@ describe('overview counters', () => {
 });
 
 describe('activity feed', () => {
-  it('lists the 25 newest events, newest first, with tool_name as the only attribute', async () => {
+  it('lists the 25 newest events, newest first, with tool_name as the only collector attribute', async () => {
     const p = await oneProject();
     for (let i = 0; i < 30; i += 1) {
       await seed.event(p, {
@@ -449,6 +451,8 @@ describe('activity feed', () => {
       type: 'task.started',
       status: null,
       toolName: 'Tool29',
+      statusSource: 'collector',
+      statusReason: null,
     });
     expect(s.activity[1]).toMatchObject({ type: 'heartbeat', status: 'working', toolName: null });
     const json = JSON.stringify(s.activity);
@@ -456,7 +460,16 @@ describe('activity feed', () => {
     expect(json).not.toContain('E_SECRET_SHAPE');
     for (const item of s.activity) {
       expect(Object.keys(item).sort()).toEqual(
-        ['at', 'projectSlug', 'status', 'threadRef', 'toolName', 'type'].sort(),
+        [
+          'at',
+          'projectSlug',
+          'status',
+          'statusReason',
+          'statusSource',
+          'threadRef',
+          'toolName',
+          'type',
+        ].sort(),
       );
     }
   });

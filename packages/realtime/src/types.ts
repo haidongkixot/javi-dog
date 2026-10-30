@@ -4,19 +4,51 @@ export type Freshness = 'fresh' | 'stale' | 'ended';
 export type ProjectFreshness = Freshness | 'never';
 export type ThreadStatus = 'working' | 'waiting' | 'idle' | 'blocked' | 'failed' | 'completed';
 
+/**
+ * Reasons an agent may give with a self-reported status (ADR-0017 §2 and §6). MUST equal the
+ * JD-C02 `SELF_REPORT` reason list; a cross-package test asserts it. Kept here rather than
+ * imported, because the reader never depends on a collector package.
+ */
+export const STATUS_REASONS = Object.freeze([
+  'needs_input',
+  'needs_approval',
+  'missing_credentials',
+  'missing_access',
+  'tests_failing',
+  'ci_failing',
+  'rate_limited',
+  'dependency_down',
+  'conflicting_requirements',
+  'other',
+] as const);
+export type StatusReason = (typeof STATUS_REASONS)[number];
+
+/**
+ * Who set a status: `agent` when it is the agent's own report (a `heartbeat` that carries a
+ * `tool_name`, ADR-0017 §6), else `collector` (hooks, OTLP, the SDK).
+ */
+export type StatusSource = 'agent' | 'collector';
+
 export interface ThreadState {
   projectId: string;
   projectSlug: string;
   projectName: string;
   /** Opaque, hashed by the producer (e.g. `cc_…`). */
   threadRef: string;
-  /** Last non-null `status` in the window, or null if none was sent. */
+  /**
+   * The agent's latest self-reported status while no later activity cleared it (ADR-0017 §6);
+   * otherwise the last non-null `status` of an event that is not a self-report, or null.
+   */
   status: ThreadStatus | null;
+  /** `agent` when `status` is the agent's self-report, else `collector`. */
+  statusSource: StatusSource;
+  /** The self-report's reason from `<status>.<reason>`, only when listed; null otherwise. */
+  statusReason: StatusReason | null;
   lastType: string;
   firstSignalAt: string;
   lastSignalAt: string;
   freshness: Freshness;
-  /** The latest status-bearing event says `waiting`. */
+  /** `status` is `waiting`, or `blocked` as reported by the agent (owner, 2026-10-30). */
   attention: boolean;
   /**
    * A human should look at this thread: `attention` and not `ended` (a stale waiting thread
@@ -36,6 +68,10 @@ export interface ActivityItem {
   type: string;
   status: ThreadStatus | null;
   toolName: string | null;
+  /** `agent` when this event is a self-report (a `heartbeat` with a status and a `tool_name`). */
+  statusSource: StatusSource;
+  /** This event's listed reason, for a self-report only; null otherwise. */
+  statusReason: StatusReason | null;
 }
 
 export interface ProjectHealth {

@@ -33,6 +33,8 @@ const thread = (over: Partial<ThreadState>): ThreadState => ({
   projectName: 'Alpha app',
   threadRef: 'cc_0000000000000000000000000000aaaa',
   status: 'working',
+  statusSource: 'collector',
+  statusReason: null,
   lastType: 'agent.heartbeat',
   firstSignalAt: ago(3600),
   lastSignalAt: ago(12),
@@ -91,6 +93,8 @@ const SNAPSHOT: DashboardSnapshot = {
       type: 'tool.completed',
       status: 'working',
       toolName: 'Edit',
+      statusSource: 'collector',
+      statusReason: null,
     },
     {
       at: ago(300),
@@ -99,6 +103,8 @@ const SNAPSHOT: DashboardSnapshot = {
       type: 'permission.requested',
       status: 'waiting',
       toolName: null,
+      statusSource: 'collector',
+      statusReason: null,
     },
   ],
   projects: [
@@ -324,6 +330,81 @@ describe('ended threads never need attention', () => {
     expect(rows[1]!.textContent).toContain('Gamma tool');
     expect(rows[1]!.textContent).not.toContain('Waiting for you');
     expect(within(rows[1]!).getAllByText('Ended')).toHaveLength(2);
+  });
+});
+
+describe('agent self-report (ADR-0017 §6)', () => {
+  const AGENT_BLOCKED = thread({
+    projectId: P_BETA,
+    projectSlug: 'beta',
+    projectName: 'Beta service',
+    threadRef: 'cc_4444444444444444444444444444eeee',
+    status: 'blocked',
+    statusSource: 'agent',
+    statusReason: 'missing_credentials',
+    lastType: 'heartbeat',
+    lastSignalAt: ago(30),
+    attention: true,
+    needsAttention: true,
+  });
+  const COLLECTOR_BLOCKED = thread({
+    threadRef: 'cc_5555555555555555555555555555ffff',
+    status: 'blocked',
+    lastType: 'heartbeat',
+    lastSignalAt: ago(20),
+  });
+  const words = 'Blocked · missing credentials · reported by agent';
+  const reported: DashboardSnapshot = {
+    ...SNAPSHOT,
+    threads: [COLLECTOR_BLOCKED, AGENT_BLOCKED],
+    activity: [
+      {
+        at: ago(20),
+        projectSlug: 'alpha',
+        threadRef: COLLECTOR_BLOCKED.threadRef,
+        type: 'heartbeat',
+        status: 'blocked',
+        toolName: null,
+        statusSource: 'collector',
+        statusReason: null,
+      },
+      {
+        at: ago(30),
+        projectSlug: 'beta',
+        threadRef: AGENT_BLOCKED.threadRef,
+        type: 'heartbeat',
+        status: 'blocked',
+        toolName: 'mcp__javi__report_status',
+        statusSource: 'agent',
+        statusReason: 'missing_credentials',
+      },
+    ],
+  };
+
+  it('Overview: the squad and the activity feed say who reported it, with the reason', () => {
+    render(<OverviewView snapshot={reported} />);
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
+      'One thread needs your attention.',
+    );
+    const squad = within(region('Agent squad')).getAllByRole('listitem');
+    expect(squad[0]!.textContent).toContain('Beta service');
+    expect(within(squad[0]!).getByText(words)).toBeTruthy();
+    expect(squad[1]!.textContent).toContain('Blocked');
+    expect(squad[1]!.textContent).not.toContain('reported by agent');
+
+    const feed = within(region('Recent activity')).getAllByRole('listitem');
+    expect(feed[0]!.textContent).toContain('Blocked');
+    expect(feed[0]!.textContent).not.toContain('reported by agent');
+    expect(within(feed[1]!).getByText(words)).toBeTruthy();
+  });
+
+  it('Live agents: counts the agent-blocked thread, lists it first, names the source', () => {
+    render(<AgentsView snapshot={reported} inspector={null} />);
+    expect(card('Need your attention').textContent).toContain('1');
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows[0]!.textContent).toContain('Beta service');
+    expect(within(rows[0]!).getByText(words)).toBeTruthy();
+    expect(rows[1]!.textContent).not.toContain('reported by agent');
   });
 });
 

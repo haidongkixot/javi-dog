@@ -1,6 +1,20 @@
-import type { DashboardSnapshot, ProjectFreshness, ThreadStatus } from '@javis-dog/realtime';
+import type {
+  DashboardSnapshot,
+  ProjectFreshness,
+  StatusReason,
+  StatusSource,
+  ThreadStatus,
+} from '@javis-dog/realtime';
 import { StatusPill } from '@javis-dog/ui/components';
-import { absoluteTime, age, clockTime, shortRef, statusLabel, statusTone } from './format';
+import {
+  absoluteTime,
+  age,
+  agentStatusText,
+  clockTime,
+  shortRef,
+  statusLabel,
+  statusTone,
+} from './format';
 
 /**
  * A signal time: relative text measured against the snapshot clock, the exact UTC time in the
@@ -121,17 +135,32 @@ export function ThreadRef({ value }: { value: string }) {
 /**
  * A thread's status. Pass `needsAttention` for thread state: a thread that was waiting and then
  * ended no longer waits for anyone, so it reads "Ended" instead of "Waiting for you".
+ *
+ * Pass `source` and `reason` from the snapshot. The agent's own report says so in words
+ * (ADR-0017 §6): "Blocked · missing credentials · reported by agent". The words are the pill's
+ * only text, so screen readers hear the same thing sighted users read, never colour alone.
  */
 export function ThreadStatusPill({
   status,
   needsAttention,
+  source,
+  reason = null,
 }: {
   status: ThreadStatus | null;
   needsAttention?: boolean;
+  source?: StatusSource;
+  reason?: StatusReason | null;
 }) {
   if (!status) return <span className="text-xs text-muted">No status sent</span>;
   if (status === 'waiting' && needsAttention === false)
     return <StatusPill tone="info">Ended</StatusPill>;
+  if (source === 'agent')
+    return (
+      <StatusPill tone={statusTone[status]}>
+        {/* Long reasons wrap instead of pushing the row wider than a phone screen. */}
+        <span className="whitespace-normal">{agentStatusText(status, reason)}</span>
+      </StatusPill>
+    );
   return <StatusPill tone={statusTone[status]}>{statusLabel[status]}</StatusPill>;
 }
 

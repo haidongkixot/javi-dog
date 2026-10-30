@@ -1,14 +1,16 @@
 import type { AnyDb } from '@javis-dog/event-store';
 import { readActivity, readDbNow, readProjects, readThreads, type ThreadRow } from './queries.ts';
-import type {
-  ActivityItem,
-  Counter,
-  DashboardSnapshot,
-  Freshness,
-  ProjectFreshness,
-  ProjectHealth,
-  ThreadState,
-  ThreadStatus,
+import {
+  STATUS_REASONS,
+  type ActivityItem,
+  type Counter,
+  type DashboardSnapshot,
+  type Freshness,
+  type ProjectFreshness,
+  type ProjectHealth,
+  type StatusReason,
+  type ThreadState,
+  type ThreadStatus,
 } from './types.ts';
 
 /** JGR §5 default: 3 × a 60 s heartbeat interval. */
@@ -37,25 +39,46 @@ const newest = (values: (string | null)[]) =>
 // Ingest validates `status` against JGR-R05, so stored values are ThreadStatus or null.
 const asStatus = (s: string | null) => s as ThreadStatus | null;
 
+const REASONS: ReadonlySet<string> = new Set(STATUS_REASONS);
+
+/**
+ * The reason of a self-report (ADR-0017 §6): the part after `<status>.` in its `error_code`,
+ * only when the prefix is the reported status and the rest is a listed reason. Anything else is
+ * dropped, so no free text from `error_code` ever reaches the snapshot.
+ */
+const reasonOf = (status: string | null, errorCode: string | null): StatusReason | null => {
+  if (status === null || errorCode === null) return null;
+  const prefix = `${status}.`;
+  if (!errorCode.startsWith(prefix)) return null;
+  const reason = errorCode.slice(prefix.length);
+  return REASONS.has(reason) ? (reason as StatusReason) : null;
+};
+
 const FRESHNESS_RANK: Record<Freshness, number> = { fresh: 0, stale: 1, ended: 2 };
 
 const toThread = (row: ThreadRow, now: Date): ThreadState => {
   const last = Number(row.last_ms);
-  const status = asStatus(row.status);
+  // A self-report wins until later clearing activity; the query already decided which (§6).
+  const fromAgent = row.agent_status !== null;
+  const status = asStatus(fromAgent ? row.agent_status : row.status);
+  const statusSource = fromAgent ? 'agent' : 'collector';
   const freshness = threadFreshness(row.last_type, new Date(last), now);
-  const attention = status === 'waiting';
+  // Owner decision 2026-10-30: an agent saying it is blocked needs a human too.
+  const attention = status === 'waiting' || (status === 'blocked' && statusSource === 'agent');
   return {
     projectId: row.project_id,
     projectSlug: row.project_slug,
     projectName: row.project_name,
     threadRef: row.thread_ref,
     status,
+    statusSource,
+    statusReason: fromAgent ? reasonOf(row.agent_status, row.agent_error_code) : null,
     lastType: row.last_type,
     firstSignalAt: iso(Number(row.first_ms)),
     lastSignalAt: iso(last),
     freshness,
     attention,
-    // Waiting, and not ended: a stale waiting thread still needs a human.
+    // Attention, and not ended: a stale waiting or blocked thread still needs a human.
     needsAttention: attention && freshness !== 'ended',
     agents: Number(row.agents),
     tasksCompleted: Number(row.tasks_completed),
@@ -116,6 +139,8 @@ export const createDashboardReader = (db: AnyDb) => ({
       type: r.type,
       status: asStatus(r.status),
       toolName: r.tool_name,
+      statusSource: r.self_report ? 'agent' : 'collector',
+      statusReason: r.self_report ? reasonOf(r.status, r.agent_error_code) : null,
     }));
 
     const projects: ProjectHealth[] = projectRows.map((p) => {
