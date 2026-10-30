@@ -1,6 +1,6 @@
 # Sprint 05e — S5d follow-ups and push-gate hardening
 
-- Dates: 2026-10-30 → · Status: ACTIVE
+- Dates: 2026-10-30 → 2026-10-30 · Status: CLOSED
 - Goal (one sentence): close the S5d follow-ups F1–F3 and adopt the Guru's push-gate lessons, so that no check can pass by failing.
 - Modules touched: JD-C01, JD-APP; conformance suite of JD-C03
 - Readiness gate: none new; S5d rows unchanged
@@ -41,6 +41,7 @@ Newest first: date — what changed — commit SHA.
 | F1 red: `vitest run test/dashboard-views.test.tsx` (new copy, old components) | 1 | — | 34 | 2 | — | — | — | — |
 | `bash scripts/secret-scan.sh --self-test` | 0 | — | 8 | 0 | — | — | — | — |
 | Runners: `collector-mcp-server`, `realtime`, H runner (`self-report-conformance.test.ts`) | 0 | — | M 23, R 21, H 15 vectors | 0 | 0 | 0 | 0 | 59 of 59 vectors |
+| CI `2516380` / `ec20396` | success | — | — | — | — | — | — | runs 41113430736, 41115146514 |
 | Mutation: seen-call marker off | 1 (expected) | — | — | H15 only | — | — | — | restored, no diff |
 
 ## Team
@@ -52,6 +53,7 @@ Newest first: date — what changed — commit SHA.
 
 Team log, newest first:
 
+- 2026-10-30 — Orchestrator — Rule 9 slip on the very next push: `ec20396` went out before CI on `2516380` was read. That run was green (41113430736). The rule stands; it was checked before closing the sprint.
 - 2026-10-30 — Orchestrator — The Guru's TEAM.md proposals are adopted under the owner's "proceed" (2026-10-30). The owner can revert any of them.
 
 ## Decisions and deviations
@@ -60,9 +62,12 @@ Team log, newest first:
 
 ## Retro
 
-- Went well:
-- Hurt:
-- Change next sprint:
+- **Went well:**
+  - Spec-first QA again found two real spec gaps (G20, G21) and a stale vector description.
+  - The step-clock extension stayed optional, so no existing vector changed.
+  - Mutation evidence shows the new vector earns its place: only H15 catches a disabled seen-call marker.
+- **Hurt:** the new rule 9 was broken on the first push after it was written, because a rule nothing enforces depends on memory.
+- **Change next sprint:** read CI on the previous tip as the first command of every push step. That command is part of the gate, not a separate thought.
 
 ## Guru checkpoint
 

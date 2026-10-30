@@ -71,6 +71,13 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
   - an end-to-end hook → ingest → reader test.
 
   The design review ran before code (2 high), QA spec gaps (19, including a real design flaw), and the code review (0 high, 3 medium fixed red-first). 2200 tests. Real CLI runs are NOT RUN (owner, how-to step 6).
+- S5e (2026-10-30, owner "proceed"):
+  - F1: "needs you" wording;
+  - F2: 59 self-report vectors (step clock, H15 catches a disabled seen-call marker);
+  - F3: Codex `hooks.json` tracked check fails closed;
+  - push gate: `pnpm secrets:scan` (fail-closed), plus TEAM.md rules for the previous tip's CI, dead-endpoint probes, module IDs and one-hand lockfile.
+
+  2212 tests; CI green on `ec20396`.
 
 ## Decisions in force
 
@@ -114,7 +121,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 5. Owner: review the G4 Orcasus PR proposal and the `CLAUDE.md` §2 rule-4 proposal in `guru/WISDOM_LOG.md` (nothing opened).
 6. Owner (optional): approve upgrading dev-only tooling with advisories (`markdownlint-cli2`, `drizzle-kit`; readiness "Dependency advisories").
 7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).
-8. Agent (S5d follow-ups): F1 project-level "N waiting for you" wording now that agent `blocked` counts (brand copy decision); F2 QA vectors for the three surviving mutations (client response object, `report_task` missing arguments, ended waiting thread); F3 Codex `hooks.json` tracked check fails open (warning only).
+8. Agent: the S5d follow-ups F1–F3 are done (S5e). Next development candidates are JD-M11 privacy L1/L2 (needs an ADR and owner decisions) and JD-M10 GitHub App (blocked on the owner creating the app).
 
 ## Process (owner decisions 2026-10-28)
 

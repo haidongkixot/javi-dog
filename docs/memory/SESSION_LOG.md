@@ -2,6 +2,24 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-30 · Session 2 (cloud), continued — S5e follow-ups and push gate
+
+- **Guru checkpoint `ad-hoc-self-report`** (`c5132d0`): 2 new skills and 11 updated. It found two red CI runs that had gone unread (SR-F1). Both were flaky tests, fixed in tests only (`a551aed`):
+  - the Gemini hook latency test timed the TypeScript source instead of the shipped bundle;
+  - the Codex cleanup raced a detached flush;
+  - the analytics needle `'777'` matched a random UUID.
+- **S5e:**
+  - F1 "needs you" wording;
+  - F2 vectors and runner step clock;
+  - F3 Codex tracked check fails closed;
+  - `pnpm secrets:scan` and TEAM.md rules.
+
+  `2516380` and `ec20396`, CI green, 2212 tests. One rule-9 slip, logged.
+- **Next:**
+  - the 20:20 UTC purge check (G9);
+  - the owner items in PROJECT_MEMORY;
+  - choose the next module (JD-M11 needs owner decisions).
+
 ## 2026-10-30 · Session 2 (cloud), continued — S5d agent self-report (JD-C03)
 
 - **Owner decisions:** JD-C03 next; the hook emits the event; a hand-written MCP server; the reason goes in `error_code`; opt-in registration; self-reported `blocked` needs attention; opt-in `--allow-self-report`.
