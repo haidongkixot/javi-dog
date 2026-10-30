@@ -11,9 +11,13 @@ const allRoutes = async () => {
 };
 
 describe('security headers (next.config headers())', () => {
-  it('applies one rule to every route', async () => {
+  it('applies the baseline to every route and a static CSP to API routes only', async () => {
     const rules = (await nextConfig.headers?.()) ?? [];
-    expect(rules.map((r) => r.source)).toEqual(['/:path*']);
+    expect(rules.map((r) => r.source)).toEqual(['/:path*', '/api/:path+']);
+  });
+
+  it('sets no CSP for pages (the proxy sets the nonce policy; ADR-0018 decision 11)', async () => {
+    expect((await allRoutes()).has('content-security-policy')).toBe(false);
   });
 
   it('sets nosniff, a strict referrer policy and refuses framing', async () => {
@@ -23,8 +27,10 @@ describe('security headers (next.config headers())', () => {
     expect(h.get('x-frame-options')).toBe('DENY');
   });
 
-  it('has a CSP limited to directives that cannot break Next inline scripts', async () => {
-    const csp = (await allRoutes()).get('content-security-policy') ?? '';
+  it('keeps the static baseline CSP on API responses', async () => {
+    const rules = (await nextConfig.headers?.()) ?? [];
+    const api = rules.find((r) => r.source === '/api/:path+');
+    const csp = api?.headers.find((h) => h.key === 'Content-Security-Policy')?.value ?? '';
     const directives = Object.fromEntries(
       csp
         .split(';')
