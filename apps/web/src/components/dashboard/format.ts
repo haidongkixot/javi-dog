@@ -1,4 +1,4 @@
-import type { ThreadState, ThreadStatus } from '@javis-dog/realtime';
+import type { StatusReason, ThreadState, ThreadStatus } from '@javis-dog/realtime';
 import type { StatusTone } from '@javis-dog/ui';
 
 // Formatting is deterministic (fixed locale, UTC for absolute times, ages measured against the
@@ -50,6 +50,18 @@ export const statusLabel: Record<ThreadStatus, string> = {
   failed: 'Failed',
   completed: 'Completed',
 };
+
+/** A self-report reason in words: `missing_credentials` → "missing credentials". */
+export const reasonWords = (reason: StatusReason) => reason.replaceAll('_', ' ');
+
+/**
+ * The words of an agent's own report (ADR-0017 §6), e.g.
+ * "Blocked · missing credentials · reported by agent"; no reason segment when none was given.
+ */
+export const agentStatusText = (status: ThreadStatus, reason: StatusReason | null) =>
+  [statusLabel[status], reason ? reasonWords(reason) : null, 'reported by agent']
+    .filter((part): part is string => part !== null)
+    .join(' · ');
 
 // Coral (danger) marks attention per BRAND_GUIDE §3; yellow (warn) is reserved for "Stale".
 export const statusTone: Record<ThreadStatus, StatusTone> = {
