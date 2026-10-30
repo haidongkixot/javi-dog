@@ -6,8 +6,9 @@ import type { NextConfig } from 'next';
  *
  * Content Security Policy: pages get a nonce-based policy per request from `src/proxy.ts`
  * (ADR-0018 decision 11; built in `src/lib/csp.ts`). The proxy skips `/api/*`, so API routes keep
- * the static baseline below: no framing, no `<base>` rewrites, forms post to this origin only and
- * no plugins. The two never apply to the same response, so no response carries two policies.
+ * the static baseline below: nothing loads or runs (`default-src 'none'; script-src 'none'`, review
+ * L2), no framing, no `<base>` rewrites, forms post to this origin only and no plugins. The two
+ * never apply to the same response, so no response carries two policies.
  */
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -21,7 +22,7 @@ const securityHeaders = [
 
 /** Static CSP for API responses (JSON); pages get theirs from the proxy. */
 const apiContentSecurityPolicy =
-  "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
+  "default-src 'none'; script-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'";
 
 const nextConfig: NextConfig = {
   // Workspace modules ship TypeScript source (ADR-0001).
