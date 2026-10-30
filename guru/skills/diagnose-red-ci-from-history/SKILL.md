@@ -1,10 +1,10 @@
 ---
 name: diagnose-red-ci-from-history
-description: Diagnose a red CI run from the branch's run history instead of re-running it — find the first red run of the same assertion, separate pre-existing and flaky failures from regressions (a red run on a docs-only commit cannot come from its diff), reproduce timing races deterministically by delaying the collaborator, fix the wait rather than the assertion, keep the delay in the test so the race stays covered, and report "green on <sha>" precisely. Also covers fail-fast local gates (a gate that keeps going after a failed step lets a red change be pushed) and CI concurrency cancellation that leaves a pushed commit never evaluated. Includes a fail-fast gate script with a self-test and a read-only CI-history script that flags likely flakes. Use when CI is red after your change, when inheriting a branch or baseline from another session or teammate, before declaring an iteration closed, when a test passes locally but fails in CI, when real-process, network or timer-based tests fail intermittently, when a latency or timeout bound fails "by a few milliseconds", when tests time out only in full parallel runs, when a run fails with "unhandled rejection" although every test passed, or when tempted to "just re-run CI".
+description: Diagnose a red CI run from the branch's run history instead of re-running it — find the first red run of the same assertion, separate pre-existing and flaky failures from regressions (a red run on a docs-only commit cannot come from its diff), reproduce timing races deterministically by delaying the collaborator, fix the wait rather than the assertion, keep the delay in the test so the race stays covered, and report "green on <sha>" precisely. Also covers fail-fast local gates (a gate that keeps going after a failed step lets a red change be pushed) and CI concurrency cancellation that leaves a pushed commit never evaluated. Includes a fail-fast gate script with a self-test and a read-only CI-history script that flags likely flakes. Use when CI is red after your change, when inheriting a branch or baseline from another session or teammate, before declaring an iteration closed, when a test passes locally but fails in CI, when real-process, network or timer-based tests fail intermittently, when a latency or timeout bound fails "by a few milliseconds", when tests time out only in full parallel runs, when a run fails with "unhandled rejection" although every test passed, when a negative `not.toContain` assertion fails once on an unrelated commit, when a latency bound fails again after it was "fixed", or when tempted to "just re-run CI".
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G2; updated G3, G4"
-  confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded flakes found at G2; harness-overhead bound, oversubscription and unhandled-rejection diagnoses: once each, G4)"
+  version: "0.3.0"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d)"
+  confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded reds found by the checkpoint, not the team: three windows (G2, G4, S5d); harness-overhead bound, oversubscription and unhandled-rejection diagnoses: once each, G4; random-needle flake: once, root cause read from the annotation)"
 ---
 
 # Diagnose red CI from history
@@ -58,6 +58,14 @@ A test that takes 4 s alone and times out at 30 s in a full run is usually starv
 
 Test runners report unhandled promise rejections after the tests and fail the run. That is usually a **product** bug (an eager promise left floating that fails first), not test noise: find the creator of the promise, mark it handled where it is created, keep awaiting it where it matters, red-first (count rejections before and after), then search for the same pattern.
 
+### A bound that fails again after its fix
+
+When a latency bound that was "fixed" (harness removed, bound kept) fails again on an unrelated commit, the earlier diagnosis explained only part of the variance. Do not raise the bound on one sample: collect the measured values the test already prints (`console.info` of the durations) from every CI run since the fix, look at the distribution, then decide between a bound with a stated percentile, a test on a quieter layer, or a product change. Record the decision with the numbers.
+
+### Negative assertions with short needles
+
+`expect(output).not.toContain('777')` fails whenever a random id, timestamp or generated value happens to contain the needle. Read the received value in the annotation: if the needle sits inside a UUID or a time, the test is flaky by construction. Replace the needle with a sentinel that your id and number formats cannot produce, or assert on parsed fields.
+
 ### Twins and "no others"
 
 After fixing a pattern, search for it across the workspace and **read the output before writing "no others"**. In the origin the first log entry said there were none; the same search had listed a second instance, fixed in the next commit and the entry corrected.
@@ -84,7 +92,7 @@ The same applies to **any scripted edit-then-commit sequence** (a script that up
 - Re-read the history at iteration close: a later docs-only commit going red is a flake signal about tests that are already merged.
 - Record flakes in the iteration's test evidence with run ids, even when you do not fix them yet, and open a diagnosis item. Never quarantine, skip or loosen a test to make the history green.
 - **A local flake that "passed on re-run" is still a flake:** record the test name, the count (1 of 500) and the seed or log, and open a diagnosis item.
-- **Check the last pushed tip's run before the next push.** A red result discovered after two more pushes is harder to attribute and leaves the record claiming "built" over a red branch.
+- **Check the last pushed tip's run before the next push.** A red result discovered after two more pushes is harder to attribute and leaves the record claiming "built" over a red branch. A rule in a skill was not enough in the origin (below); put it in the team's merge checklist or in the push script, and list every pushed tip's run in the iteration record.
 
 ## Pitfalls
 
@@ -122,3 +130,12 @@ History read by Guru (`gh run list`, check-run annotations): 27 pushed tips from
 - Timing gap (G4 finding): run 40867278461 completed red at 11:45 UTC; the next two pushes (`0cff148` 12:47, `bd11886` 12:48) went out and the memory commit called S5b "built" before the red was recorded (`354bc05`, 12:56). Whether it was known earlier is not recorded.
 - Ungated push: "the `8baec90` push command ran `git push` after a `;`, so it was not gated"; gate re-run afterwards passed; CI on `8baec90` green (run 40859738459) (`SPRINT-05b.md` Team log).
 - Local flake: "a baseline flake (1 of 500, unidentified, passed on re-run) was noted and is being watched" (`SPRINT-05c.md` Team log, Developer E) — no test name recorded (G4 finding).
+
+### Update at ad-hoc-self-report (Sprint 5d, 2026-10-30)
+
+History read by Guru (`gh run list`, run attempts, check-run annotations) for `23f0394..1ec4ca4`: 14 pushed tips, 12 `success`, 2 `failure`, 0 cancelled; the last two were running when the read started and were re-read to completion (`66c2250` 41086178358, `1ec4ca4` 41086336891, both `success`). **CI is green on `1ec4ca4` (run 41086336891).** Other pushed tips and runs: `1737210` 40978670362 · `8ee07d1` 40987295188 · `2d4dcc2` 41069381721 · `c25cf2d` 41072581103 · `1595b4e` 41073502748 · `d9b51eb` 41075775993 · **`6fa2f03` 41076014566 FAIL** · `d889b01` 41079240444 · **`08f7b2e` 41080177974 FAIL** · `67d8c01` 41080435860 · `d0eb360` 41082021287 · `50f5059` 41084532779.
+
+- Neither red is mentioned in `SPRINT-05d.md`, `SESSION_LOG.md` or `PROJECT_MEMORY.md`; both have `run_attempt` 1 (no re-run). The red on `6fa2f03` completed at 15:05:58 UTC and `d889b01` was pushed at 15:16; the red on `08f7b2e` completed at 15:25:14 and `d0eb360` was pushed at 15:34 — so pushes continued after each red without a record. Same pattern as G4-F2; the G4 proposal to add "check the previous tip's CI before the next push" to the team file is still open.
+- `6fa2f03` changed only `docs/sprints/SPRINT-05d.md`: `gemini-hook-process.test.ts:112 expected 1695 to be less than or equal to 1500` — the real-adapter bound kept by the G4 fix (`354bc05`), failing by 195 ms. Undiagnosed (Guru finding SR-F3). Hypothesis only: runner variance.
+- `08f7b2e` changed only `pnpm-lock.yaml` (+3 lines) and `REGISTRY.md`: `packages/analytics/test/reader.test.ts:545` `not to contain '777'`; the annotation's received JSON contains `"projectId":"f609498d-25ce-4777-…"` (a random UUID). Root cause verified from the annotation: the needle list includes `'777'` (Guru finding SR-F2).
+- Both later tips were green without a change to the failing tests, which is consistent with flakes and is not a diagnosis.

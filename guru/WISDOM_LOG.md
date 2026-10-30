@@ -2,6 +2,98 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-10-30 · ad-hoc-self-report — S5d agent self-report MCP server (JD-C03): feature and test completion
+
+Ad-hoc checkpoint (trigger: feature + test completion, `CLAUDE.md` §7). Not G5: the roadmap assigns G5 to S6 (`docs/explanation/roadmap.md`), so this entry uses the `ad-hoc-<topic>` form from `.claude/skills/guru-checkpoint`. Not an Orcasus-PR checkpoint: no PR opened or drafted.
+
+- **Window:** `23f0394..1ec4ca4` — 40 commits: G4 findings applied (`1737210`); S5d discovery and ADR-0017 (`8ee07d1`), design review D0 (`2d4dcc2`), QA vectors and spec gaps (`1f40a78`, `c25cf2d`, `781c561`, `1595b4e`), lanes A/B/C (`328beb7`, `bd616f6`, `e9b2ae4`), runners (`8a0cba7`, `44d88da`), code-review fix lane (`0a0c7e9`), records (`66c2250`, `1ec4ca4`).
+- **Records read:** `docs/sprints/SPRINT-05d.md` (log, team log, test evidence, retro); ADR-0017 incl. every *Changes* entry, and its text at `8ee07d1` and `2d4dcc2`; `docs/agent-ops/TEST_PLAN.md` §S5d; `docs/agent-ops/TEAM.md` (merge checklist); `docs/jgr/conformance/self-report/README.md` (clock, mutation and gap sections) and vector H12; `docs/memory/SESSION_LOG.md` 2026-10-30 entries; commit messages of every lane and fix commit; diffs of `d6c989b` (incl. the pre-fix test), `50f5059`; `.github/workflows` install step.
+- **Probes by Guru (read-only):** `gh run list` and run attempts for the branch; check-run annotations of both red runs; the orchestrator's scratch scan script read and probed with an invalid pattern (in Guru's scratch, not on the repository); `secret-scan.sh --self-test` and two scans of the window (defaults and the project's token patterns: clean, exit 0); markdownlint on `guru/`. No project suite re-run.
+
+### CI verification of every S5d push
+
+14 pushed tips, 14 runs: 12 `success`, 2 `failure`, 0 cancelled. `1737210` 40978670362 · `8ee07d1` 40987295188 · `2d4dcc2` 41069381721 · `c25cf2d` 41072581103 · `1595b4e` 41073502748 · `d9b51eb` 41075775993 · **`6fa2f03` 41076014566 FAIL** · `d889b01` 41079240444 · **`08f7b2e` 41080177974 FAIL** · `67d8c01` 41080435860 · `d0eb360` 41082021287 · `50f5059` 41084532779 · `66c2250` 41086178358 · `1ec4ca4` 41086336891 (the last two running when the read started; re-read to completion, both `success`). **CI is green on `1ec4ca4` (run 41086336891).** Both reds: `run_attempt` 1, not mentioned in any record (SR-F1).
+
+### Lessons from the brief, checked against evidence
+
+| # | Expected lesson | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Layered independent oracles each caught a different defect class | **Verified** | Retro "Each independent check caught what the previous one missed"; research → uniform "hook emits" design (Team log); D0 2 high/7 medium/5 low (`2d4dcc2`); orchestrator: unmatched `task.started`; QA 19 gaps incl. G8 (`c25cf2d`); runners 54/54, mutations 71/74, survivors → coverage gaps (`a78066b`, `08a33bc`); code review 0/3/5 reproduced on a built bundle (`0a0c7e9`). **Guru addition (verified in the record's history):** two of the later gates' main findings were defects in D0's own remedies — the H1 precedence list at `2d4dcc2` kept the claim on `attention.requested` (→ G8), and the M5 id scheme put the hook clock into the ULID while l. 105–106 still said "dedupes a re-run hook" (→ M1). Same shape as G4 (V1 highs in D0-covered areas). → `review-design-before-code` 0.2.0 |
+| 2 | Agent claims vs. measured signals; real waiting evidence overrides a claim | **Verified** (design, vectors, mutations, e2e on PGlite); real agents **NOT RUN** | ADR-0017 decision 6; G6–G9; reader red-first 10 failed / 41 passed → 112/112 (`509262e`); mutations "keep the agent status on `attention.requested`" → R02, R13; pill text (`8c85373`). → `truthful-live-status` 0.2.0 §9 |
+| 3 | Idempotency claims need tests that move the clock | **Verified** | Pre-fix test `now: () => CLOCK` for both runs (`d6c989b^`, `self-report-hook.test.ts` l. 332–338); H12 "same salt and clock"; fix test advances 50 ms; TEST_PLAN row "re-fired hook recorded once (clock advanced)". Every oracle shared the blind spot; 71/74 mutations did not cover it. → `independent-conformance-vectors` 0.4.0, `agent-self-report-over-mcp` §4 |
+| 4 | Fail-closed external checks (git tracked check, two secret-scan slips) | **Verified**; one detail **not recorded** | M3 git exit 128 → "untracked", fixed tri-state red-first (`567422e`); `;` slip at `d9b51eb`; "malformed command that failed open" — the command itself is not recorded. **Guru finding:** the replacement script is in the session scratch directory, not the repository, and still maps grep exit 2 to "clean" (probe: `grep: Unmatched (` → clean branch) (SR-F4). Across the project's history: seven fail-open or ungated guard slips in four checkpoint windows. → new `fail-closed-checks` 0.1.0 (+ `scripts/secret-scan.sh`, self-test PASS) |
+| 5 | Hook-side correlation when the host passes session ids only to hooks | **Verified** (sources cited in ADR-0017; e2e for two hosts); runtime **NOT RUN** | ADR-0017 "Research" table: all three hosts run post-tool hooks for MCP tools with session id and arguments; session id in the server: Codex only (`_meta.sessionId`), Claude Code env var stale after `/clear`, Gemini none; rejected alternatives recorded. → `agent-self-report-over-mcp` §3 |
+| 6 | Editing user-owned config files: placement, refusals, byte-exact uninstall, git exclude | **Verified** (code review reproductions, red-first fixes) | M2 `eb2896d`, M3 `567422e`, L1 `3831752`, L2 `3a5e241`, L3 `80c0d05`, L4 `eab49c8`; L5 accepted ("round trip is byte-exact"). → `local-companion-process-hardening` 0.3.0 §7 |
+| 7 | Lockfile churn handled by hand-applying importer lines | **Verified** (workaround); cause **hypothesis** | Retro; 3-line importer links in `d9b51eb`, `08f7b2e`, `50f5059` passed CI's `pnpm install --frozen-lockfile`; "pin `@babel/core` peer resolution" is a retro suggestion, not a diagnosis. → `orchestrated-agent-team-lanes` 0.4.0, `verify-dependencies-against-registry` 0.2.2 |
+
+### Further verified lessons (Guru's own)
+
+1. **Short leak needles make flaky tests.** Red run 41080177974 (`08f7b2e`, lockfile + registry only): `reader.test.ts:545` `not to contain '777'`; the received JSON holds `"projectId":"f609498d-25ce-4777-…"`. Root cause read from the annotation. → `independent-conformance-vectors`, `diagnose-red-ci-from-history`, `prove-secrets-and-pii-minimization`.
+2. **A "fixed" latency bound failed again** on a docs-only commit: `gemini-hook-process.test.ts:112` 1695 > 1500 (run 41076014566), the real-adapter path the G4 fix kept. Undiagnosed. → `diagnose-red-ci-from-history` 0.3.0.
+3. **Reviewer probes reached production once** (fake token, 401, nothing written) because the CLI defaults to the production endpoint; disclosed in the record. → `review-design-before-code`, `orchestrated-agent-team-lanes`.
+4. **Measure an SDK before adopting it:** 17 runtime dependencies, 235–347 KB bundle → hand-written server, SDK client as a dev-only interop oracle (owner decision; `d1ebc8b`). → `verify-dependencies-against-registry`, `agent-self-report-over-mcp`.
+5. **"Never read" proven with a recording Proxy on the mapper** (`1600c47`). → `prove-secrets-and-pii-minimization` 0.2.1.
+6. **Wrong module IDs in a decision record** propagated into the first vector commit (`1f40a78` "JD-M12 reader"); corrected by the owning lane. → `agent-second-memory` 0.3.3.
+7. **Test plan before lanes held again:** `TEST_PLAN.md` §S5d in `8ee07d1`, before the first lane commit (`1600c47`).
+8. **Cost data point (hypothesis):** code-review fixes ≈ 798 insertions vs. build ≈ 6 525 (≈ 12 %), after S5b ≈ 50 % and S5c ≈ 24 % — confounded.
+
+### Findings needing orchestrator action (verified by reading; Guru changed nothing outside `guru/`)
+
+| ID | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| SR-F1 | medium | **Two red CI runs unrecorded and not re-run:** 41076014566 (`6fa2f03`) and 41080177974 (`08f7b2e`). Pushes continued after each red completed (`d889b01` 10 min, `d0eb360` 9 min later). Repeats G4-F2; G4 proposal 1 ("check the previous tip's CI before the next push" in `TEAM.md`) is still open. | Add both runs to `SPRINT-05d.md` Test evidence with diagnosis items; adopt the `TEAM.md` line. |
+| SR-F2 | medium | **Flaky leak assertion:** `packages/analytics/test/reader.test.ts:535-545` needles `'777'`, `'7.77'` can match random UUIDs and values (verified once in CI). | Use distinctive sentinel values for tenant B (not producible by UUID/number/time formats) or assert on parsed fields; red-first not possible for a random flake — record the run as the evidence. |
+| SR-F3 | medium | **Gemini hook latency bound red again** on the real path (1695 > 1500 ms, docs-only commit), after the G4 fix (`354bc05`, "green only by margin"). Undiagnosed. | Collect the printed durations from CI runs since `354bc05`; decide bound/layer with numbers (Orcasus rule 8: no blind raise). |
+| SR-F4 | medium | **The "fail-closed secret-scan script" is not in the repository** (session scratch only) and maps grep exit 2 to "clean". The retro action depends on it. | Commit a script (for example `guru/skills/fail-closed-checks/scripts/secret-scan.sh`, self-test PASS, with the `TEAM.md` patterns in `SECRET_SCAN_PATTERNS`) and reference it in `TEAM.md` item 4; owner decision. |
+| SR-F5 | low | **No vector moves the clock** for the re-fire claim; H12's description still says "(a re-run hook dedupes)" by event id, which ADR-0017 now says the id alone does not do. The moved-clock case lives only in `self-report-hook.test.ts`. | QA follow-up with F2: a hook vector that replays a call at a later clock and expects one record. |
+| SR-F6 | low | **Final counts only in memory:** "full gate: 2200 tests" is in `SESSION_LOG.md`; the sprint Test evidence ends at 1 997 (`d9b51eb`) and has no row for the post-fix gate or the closing CI run (G3-F2 pattern). `SPRINT-05d.md` "Guru checkpoint: —". | Add the final gate row with counts and run 41086336891; point the Guru section at this entry. |
+| SR-F7 | low | **F3 twin open:** `codexHooksTracked` keeps the fail-open mapping (warning only). | Fix with the same tri-state runner or document the accepted gap at the line. |
+
+Carried: G4-F2 (continues as SR-F1); G4 proposals 1, 4, 5 open; G4-F6 is now recorded (readiness row "Ingest token pasted in chat" OPEN (owner); `PROJECT_MEMORY.md` next action 1); the revocation itself is still open.
+
+### Still NOT RUN / UNVERIFIED
+
+Real Claude Code, Gemini CLI and Codex CLI runs with self-report (how-to step 6, owner); which MCP protocol version Claude Code sends first; whether Claude Code fires `PostToolUse` or `PostToolUseFailure` for an `isError` result; Windows spawn of the launcher; approval-prompt behaviour per host; the exact malformed scan command; the cause of the lockfile churn; the cause of the 1695 ms latency.
+
+### Hypotheses (unverified)
+
+- A moved-clock vector written by QA would have caught M1 before code review — plausible (the defect is deterministic), counterfactual.
+- Reviewing the design first lowers total review cost — third confounded data point (≈ 12 %).
+- A checked-in push script ends the `;` slips — not yet tried.
+- The 1695 ms is CI runner variance — not measured.
+- Agents will call `report_status` only on real state changes, as instructed — no real run.
+
+### Rejected or not packaged
+
+- Vocabulary values, module IDs, host-specific file paths and line numbers: kept only as the origin example.
+- "Lanes on disjoint paths merged without a conflict": already in `orchestrated-agent-team-lanes`; added as a data point only.
+- Timebox overrun: recorded by the retro; no new rule beyond `agent-second-memory` §8.
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`agent-self-report-over-mcp`](skills/agent-self-report-over-mcp/SKILL.md) | 0.1.0 | new (+ `references/stdio-mcp-checklist.md`) | medium; low (real clients) | Brief 2, 3, 5; lessons 4, 5 |
+| [`fail-closed-checks`](skills/fail-closed-checks/SKILL.md) | 0.1.0 | new (+ `scripts/secret-scan.sh`, self-test PASS) | high (failure class); medium (remedies) | Brief 4; SR-F4, F7 |
+| [`review-design-before-code`](skills/review-design-before-code/SKILL.md) | 0.1.0 → 0.2.0 | remedies are new design; spec-first vectors gate; reproduce on the built artifact; probes never at production; per-gate defect table; cost data point | medium; low (cost) | Brief 1; lessons 3, 8 |
+| [`independent-conformance-vectors`](skills/independent-conformance-vectors/SKILL.md) | 0.3.0 → 0.4.0 | spec-gap pass after a review; invariance vectors vary the clock; mutations share the model's blind spots; leak needles | high; medium | Brief 1, 3; lesson 1; SR-F2, F5 |
+| [`truthful-live-status`](skills/truthful-live-status/SKILL.md) | 0.1.0 → 0.2.0 | §9 claims next to measurements (provenance, reasons, precedence table, scope, words) | medium; low | Brief 2 |
+| [`local-companion-process-hardening`](skills/local-companion-process-hardening/SKILL.md) | 0.2.0 → 0.3.0 | §7 registering in project files that may be committed | medium; low | Brief 6 |
+| [`diagnose-red-ci-from-history`](skills/diagnose-red-ci-from-history/SKILL.md) | 0.2.0 → 0.3.0 | bounds that fail again; short needles; S5d history | medium | Lessons 1, 2; SR-F1–F3 |
+| [`orchestrated-agent-team-lanes`](skills/orchestrated-agent-team-lanes/SKILL.md) | 0.3.0 → 0.4.0 | push chain as a script; one-hand lockfile edits; probes off production; module IDs | medium; high | Brief 4, 7; lessons 3, 6 |
+| [`agent-second-memory`](skills/agent-second-memory/SKILL.md) | 0.3.2 → 0.3.3 | module IDs from manifests; S5d record gaps | medium | Lesson 6; SR-F6 |
+| [`verify-dependencies-against-registry`](skills/verify-dependencies-against-registry/SKILL.md) | 0.2.1 → 0.2.2 | lockfile churn kept out of commits; measure an SDK before adopting | medium | Brief 7; lesson 4 |
+| [`privacy-first-agent-telemetry-protocol`](skills/privacy-first-agent-telemetry-protocol/SKILL.md) | 0.4.0 → 0.4.1 | clock kept out of dedupe ids; self-report in allowlisted attributes | medium; low | Brief 3 |
+| [`primary-source-research-with-agents`](skills/primary-source-research-with-agents/SKILL.md) | 0.3.0 → 0.3.1 | binary strings show existence, not behaviour; sixth run | high; medium; low | Brief 5 |
+| [`prove-secrets-and-pii-minimization`](skills/prove-secrets-and-pii-minimization/SKILL.md) | 0.2.0 → 0.2.1 | read recorder; long sentinels; fail-closed diff scans | medium | Lessons 1, 5 |
+
+### Proposals for the owner
+
+1. **Commit a fail-closed push script** (SR-F4): gate + secret scan + push, chained with `&&`; Guru's `secret-scan.sh` is a candidate (copy, not edit, from `guru/`). Add it to `TEAM.md` merge checklist item 4.
+2. **`TEAM.md` additions** (carried from G4 proposal 1, now with SR-F1 as a second occurrence): "check the previous pushed tip's CI before the next push and log it"; new: "reviewer probe runs use a dead local endpoint"; "copy module IDs from `module.json` into ADRs and briefs".
+3. **Flaky tests** (SR-F2, SR-F3): diagnosis items in the next sprint, no bound raise without the duration data.
+4. **Next Orcasus checkpoint (not now):** `fail-closed-checks` is a candidate next to `diagnose-red-ci-from-history` once its script runs in the origin's gate; `review-design-before-code` 0.2.0 supersedes the 0.1.0 named in the G4 PR proposal if that PR is opened later.
+
 ## 2026-10-30 · G4 — pre-release, S5 close: production readiness, Gemini CLI and Codex CLI collectors (S5a–S5c) · Orcasus-PR checkpoint
 
 G4 is an Orcasus-PR checkpoint (`CLAUDE.md` §7). The PR text below is a **proposal for owner review only**; Guru opened no PR and touched no other repository (read access to `haidongkixot/orcasus` is not enabled in this session: HTTP 403, so its current layout is UNKNOWN).

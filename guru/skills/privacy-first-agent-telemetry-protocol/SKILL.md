@@ -2,8 +2,8 @@
 name: privacy-first-agent-telemetry-protocol
 description: Design a small, strict, privacy-first event protocol for telemetry from AI coding agents, CLIs, hooks, SDKs or any producer you do not fully control — a minimal envelope with unknown fields rejected, privacy classes enforced at the envelope by allowlist (reject, do not strip), token/cost usage as deltas, per-event IDs for deduplication, per-thread sequence numbers for gap detection, receiver-derived "stale" status, stable error codes, partial batch acceptance, normative rule IDs, shared JSON conformance vectors, canonical event IDs, delivery status codes that tell producers whether to keep or drop data, liveness that survives retries, and translating tool-native OpenTelemetry (OTLP) into the envelope where the data is born (a local receiver) so identity and content never cross the network. Use when defining an ingest API or webhook contract, an observability or analytics event schema, an agent heartbeat/status protocol, a telemetry SDK, when deciding between OTLP, CloudEvents or a custom envelope, when building an ingest endpoint, collector, SDK spool or OTLP receiver for agent telemetry, when translating cumulative OTLP counters or log records from several vendor CLIs into usage and cost, or when payloads might carry prompts, code, paths, emails or secrets.
 metadata:
-  version: "0.4.0"
-  origin: "javis-dog G1; updated G2-prep, G2, G3, G4"
+  version: "0.4.1"
+  origin: "javis-dog G1; updated G2-prep, G2, G3, G4, ad-hoc-self-report"
   confidence: "medium (envelope, vectors, ingest delivery, local OTLP translation for three tools incl. cumulative series and log records, receiver-derived freshness, receipt-time aggregation, ingest latency measured once on production); low (gap detection on real traffic, behaviour on real host-tool sessions)"
 ---
 
@@ -72,7 +72,8 @@ Define classes as allowlists, lowest by default:
 - **Per-event IDs are the idempotency mechanism.** A batch-level `Idempotency-Key` header is at most informative: in the origin's research it was an IETF draft, not an RFC.
 - **Canonicalize IDs before deduplicating.** ULIDs are case-insensitive and UUIDs have upper/lower-case spellings; if the dedupe key compares strings, `01jbz…` and `01JBZ…` are two events. Normalize in the validator (ULID upper-case, UUID lower-case, strict UUID shape), normalize again in the store, and add a database check constraint so nothing non-canonical is stored. Echo the producer's own spelling in rejections so it can match them.
 - **Scope the dedupe key by tenant.** Unique (`project`, `producer_id`, `event_id`): a globally unique key lets one tenant pre-claim another tenant's IDs.
-- **Derive IDs deterministically when you translate.** When one upstream export becomes your events, compute `event_id` from a keyed hash of the grouping key (for example HMAC-SHA-256 with a per-installation salt, formatted as a canonical UUID with fixed version and variant bits). The upstream tool's retry of the same export then produces the same IDs, and the receiver's dedupe drops it.
+- **Derive IDs deterministically when you translate.** When one upstream export becomes your events, compute `event_id` from a keyed hash of the grouping key (for example HMAC-SHA-256 with a per-installation salt, formatted as a canonical UUID with fixed version and variant bits). The upstream tool's retry of the same export then produces the same IDs, and the receiver's dedupe drops it. **Keep the clock out of a dedupe id:** a ULID whose time part is the moment of mapping (chosen to keep a spool in time order) changes on every re-run, so it no longer de-duplicates; then de-duplicate locally on a keyed hash of the stable parts (see `agent-self-report-over-mcp` §4), and test with the clock advanced between runs.
+- **Self-reported state uses the same envelope.** An agent's own report (status with a reason from a closed list, task phases) can travel in attributes the allowlist already has, with the reporting tool's name as provenance; no free-text field (see `agent-self-report-over-mcp`).
 
 ## 5. Give errors stable codes and accept batches partially
 
@@ -194,3 +195,8 @@ Javi's Dog, Sprint 1b (2026-10-20); at G1 confidence was **medium** for sections
   - Re-send gap: found by the independent runner (Codex U01/U11), fixed with persisted accepted ids — newest 20 000, 7-day sweep, atomic under a lock (`collectors/claude-code/src/state.ts` l. 141; ADR-0016 *Changes* "S5c review fixes").
   - Ingest latency measured once on production: p95 1 529 ms client-side including a proxy, near-limit batches accepted (`docs/sprints/SPRINT-05a.md` Log) — the "< 2 s" target is met once, not an SLO.
   - Still not verified: any of this on a real Gemini or Codex session (readiness rows "Gemini runtime checks", "Codex runtime checks").
+
+### Update at ad-hoc-self-report (Sprint 5d, 2026-10-30)
+
+- Self-report mapping without a protocol change: reason in `error_code` as `<status>.<reason>`, task kind in `task_kind`, provenance in `tool_name`; documented as a spec §12 Changes note (ADR-0017 decision 4; `67d8c01`). A dedicated `status_reason` attribute deferred to the next protocol version.
+- Clock in the id: code review M1 — "`selfReportEventId` uses the hook clock as the ULID time part, so the same `tool_use_id` re-fired later got a new id and a second spool record"; fix: local seen-call marker (`d6c989b`).

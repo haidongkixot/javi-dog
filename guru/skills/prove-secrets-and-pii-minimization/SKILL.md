@@ -2,8 +2,8 @@
 name: prove-secrets-and-pii-minimization
 description: Design and then prove what an app stores about secrets and personal data — API/ingest tokens kept only as a hash with a recognizable prefix and a display prefix, shown once; third-party OAuth tokens encrypted; fields you do not use (such as an OAuth provider's id_token) not stored at all; logs structured and redacted; failures that leave evidence without leaking; secrets pasted in chat handled by hash comparison and recorded for rotation. The proof step inspects real stored rows by shape (counts, booleans, lengths, prefix classes) and scans every column for plaintext markers, never printing values, and turns each finding into a red-to-green test through the same call path the real flow uses. Use when issuing API keys or personal access tokens, integrating an auth library or OAuth/OIDC sign-in, enabling token encryption at rest, writing auth or error logging, after the first real sign-ins or token issues in an environment, when a user or owner pastes a secret into chat or an issue, when a script or smoke test needs a production credential, when your tool writes its own secret into another tool's config or backups, or when someone claims data is "hashed", "encrypted" or "not stored".
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G2-prep; updated G4"
+  version: "0.2.1"
+  origin: "javis-dog G2-prep; updated G4, ad-hoc-self-report"
   confidence: "medium (sections 1–7: each applied once with recorded results; section 8: production smoke credentials and own-secret hygiene, once each)"
 ---
 
@@ -50,7 +50,9 @@ Record the query intent and the numeric results in the iteration record, not the
 - Write the test so it **fails on the current code** (record the failing run), then fix, then record the passing run.
 - Drive the test through the **same internal call the real flow uses** (for example the library's "create OAuth user" path rather than a direct insert), so hooks and encryption run as in production.
 - Repair existing rows explicitly (set the dropped field to null) and record that you did.
-- In unit tests, assert on substrings, not equality: `columns.some(v => String(v).includes(secret))`. An equality check (`values.includes(token)`) misses a token embedded in a longer string.
+- In unit tests, assert on substrings, not equality: `columns.some(v => String(v).includes(secret))`. An equality check (`values.includes(token)`) misses a token embedded in a longer string. For absence checks, use long sentinel strings that random ids and numbers cannot contain (a 3-digit needle inside a random UUID failed one origin run).
+- **Prove "never read", not only "never written".** Pass the mapper a recording `Proxy` of the input that logs every property access, and assert the exact set read (for example: only the fields used to match, never the response body or other tools' arguments). Assert on the mapper itself; a caller with a catch-all would hide a throw from the recorder.
+- **Scan diffs fail-closed before pushing:** a scanner that reads "could not scan" as "clean" is worse than none (see `fail-closed-checks`, `scripts/secret-scan.sh`).
 
 ## 5. Logs: structured, redacted, and still useful
 
@@ -111,3 +113,10 @@ Javi's Dog, Sprints 2a–2c (2026-10-22). Confidence **medium**: each practice a
 - Own secret in backups: S5b review R7 (a second `usage on` backed up the file with the CLI's own bearer) and its twin in the older platform path, fixed red-first (`5e2bd33`, `c0bfde2`); Codex config backups mode 0600 because the file often holds other tools' tokens (ADR-0016 *Changes* D0 H6).
 - Inherited bearer: D0 H2 — the CLI's exporter header for one host tool is inherited by a second host tool started inside it, which merges it into its default vendor export; owner "Detect and warn" (ADR-0016 *Changes* D0).
 - In memory only: Gemini series hash over all point attributes (incl. user email) and `auth_type` "used only in memory and never copied into the record" (ADR-0016 *Changes* R4, R6).
+
+### Update at ad-hoc-self-report (Sprint 5d, 2026-10-30)
+
+- Read recorder: "a Proxy read recorder proving only the match fields are read for other tools and `tool_response` / other `mcp_context` fields never are for javi's tools" (`1600c47`); ADR-0017 decision 3 "asserted on the mapper itself; the hook runner's catch-all would hide a throw".
+- Sentinels in every request field of the self-report vectors must not appear in stdout, stderr, records, batches or the local state directory (`docs/jgr/conformance/self-report/README.md`; runners `a78066b`, `08a33bc`).
+- Short needle flake: CI run 41080177974, `packages/analytics/test/reader.test.ts:545` — `'777'` found inside a random project UUID (Guru, from the annotation).
+- Secret-scan slips in the push chain (two) and the fail-closed scan script: see `fail-closed-checks`.

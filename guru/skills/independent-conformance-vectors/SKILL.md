@@ -1,10 +1,10 @@
 ---
 name: independent-conformance-vectors
-description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, when money or price rules need a second derivation, when vectors are merged before the runner or the code that satisfies them, or when asked for "conformance tests", "test vectors", "golden files", "contract tests" or "an independent QA pass".
+description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail; plus vectors for invariance claims (idempotency, replay, ordering) that vary what the claim says must not matter — the clock above all — and leak checks whose needles cannot occur by chance in random ids. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, when money or price rules need a second derivation, when vectors are merged before the runner or the code that satisfies them, when a claim says "a re-run is de-duplicated" or "the same input gives the same id", when a negative assertion (`not.toContain`) fails intermittently, or when asked for "conformance tests", "test vectors", "golden files", "contract tests" or "an independent QA pass".
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G2; updated G3, G4"
-  confidence: "high (independent vectors + runner + mutation checks: seven suites, seven iterations; the runner found product defects that developers and reviewers missed in two of them); medium (ambiguity register catching a defect in the brief: once; strict-tolerance rule: one hidden defect; independent price derivation: once)"
+  version: "0.4.0"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d)"
+  confidence: "high (independent vectors + runner + mutation checks: seven suites, seven iterations; the runner found product defects that developers and reviewers missed in two of them); medium (ambiguity register catching a defect in the brief or design: twice; strict-tolerance rule: one hidden defect; independent price derivation: once; invariance claims needing a moving clock: once, a defect every oracle missed; short leak needles as a flake source: once, verified in CI)"
 ---
 
 # Independent conformance vectors
@@ -32,6 +32,20 @@ Template: [`templates/suite-README.md`](templates/suite-README.md).
 Every contract line that can be read two ways gets an id (A1…An), the contract text, the question, and the reading the vectors chose. A FAIL on a vector that depends on an ambiguity is reported with its id, so the owner decides whether the reading or the implementation is wrong. Expect many: both origin suites listed 20 ambiguities each.
 
 The register is where the oracle pays off most. In the origin, the brief said "a non-OTLP JSON object → 400", while the OTLP JSON encoding says unknown fields MUST be ignored and an empty request SHOULD succeed. QA recorded it as A3 and chose the standard's reading; the orchestrator accepted it and fixed the parser before the dependent lane wrote its tests.
+
+A design record that has just been through a review is a good moment for vectors: the reviewer's remedies are new, unreviewed rules (see `review-design-before-code`). In the origin's eighth suite, QA writing vectors from a reviewed record found 19 gaps; one was a design defect introduced by the review's own remedy. Resolve gaps in the record before runners exist, and tell running lanes the same hour.
+
+### Vectors for invariance claims must vary what should not matter
+
+"A re-run is de-duplicated", "the same call gets the same id", "order does not matter": each claim says that some input is irrelevant. A vector can only falsify it if that input **changes** between the runs:
+
+- Re-run with the clock **advanced** (milliseconds and minutes), in a fresh process, with a reordered batch, as relevant.
+- A pinned clock is fine for reproducibility, but a pinned clock that is the *same* for both runs makes any id that embeds time look stable.
+- Ask, per claim: "what would the implementation have to use for this to break?" — then vary exactly that.
+
+In the origin, the unit test and the vectors both replayed a call under one pinned clock; the implementation put the hook time into the event id, so a real re-fire produced a second record. 71 of 74 mutations were caught and the suite was green; the code reviewer found the defect on the built bundle.
+
+**Mutations come from the same model as the vectors.** They show the suite detects the deviations its authors imagined; they do not find a property nobody wrote a varying vector for.
 
 ## 4. Write runner rules, then the runner
 
@@ -66,6 +80,10 @@ For prices, rates and cost formulas, let QA derive expected values from the vend
 
 When the vendor publishes schemas for the payloads (hook input schemas, wire formats), validate every vector's input against them, so the oracle never tests a payload the tool cannot send.
 
+### Leak checks need needles that cannot occur by chance
+
+Negative assertions (`expect(json).not.toContain(needle)`) prove that another tenant's or the user's data did not leak — unless the needle is short enough to appear in random output. A 3-digit number appears in a random UUID or timestamp often enough to fail a suite now and then. Use sentinel strings that cannot be produced by your id, time or number formats (`SENTINEL_<CASE>_<FIELD>` with characters outside hex and digits), or assert on parsed fields instead of substrings.
+
 ## 5. Prove the runner bites with mutation checks
 
 For each rule that matters (status code for a class of error, a security check, id determinism):
@@ -89,6 +107,8 @@ If your environment blocks running mutations (an agent permission classifier did
 - **A green suite as evidence of detection.** Only a mutation that turns it red shows that.
 - **Widening a tolerance in the runner.** It turns a contract into a suggestion and hides edge-of-tolerance defects.
 - **Parallel steps on one connection reported as PASS.**
+- **Replay vectors under the same clock.** They cannot falsify an id that embeds time.
+- **Short numeric needles in leak checks.** A random UUID will contain them eventually.
 - **Pushing vectors ahead of their runner or implementation** on a deploying branch.
 - **Lanes testing only against local doubles.** The end-to-end path is then first exercised at merge; add one integration test through the real adapters.
 
@@ -130,3 +150,17 @@ Two more suites for two third-party CLI collectors, each with a runner by a lane
 - Independent money derivation: the implementation lane's 13-row price table and QA's prices derived from the page text agreed on the checked models before and after an introductory-price end date; the orchestrator found two fragments verbatim and exactly once in the page text (`SPRINT-05b.md` Team log).
 - Push holds verified in CI history: no run exists for `3ad3f60`…`64f9f1a` — they went out with `0cff148`, after the runner was updated ("held back on purpose … the runner failed with `expected 53 to be 40`"); vector 21's update was held until the receiver lane merged ("before B it failed with `expected 404 to be 200`"); the Codex runner `4f4b42f` (red against pre-fix code) went out only with the fixes (`5574c55`).
 - Doubles: "Developer B tested against local doubles while A was in progress, so the end-to-end path was only proven at merge" (S5c retro); the fix lanes added integration tests through the real adapters (`codex-integration.test.ts`).
+
+### Update at ad-hoc-self-report (Sprint 5d, 2026-10-30)
+
+Self-report suite (`docs/jgr/conformance/self-report/`): 54 vectors — 22 MCP protocol, 14 hook mapping across three hosts, 18 reader precedence — from ADR-0017 only (`1f40a78`, aligned `781c561`). Runners by two lanes that wrote neither vectors nor code (`a78066b`, `08a33bc`); vector files validated against the suite's schema with Ajv resolved through an existing dev dependency, no new package.
+
+| Group | Runner layer | Result | Mutations |
+|---|---|---|---|
+| M (protocol) | server instance over in-memory streams | 22/22 | 51/54 caught across M and R; survivors → coverage gaps (client response object, `report_task` without arguments, ending a thread while waiting) and one record clarification |
+| R (reader) | thread reader on PGlite | 18/18 | (as above) |
+| H (hooks) | real hook processes from the hosts' config files, pinned clock | 14/14 | 20/20 |
+
+- Spec gaps: "19 spec gaps; G8 was a design defect: an agent's `working` would have hidden a real permission prompt. All resolved in ADR-0017 (Changes 'QA spec gaps'). Developers A and B were told mid-lane" (`SPRINT-05d.md` Team log).
+- Same-clock replay: H12 "a fresh HOME with the same salt and clock replays H11 calls … get the same `event_id` as in H11 (a re-run hook dedupes)"; README "Run H11 and H12 in the same run with the same salt and clock". The pre-fix unit test used `now: () => CLOCK` for both runs. Code review M1 found the duplicate; fix test advances the clock 50 ms (`d6c989b`). At this checkpoint no vector moves the clock (Guru finding SR-F5).
+- Leak needle flake (Guru, from CI annotations): run 41080177974 on `08f7b2e` (a lockfile and registry commit) failed `packages/analytics/test/reader.test.ts:545` — `expected '{"generatedAt":…' not to contain '777'`; the received JSON contains `"projectId":"f609498d-25ce-4777-9101-…"`, tenant A's random UUID. The needle list there includes `'777'` and `'7.77'`. Not recorded in the sprint file (Guru finding SR-F2).

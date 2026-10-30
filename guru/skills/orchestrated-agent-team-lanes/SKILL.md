@@ -1,10 +1,10 @@
 ---
 name: orchestrated-agent-team-lanes
-description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when deciding what may be pushed to an auto-deploying branch before review, when a session discovers someone else already pushed the work it planned, when cleaning up after merged worktrees, when staging commits in a tree with scratch files, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
+description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when deciding what may be pushed to an auto-deploying branch before review, when a session discovers someone else already pushed the work it planned, when cleaning up after merged worktrees, when staging commits in a tree with scratch files, when a reviewer runs your CLI as a probe, when `pnpm install`/`npm install` rewrites unrelated lockfile lines, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G2; updated G3, G4"
-  confidence: "medium (team pattern, used in nine iterations by one orchestrator); high (fetch-before-planning as the fix for duplicate work; adversarial reviewer with probes finding defects the lanes missed: nine consecutive rounds, majors or highs in eight of them); medium (holding pushes until review or until runner and code catch up: five iterations)"
+  version: "0.4.0"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d)"
+  confidence: "medium (team pattern, used in nine iterations by one orchestrator); high (fetch-before-planning as the fix for duplicate work; adversarial reviewer with probes finding defects the lanes missed: ten consecutive iterations, majors or highs in nine of them; a push-chain rule kept as a habit failing again: three times); medium (holding pushes until review or until runner and code catch up: five iterations)"
 ---
 
 # Orchestrated agent team lanes
@@ -50,7 +50,9 @@ Write the iteration's test plan before any lane starts (the origin's Reviewer fl
 
 **Give the conformance runner its own lane** when the implementation lane would otherwise write it: QA writes vectors from the contract, a fresh lane writes the runner from the README, the implementer writes neither.
 
-**Correct lanes mid-flight, in time.** When a contract question is decided while lanes run (in the origin, QA found that the brief contradicted the wire-format spec), message the affected lane before it writes the dependent test, and log the correction.
+**Correct lanes mid-flight, in time.** When a contract question is decided while lanes run (in the origin, QA found that the brief contradicted the wire-format spec; later, QA's 19 spec gaps on a decision record), message the affected lanes before they write the dependent code or test, and log the correction.
+
+**Check module and owner labels against the manifests** when writing the decision record and lane briefs. A record that names the wrong module sends a lane to the wrong paths and propagates into vectors and commit scopes.
 
 ## 3. Merge with a checklist, in the main tree
 
@@ -71,15 +73,19 @@ A lane that needed one file outside its declared paths is not rejected automatic
 
 **Push only through the gate, stage only what you mean.**
 
-- Chain the gate and the push with `&&` (`gate && git push`). One `;` pushes after a failed gate.
+- Chain the gate and the push with `&&` (`gate && git push`). One `;` pushes after a failed gate. **Make the chain a checked-in script** (gate, fail-closed secret scan, push): in the origin the `&&` rule was recorded and still broken twice more, once by a malformed scan command that failed open (see `fail-closed-checks`).
 - Stage explicit paths, not `git add -A`. Keep scratch scripts and one-off probes outside the repository (a session scratch directory); a formatter check that flags an unknown file is a hint that something was staged by accident.
 - After a push, check that tip's CI result before the next push and record it.
+
+**Lockfile edits by one hand.** Lanes do not edit the lockfile; the orchestrator does, once per merge. If the package manager rewrites unrelated entries on every install (in the origin: peer-dependency strings of a package nobody touched), apply only the importer lines the merge needs, by hand, and let CI's frozen-lockfile install verify them; record the churn as a chore with a hypothesis for its cause instead of committing the rewrite.
 
 **Remove lane worktrees after merging.** Merged worktrees left on disk accumulate (the origin had 35 at G4, about 3 GB), slow searches and invite edits in the wrong tree. `git worktree remove <path>` once the lane is merged and its branch is no longer needed.
 
 ## 4. Review adversarially, fix red-first
 
 **Review the design before the code** when the iteration integrates a third-party tool or format: see `review-design-before-code` (design review on the draft, decisions recorded before lanes, code review with probes at the target's dependency versions).
+
+Brief the Reviewer to point every probe run of your own tools at a dead local endpoint or a sandbox, never at the default (production) endpoint, and to reproduce findings on the built artifact.
 
 Brief the Reviewer to attack the claims: security of new listeners and endpoints, privacy, data integrity, and whether the evidence supports what the iteration record says. Ask for severity (blocker/major/minor/nit) and for **a probe per major** — a command or test that shows the defect.
 
@@ -144,3 +150,14 @@ Javi's Dog, Sprints 3a–3f (2026-10-23 → 2026-10-28). Confidence **medium** f
 - Worktrees: `git worktree list` at G4 shows 35 lane worktrees under `.claude/worktrees/` (git- and lint-ignored, 3.0 GB), the oldest from S3.
 - Doubles: S5c retro "Developer B tested against local doubles while A was in progress, so the end-to-end path was only proven at merge."
 - Not verified: that the lanes are faster than one agent; S5c "exceeded the timebox" (retro).
+
+### Update at ad-hoc-self-report (Sprint 5d, 2026-10-30)
+
+- Roster: design reviewer (read-only, before code), QA, Developers A and B in parallel, then Developer C, two runner lanes and a fix lane; "Lanes on disjoint paths merged without a conflict" (retro; merges `c965708`, `328beb7`, `bd616f6`, `e9b2ae4`, `8a0cba7`, `44d88da`, `0a0c7e9`).
+- Mid-lane corrections: "Mid-lane ADR amendments reached the developers before they built the wrong rule" (retro); QA's gap resolutions `c25cf2d` landed before the reader lane's fix `509262e` (red-first: 10 failed, 41 passed → 112/112).
+- Reviewer rounds: design review D0 (2 high) and code review (0 high, 3 medium, "all Mediums were reproduced against a built bundle"); fixes red-first (`SPRINT-05d.md` Team log). Probe to production disclosed: "one reviewer `init` without `--endpoint` sent a single request with a fake token to production. It got `401`; nothing was written. Later runs used a dead local endpoint."
+- Push chain: "the gated push of `d9b51eb` chained the secret scan with `;` instead of `&&`"; "one scan command was malformed and failed open"; both re-scanned clean; retro: "Use the fail-closed `secret-scan` script for every push". That script is in the session's scratch directory, not in the repository, at this checkpoint (Guru finding SR-F4).
+- Lockfile: "`pnpm install` keeps rewriting three unrelated `better-auth` peer strings, so every lockfile edit is made by hand" (retro). Hand-applied importer links `08f7b2e`, `50f5059` and `d9b51eb` (3 lines each) passed CI's `pnpm install --frozen-lockfile` (runs 41080177974 reached the test step; 41084532779 and 41075775993 green). The cause ("pin `@babel/core` peer resolution") is a retro hypothesis, not verified.
+- Module labels: "The ADR named the wrong module IDs (JD-M12, JD-M13)"; Developer B corrected them (ADR-0017 *Changes*); the first vector commit message still says "R01-R15: JD-M12 reader" (`1f40a78`). Retro: "Check module IDs against `module.json` when writing an ADR."
+- Not followed: checking each pushed tip's CI before the next push — two reds unrecorded (see `diagnose-red-ci-from-history`, update S5d).
+- Timebox: "The sprint ran well past the 30-minute timebox … the five lanes were not [outside it]" (retro). Not verified: that lanes were faster than one agent.

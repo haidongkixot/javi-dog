@@ -2,8 +2,8 @@
 name: agent-second-memory
 description: Bootstrap and maintain a repository's "second memory" so coding agents (and humans) can resume work across sessions without re-deriving context — project memory, append-only session log, sprint records with a team log, ADRs, a readiness matrix, a generated module registry, CI checks for markdown lint, broken links, stale generated docs, doc drift and stale memory (dates, unclosed iterations, empty retros), and short timeboxed iterations that are split and rolled over truthfully. Use when starting a new repository or project with AI agents, when agents keep losing context between sessions, when asked to set up docs-as-code, ADRs, handoff notes, a project log or "memory", when docs drift from code, when an owner sets a short timebox per sprint or iteration, or before a long multi-session build.
 metadata:
-  version: "0.3.2"
-  origin: "javis-dog G0; updated G1, G2-prep, G2, G3, G4"
+  version: "0.3.3"
+  origin: "javis-dog G0; updated G1, G2-prep, G2, G3, G4, ad-hoc-self-report"
   confidence: medium
 ---
 
@@ -47,6 +47,8 @@ Every claim in memory files should cite a commit SHA, a file, a command result o
 ### 3. Give modules stable IDs and generate the registry
 
 If the system has modules, give each a manifest (`id`, `name`, `version`, `status`, `provides`, `consumes`) and generate the registry document from the manifests plus a "planned" list. Reserve IDs up front so commits and docs can reference modules before their code exists. The generator should validate: required keys, ID format, allowed statuses, duplicate IDs, and `consumes` entries that point to unknown modules. Give it a `--check` mode that fails when the committed registry differs from a fresh render.
+
+When writing a decision record or a lane brief, **copy module IDs from the manifests** (search them by path), not from memory: a wrong ID in a decision record travels into vectors, commit scopes and lane paths.
 
 ### 4. Add the doc checks to CI
 
@@ -153,3 +155,10 @@ Javi's Dog, Sprint 0 (2026-10-20), single cloud session. Confidence **medium**: 
 - Dangling pointers (G4 findings): `SPRINT-05c.md` retro says the exceeded timebox was "recorded as a deviation" — its Decisions and deviations section has no such entry; its Log ends "CI: checked in the next entry" with no next entry (Guru read run 40975219061: success); `SPRINT-05a.md` Log still says "CI run 40718637866: in progress" (it succeeded).
 - Staleness check re-run read-only at G4: 7 findings (S3b, S3c, S3e, S4a–S4c, S5a "not closed" with newer iterations), exit 1; still not in the origin's `docs:check` (G2 proposal 5 open). `SPRINT-05a.md` is "ACTIVE" with an empty retro although all items but the owner-deferred cutover are done.
 - Content drift a date check missed: `READINESS_MATRIX.md` is dated 2026-10-29 (same day as the newest log entry) but its header still says "(S5b …)", its "Readiness decision" still describes S5a in progress and S3, and the Performance row is UNKNOWN although the production load test recorded p95 1 529 ms that day. `PROJECT_MEMORY.md` next actions 1, 2 and 6 describe done work (load test "after cutover", `CRON_SECRET`, "Guru G3 then S5 planning"), and "No auth or ingest yet" is still there — the fourth checkpoint in a row.
+
+### Update at ad-hoc-self-report (Sprint 5d, 2026-10-30)
+
+- Wrong module IDs in a decision record: "The ADR named the wrong module IDs (JD-M12, JD-M13)"; corrected by the lane that owned the code (ADR-0017 *Changes* "Module labels corrected"); the first vector commit still says "JD-M12 reader" (`1f40a78`). Retro action: "Check module IDs against `module.json` when writing an ADR."
+- Final counts again only in the memory files: the session log says "full gate: 2200 tests"; the sprint's Test evidence table ends at the 1 997-test run after T1, T2, T4 (G3-F2 pattern, Guru finding SR-F6).
+- Two red CI runs in the window are in no memory file (see `diagnose-red-ci-from-history`, update S5d).
+- The sprint record closes with "Guru checkpoint: —" — the pointer is filled after this checkpoint, not before.

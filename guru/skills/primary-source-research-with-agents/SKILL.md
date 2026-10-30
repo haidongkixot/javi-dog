@@ -2,8 +2,8 @@
 name: primary-source-research-with-agents
 description: Run fast, trustworthy technical research with a parallel research agent while the main agent keeps building — a scoped question list, one primary-source URL per fact, explicit NOT VERIFIED marking, official source repositories as fallback when documentation sites are blocked, orchestrator spot-checks of the facts that drive decisions, recorded rejections of the researcher's suggestions, and a findings-to-decisions table that ties every spec change to a source. Use when designing a protocol, integration, collector, SDK or API against third-party tools or standards, when an agent's web access is partly blocked by a proxy or sandbox, when facts about vendor defaults, telemetry, config flags, settings scopes or RFC status matter, when a design assumes where a tool reads its configuration or which runtime behaviour it has, when a design depends on how a vendor's counters, series or override precedence behave, or when asked to "research", "check the docs" or "verify sources" before deciding.
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G1; updated G2, G3, G4"
+  version: "0.3.1"
+  origin: "javis-dog G1; updated G2, G3, G4, ad-hoc-self-report"
   confidence: "high (research loop with orchestrator spot-checks changed designs in five iterations); medium (local runtime probes, defensive fallbacks for undocumented facts, source-at-a-commit when docs are blocked); low (probing the target's dependencies during research: proposed by a retro, not yet tried)"
 ---
 
@@ -64,6 +64,10 @@ For integrations that consume another tool's telemetry or config, the expensive 
 
 When the vendor's docs site is unreachable, the official repository at a named commit is a primary source for behaviour (`path/file.rs:993` "session_id is equal to the root thread's ID"). Record the commit; re-check decisive lines yourself. Documentation *wording* stays unquoted and marked as such.
 
+### Closed-source targets: strings show existence, not behaviour
+
+A string scan of a shipped binary can show that identifiers exist (protocol versions, environment variable names, method names). It cannot show which one is used first or under which condition. Record such facts as "present in the binary" and keep the behavioural question UNVERIFIED with a runtime-check row.
+
 ### Probe the target's real parser or matcher during research
 
 When a design depends on how a library inside the target behaves (proxy matching, TOML/YAML rewriting, glob or path matching), run a small probe against the **version in the target's lockfile** while researching — not only later in review (see `review-design-before-code`).
@@ -121,3 +125,10 @@ Confidence raised to **high** for the research loop: in S1b, S3c and S3e a resea
 - Research-driven design changes again: Gemini prompt logging defaults to on → forced off; Codex ignores project-level OTel → user-level edit; Codex hook trust is positional and user-only → append-only hooks, never write trust (ADR-0016).
 - Semantics the S5b research had not traced, found by the code review instead: first export lost, input − cache split across start times, series merged across hidden attributes (`SPRINT-05b.md` Retro: "have the Researcher trace the telemetry SDK's series semantics … and the env and override precedence"). S5c's design review found the cache-write double count from the vendor's official test ("input 100 = cached 40 + cache write 60", ADR-0016 *Changes* D0 H3).
 - S5c retro: "write a probe of the target's real parser or matcher behaviour as part of the research, not only during review" — after two highs that only compiled probes revealed. Not yet applied in a later iteration (**low**).
+
+### Update at ad-hoc-self-report (Sprint 5d, 2026-10-30)
+
+- Sixth research run: MCP spec and SDK repositories, two vendor CLIs' sources at named commits (`b633c07`, `55c099a`), one vendor's docs, a static string scan of a closed-source CLI binary; two docs sites blocked (ADR-0017 "Research"). Decisive outcome: every host runs its post-tool hook for MCP tools with the session id and arguments; the orchestrator re-checked hook firing in two sources, which "led to a uniform 'hook emits' design, with no server-side Codex path" (`SPRINT-05d.md` Team log).
+- Limits recorded honestly: which protocol version the closed-source client sends first stays UNVERIFIED (binary strings list three versions plus a modern path); whether it fires its success or failure hook for an error result is UNVERIFIED, so both are mapped.
+- An UNVERIFIED item closed later by the code reviewer reading source (`hook_runtime.rs:1144`: sub-agent ids only for spawned sub-agents).
+- Probing the target's own dependency versions during research (G4 low-confidence item) was not applicable here and remains untried.

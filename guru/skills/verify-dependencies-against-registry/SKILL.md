@@ -2,8 +2,8 @@
 name: verify-dependencies-against-registry
 description: Choose and pin a dependency stack against the live package registry and the installed code instead of memory or a plan draft — check release channels (latest vs beta/rc), peer-dependency and engine ranges between tools (linters, type checkers, compilers, framework plugins), avoid pre-release versions for security-critical modules, apply a release-age cooldown plus an advisory check before pinning, read the installed package's type definitions and source before designing an integration, keep code runnable by a runtime's built-in type stripping, pin exact versions, and record deviations with revisit triggers in an ADR. Use when scaffolding a new project or monorepo, writing a technology-stack ADR, adding or upgrading a major dependency, choosing or integrating an auth/crypto/payments library, mapping a library's data model onto existing tables, when a plan names a library version or option you have not checked, when scripts run TypeScript directly through Node's built-in type stripping, or when installs fail with peer-dependency or engine conflicts.
 metadata:
-  version: "0.2.1"
-  origin: "javis-dog G0; updated G1, G2-prep, G4"
+  version: "0.2.2"
+  origin: "javis-dog G0; updated G1, G2-prep, G4, ad-hoc-self-report"
   confidence: medium
 ---
 
@@ -64,6 +64,10 @@ Avoid dependencies that download assets at build time (fonts, binaries, schemas)
 
 Pin exact versions in manifests for tools that affect output (compiler, linter, formatter, test runner) and commit the lockfile. Install with the frozen-lockfile mode in CI so the registry check you did is the one CI uses.
 
+If every local install rewrites lockfile entries unrelated to your change, do not commit the rewrite with your change: apply only the lines your change needs, let the frozen-lockfile install in CI verify them, and open a chore for the churn with its suspected cause marked as a hypothesis.
+
+**Measure an SDK before adopting it for a small surface.** Count its runtime dependencies and bundle it once in a scratch directory. If you need three methods of a protocol, a hand-written implementation with the official SDK pinned as a **dev** dependency (an interoperability oracle in tests) can be smaller and leaves no runtime dependency — at the price of tracking the spec yourself. Record the measurement and the owner's choice.
+
 ### 8. Read the installed package before designing the integration
 
 Docs, blog posts and model memory describe *some* version. After installing the pinned version, read its shipped type definitions (`.d.ts`, `.d.mts`, `.pyi`) and, where those are thin, its source, and answer the integration questions from them before writing the design:
@@ -116,3 +120,5 @@ Javi's Dog, Sprint 0 (2026-10-20), extended in Sprints 1a–2b. Confidence **med
   - Installed-source reading: the S2b log records reading Better Auth 1.7.7's installed source for id generation (`uuid`), organization schema mapping, the drizzle adapter `transaction` switch, `encryptOAuthTokens`, IP tracking and telemetry; S2c confirmed `onAPIError.errorURL` and `logger.log` the same way. The mapping of the library's organization model onto an existing `workspaces` table worked on the first try (`SPRINT-02b.md` Retro; `packages/identity/src/auth.ts`, `a55b415`). The same reading did not reveal that the encryption flag leaves the OIDC `id_token` in plain text; a row check after the first real sign-in did (`24231a5`).
   - Type stripping: the first smoke run of a migration script failed because Node's type stripping rejected a constructor parameter property; `erasableSyntaxOnly` was enabled workspace-wide (`tsconfig.base.json`, `dc6ef61`; `SPRINT-02a.md` Log; ADR-0005 *Changes*). Reproduced at G2-prep with Node 22.22.0 and TypeScript 5.9.3: the runtime rejects a parameter property and an `enum`; `tsc --noEmit` exits 0 without the flag and 2 with it (TS1294).
 - G4 update (2026-10-29, Sprint 5c): a TOML parser (smol-toml 1.9.1, BSD-3-Clause, no dependencies, exact pin) was added to the CLI after an owner decision ("Add a TOML parser") at the design review, with its licence in the bundle's third-party notices (`docs/adr/0016-gemini-and-codex-collectors.md` *Changes* D0 H6; `2a1131d`; `docs/sprints/SPRINT-05c.md` Team log). No registry or advisory check is recorded. Guru's read-only `npm view` at G4: 1.9.1 is `latest`, published 2026-10-09 (20 days before adoption, so it passes a two-week cooldown), licence BSD-3-Clause; advisory check NOT RUN. The sprint's own constraint line still says "No new external package" — record the exception where the constraint is written, in the same commit as the lockfile change.
+
+- Ad-hoc update (2026-10-30, Sprint 5d): the MCP SDK measured before adoption — 17 runtime dependencies, 235–347 KB minified in a throwaway bundle, no advisory affecting a stdio-only server (ADR-0017 "Research"); owner chose "Hand-written"; the SDK client 1.32.2 is a dev dependency of one package only, for an interop test (`d1ebc8b`). Lockfile churn: "`pnpm install` keeps rewriting three unrelated `better-auth` peer strings, so every lockfile edit is made by hand" (`SPRINT-05d.md` Retro); the hand-applied 3-line importer links (`d9b51eb`, `08f7b2e`, `50f5059`) passed CI's `pnpm install --frozen-lockfile`. Cause ("`@babel/core` peer resolution") not verified.
