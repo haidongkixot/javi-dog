@@ -1,0 +1,110 @@
+{
+  "$schema": "./schema.json",
+  "id": "K02",
+  "kind": "recovery-key-parse",
+  "description": "Parsing ignores case, spaces and dashes: every variant of the S1 (and one S4) recovery key yields the same 32 bytes.",
+  "contract": "ADR-0018 (e3a2ad5) decision 1 Recovery key (\"Parsing ignores case, spaces and dashes\")",
+  "ambiguities": ["G1", "G2"],
+  "cases": [
+    {
+      "label": "canonical",
+      "note": "as displayed",
+      "input": "JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "lower-case",
+      "note": "all lower case",
+      "input": "jdk1-000g-40r4-0m30-e209-185g-r38e-1w81-24gk-2gah-c5rr-34d1-p70x-3rfg-cc6w",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "mixed-case",
+      "note": "alternating case",
+      "input": "JdK1-000G-40R4-0M30-E209-185G-R38e-1W81-24Gk-2GaH-C5Rr-34d1-P70x-3RfG-Cc6w",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "no-dashes",
+      "note": "every dash removed",
+      "input": "JDK1000G40R40M30E209185GR38E1W8124GK2GAHC5RR34D1P70X3RFGCC6W",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "spaces-for-dashes",
+      "note": "every dash replaced by a space",
+      "input": "JDK1 000G 40R4 0M30 E209 185G R38E 1W81 24GK 2GAH C5RR 34D1 P70X 3RFG CC6W",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "outer-spaces",
+      "note": "leading and trailing spaces",
+      "input": "  JDK1-000G-40R4-0M30-E209-185G-R38E-1W81-24GK-2GAH-C5RR-34D1-P70X-3RFG-CC6W   ",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "regrouped",
+      "note": "dashes every 5 characters instead of 4",
+      "input": "JDK10-00G40-R40M3-0E209-185GR-38E1W-8124G-K2GAH-C5RR3-4D1P7-0X3RF-GCC6W",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "double-separators",
+      "note": "doubled dashes and spaces between groups",
+      "input": "JDK1 -- 000G -- 40R4 -- 0M30 -- E209 -- 185G -- R38E -- 1W81 -- 24GK -- 2GAH -- C5RR -- 34D1 -- P70X -- 3RFG -- CC6W",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "lower-no-dashes",
+      "note": "lower case without dashes, prefix included",
+      "input": "jdk1000g40r40m30e209185gr38e1w8124gk2gahc5rr34d1p70x3rfgcc6w",
+      "expect": {
+        "ok": true,
+        "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+        "reason": null
+      }
+    },
+    {
+      "label": "s4-lower-spaces",
+      "note": "S4 key, lower case, spaces for dashes",
+      "input": "jdk1 990n cjak 5n24 yhsd a50j thj1 9d2j tjt5 b4pm wktm 5n94 agac 5mrg 4wzy",
+      "expect": {
+        "ok": true,
+        "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+        "reason": null
+      }
+    }
+  ]
+}

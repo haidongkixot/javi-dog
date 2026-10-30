@@ -1,0 +1,91 @@
+{
+  "$schema": "./schema.json",
+  "id": "K07",
+  "kind": "l1-hash",
+  "description": "Domain and project separation: the same value hashed under another field, another project slug or another secret gives a different L1 value; every hash in this file is distinct, and none equals the plain SHA-256 of the value.",
+  "contract": "ADR-0018 (e3a2ad5) decision 2 (\"the same key reused in two projects gives different kids and hashes\"; \"domain separation\"), decision 3 (\"never a plain salted hash\")",
+  "ambiguities": ["G3", "G4"],
+  "cases": [
+    {
+      "label": "base",
+      "note": "S1, web-app, branch \"main\"",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "main",
+      "valueUtf8Hex": "6d61696e",
+      "expect": {
+        "nfcUtf8Hex": "6d61696e",
+        "hash": "sha256:3a025e79dd22ed9651905f3804613442376a81d3895dcc3217c7a9dd4634a855"
+      }
+    },
+    {
+      "label": "other-field",
+      "note": "same value and key, field repo",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "repo",
+      "value": "main",
+      "valueUtf8Hex": "6d61696e",
+      "expect": {
+        "nfcUtf8Hex": "6d61696e",
+        "hash": "sha256:cf3b4e24138979a364fa6b4a70bc8c7541e7cde3cb3856a59d9de5f832380c6b"
+      }
+    },
+    {
+      "label": "other-field-cwd",
+      "note": "same value and key, field cwd",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "cwd",
+      "value": "main",
+      "valueUtf8Hex": "6d61696e",
+      "expect": {
+        "nfcUtf8Hex": "6d61696e",
+        "hash": "sha256:92b0c885d1c3967ebca62539970d0b21304b3fc064e26b90d5409744619f8e34"
+      }
+    },
+    {
+      "label": "other-slug",
+      "note": "same secret, value and field, other project slug",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "javis-dog-web-app",
+      "field": "branch",
+      "value": "main",
+      "valueUtf8Hex": "6d61696e",
+      "expect": {
+        "nfcUtf8Hex": "6d61696e",
+        "hash": "sha256:2ac147c396e2fec1019bb34076a17d8c9986f1923d0f39bb3f8b80bccde36023"
+      }
+    },
+    {
+      "label": "other-secret",
+      "note": "other secret, same slug, value and field",
+      "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "main",
+      "valueUtf8Hex": "6d61696e",
+      "expect": {
+        "nfcUtf8Hex": "6d61696e",
+        "hash": "sha256:8213ac8c05e94c2f0866dbf9afee37826174eb2a9b6cd357547f63444e201017"
+      }
+    },
+    {
+      "label": "case-differs",
+      "note": "\"Main\" is a different value (no case folding)",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "Main",
+      "valueUtf8Hex": "4d61696e",
+      "expect": {
+        "nfcUtf8Hex": "4d61696e",
+        "hash": "sha256:e06ce39ec2c3b05596c805ba49a4ace75fe5b8182c7087c5a93cf57092c73050"
+      }
+    }
+  ],
+  "plainSha256": {
+    "main": "sha256:0d6e4079e36703ebd37c00722f5891d28b0e2811dc114b129215123adcce3605"
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "$schema": "./schema.json",
+  "id": "E03",
+  "kind": "payload",
+  "description": "Every L2 plaintext is the payload JSON padded with spaces (0x20) to exactly 256 bytes; repo and branch are cut to 100 code points first.",
+  "contract": "ADR-0018 (e3a2ad5) decision 4 Padding (review M2)",
+  "ambiguities": ["G5", "G6", "G12"],
+  "cases": [
+    {
+      "label": "short-ascii",
+      "note": "short names: JSON then spaces up to 256 bytes",
+      "input": {
+        "repo": "javi-dog",
+        "branch": "main",
+        "canary": false
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "repo": "javi-dog",
+          "branch": "main"
+        },
+        "json": "{\"v\":1,\"repo\":\"javi-dog\",\"branch\":\"main\"}",
+        "jsonByteLength": 41,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "a747b9271d12b40b68617ab92b36d51536dc9f3eaa29d2e3c609c78eeed82ac6",
+        "paddedHex": "7b2276223a312c227265706f223a226a6176692d646f67222c226272616e6368223a226d61696e227d2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020"
+      }
+    },
+    {
+      "label": "max-ascii",
+      "note": "repo and branch exactly 100 ASCII code points each: 229 bytes of JSON, 27 spaces",
+      "input": {
+        "repo": "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+        "branch": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+        "canary": false
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "repo": "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR",
+          "branch": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+        },
+        "json": "{\"v\":1,\"repo\":\"RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR\",\"branch\":\"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\"}",
+        "jsonByteLength": 229,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "7e69f485b98752c30b17ff19f8a26c29ddc5f6748e8fce2531c492792761262e",
+        "paddedHex": "7b2276223a312c227265706f223a2252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252525252222c226272616e6368223a2242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242424242227d202020202020202020202020202020202020202020202020202020"
+      }
+    },
+    {
+      "label": "cut-ascii",
+      "note": "repo and branch of 150 ASCII characters are cut to their first 100",
+      "input": {
+        "repo": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeepppppppppppppppppppppppppppppppppppppppppppppppppp",
+        "branch": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "canary": false
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "repo": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "branch": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "json": "{\"v\":1,\"repo\":\"rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"branch\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}",
+        "jsonByteLength": 229,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "ef228a2b6ceacd249a9b9e0b0b04f78e43eb7f710268e5793167c8aa6c17c4cb",
+        "paddedHex": "7b2276223a312c227265706f223a2272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272727272726565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565656565222c226272616e6368223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262227d202020202020202020202020202020202020202020202020202020"
+      }
+    },
+    {
+      "label": "cut-code-points-not-units",
+      "note": "99 ASCII + 2 astral characters: the cut keeps 99 + 1 astral (100 code points, 101 UTF-16 units); a UTF-16 cut would leave a lone surrogate",
+      "input": {
+        "repo": "javi-dog",
+        "branch": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00\ud83d\ude00",
+        "canary": false
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "repo": "javi-dog",
+          "branch": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00"
+        },
+        "json": "{\"v\":1,\"repo\":\"javi-dog\",\"branch\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\ud83d\ude00\"}",
+        "jsonByteLength": 140,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "88367955b14a0b9cfccf81a4a5a06fafb9f4539e1ff69c12125278a6b084dff7",
+        "paddedHex": "7b2276223a312c227265706f223a226a6176692d646f67222c226272616e6368223a22616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161f09f9880227d2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020"
+      }
+    },
+    {
+      "label": "astral-101",
+      "note": "101 astral characters (4 UTF-8 bytes each): cut to 100 code points the payload would be 417 bytes, so the literal rule cannot pad to 256. Proposed rule: longest prefix of at most 100 code points whose JSON-escaped UTF-8 is at most 113 bytes \u2192 28 characters [G6]",
+      "input": {
+        "repo": "\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36",
+        "branch": null,
+        "canary": false
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "repo": "\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36"
+        },
+        "json": "{\"v\":1,\"repo\":\"\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\ud83d\udc36\"}",
+        "jsonByteLength": 129,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "d0773309dcafca49d2176e4fac35490c5a8392e4b828ce97c93fe6d5248f8479",
+        "paddedHex": "7b2276223a312c227265706f223a22f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6f09f90b6227d20202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020"
+      }
+    },
+    {
+      "label": "escaped-quotes",
+      "note": "100 code points that each need a JSON escape (\"): 200 escaped bytes; proposed rule cuts to 56 [G6]",
+      "input": {
+        "repo": "\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"",
+        "branch": "main",
+        "canary": false
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "repo": "\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"",
+          "branch": "main"
+        },
+        "json": "{\"v\":1,\"repo\":\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\",\"branch\":\"main\"}",
+        "jsonByteLength": 145,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "4250afe106464073b089806a69aac35aaa3419275baad2959c76d6f120f8c734",
+        "paddedHex": "7b2276223a312c227265706f223a225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c225c22222c226272616e6368223a226d61696e227d202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020"
+      }
+    },
+    {
+      "label": "nfd-before-cut",
+      "note": "NFD \"e + U+0301\" x 60 (120 code points) becomes 60 code points in NFC before the cut, so nothing is cut by the 100-code-point rule; 120 UTF-8 bytes exceed the proposed 113-byte budget \u2192 56 characters [G5, G6]",
+      "input": {
+        "repo": "javi-dog",
+        "branch": "e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301e\u0301",
+        "canary": false
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "repo": "javi-dog",
+          "branch": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+        },
+        "json": "{\"v\":1,\"repo\":\"javi-dog\",\"branch\":\"\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\"}",
+        "jsonByteLength": 149,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "91ec7d3a95af6a6ba9acd671e12ca3d872be5481c2332ccfe54124906163f7e5",
+        "paddedHex": "7b2276223a312c227265706f223a226a6176692d646f67222c226272616e6368223a22c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9c3a9227d2020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020"
+      }
+    }
+  ]
+}

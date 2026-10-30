@@ -1,0 +1,102 @@
+{
+  "$schema": "./schema.json",
+  "id": "K05",
+  "kind": "l1-hash",
+  "description": "L1 value = \"sha256:\" + 64 lower-case hex of HMAC-SHA256(field key, UTF-8 value) for each field repo, branch, cwd, file.",
+  "contract": "ADR-0018 (e3a2ad5) decision 3; decision 2 (L1 key per field); JGR v0.1 section 7 wire format",
+  "ambiguities": ["G3", "G4"],
+  "cases": [
+    {
+      "label": "repo-javi-dog",
+      "note": "repo display name",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "repo",
+      "value": "javi-dog",
+      "valueUtf8Hex": "6a6176692d646f67",
+      "expect": {
+        "nfcUtf8Hex": "6a6176692d646f67",
+        "hash": "sha256:36604367a49bba2720fdad6341c064f00017a90a387c64a52d0c6e4ae0bdc2d5"
+      }
+    },
+    {
+      "label": "branch-main",
+      "note": "the low-entropy branch the ADR names",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "main",
+      "valueUtf8Hex": "6d61696e",
+      "expect": {
+        "nfcUtf8Hex": "6d61696e",
+        "hash": "sha256:3a025e79dd22ed9651905f3804613442376a81d3895dcc3217c7a9dd4634a855"
+      }
+    },
+    {
+      "label": "branch-slashes",
+      "note": "branch with slashes",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "claude/clever-goldberg-wlurty",
+      "valueUtf8Hex": "636c617564652f636c657665722d676f6c64626572672d776c75727479",
+      "expect": {
+        "nfcUtf8Hex": "636c617564652f636c657665722d676f6c64626572672d776c75727479",
+        "hash": "sha256:e8be973ff1cd0fb55743edd7d4927e0b1b965e59805c32f040cc485861d8adb3"
+      }
+    },
+    {
+      "label": "cwd-path",
+      "note": "session folder path",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "cwd",
+      "value": "/Users/dev/projects/javi-dog",
+      "valueUtf8Hex": "2f55736572732f6465762f70726f6a656374732f6a6176692d646f67",
+      "expect": {
+        "nfcUtf8Hex": "2f55736572732f6465762f70726f6a656374732f6a6176692d646f67",
+        "hash": "sha256:e2b9c0fbadb5d46fa83b8d2de67e5b4913754e831304c2a16d2c07948d41a7fe"
+      }
+    },
+    {
+      "label": "file-path",
+      "note": "file_hash is defined but not produced this sprint; the function still covers the field",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "file",
+      "value": "src/index.ts",
+      "valueUtf8Hex": "7372632f696e6465782e7473",
+      "expect": {
+        "nfcUtf8Hex": "7372632f696e6465782e7473",
+        "hash": "sha256:f8de912ab12007967736d7940cff900494fa40e5f63ff224562757828f9663c7"
+      }
+    },
+    {
+      "label": "branch-emoji",
+      "note": "astral character in a branch",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "feat/\ud83d\udc36-dog",
+      "valueUtf8Hex": "666561742ff09f90b62d646f67",
+      "expect": {
+        "nfcUtf8Hex": "666561742ff09f90b62d646f67",
+        "hash": "sha256:166c5b6c99f64da563e3b96922fd8a2e511f06ad5756a10b58638b14eb09e659"
+      }
+    },
+    {
+      "label": "repo-s3",
+      "note": "S3 (all 0xff)",
+      "secretHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "slug": "web-app",
+      "field": "repo",
+      "value": "javi-dog",
+      "valueUtf8Hex": "6a6176692d646f67",
+      "expect": {
+        "nfcUtf8Hex": "6a6176692d646f67",
+        "hash": "sha256:ad9c17f2d217bbfb4e63057ab79a1936c9ccca438a85e80dcc18bf397f6f9581"
+      }
+    }
+  ],
+  "plainSha256": null
+}

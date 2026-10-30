@@ -1,0 +1,878 @@
+{
+  "$schema": "./schema.json",
+  "id": "E06",
+  "kind": "decrypt",
+  "description": "Decryption MUST fail for a missing or wrong key, a swapped kid, any changed AAD part (event_id, project slug, producer_id, thread_ref, type, kid, class), a changed or truncated ciphertext or tag, an iv that is not exactly 12 bytes, another alg, or a part containing \"|\". No partial plaintext is returned. reason is informative.",
+  "contract": "ADR-0018 (e3a2ad5) decision 4 AAD (\"Moving a ciphertext to another event, thread, project, producer or key fails decryption\"), IV; decision 8 Display; JGR v0.1 section 7",
+  "ambiguities": ["G1", "G3", "G7"],
+  "cases": [
+    {
+      "label": "no-key",
+      "note": "device holds no key",
+      "layer": "envelope",
+      "deviceKeys": [],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "no_key"
+      }
+    },
+    {
+      "label": "wrong-key",
+      "note": "device holds only S2 / web-app (another secret, so another kid)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S2",
+          "secretHex": "0000000000000000000000000000000000000000000000000000000000000000",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "kid_mismatch"
+      }
+    },
+    {
+      "label": "same-secret-other-slug",
+      "note": "device holds S1 derived for javis-dog-web-app (same secret, other project: other kid and key)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "javis-dog-web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "kid_mismatch"
+      }
+    },
+    {
+      "label": "kid-swapped",
+      "note": "encrypted.kid replaced by the S4 / web-app kid while the device holds both keys: the S4 key is chosen and the AAD kid differs",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        },
+        {
+          "secret": "S4",
+          "secretHex": "4a415649532d444f472d51412d46414b452d4b45592d4e4f542d5245414c2d31",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "5E12TC2A",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aad-event-id",
+      "note": "event_id replaced by another ULID",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000003C",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aad-slug",
+      "note": "project slug javis-dog-web-app while the device uses the web-app key (ciphertext moved to another project)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "javis-dog-web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aad-producer",
+      "note": "producer_id changed",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance_x",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aad-thread",
+      "note": "thread_ref changed (ciphertext shown under another thread, review M1)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t9",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aad-type",
+      "note": "type changed to x.javi.collector.installed",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.collector.installed",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "ct-bit-flip",
+      "note": "first ciphertext byte XOR 0x01",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "C41daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "tag-bit-flip",
+      "note": "last tag byte XOR 0x80",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2P4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "tag-truncated-1",
+      "note": "last tag byte removed (271 bytes)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2A"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "tag-truncated-4",
+      "note": "tag cut to 12 bytes (268 bytes: a 96-bit tag is a valid WebCrypto tagLength, so it MUST be refused explicitly)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQ"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "tag-removed",
+      "note": "tag removed (256 bytes)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpg"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "iv-changed",
+      "note": "iv replaced by another 12 bytes",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "sLGys7S1tre4ubq7",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "iv-16-bytes",
+      "note": "iv of 16 bytes (22 characters); AES-GCM in WebCrypto would accept it, the 12-byte rule MUST refuse it",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6SlpqeoqaqrrK2urw",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "iv_length"
+      }
+    },
+    {
+      "label": "iv-11-bytes",
+      "note": "iv of 11 bytes (15 characters)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqao",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "iv_length"
+      }
+    },
+    {
+      "label": "iv-padded",
+      "note": "iv of 12 bytes written with a trailing \"=\" (17 characters)",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr=",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "encoding"
+      }
+    },
+    {
+      "label": "alg-other",
+      "note": "alg \"A128GCM\"",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy_t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A128GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "alg"
+      }
+    },
+    {
+      "label": "pipe-in-thread",
+      "note": "thread_ref with \"|\" is refused before any decryption",
+      "layer": "envelope",
+      "deviceKeys": [
+        {
+          "secret": "S1",
+          "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+          "slug": "web-app"
+        }
+      ],
+      "event": {
+        "event_id": "01JBZ4XQ80000000000000001A",
+        "project_slug": "web-app",
+        "producer_id": "prod_conformance",
+        "thread_ref": "cc_privacy|t1",
+        "type": "x.javi.thread.identity",
+        "privacy_class": "L2",
+        "encrypted": {
+          "alg": "A256GCM",
+          "kid": "0Q12NAV3",
+          "iv": "oKGio6Slpqeoqaqr",
+          "ciphertext": "Co1daCGMkZLpIZwHmJsOTYy-3_ag3rFgALkI8m-42rVXlmZiCZ6Nwhy1OeuYuKQhLQoBvxQl7ofUpvDiwhB2dccP07MpHHBtSM6pkE6IGkKipHuC24NGchP6hSV-m-7zqjBeLPE6qAF4zLLBwD-E-462QRFnWV1UfovFFPZmP-oJw92jot3Asw6bRiTpmn5J4MWIicxbHb2GZahdUZ1X8aNZ7hH4KqOkcR2D_cSug7O-mf3VVelY0DPfgxarN7RJ7JOo4pRU2xJBpgcKNm_Tlw6yWqje3XZAjAfmuAFMg7XN9Ex_deSLjfijBTFdbKFSLcUsqVtmPrbO911jmLaJpnOCBUEtkuAuNl9umQhe2H4"
+        }
+      },
+      "aead": null,
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "aad_part_pipe"
+      }
+    },
+    {
+      "label": "aead-event-id",
+      "note": "AAD event_id part changed",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000003C|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-event-id-lower",
+      "note": "AAD built from the non-canonical (lower-case) event_id",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01jbz4xq80000000000000001a|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-slug",
+      "note": "AAD project slug part changed",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|javis-dog-web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-producer",
+      "note": "AAD producer_id part changed",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance_x|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-thread",
+      "note": "AAD thread_ref part changed",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t9|x.javi.thread.identity|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-type",
+      "note": "AAD type part changed",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.collector.installed|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-kid",
+      "note": "AAD kid part changed to the S4 / web-app kid",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|5E12TC2A|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-class",
+      "note": "AAD class part L1 instead of L2",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L1"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-version",
+      "note": "AAD \"jgr|v2\" instead of \"jgr|v1\"",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v2|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-empty",
+      "note": "empty AAD",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "b90a96c1225727f9985f6326cf76292c36442c49fb4cbe56190dea0e9c7ffd81",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": ""
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    },
+    {
+      "label": "aead-wrong-key",
+      "note": "correct AAD and iv, the S2 / web-app L2 key",
+      "layer": "aead",
+      "deviceKeys": [],
+      "event": null,
+      "aead": {
+        "l2KeyHex": "28454163966791e0dbedebad4b18ebfa1d7158f98cf93a72fa6610713d58010c",
+        "ivHex": "a0a1a2a3a4a5a6a7a8a9aaab",
+        "ciphertextAndTagHex": "0a8d5d68218c9192e9219c07989b0e4d8cbedff6a0deb16000b908f26fb8dab557966662099e8dc21cb539eb98b8a4212d0a01bf1425ee87d4a6f0e2c2107675c70fd3b3291c706d48cea9904e881a42a2a47b82db83467213fa85257e9beef3aa305e2cf13aa80178ccb2c1c03f84fb8eb6411167595d547e8bc514f6663fea09c3dda3a2ddc0b30e9b4624e99a7e49e0c58889cc5b1dbd8665a85d519d57f1a359ee11f82aa3a4711d83fdc4ae83b3be99fdd555e958d033df8316ab37b449ec93a8e29454db1241a6070a366fd3970eb25aa8dedd76408c07e6b8014c83b5cdf44c7f75e48b8df8a305315d6ca1522dc52ca95b663eb6cef75d6398b689a6738205412d92e02e365f6e99085ed87e",
+        "aadUtf8": "jgr|v1|01JBZ4XQ80000000000000001A|web-app|prod_conformance|cc_privacy_t1|x.javi.thread.identity|0Q12NAV3|L2"
+      },
+      "expect": {
+        "ok": false,
+        "payload": null,
+        "aadUtf8": null,
+        "reason": "auth_failed"
+      }
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "$schema": "./schema.json",
+  "id": "K06",
+  "kind": "l1-hash",
+  "description": "Names are NFC-normalised before hashing: an NFD input gives the same L1 value as its NFC form; NFC is not NFKC.",
+  "contract": "ADR-0018 (e3a2ad5) decision 4 (reading rules: \"names are NFC-normalised before hashing (macOS stores NFD)\"); decision 3",
+  "ambiguities": ["G3", "G4", "G5"],
+  "cases": [
+    {
+      "label": "branch-cafe-nfc",
+      "note": "branch in NFC",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "caf\u00e9",
+      "valueUtf8Hex": "636166c3a9",
+      "expect": {
+        "nfcUtf8Hex": "636166c3a9",
+        "hash": "sha256:ec1a9916b1f8d0885f0fda2e58fee653119e991870641540f296681f9c061a3c"
+      }
+    },
+    {
+      "label": "branch-cafe-nfd",
+      "note": "branch in NFD (macOS); MUST equal the NFC case above",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "cafe\u0301",
+      "valueUtf8Hex": "63616665cc81",
+      "expect": {
+        "nfcUtf8Hex": "636166c3a9",
+        "hash": "sha256:ec1a9916b1f8d0885f0fda2e58fee653119e991870641540f296681f9c061a3c"
+      }
+    },
+    {
+      "label": "repo-angstrom-nfc",
+      "note": "repo in NFC",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "repo",
+      "value": "\u00c5ngstr\u00f6m",
+      "valueUtf8Hex": "c3856e67737472c3b66d",
+      "expect": {
+        "nfcUtf8Hex": "c3856e67737472c3b66d",
+        "hash": "sha256:e26602ab42b9d85e17a4e5d4a8b5867c007cc98af15b6ef739adf9ae9d71dd77"
+      }
+    },
+    {
+      "label": "repo-angstrom-nfd",
+      "note": "repo in NFD (macOS); MUST equal the NFC case above",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "repo",
+      "value": "A\u030angstro\u0308m",
+      "valueUtf8Hex": "41cc8a6e677374726fcc886d",
+      "expect": {
+        "nfcUtf8Hex": "c3856e67737472c3b66d",
+        "hash": "sha256:e26602ab42b9d85e17a4e5d4a8b5867c007cc98af15b6ef739adf9ae9d71dd77"
+      }
+    },
+    {
+      "label": "branch-hangul-nfc",
+      "note": "branch in NFC",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "\ud55c\uad6d\uc5b4",
+      "valueUtf8Hex": "ed959ceab5adec96b4",
+      "expect": {
+        "nfcUtf8Hex": "ed959ceab5adec96b4",
+        "hash": "sha256:3bccb5015761e3a36f8e22590193111812405ebf106fde872b071df2143180ec"
+      }
+    },
+    {
+      "label": "branch-hangul-nfd",
+      "note": "branch in NFD (macOS); MUST equal the NFC case above",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "\u1112\u1161\u11ab\u1100\u116e\u11a8\u110b\u1165",
+      "valueUtf8Hex": "e18492e185a1e186abe18480e185aee186a8e1848be185a5",
+      "expect": {
+        "nfcUtf8Hex": "ed959ceab5adec96b4",
+        "hash": "sha256:3bccb5015761e3a36f8e22590193111812405ebf106fde872b071df2143180ec"
+      }
+    },
+    {
+      "label": "cwd-zoe-nfc",
+      "note": "cwd in NFC",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "cwd",
+      "value": "/Users/zo\u00eb/r\u00e9sum\u00e9",
+      "valueUtf8Hex": "2f55736572732f7a6fc3ab2f72c3a973756dc3a9",
+      "expect": {
+        "nfcUtf8Hex": "2f55736572732f7a6fc3ab2f72c3a973756dc3a9",
+        "hash": "sha256:0b7b5f17a0ce450338c3e53e22d5094902b975e94b4d1e10cec36c529b40f50e"
+      }
+    },
+    {
+      "label": "cwd-zoe-nfd",
+      "note": "cwd in NFD (macOS); MUST equal the NFC case above",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "cwd",
+      "value": "/Users/zoe\u0308/re\u0301sume\u0301",
+      "valueUtf8Hex": "2f55736572732f7a6f65cc882f7265cc8173756d65cc81",
+      "expect": {
+        "nfcUtf8Hex": "2f55736572732f7a6fc3ab2f72c3a973756dc3a9",
+        "hash": "sha256:0b7b5f17a0ce450338c3e53e22d5094902b975e94b4d1e10cec36c529b40f50e"
+      }
+    },
+    {
+      "label": "ligature-not-nfkc",
+      "note": "U+FB01 (fi ligature) is unchanged by NFC; NFKC would fold it to \"fi\". MUST differ from the next case",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "\ufb01x",
+      "valueUtf8Hex": "efac8178",
+      "expect": {
+        "nfcUtf8Hex": "efac8178",
+        "hash": "sha256:13efde2284903899d22d9e86f566377d965901e6e8831e450e4484659fed3b60"
+      }
+    },
+    {
+      "label": "plain-fix",
+      "note": "plain \"fix\"",
+      "secretHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "slug": "web-app",
+      "field": "branch",
+      "value": "fix",
+      "valueUtf8Hex": "666978",
+      "expect": {
+        "nfcUtf8Hex": "666978",
+        "hash": "sha256:c8c40d396e86c76afe1a3c22325098ab6da8374a54459dd5b2c29865991f15d9"
+      }
+    }
+  ],
+  "plainSha256": null
+}

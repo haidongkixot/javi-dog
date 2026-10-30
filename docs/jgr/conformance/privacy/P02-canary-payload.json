@@ -1,0 +1,30 @@
+{
+  "$schema": "./schema.json",
+  "id": "P02",
+  "kind": "payload",
+  "description": "The installation event x.javi.collector.installed in an L2 project carries the canary {\"v\":1,\"canary\":true}, padded to 256 bytes like every L2 payload.",
+  "contract": "ADR-0018 (e3a2ad5) decision 5 (canary), decision 4 Padding (\"every L2 payload then has the same length\")",
+  "ambiguities": [],
+  "cases": [
+    {
+      "label": "canary",
+      "note": "the canary payload: exactly {\"v\":1,\"canary\":true} (21 bytes) + 235 spaces; no repo or branch even when known",
+      "input": {
+        "repo": null,
+        "branch": null,
+        "canary": true
+      },
+      "expect": {
+        "payload": {
+          "v": 1,
+          "canary": true
+        },
+        "json": "{\"v\":1,\"canary\":true}",
+        "jsonByteLength": 21,
+        "paddedByteLength": 256,
+        "paddedSha256Hex": "8f601c5a2aa2c21b931efff5c363f83172e38a2e327b6828dfb028975e3117f6",
+        "paddedHex": "7b2276223a312c2263616e617279223a747275657d20202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020"
+      }
+    }
+  ]
+}
