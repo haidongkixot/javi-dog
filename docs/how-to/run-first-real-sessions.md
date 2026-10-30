@@ -1,6 +1,6 @@
 # How to run the first real Claude Code, Gemini CLI and Codex CLI sessions (Windows)
 
-The owner (or a local Claude Code session on the owner's machine) follows these steps to close the runtime checks that the cloud sandbox cannot do. That is release-checklist item G6, plus the UNVERIFIED rows "OTel session correlation" and "Gemini runtime checks" in the readiness matrix. Decisions: ADR-0010, ADR-0011, ADR-0016.
+The owner (or a local Claude Code session on the owner's machine) follows these steps to close the runtime checks that the cloud sandbox cannot do. That is release-checklist item G6, plus the UNVERIFIED rows "OTel session correlation" and "Gemini runtime checks" in the readiness matrix. Decisions: ADR-0010, ADR-0011, ADR-0016, ADR-0017.
 
 ## Rules for whoever runs this
 
@@ -88,12 +88,41 @@ node "$HOME\.javi\bin\0.1.0\javi.mjs" usage on --platform codex-cli
 node "$HOME\.javi\bin\0.1.0\javi.mjs" status --project test-01-project-horizos --platform codex-cli
 ```
 
+## 6. Agent self-report (optional, ADR-0017)
+
+This lets the agent tell the dashboard "blocked: missing credentials" or "now testing" through javi's local MCP server. It needs that platform's hooks from steps 3–5. Run it in the same folder, once per platform you use:
+
+```powershell
+$env:JAVI_INGEST_TOKEN = Read-Host 'Ingest token'
+npx "D:\Claude Projects\javisdog\javi-dog\collectors\claude-code\dist\javis-dog-javi-0.1.0.tgz" init --project test-01-project-horizos --self-report
+npx "D:\Claude Projects\javisdog\javi-dog\collectors\claude-code\dist\javis-dog-javi-0.1.0.tgz" init --project test-01-project-horizos --platform gemini-cli --self-report
+npx "D:\Claude Projects\javisdog\javi-dog\collectors\claude-code\dist\javis-dog-javi-0.1.0.tgz" init --project test-01-project-horizos --platform codex-cli --self-report
+Remove-Item Env:JAVI_INGEST_TOKEN
+```
+
+- **Files written.** `init` adds a `javi` server to `.mcp.json` (Claude Code), `.gemini/settings.json` (Gemini) or `.codex\config.toml` (Codex) in that folder.
+- **Committed files.** If git tracks that file, `init` refuses and changes nothing, because the entry holds paths from your machine. Add `--allow-tracked-config` only if you accept that.
+- **Approval prompts.**
+  - By default, Claude Code and Gemini ask before each report.
+  - Add `--allow-self-report` to pre-approve exactly javi's two tools, and nothing else.
+  - Codex asks per its own approval mode.
+- **Each CLI asks once about the new server.**
+  - Claude Code: approve the project MCP server `javi`.
+  - Codex: the project must be trusted.
+  - Gemini: the folder must be trusted.
+- **Try it.** In a new session, ask the agent: "Use javi's report_status tool to report that you are blocked because credentials are missing." Then ask it to continue with any small task.
+- **What to check.**
+  - Within a minute, the dashboard should show "Blocked · missing credentials · reported by agent" and "Needs you".
+  - It should switch back to working after your next prompt.
+  - `javi status --project test-01-project-horizos` (add `--platform …`) prints a `Self-report:` line.
+
 ## Report back (paste into the cloud session)
 
 - The full output of each `init`, of `usage on --platform gemini-cli`, and of both `status` commands. Tokens are masked in that output.
 - Any warning or error that Claude Code or Gemini CLI showed, especially a Gemini hook error.
 - The approximate time (with time zone) of each session and of each `/clear`.
 - `node --version`, `claude --version`, `gemini --version`, `codex --version`.
+- Self-report (step 6): the `init` output, the `Self-report:` lines of `javi status`, what the dashboard showed, and any MCP error a CLI printed. Each CLI's MCP log names the protocol version it used, which helps.
 
 ## Undo
 
@@ -105,3 +134,5 @@ node "$HOME\.javi\bin\0.1.0\javi.mjs" uninstall --project test-01-project-horizo
 node "$HOME\.javi\bin\0.1.0\javi.mjs" uninstall --project test-01-project-horizos --platform gemini-cli
 node "$HOME\.javi\bin\0.1.0\javi.mjs" uninstall --project test-01-project-horizos --forget-token
 ```
+
+`uninstall` also removes javi's self-report server entry and any pre-approval javi added, before the hooks. The unversioned launcher `~/.javi/bin/javi-mcp.mjs` stays; it holds no token.
