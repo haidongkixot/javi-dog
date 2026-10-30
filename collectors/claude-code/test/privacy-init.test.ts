@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -220,6 +221,73 @@ describe('javi init --privacy L2 (canary first, key stored, identity end to end)
     const s = io(d, 'shop-two');
     await main(['status', '--project', 'shop-two'], s.value);
     expect(s.out).toContain('Privacy class: L0 (no recovery key stored).');
+  });
+
+  describe('key-loss warning before the stored key is removed (security review L4)', () => {
+    const WARNING =
+      "Warning: this deletes this machine's copy of the recovery key for shop-two. Stored L2 names stay readable only with another copy of the key (your download or the copy you kept).";
+
+    /** An Io whose `out` records, per line, whether credentials.json still held the key then. */
+    const watching = (d: { home: string; projectDir: string }) => {
+      const t = io(d, 'shop-two');
+      const keyPresent: boolean[] = [];
+      const out = t.value.out;
+      t.value.out = (line) => {
+        out(line);
+        let text = '';
+        try {
+          text = readFileSync(join(d.home, 'credentials.json'), 'utf8');
+        } catch {
+          // no file yet
+        }
+        keyPresent.push(text.includes(fixture.key));
+      };
+      return { ...t, keyPresent };
+    };
+
+    it('javi init --privacy L0 warns, while the key is still stored', async () => {
+      const d = await dirs();
+      const first = io(d, 'shop-two', { envExtra: { JAVI_PRIVACY_KEY: fixture.key } });
+      expect(await main(init('shop-two', ['--privacy', 'L2']), first.value)).toBe(0);
+      expect(first.all()).not.toContain('Warning: this deletes');
+      const down = watching(d);
+      expect(await main(init('shop-two', ['--privacy', 'L0']), down.value), down.all()).toBe(0);
+      const at = down.out.indexOf(WARNING);
+      expect(at, down.all()).toBeGreaterThanOrEqual(0);
+      expect(down.keyPresent[at]).toBe(true);
+      expect(down.keyPresent.at(-1)).toBe(false);
+      await assertNoLeak(down.all());
+      // Nothing stored any more: a second L0 run has nothing to warn about.
+      const again = io(d, 'shop-two');
+      expect(await main(init('shop-two', ['--privacy', 'L0']), again.value)).toBe(0);
+      expect(again.all()).not.toContain('Warning: this deletes');
+    });
+
+    it('javi uninstall --forget-token warns, while the key is still stored', async () => {
+      const d = await dirs();
+      const first = io(d, 'shop-two', { envExtra: { JAVI_PRIVACY_KEY: fixture.key } });
+      expect(await main(init('shop-two', ['--privacy', 'L2']), first.value)).toBe(0);
+      const un = watching(d);
+      const argv = ['uninstall', '--project', 'shop-two', '--dir', d.projectDir, '--forget-token'];
+      expect(await main(argv, un.value), un.all()).toBe(0);
+      const at = un.out.indexOf(WARNING);
+      expect(at, un.all()).toBeGreaterThanOrEqual(0);
+      expect(un.keyPresent[at]).toBe(true);
+      expect(un.out).toContain('Token removed from this machine.');
+      expect(un.keyPresent.at(-1)).toBe(false);
+      await assertNoLeak(un.all());
+    });
+
+    it('no warning without a stored key (L0 project, uninstall --forget-token)', async () => {
+      const d = await dirs();
+      const first = io(d, 'shop-two');
+      expect(await main(init('shop-two'), first.value), first.all()).toBe(0);
+      const un = io(d, 'shop-two');
+      const argv = ['uninstall', '--project', 'shop-two', '--dir', d.projectDir, '--forget-token'];
+      expect(await main(argv, un.value), un.all()).toBe(0);
+      expect(un.out).toContain('Token removed from this machine.');
+      expect(un.all()).not.toContain('Warning: this deletes');
+    });
   });
 
   it('L1 from --privacy-key-file: canary is class L1 without hashes or ciphertext', async () => {

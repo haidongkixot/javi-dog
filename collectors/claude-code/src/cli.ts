@@ -1694,6 +1694,13 @@ const checkCanary = async (
   return `Javi's Dog did not confirm the ${cls} check event (${result.status}${http}).`;
 };
 
+/**
+ * Printed before javi deletes a stored recovery key (`init --privacy L0`, `uninstall
+ * --forget-token`; security review L4). Never names or shows the key.
+ */
+const keyLossWarning = (projectRef: string) =>
+  `Warning: this deletes this machine's copy of the recovery key for ${projectRef}. Stored L2 names stay readable only with another copy of the key (your download or the copy you kept).`;
+
 /** The project's credentials entry after init: the privacy part kept, replaced or removed. */
 const credentialsAfterInit = (
   endpoint: string,
@@ -1926,6 +1933,9 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
         : null;
       const previous = await state.credentials(projectRef);
       const creds = credentialsAfterInit(endpoint, token, privacy, previous);
+      if (privacy?.class === 'L0' && storedPrivacy(previous?.privacy)) {
+        io.out(keyLossWarning(projectRef));
+      }
       if (platform === 'gemini-cli') {
         // Hooks first: a settings file javi cannot edit stops init before the token is saved.
         if (!(await initGeminiHooks(io, projectDir, cliPath, projectRef))) return 1;
@@ -2070,6 +2080,9 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
             );
           }
         } else {
+          if (storedPrivacy((await state.credentials(projectRef))?.privacy)) {
+            io.out(keyLossWarning(projectRef));
+          }
           await state.removeCredentials(projectRef);
           io.out('Token removed from this machine.');
         }
