@@ -2,6 +2,14 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-10-30 · Session 2 (cloud), continued — Guru G4 and release-gate status
+
+- Guru G4 checkpoint (`23f0394`): 3 new skills, 9 updated, Orcasus PR proposal written (not opened).
+- G4 findings applied to the readiness matrix, release checklist, memory, S5a/S5b/S5c sprint files and ADR-0015 (R6/R7 ran on `dev-agent`).
+- `pnpm audit`: 6 advisories, all in dev tools (markdownlint-cli2, drizzle-kit); the shipped `javi` uses smol-toml 1.9.1 (patched).
+- State: release gate G1, G3, G7, G8, G11, G14 PASS; G4/G5 PASS but need an owner exception (measured on `dev-agent`); G2 DEFERRED; G6 NOT RUN (owner real runs); G9 waits on the 2026-10-30 20:20 UTC purge data check; G12 waits on the release commit; G13 BLOCKED (paid plans).
+- Next: purge data check; owner revokes the ingest token pasted in chat, runs the real sessions (`docs/how-to/run-first-real-sessions.md`) and decides the exceptions and G13.
+
 ## 2026-10-29 · Session 2 (cloud), continued — S5a on production, S5c Codex collector
 
 - **Owner.** Production stays on `dev-agent`; `CRON_SECRET` is set; the load test and its cleanup were approved; `developers.openai.com` is allowed.

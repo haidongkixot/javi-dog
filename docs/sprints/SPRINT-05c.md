@@ -1,6 +1,6 @@
 # Sprint 05c — Codex CLI collector (hooks with user approval, logs-only usage)
 
-- Dates: 2026-10-29 (timebox 30 min, parallel lanes) · Status: **BUILT** 2026-10-29. Waiting on a real Codex CLI run by the owner (UNVERIFIED items in ADR-0016 and the readiness matrix).
+- Dates: 2026-10-29 (timebox 30 min, parallel lanes) · Status: **BUILT** 2026-10-29 (timebox exceeded: design review, three lanes, runner, code review and a fix lane ran over several hours — recorded deviation). Waiting on a real Codex CLI run by the owner (UNVERIFIED items in ADR-0016 and the readiness matrix).
 - Goal: `javi init --platform codex-cli` and `javi usage on --platform codex-cli` let Codex CLI sessions appear in Javi's Dog with status, attention, tools, sub-agents and tokens, plus cost for API-key sign-ins only, without any prompt, response, tool I/O, path or email leaving the machine.
 - Modules touched: JD-C02 (Codex adapters), JD-C01 (`javi` wiring), docs
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows "Codex CLI surfaces (S5c)" and "Codex runtime checks"
@@ -73,7 +73,8 @@ Team log, newest first:
 
 ## Log
 
-- 2026-10-29 — `5574c55` pushed after the full gate. CI: checked in the next entry.
+- 2026-10-30 — CI **PASS** on `5574c55` (run 40975219061), `f8f5aa3` and `76b3a42` (run 40976001842). Unidentified local flake (Developer E: 1 of 500 on a baseline run, passed on re-run, no test name captured) → diagnosis item D-S5c-1: next occurrence must capture the test name before any re-run.
+- 2026-10-29 — `5574c55` pushed after the full gate.
 
 ## Test evidence
 
@@ -90,6 +91,8 @@ Team log, newest first:
 ## Decisions and deviations
 
 - ADR-0016 Changes "S5c design": logs-only usage, which corrects §5's "replaces statsig".
+- Deviation: the 30-minute timebox was exceeded (design review before code plus a full review round).
+- New dependency smol-toml 1.9.1 (owner-approved), registry-checked: npm `latest`, published 2026-10-09, BSD-3-Clause, no dependencies; `pnpm audit` 2026-10-30 finds no advisory for 1.9.1.
 
 ## Retro
 

@@ -52,3 +52,7 @@ The release gate (roadmap, end of S5) needs working end-to-end telemetry, verifi
   - Free-plan limits apply: 6 h restore window, 512 MiB per branch, 0.25 CU, and Vercel Hobby non-commercial terms. The commercial beta stays blocked on paid plans (readiness: Budget).
   - The MCP migration path depends on the Neon MCP connection, with `db:migrate` as the fallback.
   - Load-test latencies include the sandbox proxy, so they are an upper bound for the ingest path, not a server-side SLO.
+
+## Changes
+
+- 2026-10-29 (owner "stay on the current one for the moment"): the cutover to `main` is deferred; the load test (§6) and the e2e smoke (§8) ran on `dev-agent`, which production reads, with the same ephemeral-workspace and cleanup rules (owner-approved; counts in `SPRINT-05a.md`). Re-run both after the cutover.

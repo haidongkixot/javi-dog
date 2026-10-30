@@ -1,6 +1,6 @@
 # Sprint 05a — Production readiness (separate production database, rollback, runbooks, load and access checks)
 
-- Dates: 2026-10-28 (timebox 30 min, parallel lanes) · Status: **ACTIVE**
+- Dates: 2026-10-28 (timebox 30 min, parallel lanes) · Status: **CLOSED** 2026-10-30 (R2 cutover deferred by owner; R6/R7 run on `dev-agent`)
 - Goal: production runs on its own database with a written rollback plan and runbooks. Ingest latency and payload limits are measured on production, and every route and action is checked for access boundaries, so the S5 release gate can be judged on evidence.
 - Modules touched: JD-M06 (migration tooling), JD-M05 (load script), JD-C01 (end-to-end script), JD-APP (access tests), docs
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows "Production database (`main`)", "Vercel env write", "Accepted risk: no secret rotation", "Ops: retention purge"
@@ -127,7 +127,7 @@ Team log, newest first:
   - All 5 security headers are present on `/`, `/integrations`, `/sign-in` and `/api/health`.
   - Vercel adds HSTS (`max-age=63072000; includeSubDomains; preload`), which settles the reviewer's UNVERIFIED item.
   - `POST /api/auth/organization/create` returns 404.
-  - CI run 40718637866: in progress.
+  - CI run 40718637866: **PASS** (recorded by G4).
 - 2026-10-28 — `4daa69c` (docs, ops): CI **PASS**, run 40713050537.
 
 ## Test evidence
@@ -151,9 +151,9 @@ Team log, newest first:
 
 ## Retro
 
-- Went well:
-- Hurt:
-- Change next sprint:
+- Went well: the production e2e smoke found a real defect (hook stderr under `NODE_USE_ENV_PROXY`) that no local test could; a bounded, owner-approved load test with counted cleanup; the access-boundary suite (52) and pre-release security review closed with 0 critical/high.
+- Hurt: the cutover depends on an owner action the agent cannot do (Vercel env 403) and is deferred; one push ran after `;` instead of `&&` (`8baec90`, re-verified harmless); a one-off seed script was staged by `git add -A` and caught by `format:check` before the push (`7bb5fdd` amended locally).
+- Change next sprint: stage by explicit path for orchestrator commits; record each CI result in the sprint log within the same turn as the push.
 
 ## Guru checkpoint
 

@@ -92,6 +92,7 @@ Team log, newest first:
 
 ## Log
 
+- 2026-10-30 — G4-F2: the red CI on `d4f2710` (11:45 UTC) was recorded only at 12:56, after two more pushes and after memory called S5b "built" — a recording delay, not a hidden failure; rule since: record CI in the turn of the push.
 - 2026-10-29 — CI **PASS** on `d3ebf6d` (run 40879764043) and `ce3f3f7` (run 40880475250). The branch is green again after the two red runs, and both causes are fixed (test harness latency, unhandled rejection).
 - 2026-10-29 — CI **FAIL** on `354bc05` (run 40878049774). All 440 collector tests passed, and the hook latency was 346–460 ms, so the earlier fix worked. Vitest reported one **unhandled rejection**: `ENOENT mkdir '/tmp/javi-usage-home-…'` (`usage-cli.test.ts`).
   - Root cause, a product bug: `createState()` starts `mkdir(home)` eagerly and leaves the promise floating until a method awaits it. When the home cannot be created first, Node reports an unhandled rejection. In a real `javi` process that writes to stderr and changes the exit code, which breaks hook neutrality, because Gemini shows hook stderr.

@@ -13,7 +13,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 - G0 done: 4 generalized skills in `guru/skills/` (medium confidence); see `guru/WISDOM_LOG.md`.
 - S1a done: five-space shell with honest states (JD-APP), JD-M13 components, JD-M04 draft project schema.
 - S1b done: JGR v0.1 draft (JD-M01) — spec `docs/jgr/spec/v0.1.md`, ADR-0004, 20 conformance vectors, primary-source research; 89 tests green workspace-wide.
-- Deployed: Vercel project `javisdog` (owner-created), auto-deploys every push; `https://javisdog.vercel.app` is public (5 routes verified HTTP 200). Neon `dev-agent` reachable over HTTPS only (PostgreSQL 18.6, empty schema; psql/TCP times out in the sandbox). No auth or ingest yet.
+- Deployed: Vercel project `javisdog` (owner-created), auto-deploys every push; `https://javisdog.vercel.app` is public (5 routes verified HTTP 200). Neon `dev-agent` reachable over HTTPS only (PostgreSQL 18.6; psql/TCP times out in the sandbox). *(2026-10-20 snapshot; sign-in and ingest are live since S2b/S3a.)*
 - Credentials (2026-10-20 re-check, shape only): all 10 S2 env vars present and well-formed in the cloud env; Google OAuth client authenticates; Resend accepts sends from `eagodi.com` (B5 done); GitHub secret unverifiable from the sandbox; Vercel env still unreadable (403).
 - S2a built (2026-10-22): JD-M06 `@javis-dog/event-store` (Neon HTTP client, migrations, `pingDb`), JD-M04 tables + workspace-scoped repository + `jd_it_` tokens stored as SHA-256, `GET /api/health`. Migration `0000` applied on `dev-agent` (3 tables). 145 tests + CI green. Production `/api/health` → 503 `not_configured`: Vercel Production lacks `DATABASE_URL` (intended) and the GitHub OAuth pair. Vercel builds this branch as **Production** (no Preview env).
 - S2b built (2026-10-22): JD-M03 `@javis-dog/identity` (Better Auth 1.7.7, GitHub + Google, org plugin mapped onto `workspaces`, personal workspace on first sign-in), migration `0001` on `dev-agent` (9 tables), `/sign-in`, `/api/auth/*`, topbar account menu. Real GitHub + Google sign-in verified on production; tokens encrypted, `id_token` not stored. 174 tests green. ADR-0006.
@@ -83,7 +83,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0008 | Accepted 2026-10-23: `events` in JD-M06 (dedupe per project), 30-day raw retention, Postgres per-token rate limit (60/min), receiver codes `project_mismatch` / `privacy_class_not_allowed`, 256 KB after gzip |
 | ADR-0007 | Accepted 2026-10-22: welcome email via Resend REST from `onUserCreated`; PII-free auth logging; `errorURL` → `/sign-in` |
 | ADR-0006 | Accepted 2026-10-22: Better Auth organization plugin mapped onto `workspaces`; personal workspace (owner) on first sign-in; open sign-up; telemetry off; OAuth tokens encrypted |
-| ADR-0016 | Accepted 2026-10-29: one `javi` CLI with pure platform adapters (JD-C02). For Gemini: hooks per project, OTel as a user opt-in with forced `logPrompts:false` and a redirection guard; cost estimated only for per-token auth; `estimated:false` because the tokens are exact. Codex follows in S5c (opt-in logs allowlist) |
+| ADR-0016 | Accepted 2026-10-29: one `javi` CLI with pure platform adapters (JD-C02). For Gemini: hooks per project, OTel as a user opt-in with forced `logPrompts:false` and a redirection guard; cost estimated only for per-token auth; `estimated:false` because the tokens are exact. Codex follows in S5c (opt-in logs allowlist); S5c: logs-only Codex usage (statsig untouched), cost only for `ApiKey`, sub-agents attributed to the parent, stable launcher, smol-toml block edit, loopback `NO_PROXY` rule, system-proxy guard, persisted accepted ids |
 | ADR-0015 | Accepted 2026-10-28: production database = Neon `main` (the integration's production branch). Migrations go through drizzle `readMigrationFiles` and the Neon MCP, one transaction each. Cutover is an owner step. Rollback paths have stated limits: 6 h restore. The load-test budget is fixed. Accepted risk: no rotation of the exposed secrets |
 | ADR-0005 | Accepted 2026-10-22: module-owned Drizzle tables composed by JD-M06; offline `generate` + neon-http migrator on `dev-agent` only; ingest tokens `jd_it_…` stored as SHA-256; workspace-scoped repository |
 
@@ -91,18 +91,18 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 - **Guru G2-prep findings** (2026-10-22): F1–F4 fixed in the same session; owner decisions open: two-week release cooldown as policy (ADR-0002 amendment), rotation of exposed secrets (B1-rotate + GitHub secret).
 - **Vercel env** done 2026-10-22: production `/api/health` → 200, all 9 vars set, DB `ok` (Q5 = A: Production → `dev-agent` until S5). The GitHub client secret pasted in chat on 2026-10-22 is exposed → rotate with B1.
-- **B1-rotate** deferred by owner ("use first, rotate later"): rotate `neondb_owner` before real user data or the S5 release gate. **2026-10-23: the connection string was pasted in chat again → rotation now strongly recommended.**
+- **B1-rotate** superseded 2026-10-28 by the owner's accepted risk (no rotation before release; readiness "Accepted risk" row). **2026-10-23: the connection string was pasted in chat again → rotation now strongly recommended.**
 - **ADR-0004** owner review pending.
 
 ## Next actions
 
-1. Owner: the cutover in `SPRINT-05a.md` "Owner steps". Optionally reset `neondb_owner` on `main` first, since the exposed password was probably copied to `main`. Then say "cutover done". After that the agent runs the bounded load test and the e2e smoke, and cleanup needs owner OK.
-2. Owner: add `CRON_SECRET` on Vercel Production (steps in `SPRINT-03b.md`) → closes S3b.
-3. Owner: first real `javi init --usage` + a Claude Code session (steps in `SPRINT-03c.md` + `javi usage on`), then `javi status` → closes S3c (exec-form hook `args`) and S3e (usage forwarded, not dropped = session ids match).
-4. Owner: review the G2 Orcasus PR proposal (`guru/WISDOM_LOG.md`, nothing opened) and the policy proposal to add "fetch before planning and before every push; one pusher per branch" to `CLAUDE.md`.
-5. Owner: set a budget on a project and run a real Claude Code session with usage on → first real budget figures and (if crossed) the alert email; confirms the S3c/S3e/S4 runtime checks.
-6. Guru G3 checkpoint (S4 lessons), then S5 planning.
-7. Owner (optional): approve a bounded visual check of the dashboard/chart (question: label collisions and layout at 1150/850/560 px; budget e.g. ≤ 6 screenshots).
+1. Owner: revoke the ingest token pasted in chat on 2026-10-29 (project `test-01-project-horizos`) and issue a new one.
+2. Owner: run the real Claude Code, Gemini CLI and Codex CLI sessions (`docs/how-to/run-first-real-sessions.md`, e.g. via a local Claude Code) and paste the "Report back" items → closes release-checklist G6 and the UNVERIFIED runtime rows (session-id match, Gemini/Codex hook behaviour, Windows).
+3. Owner: decide the release exceptions in `docs/how-to/release-checklist.md` (G2 cutover deferred; G4/G5 measured on `dev-agent`) and G13 (paid plans / Vercel Hobby terms).
+4. Agent: 2026-10-30 20:20 UTC — verify the first purge run by data (scheduled check) → G9.
+5. Owner: review the G4 Orcasus PR proposal and the `CLAUDE.md` §2 rule-4 proposal in `guru/WISDOM_LOG.md` (nothing opened).
+6. Owner (optional): approve upgrading dev-only tooling with advisories (`markdownlint-cli2`, `drizzle-kit`; readiness "Dependency advisories").
+7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).
 
 ## Process (owner decisions 2026-10-28)
 
