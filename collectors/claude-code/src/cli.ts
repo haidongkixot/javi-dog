@@ -91,12 +91,16 @@ import {
   CLAUDE_SELF_REPORT_ALLOW,
   SELF_REPORT_BLOCK_START,
   checkSelfReport,
+  excludeFromGit,
   installMcpLauncher,
+  keysAfterBlockMessage,
   mcpLauncherPath,
   readSelfReport,
   registerSelfReport,
   registrationPath,
+  removeExcludeLine,
   unregisterSelfReport,
+  type GitRunner,
 } from './mcp-registration.ts';
 import { PLATFORM_NAMES, PLATFORMS, platformFlag, type Platform } from './platform.ts';
 import {
@@ -134,6 +138,8 @@ export interface Io {
    * `scutil` / `reg` runner; tests inject one (none means no OS check).
    */
   systemProxy?: SystemProxyProbe;
+  /** `init --self-report`: runs git for the tracked check (code review M3); tests inject one. */
+  git?: GitRunner;
   /**
    * `javi mcp` only: the streams the MCP server speaks on (the CLI passes process.stdin,
    * process.stdout and process.stderr for that command only).
@@ -1242,8 +1248,10 @@ const initSelfReport = async (
   const file = registrationPath(platform, projectDir);
   let launcher: string;
   let result: Awaited<ReturnType<typeof registerSelfReport>>;
+  let excludeNote = '';
   try {
     launcher = await installMcpLauncher(state.home, cliPath);
+    const previous = await state.selfReportRegistration(platform, file);
     result = await registerSelfReport({
       platform,
       projectDir,
@@ -1251,9 +1259,16 @@ const initSelfReport = async (
       nodePath: process.execPath,
       launcher,
       preApprove,
-      previous: await state.selfReportRegistration(platform, file),
+      previous,
     });
-    await state.saveSelfReportRegistration(result.record);
+    // Code review L2: a .mcp.json javi created stays out of commits, like settings.local.json.
+    let excluded = previous?.excluded ?? null;
+    if (platform === 'claude-code' && result.record.created && !excluded) {
+      const ignored = await excludeFromGit(projectDir, file);
+      excludeNote = ignored.note;
+      excluded = ignored.added;
+    }
+    await state.saveSelfReportRegistration({ ...result.record, excluded });
   } catch (e) {
     io.err(
       `Self-report not registered: ${(e as Error).message} javi's hooks and the token are in place; re-run ${selfReportCommand(platform)} once the file is fixed.`,
@@ -1273,6 +1288,7 @@ const initSelfReport = async (
   io.out(
     `  ${name} starts: ${process.execPath} --no-warnings ${launcher} --platform ${platform} --project ${projectRef} (no token, no environment variables).`,
   );
+  if (excludeNote) io.out(`  javi created ${result.file}: ${excludeNote}.`);
   io.out(
     `  If you commit ${result.file}, javi's entry (paths on this machine) goes with it. If Node.js moves, run ${selfReportCommand(platform)} again; javi status warns about it.`,
   );
@@ -1312,6 +1328,14 @@ const initSelfReport = async (
   return true;
 };
 
+/**
+ * A value read from a registration file (repository content) as it may be printed: C0 and C1
+ * control characters removed, so a planted entry cannot drive the terminal (code review L3).
+ */
+const printable = (value: unknown) =>
+  // eslint-disable-next-line no-control-regex
+  typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '') : '';
+
 /** `javi status`: is self-report registered for this platform and project, pre-approved, runnable? */
 const selfReportStatus = async (
   io: Io,
@@ -1330,7 +1354,9 @@ const selfReportStatus = async (
     return;
   }
   if (sr.project !== projectRef) {
-    io.out(`Self-report: registered in ${sr.file} for another project (${sr.project ?? 'none'}).`);
+    io.out(
+      `Self-report: registered in ${sr.file} for another project (${sr.project === null ? 'none' : printable(sr.project)}).`,
+    );
     return;
   }
   io.out(`Self-report: registered in ${sr.file} (MCP server javi).`);
@@ -1349,12 +1375,18 @@ const selfReportStatus = async (
   }
   if (!sr.nodeExists) {
     io.out(
-      `Warning: the Node.js path registered for self-report (${sr.entry.command}) no longer exists, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`,
+      `Warning: the Node.js path registered for self-report (${printable(sr.entry.command)}) no longer exists, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`,
     );
   }
   if (!sr.launcherExists) {
     io.out(
-      `Warning: the self-report launcher ${sr.entry.args[1] ?? ''} is missing. Run ${command} again.`,
+      `Warning: the self-report launcher ${printable(sr.entry.args[1])} is missing. Run ${command} again.`,
+    );
+  } else if (!sr.launcherTargetExists) {
+    io.out(
+      sr.launcherTarget
+        ? `Warning: the self-report launcher ${printable(sr.entry.args[1])} runs ${printable(sr.launcherTarget)}, which is missing, so ${PLATFORM_NAMES[platform]} cannot start javi's MCP server. Run ${command} again.`
+        : `Warning: javi cannot read which javi the self-report launcher ${printable(sr.entry.args[1])} runs. Run ${command} again.`,
     );
   }
 };
@@ -1379,6 +1411,11 @@ const uninstallSelfReport = async (
     io.err((e as Error).message);
     return false;
   }
+  if (result.outcome === 'changed' && result.keysBelow.length) {
+    io.err(keysAfterBlockMessage(file, result.keysBelow));
+    io.err('Nothing was removed; run javi uninstall again once they are moved.');
+    return false;
+  }
   if (result.outcome === 'changed') {
     io.err(
       `javi's self-report block in ${file} was edited, so javi left the file as it is and removed nothing.`,
@@ -1387,6 +1424,11 @@ const uninstallSelfReport = async (
       `Remove javi's lines yourself, '${SELF_REPORT_BLOCK_START}' through '${CODEX_BLOCK_END}' included, then run javi uninstall again.`,
     );
     return false;
+  }
+  if (result.unreadable) {
+    io.out(
+      `Warning: javi cannot read ${file}, and javi never registered self-report there, so it was left as it is.`,
+    );
   }
   if (result.outcome === 'removed') io.out(`Removed javi's self-report MCP server from ${file}.`);
   if (result.outcome === 'deleted') {
@@ -1403,6 +1445,9 @@ const uninstallSelfReport = async (
     );
   }
   if (record?.project === projectRef || result.outcome !== 'absent') {
+    if (record?.excluded && (await removeExcludeLine(record.excluded))) {
+      io.out(`Removed ${record.excluded.line} from ${record.excluded.exclude}.`);
+    }
     await state.removeSelfReportRegistration(platform, file);
   }
   return true;
@@ -1503,6 +1548,7 @@ export const main = async (argv: string[], io: Io): Promise<number> => {
           projectDir,
           allowTracked,
           allowSelfReport: preApprove,
+          ...(io.git && { git: io.git }),
         });
         if (!check.ok) {
           io.err(check.message);

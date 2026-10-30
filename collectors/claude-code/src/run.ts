@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import {
   codexSubagentLink,
   mapCodexHook,
@@ -180,6 +181,26 @@ const mapForPlatform = (raw: unknown, deps: HookDeps, salt: string) => {
   return mapHook(raw, { projectRef: deps.projectRef, salt });
 };
 
+/**
+ * The seen-call key of a self-report (code review M1): hex HMAC-SHA-256(salt, platform ‖ 0x00 ‖
+ * session id ‖ 0x00 ‖ call id) for Claude Code and Codex, whose post-tool payloads carry a
+ * `tool_use_id`; null for Gemini (no call id) or a payload without one. Reads only `session_id`
+ * and `tool_use_id`, which `selfReportRecord` reads too. The raw ids never leave this function.
+ */
+export const selfReportSeenKey = (platform: Platform, raw: unknown, salt: string) => {
+  if (platform === 'gemini-cli' || !raw || typeof raw !== 'object') return null;
+  const own = (key: string) => {
+    const value: unknown = Object.hasOwn(raw, key) ? (raw as Record<string, unknown>)[key] : null;
+    return typeof value === 'string' && value.length > 0 ? value : null;
+  };
+  const sessionId = own('session_id');
+  const callId = own('tool_use_id');
+  if (!sessionId || !callId) return null;
+  return createHmac('sha256', salt)
+    .update(`${platform}\u0000${sessionId}\u0000${callId}`)
+    .digest('hex');
+};
+
 const hookEventName = (raw: unknown) =>
   raw && typeof raw === 'object' ? (raw as { hook_event_name?: unknown }).hook_event_name : null;
 
@@ -193,6 +214,8 @@ const hookEventName = (raw: unknown) =>
  * nothing when the input is invalid. Never the generic tool event. When the platform mapper
  * returns null (no `session_id` or no event name) nothing is recorded: `selfReportRecord`
  * needs the session id too, so no valid base could exist. Every other tool maps as before.
+ * A self-report whose call (platform, session, `tool_use_id`) was already recorded is ignored
+ * (seen-call marker, code review M1).
  */
 export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 'error'> => {
   try {
@@ -236,6 +259,12 @@ export const runHook = async (deps: HookDeps): Promise<'recorded' | 'ignored' | 
         mapped,
       );
       if (!report) return 'ignored';
+      // A re-run hook of the same call (code review M1): its event id differs (the time part is
+      // the hook clock), so JD-C01 remembers the call and records it only once.
+      const seenKey = selfReportSeenKey(platform, raw, salt);
+      // A marker that cannot be read or written never costs the report (a duplicate is better).
+      const fresh = seenKey ? await deps.state.markSelfReportSeen(seenKey).catch(() => true) : true;
+      if (!fresh) return 'ignored';
       input = report;
     }
 

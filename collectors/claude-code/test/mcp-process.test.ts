@@ -226,9 +226,10 @@ describe('javi mcp from the built bundle', () => {
     expect(built.stdout).toContain(`${((await stat(bundle)).size / 1024).toFixed(1)} KiB`);
   });
 
+  let project: string;
   it('init --self-report from the bundle registers the launcher of the installed copy', async () => {
     const home = join(temp, 'bundle-home');
-    const project = await mkdtemp(join(temp, 'bundle-project-'));
+    project = await mkdtemp(join(temp, 'bundle-project-'));
     const init = await new Promise<Run>((resolve, reject) => {
       const child = spawn(
         process.execPath,
@@ -259,7 +260,7 @@ describe('javi mcp from the built bundle', () => {
   });
 
   it.skipIf(WIN)(
-    'the launcher itself prints nothing when javi is missing (stderr only)',
+    'the launcher prints one fixed stderr line when javi is missing (code review L1)',
     async () => {
       const home = join(temp, 'bundle-home');
       await rm(join(home, 'bin', COLLECTOR_VERSION), { recursive: true, force: true });
@@ -278,7 +279,15 @@ describe('javi mcp from the built bundle', () => {
         tmpdir(),
       );
       expect(run.stdout).toBe('');
-      expect(run.code).not.toBe(0);
+      // No Node stack trace and no ~/.javi path: MCP clients copy stderr into their logs.
+      expect(run.stderr).toBe('javi mcp: javi is not installed here; run javi init\n');
+      expect(run.code).toBe(1);
+      // javi status (from the TypeScript CLI) names the missing bundle.
+      const t = ioFor(home, tmpdir());
+      expect(await main(['status', '--project', 'web-app', '--dir', project], t.value)).toBe(0);
+      expect(t.out.join('\n')).toContain(
+        `Warning: the self-report launcher ${mcpLauncherPath(home)} runs ${join(home, 'bin', COLLECTOR_VERSION, 'javi.mjs')}, which is missing`,
+      );
     },
   );
 });

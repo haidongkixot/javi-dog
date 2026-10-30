@@ -1,7 +1,7 @@
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chmod, mkdir, readFile, rm, stat } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { appendFile, chmod, mkdir, readFile, rm, stat } from 'node:fs/promises';
+import { join, relative, resolve, sep } from 'node:path';
 import { SELF_REPORT } from '@javis-dog/collector-adapters';
 import { parse as parseToml } from 'smol-toml';
 import { writeTarget } from './claude-env.ts';
@@ -52,8 +52,16 @@ export const GEMINI_SELF_REPORT_TOOLS = [...SELF_REPORT.tools];
 export const mcpLauncherPath = (home: string) => join(home, 'bin', MCP_LAUNCHER_NAME);
 
 /**
+ * The one line the launcher writes to stderr when the javi it names cannot be loaded (code
+ * review L1): a fixed string, never a stack trace or a path (MCP clients copy a server's
+ * stderr into their own logs).
+ */
+export const MCP_LAUNCHER_MISSING = 'javi mcp: javi is not installed here; run javi init';
+
+/**
  * The launcher: pins `JAVI_HOME` (as the Codex hook launcher does), puts the installed javi in
- * `argv[1]` with the `mcp` command after it, and imports it. It prints nothing itself.
+ * `argv[1]` with the `mcp` command after it, and imports it. Its only output of its own is
+ * `MCP_LAUNCHER_MISSING` on stderr (exit 1) when that javi cannot be loaded.
  */
 export const mcpLauncherScript = (cliPath: string, home: string) => {
   for (const word of [cliPath, home]) {
@@ -65,12 +73,18 @@ export const mcpLauncherScript = (cliPath: string, home: string) => {
   }
   return [
     '// Written by javi init --self-report: MCP clients start javi mcp through this file, so a',
-    '// javi upgrade never changes the registered command. It prints nothing itself.',
+    '// javi upgrade never changes the registered command. It prints one fixed line when javi',
+    '// is missing, nothing else.',
     "import { pathToFileURL } from 'node:url';",
     `process.env.JAVI_HOME = ${JSON.stringify(home)};`,
     `const cli = ${JSON.stringify(cliPath)};`,
     "process.argv.splice(1, 1, cli, 'mcp');",
-    'await import(pathToFileURL(cli).href);',
+    'try {',
+    '  await import(pathToFileURL(cli).href);',
+    '} catch {',
+    `  process.stderr.write(${JSON.stringify(`${MCP_LAUNCHER_MISSING}\n`)});`,
+    '  process.exit(1);',
+    '}',
     '',
   ].join('\n');
 };
@@ -132,19 +146,83 @@ export const entryProject = (entry: McpEntry): string | null => {
   return typeof ref === 'string' ? ref : null;
 };
 
-/** True when git tracks `file` (a path inside `projectDir`). Not a repository: false. */
-export const gitTracked = (projectDir: string, file: string) => {
-  try {
-    execFileSync(
-      'git',
-      ['-C', projectDir, 'ls-files', '--error-unmatch', '--', relative(projectDir, file)],
-      { stdio: 'ignore' },
-    );
-    return true;
-  } catch {
-    return false;
-  }
+/** What one `git` run returned (the shape of `spawnSync`'s result, output as text). */
+export interface GitResult {
+  /** Exit status; null when git could not start or was killed. */
+  status: number | null;
+  stdout: string;
+  stderr: string;
+  /** Set when git could not run (ENOENT: git missing; ETIMEDOUT: no answer in time). */
+  error?: Error & { code?: string };
+  signal?: string | null;
+}
+
+/** Runs `git <args>` (tests inject one, as `SystemProxyProbe` is injected). */
+export type GitRunner = (args: string[]) => GitResult;
+
+const GIT_TIMEOUT_MS = 5_000;
+
+/**
+ * The real runner: `spawnSync('git', args)` without a shell, a 5 s timeout and git's messages
+ * in English (they are matched below). Output stays in memory.
+ */
+export const runGit: GitRunner = (args) => {
+  const run = spawnSync('git', args, {
+    encoding: 'utf8',
+    timeout: GIT_TIMEOUT_MS,
+    windowsHide: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, LC_ALL: 'C', LANGUAGE: '' },
+  });
+  return {
+    status: run.status,
+    stdout: run.stdout ?? '',
+    stderr: run.stderr ?? '',
+    ...(run.error && { error: run.error }),
+    signal: run.signal,
+  };
 };
+
+/** `tracked`, `untracked`, or `unknown`: git could not tell (missing, failed, killed). */
+export type GitTracking = 'tracked' | 'untracked' | 'unknown';
+
+/**
+ * Does git track `file` (a path inside `projectDir`)? (Code review M3: a failure is never
+ * "untracked".) First `git rev-parse --is-inside-work-tree`: outside any repository (exit 128
+ * with "not a git repository") or not inside a work tree ("false") → `untracked`. Then `git
+ * ls-files --error-unmatch -- <file>`: exit 0 → `tracked`, exit 1 → `untracked`. Anything else
+ * (git missing, a timeout, a signal, exit 128 inside a work tree such as dubious ownership) →
+ * `unknown`.
+ */
+export const gitTracking = (
+  projectDir: string,
+  file: string,
+  git: GitRunner = runGit,
+): GitTracking => {
+  const inside = git(['-C', projectDir, 'rev-parse', '--is-inside-work-tree']);
+  if (inside.error || inside.signal) return 'unknown';
+  if (inside.status === 128 && /not a git repository/i.test(inside.stderr)) return 'untracked';
+  if (inside.status !== 0) return 'unknown';
+  const answer = inside.stdout.trim();
+  if (answer === 'false') return 'untracked';
+  if (answer !== 'true') return 'unknown';
+  const listed = git([
+    '-C',
+    projectDir,
+    'ls-files',
+    '--error-unmatch',
+    '--',
+    relative(projectDir, file),
+  ]);
+  if (listed.error || listed.signal) return 'unknown';
+  if (listed.status === 0) return 'tracked';
+  if (listed.status === 1) return 'untracked';
+  return 'unknown';
+};
+
+/** True unless git says `file` is untracked: a check that cannot answer counts as tracked. */
+export const gitTracked = (projectDir: string, file: string, git: GitRunner = runGit) =>
+  gitTracking(projectDir, file, git) !== 'untracked';
 
 // --- Loading ---
 
@@ -279,6 +357,63 @@ const findCodexBlock = (text: string): { from: number; to: number } | null => {
   return null;
 };
 
+/**
+ * 1-based numbers of the lines after javi's block that TOML reads as keys of
+ * `[mcp_servers.javi]` (code review L4): every line up to the next table header that is not
+ * blank and not a comment. javi's block ends with complete values, so this is exact.
+ */
+export const keysAfterCodexBlock = (text: string, found: { to: number }): number[] => {
+  const first = text.slice(0, found.to).split('\n').length;
+  const lines: number[] = [];
+  const rest = text.slice(found.to).split('\n');
+  for (const [i, line] of rest.entries()) {
+    if (/^[ \t]*\[/.test(line)) break;
+    if (!/^[ \t]*(?:#.*)?\r?$/.test(line)) lines.push(first + i);
+  }
+  return lines;
+};
+
+const lineList = (lines: number[]) =>
+  `line${lines.length === 1 ? '' : 's'} ${lines.slice(0, 5).join(', ')}${lines.length > 5 ? ', …' : ''}`;
+
+/** The message for keys below javi's block (uninstall and init). */
+export const keysAfterBlockMessage = (file: string, lines: number[]) =>
+  `${file} has keys below javi's self-report block (${lineList(lines)}): TOML reads them as part of [mcp_servers.javi], so javi left the file as it is. Move them above javi's block (or under their own table), then run javi again.`;
+
+/**
+ * `text` (without a javi block) with javi's `block` added (code review L4). In TOML, keys below
+ * a table belong to it, so the block goes before the first table header that follows the root
+ * keys (and before the comment lines directly above that header): what follows javi's table is
+ * then a table of the user's, and a key the user later appends at the end of the file joins
+ * their own last table, never javi's. A position counts only when the file parses exactly as
+ * before plus javi's table (a `[` inside a multi-line string or array is not a header). With
+ * no table at all, or no such position, the block is appended (as before); a key appended below
+ * it later is then caught by `keysAfterCodexBlock` at uninstall and init. `separator` is what
+ * javi put before the block.
+ */
+const placeCodexBlock = (text: string, block: string): { next: string; separator: string } => {
+  const original = tryToml(text);
+  const javi = codexJaviTable(tryToml(block));
+  if (original && javi !== undefined && text !== '') {
+    const servers = isPlainObject(original.mcp_servers) ? original.mcp_servers : {};
+    const expected = { ...original, mcp_servers: { ...servers, javi } };
+    const lines = text.split('\n');
+    const starts: number[] = [];
+    for (let i = 0, at = 0; i < lines.length; at += lines[i]!.length + 1, i++) starts.push(at);
+    for (const [i, line] of lines.entries()) {
+      if (!/^[ \t]*\[/.test(line)) continue;
+      let top = i;
+      while (top > 0 && /^[ \t]*#/.test(lines[top - 1]!)) top--;
+      for (const at of new Set([starts[top]!, starts[i]!])) {
+        const next = text.slice(0, at) + block + text.slice(at);
+        if (jsonEqual(tryToml(next), expected)) return { next, separator: '' };
+      }
+    }
+  }
+  const separator = text === '' ? '' : text.endsWith('\n') ? '\n' : '\n\n';
+  return { next: `${text}${separator}${block}`, separator };
+};
+
 const codexJaviTable = (parsed: JsonObject | null): unknown => {
   const servers = parsed && Object.hasOwn(parsed, 'mcp_servers') ? parsed.mcp_servers : undefined;
   return isPlainObject(servers) && Object.hasOwn(servers, 'javi') ? servers.javi : undefined;
@@ -327,7 +462,70 @@ export interface SelfReportRegistration {
   allow: string[];
   /** Claude Code: javi created `permissions` (`'permissions'`) or only its `allow` (`'allow'`). */
   allowCreated: 'permissions' | 'allow' | null;
+  /**
+   * Claude Code: the line javi added to the repository's `.git/info/exclude` for a `.mcp.json`
+   * it created (code review L2); uninstall removes exactly that line. Absent in older records.
+   */
+  excluded?: ExcludeLine | null;
 }
+
+/** One line javi appended to a git exclude file. */
+export interface ExcludeLine {
+  /** The exclude file (absolute). */
+  exclude: string;
+  /** The exact line, e.g. `/.mcp.json`. */
+  line: string;
+}
+
+/**
+ * Keeps `file` (a file javi created inside `projectDir`) out of commits through the
+ * repository's `.git/info/exclude`, as `.claude/settings.local.json` is (code review L2). The
+ * line is anchored at the repository root (`/<path from the root>`). Returns what happened, and
+ * the line when javi added it. Never throws.
+ */
+export const excludeFromGit = async (
+  projectDir: string,
+  file: string,
+  git: GitRunner = runGit,
+): Promise<{ note: string; added: ExcludeLine | null }> => {
+  const ok = (r: GitResult) => !r.error && !r.signal && r.status === 0;
+  const check = git(['-C', projectDir, 'check-ignore', '-q', '--', relative(projectDir, file)]);
+  if (ok(check)) return { note: 'already ignored by git', added: null };
+  if (check.error || check.signal || check.status !== 1) return { note: '', added: null };
+  const prefix = git(['-C', projectDir, 'rev-parse', '--show-prefix']);
+  const gitPath = git(['-C', projectDir, 'rev-parse', '--git-path', 'info/exclude']);
+  const path = `${prefix.stdout.trim()}${relative(projectDir, file).split(sep).join('/')}`;
+  const line = `/${path.replace(/[*?[\\]/g, '\\$&')}`;
+  const failed = { note: `could not update git excludes — add ${line} to .gitignore`, added: null };
+  if (!ok(prefix) || !ok(gitPath) || /[\r\n]/.test(line) || !gitPath.stdout.trim()) return failed;
+  try {
+    const exclude = resolve(projectDir, gitPath.stdout.trim());
+    const current = await readFile(exclude, 'utf8').catch(() => '');
+    if (current.split(/\r?\n/).includes(line))
+      return { note: `${line} already in .git/info/exclude`, added: null };
+    await mkdir(join(exclude, '..'), { recursive: true });
+    await appendFile(exclude, `${current.endsWith('\n') || !current ? '' : '\n'}${line}\n`);
+    return { note: `${line} added to .git/info/exclude`, added: { exclude, line } };
+  } catch {
+    return failed;
+  }
+};
+
+/** Removes the last line equal to `excluded.line` from its exclude file. True when removed. */
+export const removeExcludeLine = async (excluded: ExcludeLine): Promise<boolean> => {
+  try {
+    const loaded = await loadText(excluded.exclude);
+    if (!loaded) return false;
+    const lines = loaded.text.split('\n');
+    const i = lines.map((l) => l.replace(/\r$/, '')).lastIndexOf(excluded.line);
+    if (i < 0) return false;
+    lines.splice(i, 1);
+    await writeTextAtomic(excluded.exclude, lines.join('\n'), loaded.mode);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export type SelfReportCheck = { ok: true } | { ok: false; message: string };
 
@@ -345,19 +543,31 @@ export const checkSelfReport = async (opts: {
   projectDir: string;
   allowTracked: boolean;
   allowSelfReport: boolean;
+  /** Runs git for the tracked check (default: the real `git`). */
+  git?: GitRunner;
 }): Promise<SelfReportCheck> => {
   const { platform, projectDir } = opts;
   const file = registrationPath(platform, projectDir);
   const command = `javi init --self-report${platform === 'claude-code' ? '' : ` --platform ${platform}`}`;
-  if (!opts.allowTracked && gitTracked(projectDir, file)) {
+  const tracking = opts.allowTracked ? 'untracked' : gitTracking(projectDir, file, opts.git);
+  if (tracking === 'tracked') {
     return refusal(
       `${command} refused: ${file} is tracked by git, and javi's entry holds paths on this machine (Node.js and ~/.javi) that would break for everyone else who uses the repository. ${NOTHING} Untrack the file, or re-run with --allow-tracked-config to write it anyway.`,
+    );
+  }
+  if (tracking === 'unknown') {
+    return refusal(
+      `${command} refused: javi could not check whether git tracks ${file} (git is missing, failed or did not answer in time), and javi's entry holds paths on this machine that must not be committed. ${NOTHING} Make sure git status works in ${projectDir}, or re-run with --allow-tracked-config to write the file anyway.`,
     );
   }
   if (platform === 'codex-cli') {
     const loaded = await loadText(file);
     if (loaded) {
       const found = findCodexBlock(loaded.text);
+      const below = found ? keysAfterCodexBlock(loaded.text, found) : [];
+      if (below.length) {
+        return refusal(`${command} refused: ${keysAfterBlockMessage(file, below)} ${NOTHING}`);
+      }
       const user = found
         ? loaded.text.slice(0, found.from) + loaded.text.slice(found.to)
         : loaded.text;
@@ -372,10 +582,10 @@ export const checkSelfReport = async (opts: {
           `${command} refused: ${file} already has an MCP server named javi that javi did not write. ${NOTHING} Rename or remove it, then re-run.`,
         );
       }
-      // The block javi would append must parse as javi's table (an inline `mcp_servers = {…}`
+      // The block javi would add must parse as javi's table (an inline `mcp_servers = {…}`
       // cannot be extended by a `[mcp_servers.javi]` header).
       const probe = { command: 'node', args: ['--no-warnings', `/${MCP_LAUNCHER_NAME}`] };
-      const next = `${user}${user === '' ? '' : '\n\n'}${codexMcpBlock(probe)}`;
+      const { next } = placeCodexBlock(user, codexMcpBlock(probe));
       if (!jsonEqual(codexJaviTable(tryToml(next)), probe)) {
         return refusal(
           `${command} refused: ${file} cannot take a [mcp_servers.javi] table (is mcp_servers an inline table?). ${NOTHING}`,
@@ -456,8 +666,7 @@ export const registerSelfReport = async (opts: {
       created = previous?.created ?? false;
       separator = previous?.separator ?? '';
     } else {
-      separator = text === '' ? '' : text.endsWith('\n') ? '\n' : '\n\n';
-      next = `${text}${separator}${block}`;
+      ({ next, separator } = placeCodexBlock(text, block));
       created = loaded === null;
     }
     const check = tryToml(next);
@@ -587,17 +796,26 @@ export interface UnregisterResult {
   /**
    * `removed`: javi's entry is gone, everything else kept; `deleted`: javi had created the file
    * and nothing else was left, so the file is gone; `absent`: no entry of javi's for this
-   * project; `changed` (Codex): javi's block was edited, so the file was left as it is.
+   * project; `changed` (Codex): javi's block was edited, or keys below it belong to javi's
+   * table (`keysBelow`), so the file was left as it is.
    */
   outcome: 'removed' | 'deleted' | 'absent' | 'changed';
+  /** Codex, `changed`: 1-based lines below javi's block that TOML reads as javi's keys (L4). */
+  keysBelow: number[];
   /** Claude Code allow entries removed. */
   allowRemoved: string[];
+  /**
+   * The file could not be read as a plain JSON object, but javi never recorded a registration
+   * in it (code review M2): treated as `absent`, and the caller warns once.
+   */
+  unreadable: boolean;
 }
 
 /**
  * Removes javi's MCP entry for `projectRef` (never a `javi` server javi did not write, nor one
  * registered for another project), then the allow rules javi recorded. Throws for a file that
- * does not parse (nothing removed).
+ * does not parse when javi recorded a registration in it (nothing removed); without such a
+ * record the file is not javi's business, so it counts as `absent` with `unreadable` set.
  */
 export const unregisterSelfReport = async (opts: {
   platform: Platform;
@@ -608,13 +826,20 @@ export const unregisterSelfReport = async (opts: {
   const { platform, projectDir, projectRef, record } = opts;
   const file = registrationPath(platform, projectDir);
   let outcome: UnregisterResult['outcome'] = 'absent';
+  let unreadable = false;
+  let keysBelow: number[] = [];
   if (platform === 'codex-cli') {
     const loaded = await loadText(file);
     const found = loaded ? findCodexBlock(loaded.text) : null;
     if (loaded && found) {
       const table = codexJaviTable(tryToml(loaded.text.slice(found.from, found.to)));
       if (!isJaviEntry(table)) outcome = 'changed';
-      else if (entryProject(table) === projectRef) {
+      else if (entryProject(table) !== projectRef) {
+        // Another project's registration: not touched, so nothing to check.
+      } else if ((keysBelow = keysAfterCodexBlock(loaded.text, found)).length) {
+        // Removing the block would hand these keys to the table above it (code review L4).
+        outcome = 'changed';
+      } else {
         const { text } = loaded;
         const separator = record?.separator ?? '';
         const from =
@@ -634,7 +859,8 @@ export const unregisterSelfReport = async (opts: {
     }
   } else {
     const loaded = await loadJson(file);
-    if (loaded.kind === 'unparsable') {
+    if (loaded.kind === 'unparsable' && record === null) unreadable = true;
+    else if (loaded.kind === 'unparsable') {
       throw new Error(
         `Cannot read ${file} as a plain JSON object: javi's MCP entry was not removed and nothing else was changed. Fix it, then re-run javi uninstall.`,
       );
@@ -672,7 +898,7 @@ export const unregisterSelfReport = async (opts: {
       }
     }
   }
-  return { file, outcome, allowRemoved };
+  return { file, outcome, allowRemoved, unreadable, keysBelow };
 };
 
 export interface SelfReportStatus {
@@ -687,9 +913,30 @@ export interface SelfReportStatus {
   nodeExists: boolean;
   /** The registered launcher exists. */
   launcherExists: boolean;
+  /** The javi bundle the launcher loads (its `const cli = …` line), or null if unreadable. */
+  launcherTarget: string | null;
+  /** That bundle exists (false when the launcher or its target is missing). */
+  launcherTargetExists: boolean;
   /** The registration file could not be read. */
   unreadable: boolean;
 }
+
+/**
+ * The javi path a launcher written by `mcpLauncherScript` loads, or null. The path comes from a
+ * registration file (repository content), so only a small regular file named like javi's
+ * launcher is read (never a device, a pipe or a large file).
+ */
+const launcherTargetOf = async (launcher: string): Promise<string | null> => {
+  if (!launcher.endsWith(`/${MCP_LAUNCHER_NAME}`) && !launcher.endsWith(`\\${MCP_LAUNCHER_NAME}`)) {
+    return null;
+  }
+  const info = await stat(launcher);
+  if (!info.isFile() || info.size > 64 * 1024) return null;
+  const line = /^const cli = (".*");$/m.exec(await readFile(launcher, 'utf8'));
+  if (!line) return null;
+  const value: unknown = JSON.parse(line[1]!);
+  return typeof value === 'string' ? value : null;
+};
 
 /** What `javi status` reports about self-report for one platform and project folder. */
 export const readSelfReport = async (
@@ -728,6 +975,8 @@ export const readSelfReport = async (
       jsonEqual(entry.includeTools, GEMINI_SELF_REPORT_TOOLS);
   }
   const launcher = entry?.args[1];
+  const launcherTarget =
+    typeof launcher === 'string' ? await launcherTargetOf(launcher).catch(() => null) : null;
   return {
     file,
     entry,
@@ -735,6 +984,8 @@ export const readSelfReport = async (
     preApproved,
     nodeExists: entry !== null && typeof entry.command === 'string' && existsSync(entry.command),
     launcherExists: typeof launcher === 'string' && existsSync(launcher),
+    launcherTarget,
+    launcherTargetExists: launcherTarget !== null && existsSync(launcherTarget),
     unreadable,
   };
 };

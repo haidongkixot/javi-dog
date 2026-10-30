@@ -245,8 +245,10 @@ export interface SelfReportEventIdInput {
 /**
  * Deterministic ULID for a self-report (ADR-0017 §3, review M5): time part = `at` (ms), 80
  * random bits = first 10 bytes of HMAC-SHA-256(salt, platform ‖ 0x00 ‖ sessionId ‖ 0x00 ‖
- * callId), Crockford base32 as in jgr-sdk `createUlid`. The same call re-run by a hook gets the
- * same id (deduped at ingest) and it sorts in the spool by hook time. Returns `null` when there
+ * callId), Crockford base32 as in jgr-sdk `createUlid`. The id sorts in the spool by hook time;
+ * its random part is stable per call, but its time part is the hook clock, so a hook re-run
+ * later gets another id. Re-runs are deduped by JD-C01's local seen-call marker (HMAC of
+ * platform, session id and call id), not by ingest. Returns `null` when there
  * is no call id, so the caller lets the SDK assign a fresh ULID. Throws `RangeError` when `at`
  * is not a 48-bit millisecond time (as `createUlid` does).
  */

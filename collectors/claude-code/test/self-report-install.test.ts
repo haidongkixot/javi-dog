@@ -8,10 +8,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   CLAUDE_SELF_REPORT_ALLOW,
   createState,
+  gitTracking,
   main,
   mcpLauncherPath,
   registrationPath,
   settingsPath,
+  type GitRunner,
   type Io,
   type Platform,
 } from '../src/index.ts';
@@ -288,32 +290,45 @@ describe('existing files with the user’s servers and formatting', () => {
     expect(JSON.parse(await read(file))).toEqual(user);
   });
 
-  it('Codex CLI project config.toml: marked block appended, comments kept, exact bytes back', async () => {
+  const codexBlock = () =>
+    [
+      '# >>> javi self-report (do not edit)',
+      '[mcp_servers.javi]',
+      `command = ${JSON.stringify(process.execPath)}`,
+      `args = [${expectedEntry('codex-cli')
+        .args.map((a) => JSON.stringify(a))
+        .join(', ')}]`,
+      '# <<< javi',
+      '',
+    ].join('\n');
+
+  it('Codex CLI project config.toml: marked block before the first table, comments kept, exact bytes back', async () => {
     const file = join(dir, '.codex', 'config.toml');
     await mkdir(join(dir, '.codex'), { recursive: true });
-    const original =
-      '# my project settings\nmodel = "gpt-5.5-codex"   # pinned\n\n[mcp_servers.docs]\ncommand = "npx"\nargs = ["docs-mcp"]\n';
+    const head = '# my project settings\nmodel = "gpt-5.5-codex"   # pinned\n\n';
+    const tail = '[mcp_servers.docs]\ncommand = "npx"\nargs = ["docs-mcp"]\n';
+    const original = head + tail;
     await writeFile(file, original);
     expect((await init('codex-cli', '--self-report')).code).toBe(0);
     const after = await read(file);
-    expect(after.startsWith(original)).toBe(true);
-    expect(after.slice(original.length)).toBe(
-      [
-        '',
-        '# >>> javi self-report (do not edit)',
-        '[mcp_servers.javi]',
-        `command = ${JSON.stringify(process.execPath)}`,
-        `args = [${expectedEntry('codex-cli')
-          .args.map((a) => JSON.stringify(a))
-          .join(', ')}]`,
-        '# <<< javi',
-        '',
-      ].join('\n'),
-    );
-    const parsed = parseToml(after) as { mcp_servers: Record<string, unknown> };
-    expect(Object.keys(parsed.mcp_servers)).toEqual(['docs', 'javi']);
+    // Code review L4: javi's table is followed by the user's table, never by bare keys.
+    expect(after).toBe(head + codexBlock() + tail);
+    const parsed = parseToml(after) as { mcp_servers: Record<string, unknown>; model: string };
+    expect(Object.keys(parsed.mcp_servers).sort()).toEqual(['docs', 'javi']);
+    expect(parsed.model).toBe('gpt-5.5-codex');
     expect((await init('codex-cli', '--self-report')).code).toBe(0);
     expect(await read(file)).toBe(after);
+    expect((await uninstall('codex-cli')).code).toBe(0);
+    expect(await read(file)).toBe(original);
+  });
+
+  it('Codex CLI project config.toml with root keys only: marked block appended, exact bytes back', async () => {
+    const file = join(dir, '.codex', 'config.toml');
+    await mkdir(join(dir, '.codex'), { recursive: true });
+    const original = '# my project settings\nmodel = "gpt-5.5-codex"   # pinned\n';
+    await writeFile(file, original);
+    expect((await init('codex-cli', '--self-report')).code).toBe(0);
+    expect(await read(file)).toBe(`${original}\n${codexBlock()}`);
     expect((await uninstall('codex-cli')).code).toBe(0);
     expect(await read(file)).toBe(original);
   });
@@ -342,6 +357,51 @@ describe('existing files with the user’s servers and formatting', () => {
     expect(result.err).toContain('was edited');
     expect(await read(file)).toBe(edited);
     expect(await read(join(dir, '.codex', 'hooks.json'))).toContain('javi-collector');
+  });
+
+  // Code review L4: in TOML a bare key below javi's block belongs to [mcp_servers.javi].
+  it('Codex CLI: a bare key appended below javi’s block makes uninstall refuse (exit 1, lines named)', async () => {
+    expect((await init('codex-cli', '--self-report')).code).toBe(0);
+    const file = join(dir, '.codex', 'config.toml');
+    const edited = `${await read(file)}\n# mine\nmodel = "o4"\n`;
+    await writeFile(file, edited);
+    const lineOf = edited.split('\n').indexOf('model = "o4"') + 1;
+    const result = await uninstall('codex-cli');
+    expect(result.code).toBe(1);
+    expect(result.err).toContain(file);
+    expect(result.err).toContain(`line ${lineOf}`);
+    expect(result.err).toContain('[mcp_servers.javi]');
+    expect(await read(file)).toBe(edited);
+    expect(await read(join(dir, '.codex', 'hooks.json'))).toContain('javi-collector');
+    // init refuses it too, before writing anything, with the same explanation.
+    const again = await init('codex-cli', '--self-report');
+    expect(again.code).toBe(1);
+    expect(again.err).toContain(`line ${lineOf}`);
+    expect(await read(file)).toBe(edited);
+  });
+
+  it('Codex CLI: javi’s block goes before the first table, so a key appended at the end stays the user’s', async () => {
+    const file = join(dir, '.codex', 'config.toml');
+    await mkdir(join(dir, '.codex'), { recursive: true });
+    const original = 'model = "o4"\n\n# profile for CI\n[profiles.ci]\nmodel = "o3"\n';
+    await writeFile(file, original);
+    expect((await init('codex-cli', '--self-report')).code).toBe(0);
+    const after = await read(file);
+    expect(after.startsWith('model = "o4"\n\n# >>> javi self-report (do not edit)\n')).toBe(true);
+    expect(after.endsWith('# <<< javi\n# profile for CI\n[profiles.ci]\nmodel = "o3"\n')).toBe(
+      true,
+    );
+    // The user appends a key at the end of the file: it joins their own table, not javi's.
+    const appended = `${after}approval_policy = "never"\n`;
+    await writeFile(file, appended);
+    const parsed = parseToml(appended) as {
+      profiles: { ci: Record<string, unknown> };
+      mcp_servers: { javi: Record<string, unknown> };
+    };
+    expect(parsed.profiles.ci).toEqual({ model: 'o3', approval_policy: 'never' });
+    expect(parsed.mcp_servers.javi).toEqual(expectedEntry('codex-cli'));
+    expect((await uninstall('codex-cli')).code).toBe(0);
+    expect(await read(file)).toBe(`${original}approval_policy = "never"\n`);
   });
 });
 
@@ -444,3 +504,223 @@ it('plain init leaves the registration as it is; uninstall of another project le
   expect(await read(file)).toBe(bytes);
   expect((await status('claude-code')).out).toContain('Self-report: registered');
 });
+
+// Code review M3: a git check that cannot answer must not count as "untracked".
+describe('git-tracked check fails closed', () => {
+  type GitResult = ReturnType<GitRunner>;
+  const ok = (stdout = ''): GitResult => ({ status: 0, stdout, stderr: '', signal: null });
+  /** A runner that answers rev-parse and ls-files as given, recording every call. */
+  const fakeGit = (revParse: GitResult, lsFiles: GitResult = ok()) => {
+    const calls: string[][] = [];
+    const run: GitRunner = (args) => {
+      calls.push(args);
+      return args.includes('rev-parse') ? revParse : lsFiles;
+    };
+    return { run, calls };
+  };
+  const initWith = async (run: GitRunner, ...extra: string[]) => {
+    const t = io();
+    t.value.git = run;
+    const code = await main(
+      ['init', '--project', 'web-app', '--dir', dir, '--no-verify', '--self-report', ...extra],
+      t.value,
+    );
+    return { code, out: t.out.join('\n'), err: t.err.join('\n') };
+  };
+  const dubious = "fatal: detected dubious ownership in repository at '/x'";
+
+  it.each<[string, GitResult, GitResult?]>([
+    ['exit 128 inside a work tree', ok('true\n'), { status: 128, stdout: '', stderr: dubious }],
+    ['rev-parse exit 128 (dubious ownership)', { status: 128, stdout: '', stderr: dubious }],
+    [
+      'git missing (ENOENT)',
+      {
+        status: null,
+        stdout: '',
+        stderr: '',
+        error: Object.assign(new Error('x'), { code: 'ENOENT' }),
+      },
+    ],
+    ['git killed by a signal', { status: null, stdout: '', stderr: '', signal: 'SIGTERM' }],
+    ['ls-files killed', ok('true\n'), { status: null, stdout: '', stderr: '', signal: 'SIGKILL' }],
+  ])('%s: refused unless --allow-tracked-config, nothing written', async (_, revParse, lsFiles) => {
+    const { run, calls } = fakeGit(revParse, lsFiles);
+    const refused = await initWith(run);
+    expect(refused.code).toBe(1);
+    expect(refused.err).toContain('could not check whether git tracks');
+    expect(refused.err).toContain(join(dir, '.mcp.json'));
+    expect(refused.err).toContain('--allow-tracked-config');
+    expect(await createState(home).credentials('web-app')).toBeNull();
+    expect(existsSync(join(dir, '.mcp.json'))).toBe(false);
+    // Plain argument lists, never a shell command line.
+    expect(calls[0]).toEqual(['-C', dir, 'rev-parse', '--is-inside-work-tree']);
+    expect((await initWith(run, '--allow-tracked-config')).code).toBe(0);
+  });
+
+  it('outside any repository (git says so): allowed', async () => {
+    const { run, calls } = fakeGit({
+      status: 128,
+      stdout: '',
+      stderr: 'fatal: not a git repository (or any of the parent directories): .git',
+    });
+    expect((await initWith(run)).code).toBe(0);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('inside a work tree: ls-files 0 → tracked (refused), 1 → untracked (allowed)', async () => {
+    const tracked = fakeGit(ok('true\n'), ok('.mcp.json\n'));
+    const refused = await initWith(tracked.run);
+    expect(refused.code).toBe(1);
+    expect(refused.err).toContain('tracked by git');
+    expect(tracked.calls[1]).toEqual(['-C', dir, 'ls-files', '--error-unmatch', '--', '.mcp.json']);
+    const untracked = fakeGit(ok('true\n'), { status: 1, stdout: '', stderr: 'error: pathspec' });
+    expect((await initWith(untracked.run)).code).toBe(0);
+  });
+
+  it('real git: tracked → tracked, untracked → untracked, no repository → untracked', async () => {
+    const file = join(dir, '.mcp.json');
+    expect(gitTracking(dir, file)).toBe('untracked');
+    git('init', '-q');
+    await writeFile(file, '{}\n');
+    expect(gitTracking(dir, file)).toBe('untracked');
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await uninstall('claude-code')).code).toBe(0);
+    git('add', '--', file);
+    expect(gitTracking(dir, file)).toBe('tracked');
+  });
+});
+
+// Code review M2: javi never registered self-report here, so a .mcp.json it cannot parse is not
+// javi's business: uninstall warns once, removes the hooks, and leaves the file as it is.
+it.each([
+  ['a BOM', '\uFEFF{"mcpServers": {}}\n'],
+  ['garbage', 'not json at all {'],
+  ['an array', '[1, 2]\n'],
+])(
+  'uninstall with an unparsable .mcp.json (%s) javi never wrote: warning, hooks removed, exit 0',
+  async (_, broken) => {
+    expect((await init('claude-code')).code).toBe(0);
+    const file = join(dir, '.mcp.json');
+    await writeFile(file, broken);
+    const result = await uninstall('claude-code');
+    expect(result.code).toBe(0);
+    const mentions = `${result.out}\n${result.err}`.split('\n').filter((l) => l.includes(file));
+    expect(mentions).toHaveLength(1);
+    expect(result.out).toContain(`Removed javi hooks from ${settingsPath(dir)}.`);
+    expect(await read(settingsPath(dir))).not.toContain('javi-collector');
+    expect(await read(file)).toBe(broken);
+  },
+);
+
+it('uninstall still refuses an unparsable .mcp.json in which javi recorded a registration', async () => {
+  expect((await init('claude-code', '--self-report')).code).toBe(0);
+  const file = join(dir, '.mcp.json');
+  const broken = `\uFEFF${await read(file)}`;
+  await writeFile(file, broken);
+  const result = await uninstall('claude-code');
+  expect(result.code).toBe(1);
+  expect(result.err).toContain(file);
+  expect(await read(file)).toBe(broken);
+  expect(await read(settingsPath(dir))).toContain('javi-collector');
+});
+
+// Code review L2: a .mcp.json javi created in a git repository is kept out of commits the way
+// .claude/settings.local.json is, and uninstall takes back only the line javi added.
+describe('.mcp.json created by javi in a git repository', () => {
+  const exclude = () => join(dir, '.git', 'info', 'exclude');
+  const porcelain = () =>
+    execFileSync('git', ['-C', dir, 'status', '--porcelain', '--untracked-files=all'], {
+      encoding: 'utf8',
+      env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' },
+    });
+
+  it('is added to .git/info/exclude, and uninstall removes exactly that line', async () => {
+    git('init', '-q');
+    const before = await read(exclude());
+    const result = await init('claude-code', '--self-report');
+    expect(result.code).toBe(0);
+    expect(result.out).toContain('/.mcp.json added to .git/info/exclude');
+    expect((await read(exclude())).split('\n')).toContain('/.mcp.json');
+    expect(porcelain()).not.toContain('.mcp.json');
+    // A re-run adds nothing twice.
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await read(exclude())).split('\n').filter((l) => l === '/.mcp.json')).toHaveLength(1);
+
+    expect((await uninstall('claude-code')).code).toBe(0);
+    expect(existsSync(join(dir, '.mcp.json'))).toBe(false);
+    const after = await read(exclude());
+    expect(after.split('\n')).not.toContain('/.mcp.json');
+    // Everything that was there before javi is still there, in order.
+    expect(after.startsWith(before)).toBe(true);
+  });
+
+  it('a .mcp.json that existed before is not excluded (javi did not create it)', async () => {
+    git('init', '-q');
+    await writeFile(join(dir, '.mcp.json'), '{}\n');
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await read(exclude())).split('\n')).not.toContain('/.mcp.json');
+  });
+
+  it('a line the user had already is never removed', async () => {
+    git('init', '-q');
+    await writeFile(exclude(), '/.mcp.json\n');
+    expect((await init('claude-code', '--self-report')).code).toBe(0);
+    expect((await uninstall('claude-code')).code).toBe(0);
+    // The user's line stays (javi's own .claude/settings.local.json line is S3 behaviour).
+    expect((await read(exclude())).split('\n')[0]).toBe('/.mcp.json');
+  });
+});
+
+// Code review L3: values read from a registration file (repository content) never reach the
+// terminal with control characters (ANSI CSI, OSC title/hyperlink, C1).
+it('status strips control characters from values read from the registration file', async () => {
+  expect((await init('claude-code')).code).toBe(0);
+  const csi = '\u001b[2J\u001b[31m';
+  const osc = '\u001b]0;pwned\u0007';
+  const c1 = '\u009b31m';
+  const planted = (project: string) => ({
+    mcpServers: {
+      javi: {
+        command: `/nowhere/${csi}node${c1}`,
+        args: [
+          '--no-warnings',
+          `/nowhere/${osc}launcher\r\n`,
+          '--platform',
+          'claude-code',
+          '--project',
+          project,
+          `/x/javi-mcp.mjs`,
+        ],
+      },
+    },
+  });
+  const file = join(dir, '.mcp.json');
+  await writeFile(file, JSON.stringify(planted('web-app')));
+  const same = (await status('claude-code')).out;
+  await writeFile(file, JSON.stringify(planted(`other${osc}${csi}`)));
+  const other = (await status('claude-code')).out;
+  for (const out of [same, other]) {
+    // eslint-disable-next-line no-control-regex
+    expect(out.replaceAll('\n', '')).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+  }
+  expect(same).toContain(
+    'Warning: the Node.js path registered for self-report (/nowhere/[2J[31mnode31m)',
+  );
+  expect(same).toContain('Warning: the self-report launcher /nowhere/]0;pwnedlauncher is missing');
+  expect(other).toContain('for another project (other]0;pwned[2J[31m)');
+});
+
+it.skipIf(process.platform === 'win32')(
+  'status never reads a planted launcher path that is not javi’s launcher file (e.g. /dev/zero)',
+  async () => {
+    expect((await init('claude-code')).code).toBe(0);
+    const args = ['--no-warnings', '/dev/zero', '--project', 'web-app', '/x/javi-mcp.mjs'];
+    await writeFile(
+      join(dir, '.mcp.json'),
+      JSON.stringify({ mcpServers: { javi: { command: process.execPath, args } } }),
+    );
+    expect((await status('claude-code')).out).toContain(
+      'Warning: javi cannot read which javi the self-report launcher /dev/zero runs.',
+    );
+  },
+);
