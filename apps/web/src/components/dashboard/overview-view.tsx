@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Counter, DashboardSnapshot, ThreadState } from '@javis-dog/realtime';
 import { Card, CardHead, EmptyState, Icon, MetricCard, PageHead } from '@javis-dog/ui/components';
 import { OverviewUsage } from '@/components/analytics/usage-panels';
+import { ThreadIdentityLabel } from '@/components/privacy/thread-identity';
 import type { UsageLoad } from '@/lib/analytics';
 import { agentCount, attentionHeadline, byAttention, formatNumber, windowLabel } from './format';
 import { FreshnessLabel, SignalTime, ThreadRef, ThreadStatusPill } from './signal';
@@ -148,6 +149,8 @@ function Metrics({
 }
 
 function Activity({ snapshot: s }: { snapshot: DashboardSnapshot }) {
+  // Activity rows name a project by slug; the thread state carries its id and identity.
+  const threadsBySlugRef = new Map(s.threads.map((t) => [`${t.projectSlug} ${t.threadRef}`, t]));
   if (s.activity.length === 0)
     return (
       <EmptyState title="No signals received">
@@ -157,28 +160,40 @@ function Activity({ snapshot: s }: { snapshot: DashboardSnapshot }) {
     );
   return (
     <ol aria-label="Recent signals" className="px-5 pt-2 pb-4">
-      {s.activity.map((a, i) => (
-        <li
-          key={`${a.at}-${a.threadRef}-${a.type}-${i}`}
-          className="flex items-start justify-between gap-3 border-b border-line py-2.5 last:border-0"
-        >
-          <div className="min-w-0">
-            <p className="truncate font-mono text-xs font-bold text-ink">
-              {a.type}
-              {a.toolName ? <span className="font-normal text-muted"> · {a.toolName}</span> : null}
-            </p>
-            <p className="mt-1 truncate text-xs text-muted">
-              {a.projectSlug} · <ThreadRef value={a.threadRef} />
-            </p>
-          </div>
-          <div className="flex max-w-[55%] flex-none flex-col items-end gap-1 text-xs text-muted">
-            {a.status ? (
-              <ThreadStatusPill status={a.status} source={a.statusSource} reason={a.statusReason} />
-            ) : null}
-            <SignalTime at={a.at} now={s.generatedAt} />
-          </div>
-        </li>
-      ))}
+      {s.activity.map((a, i) => {
+        const thread = threadsBySlugRef.get(`${a.projectSlug} ${a.threadRef}`);
+        return (
+          <li
+            key={`${a.at}-${a.threadRef}-${a.type}-${i}`}
+            className="flex items-start justify-between gap-3 border-b border-line py-2.5 last:border-0"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-mono text-xs font-bold text-ink">
+                {a.type}
+                {a.toolName ? (
+                  <span className="font-normal text-muted"> · {a.toolName}</span>
+                ) : null}
+              </p>
+              <p className="mt-1 truncate text-xs text-muted">
+                {a.projectSlug} · <ThreadRef value={a.threadRef} />
+              </p>
+              {thread ? (
+                <ThreadIdentityLabel projectId={thread.projectId} identity={thread.identity} />
+              ) : null}
+            </div>
+            <div className="flex max-w-[55%] flex-none flex-col items-end gap-1 text-xs text-muted">
+              {a.status ? (
+                <ThreadStatusPill
+                  status={a.status}
+                  source={a.statusSource}
+                  reason={a.statusReason}
+                />
+              ) : null}
+              <SignalTime at={a.at} now={s.generatedAt} />
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }
@@ -245,6 +260,7 @@ function SquadMember({ t, now, notCurrent }: { t: ThreadState; now: string; notC
         <p className="mt-1 truncate text-xs text-muted">
           <ThreadRef value={t.threadRef} /> · {agentCount(t.agents)}
         </p>
+        <ThreadIdentityLabel projectId={t.projectId} identity={t.identity} />
       </div>
       <div className="flex flex-none flex-col items-end gap-1 text-xs">
         <ThreadStatusPill

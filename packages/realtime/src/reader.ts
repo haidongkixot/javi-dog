@@ -2,13 +2,16 @@ import type { AnyDb } from '@javis-dog/event-store';
 import { readActivity, readDbNow, readProjects, readThreads, type ThreadRow } from './queries.ts';
 import {
   STATUS_REASONS,
+  THREAD_IDENTITY_TYPE,
   type ActivityItem,
+  type EncryptedObject,
   type Counter,
   type DashboardSnapshot,
   type Freshness,
   type ProjectFreshness,
   type ProjectHealth,
   type StatusReason,
+  type ThreadIdentity,
   type ThreadState,
   type ThreadStatus,
 } from './types.ts';
@@ -57,6 +60,61 @@ const reasonOf = (status: string | null, errorCode: string | null): StatusReason
   return REASONS.has(reason) ? (reason as StatusReason) : null;
 };
 
+const L1_HASH = /^sha256:[0-9a-f]{64}$/;
+const PRIVACY_CLASSES: ReadonlySet<string> = new Set(['L0', 'L1', 'L2']);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const hashOrNull = (value: unknown): string | null =>
+  typeof value === 'string' && L1_HASH.test(value) ? value : null;
+
+/** The four spec §7 fields as strings, or null. Shape only: nothing is decoded or checked. */
+const encryptedOrNull = (value: unknown): EncryptedObject | null => {
+  if (!isRecord(value)) return null;
+  const { alg, kid, iv, ciphertext } = value;
+  return typeof alg === 'string' &&
+    typeof kid === 'string' &&
+    typeof iv === 'string' &&
+    typeof ciphertext === 'string'
+    ? { alg, kid, iv, ciphertext }
+    : null;
+};
+
+/**
+ * The newest identity event as opaque data (ADR-0018 §8). Hashes that are not `sha256:<64 hex>`
+ * and an `encrypted` value of another shape are dropped; nothing is decrypted or derived here.
+ */
+const toIdentity = (raw: unknown, row: ThreadRow): ThreadIdentity | null => {
+  let value: unknown = raw;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!isRecord(value)) return null;
+  const eventId = value.event_id;
+  const producerId = value.producer_id;
+  const privacyClass = value.privacy_class;
+  if (typeof eventId !== 'string' || typeof producerId !== 'string') return null;
+  if (typeof privacyClass !== 'string' || !PRIVACY_CLASSES.has(privacyClass)) return null;
+  return {
+    eventId,
+    producerId,
+    threadRef: row.thread_ref,
+    type: THREAD_IDENTITY_TYPE,
+    projectSlug: row.project_slug,
+    privacyClass: privacyClass as ThreadIdentity['privacyClass'],
+    at: iso(Number(value.at_ms)),
+    repoHash: hashOrNull(value.repo_hash),
+    branchHash: hashOrNull(value.branch_hash),
+    cwdHash: hashOrNull(value.cwd_hash),
+    encrypted: encryptedOrNull(value.encrypted),
+  };
+};
+
 const FRESHNESS_RANK: Record<Freshness, number> = { fresh: 0, stale: 1, ended: 2 };
 
 const toThread = (row: ThreadRow, now: Date): ThreadState => {
@@ -87,6 +145,7 @@ const toThread = (row: ThreadRow, now: Date): ThreadState => {
     tasksCompleted: Number(row.tasks_completed),
     inputTokens: Number(row.input_tokens),
     outputTokens: Number(row.output_tokens),
+    identity: toIdentity(row.identity, row),
   };
 };
 

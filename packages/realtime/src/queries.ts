@@ -5,6 +5,7 @@
 // parsing is involved.
 import type { AnyDb } from '@javis-dog/event-store';
 import { sql, type SQL } from 'drizzle-orm';
+import { THREAD_IDENTITY_TYPE } from './types.ts';
 
 // neon-http and PGlite both return `{ rows }` (same accessor as JD-M06 client.ts).
 const rowsOf = <T>(result: unknown): T[] => (result as { rows: T[] }).rows;
@@ -39,6 +40,12 @@ const clearsSelfReport = sql`(e.type in ('task.started', 'task.completed', 'task
                                          'agent.started', 'agent.stopped')
                               or (e.type = 'heartbeat' and e.status = 'working'
                                   and e.attributes ->> 'tool_name' is null))`;
+
+/**
+ * The identity extension event (ADR-0018 §5). It is a signal (first/last signal, freshness) but
+ * never a status, a self-report clearer, a task, the thread's last type or an activity item.
+ */
+const isIdentity = sql`(e.type = ${THREAD_IDENTITY_TYPE})`;
 
 /** `error_code` of a self-report only (it carries `<status>.<reason>`); null for every other event. */
 const selfReportCode = sql`case when ${isSelfReport} then e.attributes ->> 'error_code' end`;
@@ -85,6 +92,11 @@ export interface ThreadRow {
   last_task_ms: number | string | null;
   input_tokens: number | string;
   output_tokens: number | string;
+  /**
+   * The newest identity event as a JSON object (opaque: the reader never decrypts), or null.
+   * Drivers may return jsonb parsed or as text.
+   */
+  identity: unknown;
   hour_tokens: number | string;
   hour_reports: number | string;
   hour_last_ms: number | string | null;
@@ -107,9 +119,12 @@ export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => 
       select e.project_id, p.slug as project_slug, p.name as project_name, e.thread_ref,
              ${epochMs(sql`min(e.received_at)`)} as first_ms,
              ${epochMs(sql`max(e.received_at)`)} as last_ms,
-             (array_agg(e.type order by ${LATEST_FIRST}))[1] as last_type,
+             coalesce((array_agg(e.type order by ${LATEST_FIRST})
+                         filter (where not ${isIdentity}))[1],
+                      (array_agg(e.type order by ${LATEST_FIRST}))[1]) as last_type,
              (array_agg(e.status order by ${LATEST_FIRST})
-                filter (where e.status is not null and not ${isSelfReport}))[1] as status,
+                filter (where e.status is not null and not ${isSelfReport}
+                        and not ${isIdentity}))[1] as status,
              (array_agg(case when ${isSelfReport} then e.status end order by ${LATEST_FIRST})
                 filter (where ${isSelfReport} or ${clearsSelfReport}))[1] as agent_status,
              (array_agg(${selfReportCode} order by ${LATEST_FIRST})
@@ -117,6 +132,16 @@ export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => 
              count(distinct e.agent_ref)::int as agents,
              (count(*) filter (where ${isTask}))::int as tasks_completed,
              ${epochMs(sql`max(e.received_at) filter (where ${isTask})`)} as last_task_ms,
+             (array_agg(jsonb_build_object(
+                'event_id', e.event_id,
+                'producer_id', e.producer_id,
+                'privacy_class', e.privacy_class,
+                'at_ms', ${epochMs(sql`e.received_at`)},
+                'repo_hash', e.attributes -> 'repo_hash',
+                'branch_hash', e.attributes -> 'branch_hash',
+                'cwd_hash', e.attributes -> 'cwd_hash',
+                'encrypted', e.encrypted) order by ${LATEST_FIRST})
+                filter (where ${isIdentity}))[1] as identity,
              coalesce(sum(${usageCounter('input_tokens')}) filter (where ${isUsage}), 0)::float8
                as input_tokens,
              coalesce(sum(${usageCounter('output_tokens')}) filter (where ${isUsage}), 0)::float8
@@ -146,8 +171,9 @@ export interface ActivityRow {
 }
 
 /**
- * Query 2: the newest events in the window. Reads `tool_name`, and `error_code` of self-reports
- * only (for their listed reason); no other attribute.
+ * Query 2: the newest events in the window, identity events excluded (they carry names, not
+ * activity). Reads `tool_name`, and `error_code` of self-reports only (for their listed
+ * reason); no other attribute.
  */
 export const readActivity = async (db: AnyDb, s: Scope, limit: number): Promise<ActivityRow[]> =>
   rowsOf<ActivityRow>(
@@ -158,6 +184,7 @@ export const readActivity = async (db: AnyDb, s: Scope, limit: number): Promise<
         from events e
         join projects p on p.id = e.project_id and p.workspace_id = e.workspace_id
        where ${inWindow(s)} and p.workspace_id = ${s.workspaceId}::uuid
+         and not ${isIdentity}
        order by ${LATEST_FIRST}
        limit ${limit}::int`),
   );

@@ -5,6 +5,7 @@ import {
   MAX_ACTIVE_TOKENS_PER_PROJECT,
   MAX_PROJECTS_PER_WORKSPACE,
   MAX_TOKENS_ISSUED_PER_PROJECT_PER_DAY,
+  PrivacyClass,
   ProjectRepositoryError,
   type ProjectRepositoryErrorCode,
 } from '@javis-dog/projects';
@@ -197,4 +198,30 @@ export async function clearBudgetAction(
   }
   revalidateBudget(projectId);
   return { saved: 'cleared' };
+}
+
+// Privacy class (ADR-0018 §7). Owners and admins only (S5a role rule). The action receives the
+// project id and the class, never a key: raising happens in the browser's key setup flow after
+// the full recovery key was pasted back, and lowering after the warning was shown. One existing
+// column; no migration. Arguments are never logged.
+
+export type PrivacyClassActionResult = { privacyClass: 'L0' | 'L1' | 'L2' } | { error: string };
+
+const NOT_ALLOWED_PRIVACY = 'Only workspace owners and admins can change the privacy class.';
+
+export async function changePrivacyClassAction(
+  projectId: string,
+  privacyClass: string,
+): Promise<PrivacyClassActionResult> {
+  const viewer = await getViewer();
+  if (!viewer) return { error: SIGNED_OUT };
+  if (!canManageProject(viewer.role)) return { error: NOT_ALLOWED_PRIVACY };
+  if (!isUuid(projectId)) return { error: NOT_FOUND };
+  const parsed = PrivacyClass.safeParse(privacyClass);
+  if (!parsed.success) return { error: 'Choose L0, L1 or L2.' };
+  const row = await viewer.projects.setPrivacyClass(viewer.workspaceId, projectId, parsed.data);
+  if (!row) return { error: NOT_FOUND };
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath('/projects');
+  return { privacyClass: parsed.data };
 }

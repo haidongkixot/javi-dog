@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
+import { forgetKeysOnSignOut } from '@/lib/privacy/browser';
 
 export function AccountMenu() {
   const { data, isPending } = authClient.useSession();
@@ -30,6 +31,9 @@ export function AccountMenu() {
       <button
         type="button"
         onClick={async () => {
+          // ADR-0018 §8: signing out forgets every privacy key here, on this device and in
+          // other tabs, before the session ends.
+          await forgetKeysOnSignOut('sign-out');
           await authClient.signOut();
           router.refresh();
         }}

@@ -28,6 +28,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     '@javis-dog/ui',
     '@javis-dog/analytics',
+    '@javis-dog/crypto',
     '@javis-dog/event-store',
     '@javis-dog/identity',
     '@javis-dog/ingest',
