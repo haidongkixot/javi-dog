@@ -148,7 +148,7 @@ Each mutation must turn at least the listed vector to FAIL.
 | No padding, padding with NUL bytes, or padding in front | E03, E04, P01, P02 |
 | Cut by UTF-16 units or by bytes in the middle of a code point | E03 (`cut-code-points-not-units`) |
 | Base64 with `+` and `/`, or with `=` padding | E04 |
-| Accept any IV length (WebCrypto does) | E06 (`iv-16-bytes`, `iv-11-bytes`) |
+| Accept other IV lengths (WebCrypto accepts some: on Node 22.22, 16 bytes is accepted and 11 is rejected) | E06 (`iv-16-bytes`, `iv-11-bytes`) |
 | Accept a 96-bit tag (`tagLength: 96`) | E06 (`tag-truncated-4`) |
 | Choose the key by position instead of by `kid` | E05 (`several-keys`) |
 | Return a partial plaintext on failure | E06 |

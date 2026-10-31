@@ -71,4 +71,4 @@ Team log, newest first:
 
 ## Guru checkpoint
 
-—
+`ad-hoc-privacy` (`b88a307`), shared with S5f.

@@ -24,7 +24,7 @@
 | K3 | `javi init --privacy`, key storage, L1/L2 fields on the named events, canary | JD-C01 | TEST_PLAN collector rows | DONE (`58c55d2`, fixes `9805ba9`) |
 | K4 | Class change action, reader fields, key setup + decrypt UI, honest labels, Integrations copy | JD-M04, JD-M07, JD-APP | TEST_PLAN reader, browser, key-never-on-server and role rows | DONE (`0b2179d`, fixes `e8fb1bc`) |
 | K6 | Nonce CSP for all app routes; then "Remember on this device" | JD-APP | zero CSP violations in a bounded browser run | CSP DONE (`ae27c91`); remember BLOCKED on the owner's signed-in run |
-| K5 | QA vectors (`docs/jgr/conformance/privacy/`) and runner; end-to-end test | QA, all | every vector passes, mutation-checked | DONE: 153 vectors, 145 pass + 8 NOT RUN with reasons, P03/P04 pass in the web app, end-to-end test `991926a` |
+| K5 | QA vectors (`docs/jgr/conformance/privacy/`) and runner; end-to-end test | QA, all | every vector passes, mutation-checked | DONE: 153 vectors, 145 pass + 8 NOT RUN with reasons, P03/P04 pass in the web app, end-to-end test `cde4614` (lockfile `991926a`) |
 
 ## Review focus
 
@@ -37,8 +37,16 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-10-31 — Close-out against the Guru findings:
+  - **PV-F1:** test evidence completed (table below).
+  - **PV-F2:** QA's reference programs `ref.mjs` and `check.py` lived in the session scratchpad, which no longer exists. The 366-check cross-check cannot be re-run, so its result stands as recorded evidence only. Next time, reference programs are committed under the suite (`docs/jgr/conformance/<suite>/reference/`).
+  - **PV-F3:** cross-lane API break. The end-to-end lane's test (written on `0b2179d`) used `resolveIdentity` and the old label props, and the web fix lane's M1 change renamed and extended them. At `e8fb1bc` and `3020b10` the gate's typecheck failed, the gate blocked the push, and `29a6b8a` fixed the test. No broken commit was pushed on its own.
+  - **PV-F5:** ADR-0018 decisions 4 and 6 and the TEST_PLAN padding row now point to the binding Changes.
+  - **PV-F7:** end-to-end SHAs corrected.
+  - **PV-F4:** the push step stays on the GitHub MCP check, per this session's tool rules (no `gh`).
+  - **PV-F6:** a follow-up (gate script clears the Vitest cache; the registry generator escapes `|`).
 - 2026-10-31 — Security review (0 High, 3 Medium, 9 Low) and its fixes merged: collector `9805ba9` (M3, L4, L7, L8 and env typing), web `e8fb1bc` (M1, M2, L1–L7, L9). "Remember on this device" stays off until the owner's signed-in CSP run.
-- 2026-10-30 — End-to-end test merged (`javi init --privacy L2` → hook → ingest → reader → the web app's decryption): names show only with the key; another project's key and a flipped byte fail; lowering to L0 keeps the status signal and shows the rejection — `991926a`.
+- 2026-10-30 — End-to-end test merged (`javi init --privacy L2` → hook → ingest → reader → the web app's decryption): names show only with the key; another project's key and a flipped byte fail; lowering to L0 keeps the status signal and shows the rejection — test `cde4614`, lockfile `991926a`.
 - 2026-10-30 — K3 collector (`58c55d2`) and K4 web (`0b2179d`) merged; K5 runner (`ee8c600`): 145 PASS, 0 FAIL, 8 NOT RUN, 38 of 38 mutations caught.
 - 2026-10-30 — K5 vectors merged:
   - QA wrote 17 vectors with 153 cases, computed with two independent reference methods (Node WebCrypto; Python stdlib with `cryptography` and the OpenSSL CLI), 366 checks and 0 mismatches.
@@ -60,7 +68,13 @@ Newest first: date — what changed — commit SHA.
 | `pnpm -s test --force` after the K6 merge | 0 | — | 2225 | 0 | 0 | 0 | 0 | 15 packages |
 | `pnpm --filter @javis-dog/web csp:check` (local `next start`, no DB env) | 0 | — | 12 | 0 | 0 | 0 | 0 | per-route JSON |
 | Production browser load of 6 public routes (scratch script, no screenshots) | 0 | — | 6 | 0 | 0 | 0 | signed-in views | 0 violations |
-| QA reference cross-check (`ref.mjs` + `check.py`) | 0 | — | 366 | 0 | 0 | 0 | 0 | scratch, not committed |
+| QA reference cross-check (`ref.mjs` + `check.py`) | 0 | — | 366 | 0 | 0 | 0 | 0 | scratch, not committed; cannot be re-run (PV-F2) |
+| Privacy runner `pnpm --filter @javis-dog/crypto test` (`ee8c600`) | 0 | — | 232 | 0 | 8 (NOT RUN, reasons in test names) | 0 | 8 | 38 of 38 mutations caught |
+| End-to-end `apps/web/test/privacy-e2e.test.tsx` (`29a6b8a`) | 0 | — | 1 | 0 | 0 | 0 | 0 | the whole chain |
+| Security-review fix lanes: collector `9805ba9` / web `e8fb1bc` | 0 | — | 2685 / 555 (web) | 0 | 0 | 0 | 0 | red-first per finding |
+| Final gate before `29a6b8a` | 0 | — | 2725 | 0 | 0 | 0 | 0 | 16 packages; build, drift, docs, `csp:check` 12/12, secret scan |
+| CI `ae27c91`, `a0d2b08`, `e9ca110`, `ee8c600`, `0b2179d`, `991926a`, `9805ba9`, `29a6b8a` | success | — | — | — | — | — | — | runs 41133018018, 41134131598, 41135320764, 41137592015, 41141058555, 41142840509, 41144802179, 41146639862 |
+| Production after `29a6b8a`: health + 6 public routes in a browser | 0 | — | 6 | 0 | 0 | 0 | signed-in views | 0 CSP violations |
 
 ## Team
 
@@ -103,4 +117,4 @@ Team log, newest first:
 
 ## Guru checkpoint
 
-—
+`ad-hoc-privacy` (`b88a307`): 2 new skills (`client-held-key-encryption`, `nonce-csp-rollout`) and 9 updated; findings PV-F1 to PV-F7 in `guru/WISDOM_LOG.md`.

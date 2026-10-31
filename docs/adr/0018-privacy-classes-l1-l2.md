@@ -80,7 +80,7 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
      - No part may contain `|`: the JGR ref patterns and the `kid` alphabet exclude it, and the browser rejects a part that has one.
      - Moving a ciphertext to another event, thread, project, producer or key fails decryption. The collector therefore sets `event_id` itself, which the SDK already allows.
      - The server still chooses *which* event the reader treats as newest; the AAD cannot prevent that.
-   - **Padding** (review M2): the JSON is padded with spaces to exactly 256 bytes before encryption. `repo` and `branch` are each cut to 100 code points first, so the payload never exceeds 256 bytes; every L2 payload then has the same length.
+   - **Padding** (review M2): the JSON is padded with spaces to exactly 256 bytes before encryption. `repo` and `branch` are each cut first, so every L2 payload has the same length. *Superseded in part by QA gap G6 (Changes): the cut is at most 100 code points **and** at most 113 JSON-escaped UTF-8 bytes per field, because 100 code points alone can exceed 256 bytes.*
    - **Never in L2 or any other class:** prompts, code, commands, file contents, secrets, file paths (spec §7).
 5. **Identifiers travel on their own event** (review H1: if they rode on `session.started` and `heartbeat working`, a class mismatch would drop the status signal for good).
    - In an L1 or L2 project the collector sends `x.javi.thread.identity` right after `session.started` and after the collector `heartbeat working` (prompt submit), with the same `thread_ref`. It carries the L1 hashes `repo_hash`, `branch_hash` and `cwd_hash`, plus, in an L2 project, the encrypted payload. It takes the project's class.
@@ -90,7 +90,7 @@ Many primary hosts are blocked from the sandbox. Texts were read from their sour
    - `file_hash` is defined but not produced in this sprint.
 6. **Collector (`javi init --privacy L1|L2`).**
    - **Input** (review M3). The recovery key is read in one of three ways, never from an argument:
-     - a hidden prompt read from the terminal itself (`/dev/tty`, `CONIN$` on Windows), so a token piped on stdin does not conflict;
+     - a hidden prompt read from the terminal itself (`/dev/tty`, `CONIN$` on Windows). *Amended (Changes, decision 6): the prompt needs all three streams to be terminals and refuses inside a coding agent, so the token comes from `JAVI_INGEST_TOKEN`, not a pipe, when the prompt is used;*
      - `--privacy-key-file <path>`;
      - `JAVI_PRIVACY_KEY`. It is deleted from `process.env` right after reading, and every child process javi starts (flush, receiver, git) gets an explicit environment without it.
 
