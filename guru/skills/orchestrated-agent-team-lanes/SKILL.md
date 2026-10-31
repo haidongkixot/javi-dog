@@ -1,10 +1,10 @@
 ---
 name: orchestrated-agent-team-lanes
-description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when deciding what may be pushed to an auto-deploying branch before review, when a session discovers someone else already pushed the work it planned, when cleaning up after merged worktrees, when staging commits in a tree with scratch files, when a reviewer runs your CLI as a probe, when `pnpm install`/`npm install` rewrites unrelated lockfile lines, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
+description: Run a multi-agent coding team safely — one orchestrator session that alone pushes, merges and owns shared files; Developer and QA lanes in isolated worktrees with declared, non-overlapping paths; an independent QA oracle; a read-only adversarial Reviewer that reproduces findings with probes; fixes landed with red-first tests; and a "git fetch before planning and before every push" rule that prevents two sessions from building the same thing on one branch. Includes a delegated-prompt template, a merge checklist and a recovery playbook for when parallel sessions have already diverged. Use when launching subagents or parallel agents on one repository, when several Claude Code / Codex / Cursor sessions (desktop, cloud, CI) can push to the same branch, when a branch auto-deploys to production, when merging agent worktrees, when deciding what may be pushed to an auto-deploying branch before review, when a session discovers someone else already pushed the work it planned, when cleaning up after merged worktrees, when staging commits in a tree with scratch files, when a reviewer runs your CLI as a probe, when `pnpm install`/`npm install` rewrites unrelated lockfile lines, when a fix lane changes an exported function while another lane's test (merged meanwhile) calls it, when parallel lanes share a tool cache, when a large security-sensitive feature is planned as one iteration, or when asked to set up "roles", "lanes", "an agent team", a reviewer agent or a QA agent.
 metadata:
-  version: "0.4.0"
-  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d)"
-  confidence: "medium (team pattern, used in nine iterations by one orchestrator); high (fetch-before-planning as the fix for duplicate work; adversarial reviewer with probes finding defects the lanes missed: ten consecutive iterations, majors or highs in nine of them; a push-chain rule kept as a habit failing again: three times); medium (holding pushes until review or until runner and code catch up: five iterations)"
+  version: "0.5.0"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5e/S5f)"
+  confidence: "medium (team pattern, used in eleven iterations by one orchestrator); high (fetch-before-planning as the fix for duplicate work; adversarial reviewer with probes finding defects the lanes missed: eleven consecutive iterations, majors, highs or mediums in every one; a push-chain rule kept as a habit failing again: three times); medium (holding pushes until review or until runner and code catch up: five iterations)"
 ---
 
 # Orchestrated agent team lanes
@@ -79,6 +79,10 @@ A lane that needed one file outside its declared paths is not rejected automatic
 
 **Lockfile edits by one hand.** Lanes do not edit the lockfile; the orchestrator does, once per merge. If the package manager rewrites unrelated entries on every install (in the origin: peer-dependency strings of a package nobody touched), apply only the importer lines the merge needs, by hand, and let CI's frozen-lockfile install verify them; record the churn as a chore with a hypothesis for its cause instead of committing the rewrite.
 
+**Gate after every merge, in merge order.** A lane's worktree is a snapshot of the base it forked from. A fix lane that changes an exported function's signature cannot see a test another lane merged into main after the fork. In the origin, the end-to-end lane's test was merged first; the security-review fix lane then renamed and re-shaped the label API it called, and the merged tree no longer type-checked. The gate in the main tree caught it before any push; one follow-up commit moved the test to the new API. So: run the full gate after **each** merge, not once after the last; tell a lane that changes a public signature to list it in its hand-back, and search main for callers at merge time.
+
+**Shared tool caches across parallel lanes.** Lanes running tests in parallel can share a cache directory (a test runner's module cache under the root `node_modules`), and a gate run in the main tree can then fail on another lane's half-written entries. Give each lane its own cache directory, or clear the cache at the start of the gate script while lanes are running — in the script, not as a remembered step.
+
 **Remove lane worktrees after merging.** Merged worktrees left on disk accumulate (the origin had 35 at G4, about 3 GB), slow searches and invite edits in the wrong tree. `git worktree remove <path>` once the lane is merged and its branch is no longer needed.
 
 ## 4. Review adversarially, fix red-first
@@ -90,6 +94,10 @@ Brief the Reviewer to point every probe run of your own tools at a dead local en
 Brief the Reviewer to attack the claims: security of new listeners and endpoints, privacy, data integrity, and whether the evidence supports what the iteration record says. Ask for severity (blocker/major/minor/nit) and for **a probe per major** — a command or test that shows the defect.
 
 Fix majors with tests written first and run against the unfixed code. Record the red count, then the green count. A fix whose test never failed has not been shown to fix anything. After each fix, search for the same defect in sibling modules or platforms (the "twin") and record the search result. Findings you decide not to fix go into the decision record's *Changes* section or the iteration's deviations with a reason — never silently dropped.
+
+## 4b. Size security-sensitive features into sprints, not only lanes
+
+A security-sensitive feature (keys, encryption, auth) carries more gates (design review, known-answer vectors, runner, end-to-end, security review, fix lanes). Split into lanes only, it becomes one very long iteration where process slips accumulate. Split it along its seams into iterations with their own gate and record — for example primitives and vectors; producer side; reader side; hardening — so each closes with evidence. (The origin's retro proposed this after one such sprint; it is not yet tried.)
 
 ## 5. Recover when sessions have already diverged
 
@@ -109,6 +117,7 @@ If you discover that another session pushed the work you planned:
 - **"The lane was green."** Lanes run in their own worktree with their own base; only the merged tree's gate counts.
 - **Reviewer as a style pass.** Without an adversarial brief and probes, reviewers repeat what the tests already say.
 - **Fixes without a red run.** The test may not exercise the defect.
+- **One gate after the last merge.** A cross-lane API break then has no owner.
 - **Two lanes, one migration folder.** Migration numbering and drift checks collide.
 - **`gate; git push`.** The push runs whatever the gate said.
 - **`git add -A` in a tree with scratch files.** Stage paths.
@@ -161,3 +170,13 @@ Javi's Dog, Sprints 3a–3f (2026-10-23 → 2026-10-28). Confidence **medium** f
 - Module labels: "The ADR named the wrong module IDs (JD-M12, JD-M13)"; Developer B corrected them (ADR-0017 *Changes*); the first vector commit message still says "R01-R15: JD-M12 reader" (`1f40a78`). Retro: "Check module IDs against `module.json` when writing an ADR."
 - Not followed: checking each pushed tip's CI before the next push — two reds unrecorded (see `diagnose-red-ci-from-history`, update S5d).
 - Timebox: "The sprint ran well past the 30-minute timebox … the five lanes were not [outside it]" (retro). Not verified: that lanes were faster than one agent.
+
+### Update at ad-hoc-privacy (Sprints 5e and 5f, 2026-10-30/31)
+
+- S5f roster: design reviewer, QA, runner lane, Developers A–D, an end-to-end lane, a security reviewer and two fix lanes (collector, web); "Each was merged with a full gate" (`docs/memory/SESSION_LOG.md` 2026-10-31). Security review: 0 High, 3 Medium, 9 Low; all fixed red-first (`9805ba9`, `e8fb1bc`).
+- Cross-lane break (Guru, from the tree): the end-to-end test (`cde4614`, merged `7ea629f`) imports `resolveIdentity` from the label module; the web fix lane (merged `e8fb1bc`) replaced it with `resolveThreadIdentity(identity, keys, row)` (review M1, `7255d46`). At `e8fb1bc` and `3020b10` the test imports a name that no longer exists; `29a6b8a` moves it to the row-bound API. No CI run exists for `e8fb1bc` or `3020b10` (they went out with `29a6b8a`; run 41146639862 green), so the break never reached the branch alone. How it was detected (the gate) is reported by the orchestrator, not recorded in the sprint file.
+- Retro: "the end-to-end test found a typing break across packages" — `0d03cf6` (`{}` fallback for the hook env did not type-check under Next.js's required `NODE_ENV` once the web app type-checked the collector's sources).
+- Shared cache: "One gate run broke on a shared Vitest cache while lanes ran tests in parallel"; action "Clear `node_modules/.vitest-cache` before the gate when lanes are running" (retro). The mechanism is not recorded (hypothesis: lanes resolve the root `node_modules`). Same family as S3d's stale shared test cache.
+- Lockfile by one hand again: `991926a` (+3 importer lines for the end-to-end test's dev dependency), CI's frozen-lockfile install green (run 41142840509).
+- Timebox: "The sprint ran far past the 30-minute timebox; this was a large, security-sensitive feature split only into lanes, not into sprints" (retro) → §4b (hypothesis, not yet tried).
+- Pushes: 15 pushed tips in `c5132d0..29a6b8a`, every one started after the previous tip's run had completed, all 15 green; two rule-9 reading slips recorded (see `fail-closed-checks`).

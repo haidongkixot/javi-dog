@@ -1,10 +1,10 @@
 ---
 name: privacy-first-agent-telemetry-protocol
-description: Design a small, strict, privacy-first event protocol for telemetry from AI coding agents, CLIs, hooks, SDKs or any producer you do not fully control — a minimal envelope with unknown fields rejected, privacy classes enforced at the envelope by allowlist (reject, do not strip), token/cost usage as deltas, per-event IDs for deduplication, per-thread sequence numbers for gap detection, receiver-derived "stale" status, stable error codes, partial batch acceptance, normative rule IDs, shared JSON conformance vectors, canonical event IDs, delivery status codes that tell producers whether to keep or drop data, liveness that survives retries, and translating tool-native OpenTelemetry (OTLP) into the envelope where the data is born (a local receiver) so identity and content never cross the network. Use when defining an ingest API or webhook contract, an observability or analytics event schema, an agent heartbeat/status protocol, a telemetry SDK, when deciding between OTLP, CloudEvents or a custom envelope, when building an ingest endpoint, collector, SDK spool or OTLP receiver for agent telemetry, when translating cumulative OTLP counters or log records from several vendor CLIs into usage and cost, or when payloads might carry prompts, code, paths, emails or secrets.
+description: Design a small, strict, privacy-first event protocol for telemetry from AI coding agents, CLIs, hooks, SDKs or any producer you do not fully control — a minimal envelope with unknown fields rejected, privacy classes enforced at the envelope by allowlist (reject, do not strip), token/cost usage as deltas, per-event IDs for deduplication, per-thread sequence numbers for gap detection, receiver-derived "stale" status, stable error codes, partial batch acceptance, normative rule IDs, shared JSON conformance vectors, canonical event IDs, delivery status codes that tell producers whether to keep or drop data, liveness that survives retries, and translating tool-native OpenTelemetry (OTLP) into the envelope where the data is born (a local receiver) so identity and content never cross the network. Use when defining an ingest API or webhook contract, an observability or analytics event schema, an agent heartbeat/status protocol, a telemetry SDK, when deciding between OTLP, CloudEvents or a custom envelope, when building an ingest endpoint, collector, SDK spool or OTLP receiver for agent telemetry, when translating cumulative OTLP counters or log records from several vendor CLIs into usage and cost, when implementing hashed (L1) or encrypted (L2) privacy classes, or when payloads might carry prompts, code, paths, emails or secrets.
 metadata:
-  version: "0.4.1"
-  origin: "javis-dog G1; updated G2-prep, G2, G3, G4, ad-hoc-self-report"
-  confidence: "medium (envelope, vectors, ingest delivery, local OTLP translation for three tools incl. cumulative series and log records, receiver-derived freshness, receipt-time aggregation, ingest latency measured once on production); low (gap detection on real traffic, behaviour on real host-tool sessions)"
+  version: "0.5.0"
+  origin: "javis-dog G1; updated G2-prep, G2, G3, G4, ad-hoc-self-report, ad-hoc-privacy (S5f)"
+  confidence: "medium (envelope, vectors, ingest delivery, local OTLP translation for three tools incl. cumulative series and log records, receiver-derived freshness, receipt-time aggregation, ingest latency measured once on production; L1/L2 produced and read end to end once, with known-answer vectors and a security review); low (gap detection on real traffic, behaviour on real host-tool sessions)"
 ---
 
 # Privacy-first agent telemetry protocol
@@ -57,8 +57,17 @@ Define classes as allowlists, lowest by default:
 | Class | Allowed | Typical rejection code |
 |---|---|---|
 | L0 (default) | Operational metadata only: platform, versions, model, tool name, task kind, durations, exit/error codes, retry counts, ratios | `privacy_forbidden_attribute` |
-| L1 | L0 + identifiers only as salted hashes in a fixed format (`sha256:<64 hex>`) | `privacy_unhashed_identifier` |
+| L1 | L0 + identifiers only as **keyed** hashes (HMAC-SHA256 with a key the receiver never sees) in a fixed format (`sha256:<64 hex>`) | `privacy_unhashed_identifier` |
 | L2 | L1 + an encrypted blob produced with a key the receiver never sees | `privacy_encrypted_requires_l2` / `privacy_l2_requires_encrypted` |
+
+**L1 means keyed, not salted.** An earlier version of this skill said "salted hashes". A salted hash of a low-entropy identifier (`main`, a repository name) is reversed by anyone who knows the salt — including a receiver that issued it. Require HMAC with a producer-held key; the receiver still sees equality and frequency, and the docs must say so.
+
+**Implementing the higher classes** (details and the verification ladder: `client-held-key-encryption`):
+
+- Put class-raising fields on **their own event** (an identity event with the same thread), never on the operational events. If the receiver's per-project ceiling is lower than the producer's class, only the identity event is rejected; status and heartbeats keep flowing. Show the rejection code where the user looks.
+- Before a collector installs anything for a higher class, send a **canary** event of that class and stop on any rejection — a setup that writes config and then verifies leaves a half-installed producer whose events are all rejected.
+- Tighten the envelope's encrypted object to the bytes the algorithm needs (exactly a 12-byte IV for AES-GCM; unpadded base64url) and pin the change in shared vectors.
+- The receiver stores the encrypted object opaquely and passes it to readers with the context they need; readers bind decryption to what they display.
 
 **Reject, do not strip, at the envelope.** A producer that sends a forbidden field gets an error and learns; a receiver that silently drops it hides the bug and teaches nothing. (The *edge translator* in section 8 is the deliberate exception: it handles telemetry from tools you cannot fix.)
 
@@ -200,3 +209,11 @@ Javi's Dog, Sprint 1b (2026-10-20); at G1 confidence was **medium** for sections
 
 - Self-report mapping without a protocol change: reason in `error_code` as `<status>.<reason>`, task kind in `task_kind`, provenance in `tool_name`; documented as a spec §12 Changes note (ADR-0017 decision 4; `67d8c01`). A dedicated `status_reason` attribute deferred to the next protocol version.
 - Clock in the id: code review M1 — "`selfReportEventId` uses the hook clock as the ULID time part, so the same `tool_use_id` re-fired later got a new id and a second spool record"; fix: local seen-call marker (`d6c989b`).
+
+### Update at ad-hoc-privacy (Sprint 5f, 2026-10-30/31)
+
+- L1 wording: spec §7 changed from "SHOULD use a per-project salt" to "MUST be HMAC-SHA256 with a client-held key (ADR-0018)" (`a0d2b08`); this skill's class table said "salted hashes" until this update.
+- Identity event: design review D0 H1 "Identifiers on status events: a rejection drops the status signal" → `x.javi.thread.identity` (ADR-0018 decision 5; `3258c54`); end-to-end test: after lowering to L0 "the stored heartbeat, the rejected identity and the code in javi status" (`cde4614`).
+- Canary first: D0 H2 "A class check `init` claimed but did not have" → canary through an in-memory spool before any write; `--privacy` with `--no-verify` refused (`3258c54`).
+- `iv`: "The schema accepted any length >= 16, including the 22-character 16-byte form" → exactly 16 base64url characters; three shared vectors updated (`920aa68`, `e9ca110`).
+- NOT RUN: real producer and reader runs (owner how-to step 7).

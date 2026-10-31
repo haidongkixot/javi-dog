@@ -1,10 +1,10 @@
 ---
 name: prove-secrets-and-pii-minimization
-description: Design and then prove what an app stores about secrets and personal data — API/ingest tokens kept only as a hash with a recognizable prefix and a display prefix, shown once; third-party OAuth tokens encrypted; fields you do not use (such as an OAuth provider's id_token) not stored at all; logs structured and redacted; failures that leave evidence without leaking; secrets pasted in chat handled by hash comparison and recorded for rotation. The proof step inspects real stored rows by shape (counts, booleans, lengths, prefix classes) and scans every column for plaintext markers, never printing values, and turns each finding into a red-to-green test through the same call path the real flow uses. Use when issuing API keys or personal access tokens, integrating an auth library or OAuth/OIDC sign-in, enabling token encryption at rest, writing auth or error logging, after the first real sign-ins or token issues in an environment, when a user or owner pastes a secret into chat or an issue, when a script or smoke test needs a production credential, when your tool writes its own secret into another tool's config or backups, or when someone claims data is "hashed", "encrypted" or "not stored".
+description: Design and then prove what an app stores about secrets and personal data — API/ingest tokens kept only as a hash with a recognizable prefix and a display prefix, shown once; third-party OAuth tokens encrypted; fields you do not use (such as an OAuth provider's id_token) not stored at all; logs structured and redacted; failures that leave evidence without leaking; secrets pasted in chat handled by hash comparison and recorded for rotation. The proof step inspects real stored rows by shape (counts, booleans, lengths, prefix classes) and scans every column for plaintext markers, never printing values, and turns each finding into a red-to-green test through the same call path the real flow uses. Use when issuing API keys or personal access tokens, integrating an auth library or OAuth/OIDC sign-in, enabling token encryption at rest, writing auth or error logging, after the first real sign-ins or token issues in an environment, when a user or owner pastes a secret into chat or an issue, when a script or smoke test needs a production credential, when your tool writes its own secret into another tool's config or backups, when a secret is meant to stay in the user's browser or machine and never reach your server, or when someone claims data is "hashed", "encrypted", "not stored" or "never sent to the server".
 metadata:
-  version: "0.2.1"
-  origin: "javis-dog G2-prep; updated G4, ad-hoc-self-report"
-  confidence: "medium (sections 1–7: each applied once with recorded results; section 8: production smoke credentials and own-secret hygiene, once each)"
+  version: "0.3.0"
+  origin: "javis-dog G2-prep; updated G4, ad-hoc-self-report, ad-hoc-privacy (S5f)"
+  confidence: "medium (sections 1–7: each applied once with recorded results; section 8: production smoke credentials and own-secret hygiene, once each; section 9: client-held key never reaching the server, once, with a mutation that the earlier test missed)"
 ---
 
 # Prove secrets and PII minimization
@@ -82,8 +82,22 @@ A failed OAuth callback that silently returns to the home page leaves nothing: n
 - **Inherited environment:** a bearer you export for one tool reaches every child process; a child tool may merge it into its own export to its vendor. Detect your value in the child's environment by in-memory comparison and warn (never print it).
 - **In-memory only:** hashes or ids derived from identity attributes (series identities, auth modes) stay in memory and are never spooled or sent.
 
+## 9. Client-held secrets: prove the server never receives them
+
+When a secret (an encryption key, a recovery code) must stay on the client, "the server never sees it" is a claim about every path from the page or CLI to the server. Prove it with a test that **can fail**:
+
+1. **A long sentinel secret**, generated as the real flow would (the key the UI generates, the value typed into the entry field).
+2. **Search every encoding as substrings**: the display form, the body without separators, the raw bytes as hex — and sliding windows of them, so a partial copy is caught.
+3. **Capture every server-bound channel**: server-action or RPC arguments (wrap the **real** action, not a stub), request bodies, server-side writes, log and console output, and a fresh server render of the page.
+4. **Positive control:** a deliberately leaking call in the test must be caught by the capture.
+5. **One mutation:** change the client to pass the secret as an argument; the test must fail. In the origin this mutation was caught by the new test (40 sentinel windows in the action arguments) and **passed** the earlier test, which only searched server-rendered HTML.
+6. Keep the secret out of framework state (component state and props are visible to devtools and error reporters): assert that it is absent from the component tree after generation and from input fields after every outcome.
+
+For CLIs: sentinel absent from stdout, stderr, argv, spool files, logs and the **environment of every child process** (read `/proc/<pid>/environ` on Linux); see `local-companion-process-hardening` §8.
+
 ## Pitfalls
 
+- **A leak test that searches one channel.** The leak goes through another; prove the test fails with a mutation.
 - **Trusting the flag's name.** "Encrypt tokens" did not cover every token field.
 - **Green tests, unchecked rows.** Tests use your fixtures; production rows come from the provider.
 - **Printing a row to "just check".** Shape queries answer the same question without exposure.
@@ -120,3 +134,10 @@ Javi's Dog, Sprints 2a–2c (2026-10-22). Confidence **medium**: each practice a
 - Sentinels in every request field of the self-report vectors must not appear in stdout, stderr, records, batches or the local state directory (`docs/jgr/conformance/self-report/README.md`; runners `a78066b`, `08a33bc`).
 - Short needle flake: CI run 41080177974, `packages/analytics/test/reader.test.ts:545` — `'777'` found inside a random project UUID (Guru, from the annotation).
 - Secret-scan slips in the push chain (two) and the fail-closed scan script: see `fail-closed-checks`.
+
+### Update at ad-hoc-privacy (Sprint 5f, 2026-10-30/31)
+
+- Test plan rows (`docs/agent-ops/TEST_PLAN.md` §S5f): "Key never reaches the server: sentinel key absent from any server action argument, request body, log line and SSR HTML"; "Sentinel search covers the decoded key bytes (hex) and the base32 body as substrings" (design review D0 M8); "Key never in a child's environment or argv … `/proc/<pid>/environ` of spawned children on Linux".
+- Security review L7 (`69a23f6`): "privacy-pages now drives the real project page with the sentinel as the generated key … the REAL changePrivacyClassAction (wrapped to capture every argument) … A positive control shows the capture catches a key passed as an action argument. Mutation evidence (not committed): KeySetup changed to call changePrivacyClassAction(projectId, target, typed) -> the new test FAILED (actionArgs: 40 sentinel windows) while the old SSR-only test still PASSED under the same mutation."
+- L9 (`0489182`): "key found in fiber state/props, detached node still held the key, field kept the key after a mismatch and after a refused action" → 4 red, then green.
+- Review summary: "No path was found where the key reaches the server" (ADR-0018 *Changes* security review). Real browsers: NOT RUN.

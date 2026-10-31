@@ -1,10 +1,10 @@
 ---
 name: review-design-before-code
-description: Put an adversarial review on the design record before any implementation lane starts, then spec-first conformance vectors written from the reviewed record, then a second review on the code with compiled probes against the target's exact dependency versions and reproductions on the built artifact, then an independent conformance runner — gates that each catch a different defect class. Covers what a design review can and cannot catch, recording its findings as decisions that supersede the draft, "probe the remedy, not only the risk" (the fix itself can rest on a wrong assumption about a third-party parser, matcher or rewriter, or trade away a property the record still claims — ordering vs. idempotency, one overwrite fixed by its opposite), handing every design-review remedy to the next gates as an explicit target, probes pinned to the target's lockfile, searching for the twin of every finding, and how to compare review cost honestly between iterations. Use when integrating with a third-party tool, protocol or file format you do not control; before launching parallel implementation agents; when a previous iteration's review round cost as much as the build; when a decision record (ADR, RFC, design doc) is drafted; when a reviewer says "probably" about library behaviour; when a QA author finds "spec gaps" in a design record; or when asked for a "design review", "ADR review", "pre-implementation review", "layered review" or "review the plan first".
+description: Put an adversarial review on the design record before any implementation lane starts, then spec-first conformance vectors written from the reviewed record, then a second review on the code with compiled probes against the target's exact dependency versions and reproductions on the built artifact, then an independent conformance runner — gates that each catch a different defect class. Covers what a design review can and cannot catch, recording its findings as decisions that supersede the draft, "probe the remedy, not only the risk" (the fix itself can rest on a wrong assumption about a third-party parser, matcher or rewriter, or trade away a property the record still claims — ordering vs. idempotency, one overwrite fixed by its opposite), handing every design-review remedy to the next gates as an explicit target, probes pinned to the target's lockfile, searching for the twin of every finding, and how to compare review cost honestly between iterations. Use when integrating with a third-party tool, protocol or file format you do not control; before launching parallel implementation agents; when a previous iteration's review round cost as much as the build; when a decision record (ADR, RFC, design doc) is drafted; when a reviewer says "probably" about library behaviour; when a QA author finds "spec gaps" in a design record; when a security-sensitive or cryptographic feature (keys, encryption, tokens, auth) is planned; when a decision record states facts about existing code ("the setup command already checks…", "no raw HTML today"); or when asked for a "design review", "ADR review", "pre-implementation review", "layered review" or "review the plan first".
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G4; updated ad-hoc-self-report (S5d)"
-  confidence: "medium (gates catching different defect classes: two iterations; design-review remedies carrying the next gate's main findings: two iterations; compiled probes: once); low (that this ordering lowers total cost: three confounded data points)"
+  version: "0.3.0"
+  origin: "javis-dog G4; updated ad-hoc-self-report (S5d), ad-hoc-privacy (S5f)"
+  confidence: "high (gates catching different defect classes: three iterations; a design-review remedy, or its implementation, carrying a later gate's main finding: three iterations); medium (false claims about existing code caught by the design review: once, two claims; compiled probes: once); low (that this ordering lowers total cost: four confounded data points)"
 ---
 
 # Review the design before the code
@@ -29,6 +29,8 @@ Brief a read-only reviewer with the draft decision record, the research notes an
 - **Shells and platforms:** which shell runs your command, with what quoting, on each OS?
 - **Unverified facts:** which UNVERIFIED items does the design rest on, and what is the safe reading for each?
 
+- **Claims about existing code:** every sentence in the record that describes what the code already does ("the setup command checks the class before writing anything", "there is no raw HTML injection today") is a fact that needs a file and line. In the origin's privacy design both of those sentences were false — the check ran after credentials and hooks were saved, and one raw-HTML call existed in a shared UI package that the first grep did not cover. Ask the reviewer to verify each such claim in code, and the orchestrator to re-verify the highs.
+
 Ask for severity and a reason per finding. Then:
 
 1. Decide every finding before lanes start — owner decisions for product, privacy, cost or dependency questions; orchestrator decisions for the rest.
@@ -42,6 +44,8 @@ A design review fixes what it finds by adding rules, and those rules have not be
 - a proxy guard and a config-block rule prescribed by the review rested on wrong assumptions about the target's libraries (found by the code review's probes);
 - a precedence rule that stopped one overwrite (end-of-turn idle erasing an agent's "blocked") created the opposite one (an agent's "working" surviving a real permission prompt) — found by QA writing vectors;
 - an id scheme chosen to keep a spool ordered put the clock into the event id, while the record still claimed that a re-run hook is de-duplicated — found by the code review.
+
+A third iteration showed the same shape one level down: the design review added the thread and message type to an encryption's associated data (AAD) so a ciphertext could not be shown under another thread — correct — and the first implementation built that AAD from the object the server returned, which carries the thread and type, so the protection held only against an honest server. The security review found the row swap. A remedy is only as good as **where its inputs come from**; name the trusted source in the remedy ("from the row the reader displays, never from server data").
 
 So, for every remedy:
 
@@ -68,6 +72,10 @@ After merging the lanes, brief the reviewer on the combined diff with a rule: **
 
 QA writes vectors from the decision record; a lane that wrote neither the code nor the vectors writes the runner (see `independent-conformance-vectors`). Run it against the code **before** the review fixes: its failures are either already-known review findings (expected) or new defects. In the origin, the runner found a defect neither developers nor reviewers had seen (a re-sent record got a new sequence number, which the server later shows as possible data loss).
 
+## 4b. Security-sensitive features: add a security review and an end-to-end test
+
+For cryptography, keys or auth, the ladder in the origin had six rungs, each with findings the others missed: owner decisions on custody → design review → spec-first known-answer vectors from two independent reference implementations → runner with mutations → one end-to-end test through the real pieces → a security review of the implementation with a "can the secret reach the server?" brief. Brief the security reviewer to test that the project's own leak tests **can fail** (in the origin, the sentinel test only rendered a page and would have passed a leak through a server-action argument). See `client-held-key-encryption` §10 for the per-gate table.
+
 ## 5. After every finding, look for its twin
 
 A defect in one adapter, platform or module often exists in its sibling. When you fix one:
@@ -92,6 +100,8 @@ Retros will say "the review round cost as much as the build". Before adopting a 
 
 ## Pitfalls
 
+- **Unverified sentences about the current code in the record.** Each needs a file and line, and a search scope that covers the whole workspace.
+- **A remedy whose inputs come from the untrusted side.** Name the trusted source.
 - **Reviewing only the code.** Design defects come back as rework.
 - **Accepting "probably" from a reviewer.** Ask for the probe.
 - **Probing against the latest library version.** The target ships its lockfile's version.
@@ -131,3 +141,13 @@ A local MCP server for agent self-report plus hook mappings for three host CLIs 
 - Code review: 0 high, 3 medium, 5 low, "all Mediums were reproduced against a built bundle"; reviewer disclosure: one probe `init` without `--endpoint` "sent a single request with a fake token to production. It got `401`; nothing was written. Later runs used a dead local endpoint." The reviewer also closed an UNVERIFIED item by reading the host's source (`hook_runtime.rs:1144`).
 - Cost data point (Guru's insertion counts, confounded: different feature, third iteration with this process): build `1600c47`, `c585810`, `8c85373`, `d1ebc8b`, `a29d7d0` ≈ 6 525; QA-gap fixes `bc0e3c6`, `509262e`, `d9b51eb` ≈ 141; code-review fixes `d6c989b` … `eab49c8` (7 commits) ≈ 798 (≈ 12 % of the build). S5b ≈ 50 %, S5c ≈ 24 %. Still a hypothesis.
 - Process cost not measured: the sprint "ran well past the 30-minute timebox" (retro).
+
+### Update at ad-hoc-privacy (Sprint 5f, 2026-10-30/31)
+
+Privacy classes with a client-held key (ADR-0018; `docs/sprints/SPRINT-05f.md`). Retro: "Four independent checks each caught a different class of defect before users could hit it."
+
+- D0 on the draft (`e3a2ad5`): 3 High, 8 Medium, 12 Low; "The orchestrator verified H1 (`jgr-sdk/src/client.ts:224-230`, the whole batch leaves the spool) and H2 (`cli.ts`: credentials and hooks are saved before the verify call)". Draft claims at `b8c8e59`: l. 76 "`init` checks the class through the existing verify call and refuses with a clear message before writing anything" (H2: false); l. 113 "no `dangerouslySetInnerHTML` (none today)" (M7: one in `packages/ui/src/components/icons.tsx:37`; readiness row "the first grep covered only `apps/web/src`").
+- Remedy → later finding: D0 M1 put `thread_ref` and `type` in the AAD; the reader passes "the AAD parts the browser needs (event_id, producer_id, thread_ref, type, project slug, privacy class)" (`710db15`) and the first label code used them; security review M1 "Row swap" → "The browser builds the AAD from the row it displays and the identity type, never from the server's identity fields" (`7255d46`, red: "Y's names shown in X's row").
+- QA spec gaps after D0: 14 (G1–G14), "G4 and G6 were real defects" (sprint log); see `independent-conformance-vectors`.
+- Security review of `e3a2ad5..0b2179d`: 0 High, 3 Medium, 9 Low, all fixed red-first (`9805ba9`, `e8fb1bc`); L7 "tests that can now fail" — the new sentinel test failed under a leaking mutation that the old SSR-only test passed (`69a23f6`).
+- Cost data point (Guru's insertion counts, confounded: security feature, many Lows fixed): build `914d5d0`, `920aa68`, `6c35838`, `3fafe9c`, `3258c54`, `710db15`, `2d1cf37`, `d554f16` ≈ 8 455; security-review fixes (15 commits `7255d46` … `422d8b5`) ≈ 2 004 (≈ 24 %). S5b ≈ 50 %, S5c ≈ 24 %, S5d ≈ 12 %. Still a hypothesis.

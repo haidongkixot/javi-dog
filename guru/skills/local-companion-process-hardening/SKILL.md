@@ -1,10 +1,10 @@
 ---
 name: local-companion-process-hardening
-description: Harden a local companion process for a developer tool — a CLI that registers hooks in another tool, edits a user-level config file, and runs a background HTTP receiver on localhost (for example an OpenTelemetry/OTLP, webhook or metrics receiver). Covers the listener checklist (loopback bind, bearer secret compared in constant time, Host-header allowlist against DNS rebinding, media-type/encoding/size caps with bounded decompression, non-default port, idle exit only on authenticated traffic), process identity before trusting or signalling a pid, visible port conflicts, neutral hooks that never block or talk to the host tool, reversible opt-in edits of user config (backup once, refuse on conflicts, revert only unchanged own keys, write through symlinks, fail loudly on unreadable files), hook silence that survives runtime startup warnings and unhandled promise rejections, and edits of files the host tool also rewrites or trusts by position (append-only, never write the host's trust state, a stable unversioned launcher, blocks identified by content not by an end marker, backups that never hold your own secret, origin records so uninstall never deletes the user's file), and registrations in project-level files that may be committed (git-tracked refusal that fails closed, local git excludes for files you create, uninstall that survives a foreign unparsable file, table placement that later user keys cannot join, control characters stripped from repo-controlled values in status output, a launcher that fails with one fixed line). Use when building a local agent, collector, daemon, sidecar, IDE/CLI helper, or anything that listens on 127.0.0.1, writes to `~/.<tool>/settings`, `.bashrc`-like files or another tool's config, starts detached background processes, stores a token locally, or sends signals to pids read from a file, or when hook stderr shows Node/Python/runtime warnings, or when it registers itself in a project file such as `.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.vscode/*.json` or `.tool-versions`.
+description: Harden a local companion process for a developer tool — a CLI that registers hooks in another tool, edits a user-level config file, and runs a background HTTP receiver on localhost (for example an OpenTelemetry/OTLP, webhook or metrics receiver). Covers the listener checklist (loopback bind, bearer secret compared in constant time, Host-header allowlist against DNS rebinding, media-type/encoding/size caps with bounded decompression, non-default port, idle exit only on authenticated traffic), process identity before trusting or signalling a pid, visible port conflicts, neutral hooks that never block or talk to the host tool, reversible opt-in edits of user config (backup once, refuse on conflicts, revert only unchanged own keys, write through symlinks, fail loudly on unreadable files), hook silence that survives runtime startup warnings and unhandled promise rejections, and edits of files the host tool also rewrites or trusts by position (append-only, never write the host's trust state, a stable unversioned launcher, blocks identified by content not by an end marker, backups that never hold your own secret, origin records so uninstall never deletes the user's file), and registrations in project-level files that may be committed (git-tracked refusal that fails closed, local git excludes for files you create, uninstall that survives a foreign unparsable file, table placement that later user keys cannot join, control characters stripped from repo-controlled values in status output, a launcher that fails with one fixed line). Use when building a local agent, collector, daemon, sidecar, IDE/CLI helper, or anything that listens on 127.0.0.1, writes to `~/.<tool>/settings`, `.bashrc`-like files or another tool's config, starts detached background processes, stores a token locally, or sends signals to pids read from a file, or when hook stderr shows Node/Python/runtime warnings, or when it asks the user for a secret (a recovery key, a passphrase, a token) while coding agents may be running the terminal, or when it registers itself in a project file such as `.mcp.json`, `.gemini/settings.json`, `.codex/config.toml`, `.vscode/*.json` or `.tool-versions`.
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G2; updated G4, ad-hoc-self-report (S5d)"
-  confidence: "medium (controls: built for three host tools, adversarially reviewed with probes, conformance- and mutation-tested; hook silence under a proxy env: found and fixed by a production end-to-end run; project-file registration: one iteration, code review reproduced on the built bundle, fixed red-first); low (behaviour inside a real host-tool session: not yet observed)"
+  version: "0.4.0"
+  origin: "javis-dog G2; updated G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5f)"
+  confidence: "medium (controls: built for three host tools, adversarially reviewed with probes, conformance- and mutation-tested; hook silence under a proxy env: found and fixed by a production end-to-end run; project-file registration: one iteration, code review reproduced on the built bundle, fixed red-first; secret input next to coding agents: one iteration, pty process tests, security review fixed red-first); low (behaviour inside a real host-tool session and on Windows: not yet observed)"
 ---
 
 # Local companion process hardening
@@ -100,8 +100,26 @@ Some features need an entry in a **project-level** file the host reads (an MCP s
 6. **A launcher that fails, fails in one line.** If the registered launcher cannot find the installed program, print one fixed line ("not installed here; run `<cli> init`") and exit non-zero — no stack trace with home-directory paths into the host's log. Have the status command check that the launcher's target exists.
 7. **Byte-exact round trip.** A test runs install then uninstall on files with the user's own entries, comments, odd formatting and a BOM, and compares bytes. Record any accepted cosmetic deviation (line endings, quoting) with its reason.
 
+## 8. Accepting a user secret next to coding agents
+
+A CLI that asks for a secret (an encryption recovery key, a passphrase) is now often started **by** a coding agent, or in a terminal an agent controls. Anything typed or passed there can end up in the model provider's transcript.
+
+1. **Never from argv.** Offer three inputs: a hidden prompt read from the terminal device itself (`/dev/tty`, `CONIN$` on Windows), a key file (`--key-file <path>`), or an environment variable.
+2. **Refuse the prompt where an agent may be listening.** Before opening the terminal or setting raw mode, refuse when a known agent marker is in the environment (keep the list with its sources, for example the variables each agent CLI sets) or when stdin, stdout or stderr is not a terminal. The refusal points to the **key file** only — an agent told about the environment variable will put the secret into its own command line.
+3. **Say it in the output and the docs:** "run this yourself in a terminal; never paste the key into an agent's chat or command".
+4. **Restore the terminal on every exit path** (Ctrl-C, SIGINT, SIGTERM, SIGHUP) and test it with a pseudo-terminal (`script` on Linux) and `stty -a` after exit.
+5. **Environment hygiene:** delete the variable from the process environment right after reading it, and give every child process (flush, receiver, git) an **explicit** environment without it. Test with the children's `/proc/<pid>/environ`.
+6. **Key file checks:** read the opened file's own `stat`; warn (names only, never content) when group/other bits are set or the owner is another user.
+7. **Storage:** mode 0600 on POSIX (Windows: the profile's ACLs, and say it is untested if it is); never print the secret — status shows only a key id. Warn before any command deletes the stored copy, and say what becomes unreadable.
+8. **Test from the built bundle.** If the bundle swaps a module (a loader), a test must run the bundled CLI end to end; in the origin the bundled loader was covered by no test until the review.
+
+A piped token on stdin and a hidden prompt conflict: once the prompt needs all three streams to be terminals, take the other credential from an environment variable or file and document the change.
+
 ## Pitfalls
 
+- **A secret prompt inside an agent's terminal.** The transcript is outside your control.
+- **Pointing an agent at an environment variable for a secret.** It will write it into a command.
+- **Children inheriting your secret.** Pass an explicit environment.
 - **"Non-zero means untracked."** Exit 128 means git could not tell.
 - **An appended TOML table.** The user's next key joins it.
 - **Uninstall that stops at someone else's broken file.** The user cannot remove your tool.
@@ -149,3 +167,13 @@ Same CLI registers a local MCP server in three hosts' project files (`.mcp.json`
 - L1: launcher stack trace on stderr → one fixed line; status warns when the target bundle is missing (`3831752`).
 - Byte-for-byte: review focus "an existing `.mcp.json` with the user's servers and odd formatting → kept byte-for-byte except javi's entry"; L5 (mixed line endings, lone-surrogate quoting) accepted: "no data loss, and the round trip is byte-exact" (ADR-0017 *Changes*).
 - Not verified: behaviour with the real host CLIs (approval prompts per project server, trusted folders) — owner runs NOT RUN.
+
+### Update at ad-hoc-privacy (Sprint 5f, 2026-10-30/31)
+
+`javi init --privacy L1|L2` stores a project recovery key (ADR-0018 decision 6, design review D0 M3, security review M3, L4, L7, L8; amendment "Decision 6 amended").
+
+- D0 M3: "The key could leak through env inheritance, shell history, agents and stdin" → `/dev/tty` prompt or key file, variable deleted from the env, explicit child env, guidance (`3258c54`: "Every child process gets an explicit env without JAVI_PRIVACY_KEY").
+- Security review M3 → `a8a123d`: refuses "when an agent marker is in the environment (CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CODEX_THREAD_ID, CODEX_SESSION_ID, CODEX_SANDBOX, CODEX_SANDBOX_NETWORK_DISABLED, GEMINI_CLI; sources in AGENT_ENV_MARKERS) or when stdin, stdout or stderr is not a TTY"; "SIGINT, SIGTERM and SIGHUP cancel a waiting prompt, and the terminal mode is restored"; pty tests "through util-linux script … with stty -a checked after exit".
+- Amendment: "The no-terminal message points only to `--privacy-key-file`, because an agent would put `JAVI_PRIVACY_KEY` into its own command"; "A token can no longer be piped on stdin when the prompt is used".
+- L8 `f98723d` (mode & 0o077 or another owner → fixed warning); L4 `944ef73` (warning before deleting the stored key); L7 `2cb41d9` ("The bundle swaps crypto-loader.ts for crypto-loader.bundle.ts, which no test ran"; a throwing bundled loader "fails only this test (mutation check, reverted)").
+- NOT RUN: Windows hidden prompt and file modes (readiness row "L1/L2 runtime"; owner how-to step 7).

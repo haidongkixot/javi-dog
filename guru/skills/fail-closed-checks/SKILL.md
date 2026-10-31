@@ -1,10 +1,10 @@
 ---
 name: fail-closed-checks
-description: Make guard checks fail closed — every check that protects a push, a commit, an install or an edit of someone's file answers yes, no or unknown, and "unknown" (the tool errored, timed out, is missing, or got bad input) is treated like the unsafe answer unless the user explicitly overrides it. Covers three-valued exit codes that shell idioms collapse to two (grep 0/1/2 read by `if grep` or `! grep`; `git ls-files --error-unmatch` 0/1/128; `diff`/`cmp` 0/1/2; timeouts and missing binaries), validating the check's own inputs (pattern compiles, revision range resolves, argument present), chaining guards with `&&` and making the chain a script rather than a habit, self-tests that prove a check can say "cannot", choosing the failure direction deliberately when the guarded action is recording data rather than changing it, and searching for twins of a fail-open check. Includes a fail-closed secret-scan script with a self-test. Use when writing a pre-push or pre-commit secret scan, a "is this file tracked/ignored/committed" check, a guard before editing a user's config, a CI or release gate, any `check; act` or `check && act` shell line, a wrapper around grep/git/diff exit codes, or when a check "passed" on a machine where its tool is missing, or when asked to "add a safety check", "scan before push" or "refuse unless".
+description: Make guard checks fail closed — every check that protects a push, a commit, an install or an edit of someone's file answers yes, no or unknown, and "unknown" (the tool errored, timed out, is missing, or got bad input) is treated like the unsafe answer unless the user explicitly overrides it. Covers three-valued exit codes that shell idioms collapse to two (grep 0/1/2 read by `if grep` or `! grep`; `git ls-files --error-unmatch` 0/1/128; `diff`/`cmp` 0/1/2; timeouts and missing binaries), validating the check's own inputs (pattern compiles, revision range resolves, argument present), chaining guards with `&&` and making the chain a script rather than a habit, self-tests that prove a check can say "cannot", choosing the failure direction deliberately when the guarded action is recording data rather than changing it, and searching for twins of a fail-open check. Also covers turning a team rule that lives in memory ("read CI on the previous tip before pushing") into a three-valued check. Includes a fail-closed secret-scan script and a previous-tip CI check, each with a self-test. Use when writing a pre-push or pre-commit secret scan, a "is this file tracked/ignored/committed" check, a guard before editing a user's config, a CI or release gate, any `check; act` or `check && act` shell line, a wrapper around grep/git/diff exit codes, or when a check "passed" on a machine where its tool is missing, when a process rule keeps slipping because nothing runs it, or when asked to "add a safety check", "scan before push" or "refuse unless".
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog ad-hoc-self-report (S5d), drawing on G2–G4 records"
-  confidence: "high (the failure class: seven recorded fail-open or ungated guard slips in four checkpoint windows, three of them after the team had recorded the rule against them); medium (the remedies: a tri-state git check fixed red-first once; the secret-scan script verified by its own self-test only, not yet in the origin's CI)"
+  version: "0.2.0"
+  origin: "javis-dog ad-hoc-self-report (S5d), drawing on G2–G4 records; updated ad-hoc-privacy (S5e/S5f)"
+  confidence: "high (the failure class: seven recorded fail-open or ungated guard slips in four checkpoint windows, three of them after the team had recorded the rule against them); medium (the remedies: a tri-state git check fixed red-first once; the secret-scan script adopted in the origin's push checklist; the previous-tip CI script verified by its self-test and two read-only runs only)"
 ---
 
 # Fail-closed checks
@@ -62,6 +62,21 @@ SECRET_SCAN_PATTERNS='<your token prefixes>|<connection-string shapes>' \
 scripts/secret-scan.sh --self-test   # clean, match, unknown revision, missing/empty argument, bad pattern, no repository
 ```
 
+### A rule nobody runs is a habit
+
+"Before the next push, read CI on the previous pushed tip" was written into the origin's team file after two unread red runs — and slipped on the first push after it was written, and again in the next sprint. Both slips were harmless (the runs were green), but each was caught only by someone remembering. Make such a rule a check with three answers and put it first in the push script:
+
+- **0** — every run for that commit completed green (success, skipped, neutral): print "CI green on `<sha>` (run `<id>`)" for the record.
+- **1** — a run completed red: stop; diagnose and record before anything else is pushed.
+- **2** — cannot tell: no CI client or no access, no run for the commit, a run still queued or in progress, a cancelled run (never evaluated). Refuse; waiting or fixing access is the remedy, not skipping.
+
+Script: [`scripts/previous-tip-ci.sh`](scripts/previous-tip-ci.sh) (`<branch> [sha]`, GitHub CLI, read-only; resolves abbreviated SHAs because the CLI filters by the full SHA only — an abbreviation would read as "no run"; `--self-test` with a fake client). If your shell really has no CI access, the check answers 2 every time: that is a visible blocker to solve once (a token with read access to runs, or the CI tool your agent already uses), not a reason to keep the rule in memory.
+
+```bash
+scripts/previous-tip-ci.sh "$BRANCH" && scripts/gate.sh "<steps…>" && \
+  scripts/secret-scan.sh "origin/$BRANCH..HEAD" && git push origin "$BRANCH"
+```
+
 ## 5. Prove the check can say "cannot"
 
 A self-test or unit test per guard with at least: a known-safe input (passes), a known-unsafe input (fails), and a broken environment (bad pattern, missing tool, error exit, timeout) that must fail. Run the self-test in CI so a later edit of the pattern or wrapper cannot silently turn the guard off. Build test secrets at run time so the test file itself never matches a scanner.
@@ -84,6 +99,8 @@ After fixing one fail-open mapping, search for the same helper or idiom elsewher
 - **`set -o pipefail` with `grep -q` at the end of a pipe.** An early match can make the writer exit with SIGPIPE; the pipeline is then non-zero for the wrong reason. Feed grep from a here-string or a file.
 - **"Non-zero means no."** Only the documented "no" code means no.
 - **A guard that is a habit.** The next tired push skips it.
+- **"We cannot automate it here."** Check that claim in the shell that pushes; then make the missing access the blocker.
+- **An abbreviated SHA passed to an API that matches full SHAs.** "No run" is then a false unknown (or, in a fail-open wrapper, a false pass).
 - **Silent success.** "Revert done" when the file could not be read; "clean" when nothing was scanned.
 - **Failing closed on a recorder.** A dedupe store that drops events when it is corrupt loses data the user cannot get back.
 
@@ -108,3 +125,11 @@ Guru verification at this checkpoint:
 - The orchestrator's replacement scan script lives in the session's scratch directory, **not in the repository**. Its condition `if printf … | grep -qE '<patterns>'; then … exit 1; fi` still maps grep exit 2 to "clean": Guru's probe with an unbalanced `(` printed `grep: Unmatched (` and then took the "clean" branch. Its fixed pattern compiles, so it was not wrong in use.
 - This skill's `scripts/secret-scan.sh`: `--self-test` → 8 checks ok, "self-test PASS", exit 0; scan of the S5d window `23f0394..1ec4ca4` with the defaults and with the project's own token patterns → "clean … 27919 changed lines scanned", exit 0. Not yet adopted in the origin's gate.
 - Not verified: that a checked-in push script prevents further slips (not yet tried).
+
+### Update at ad-hoc-privacy (Sprints 5e and 5f, 2026-10-30/31)
+
+- Adopted: `scripts/secret-scan.sh` and `pnpm secrets:scan` in the origin's repository, "self-test PASS" 8/0; `TEAM.md` merge checklist item 4 (exit 0 clean, 1 match, 2 could not scan; "only 0 lets the push go on") and item 8 ("Chain every gate step with `&&`; a step that cannot run is a failure, never a pass") (`2516380`; `docs/sprints/SPRINT-05e.md` P1).
+- Twin closed: S5e F3 "Codex `hooks.json` tracked check fails closed (`codexHooksTracking`, warning on `unknown`)", red-first (`2516380`).
+- Rule 9 ("read CI on the previous pushed tip"): slipped on `ec20396` ("went out before CI on `2516380` was read … green (41113430736)", `SPRINT-05e.md` Team log) and on `b8c8e59` ("pushed before CI on `c1178c0` was read … green (41126438258). The shell has no GitHub API access, so no script can enforce the rule", `SPRINT-05f.md` Team log). Retro S5e: "a rule nothing enforces depends on memory".
+- Guru verification: in this checkpoint's shell, `gh run list` for the branch works (read-only). `scripts/previous-tip-ci.sh --self-test` → 10 checks ok, "self-test PASS"; real reads: `9805ba9` → "CI green on 9805ba9 (run 41144802179)", exit 0; `3020b10` (never pushed alone) → "no CI run", exit 2; `29a6b8a` while running → "not finished", exit 2. The first real read with an abbreviated SHA returned "no run" (exit 2, fail-closed but wrong); fixed by resolving the SHA with git. Whether the orchestrator's own shell can reach the API is not verified.
+- No `;` gate slip is recorded for S5e/S5f.

@@ -2,8 +2,8 @@
 name: agent-second-memory
 description: Bootstrap and maintain a repository's "second memory" so coding agents (and humans) can resume work across sessions without re-deriving context — project memory, append-only session log, sprint records with a team log, ADRs, a readiness matrix, a generated module registry, CI checks for markdown lint, broken links, stale generated docs, doc drift and stale memory (dates, unclosed iterations, empty retros), and short timeboxed iterations that are split and rolled over truthfully. Use when starting a new repository or project with AI agents, when agents keep losing context between sessions, when asked to set up docs-as-code, ADRs, handoff notes, a project log or "memory", when docs drift from code, when an owner sets a short timebox per sprint or iteration, or before a long multi-session build.
 metadata:
-  version: "0.3.3"
-  origin: "javis-dog G0; updated G1, G2-prep, G2, G3, G4, ad-hoc-self-report"
+  version: "0.3.4"
+  origin: "javis-dog G0; updated G1, G2-prep, G2, G3, G4, ad-hoc-self-report, ad-hoc-privacy"
   confidence: medium
 ---
 
@@ -47,6 +47,8 @@ Every claim in memory files should cite a commit SHA, a file, a command result o
 ### 3. Give modules stable IDs and generate the registry
 
 If the system has modules, give each a manifest (`id`, `name`, `version`, `status`, `provides`, `consumes`) and generate the registry document from the manifests plus a "planned" list. Reserve IDs up front so commits and docs can reference modules before their code exists. The generator should validate: required keys, ID format, allowed statuses, duplicate IDs, and `consumes` entries that point to unknown modules. Give it a `--check` mode that fails when the committed registry differs from a fresh render.
+
+**Escape free text in generated tables.** A manifest's free-text field (a description) rendered into a Markdown table breaks the table on the first `|` (a CLI usage such as `--level A|B`) and can trip lint rules on code spans. Make the generator escape `|` and normalise code spans, or validate the fields and fail `--check` with the field name — a convention ("keep `|` out of descriptions") is the same memory-only rule that slips. Keep manifest descriptions short; history belongs in changelogs.
 
 When writing a decision record or a lane brief, **copy module IDs from the manifests** (search them by path), not from memory: a wrong ID in a decision record travels into vectors, commit scopes and lane paths.
 
@@ -106,6 +108,7 @@ If the same drift recurs after it was written down as a rule, stop relying on th
 - **A claim that its own cited output contradicts.** "No other instance exists (grep)" while the grep listed one. Re-read the output you cite before writing the sentence; when you correct it, say "Correction:" in place rather than deleting the wrong line.
 - **Pointers to records that do not exist.** "Recorded as a deviation" or "CI: checked in the next entry" needs the entry. Write the entry first, then the pointer.
 - **A correct date over stale rows.** A same-day "Last updated" passes a date check while rows still say UNKNOWN for something measured that day; walk rows whose status contradicts the latest iteration's evidence.
+- **Decision lines left standing after a binding correction.** When a later *Changes* entry overrides a sentence in the decision text (a size bound proven wrong, an input mode removed), mark the sentence in place ("superseded by G6, see Changes") so a reader of the decision does not implement the old rule.
 - **Final numbers only in the memory file.** The post-review gate count and the closing CI run id belong in the iteration's test evidence; the memory file summarizes and points there.
 
 ## Evidence from origin project
@@ -162,3 +165,11 @@ Javi's Dog, Sprint 0 (2026-10-20), single cloud session. Confidence **medium**: 
 - Final counts again only in the memory files: the session log says "full gate: 2200 tests"; the sprint's Test evidence table ends at the 1 997-test run after T1, T2, T4 (G3-F2 pattern, Guru finding SR-F6).
 - Two red CI runs in the window are in no memory file (see `diagnose-red-ci-from-history`, update S5d).
 - The sprint record closes with "Guru checkpoint: —" — the pointer is filled after this checkpoint, not before.
+
+### Update at ad-hoc-privacy (Sprints 5e and 5f, 2026-10-30/31)
+
+- Generated table broken by free text: the collector's `module.json` description gained `init --privacy L1|L2 [--privacy-key-file <path>]` and a code span around `gitdir:`; `a07ce38` ("registry-safe module description (no pipe or code-span spaces)") rewrote it to `L1/L2` and plain `gitdir`. Retro action: "Keep `|` and code spans out of `module.json` descriptions" — a convention, not a generator change.
+- Final counts again only in memory: `PROJECT_MEMORY.md` says "2686+ tests"; `SPRINT-05f.md` Test evidence ends at the 2 225-test gate after the CSP merge and has no rows for the runner (145/0/8, 38/38 mutations — in the Log only), the end-to-end test, the security-review fixes' red/green counts (in commit messages) or any CI run id. Fourth occurrence of the G3-F2 pattern.
+- Decision text vs. Changes: ADR-0018 decision 4 still says names are "cut to 100 code points first, so the payload never exceeds 256 bytes" (G6 proved it false and is binding); decision 6 still says the `/dev/tty` prompt means "a token piped on stdin does not conflict" (the later amendment says it can no longer be piped). TEST_PLAN §S5f's padding row also keeps the 100-code-point wording.
+- A pointer to the wrong commit: K5's status names the end-to-end test as `991926a` (the lockfile link); the test is `cde4614` (merge `7ea629f`).
+- Timebox: S5f "ran far past the 30-minute timebox" (retro; see `orchestrated-agent-team-lanes` §4b). Both S5e and S5f close with "Guru checkpoint: —".

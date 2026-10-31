@@ -2,6 +2,99 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-10-31 · ad-hoc-privacy — S5e follow-ups and S5f privacy classes L1/L2 (JD-M11): security-sensitive feature and test completion
+
+Ad-hoc checkpoint (trigger: feature + test completion of a security-sensitive feature, `CLAUDE.md` §7). Not G5: the roadmap assigns G5 to S6, so this entry uses the `ad-hoc-<topic>` form. Not an Orcasus-PR checkpoint: no PR opened or drafted.
+
+- **Window:** `c5132d0..29a6b8a` — 53 commits (167 files, +18 106 / −253): S5d flake fixes (`a551aed`); S5e F1–F3 and P1 (`2516380`, `b72addb`, `ec20396`, `74592d6`); G9 purge (`c1178c0`); S5f discovery and ADR-0018 (`b8c8e59`), design review D0 (`e3a2ad5`), crypto (`914d5d0`, `3fafe9c`), `iv` (`920aa68`), CSP (`6c35838`), QA vectors (`ac8c380`), runner (`38a8bf2`), collector (`3258c54`), reader/class change/web (`710db15`, `2d1cf37`, `d554f16`), end-to-end (`cde4614`), security-review fixes (`0d03cf6` … `422d8b5`, merges `9805ba9`, `e8fb1bc`), records (`3020b10`), end-to-end on the row-bound API (`29a6b8a`).
+- **Records read:** `docs/sprints/SPRINT-05e.md`, `SPRINT-05f.md` (log, team log, test evidence, retro); ADR-0018 incl. every *Changes* entry, and its draft at `b8c8e59`; `docs/agent-ops/TEST_PLAN.md` §S5f; `docs/jgr/conformance/privacy/README.md` (sources, runner rules, mutations, gaps G1–G14, readings, reference computation); `READINESS_MATRIX.md` S5f rows; `TEAM.md`; `SESSION_LOG.md` 2026-10-30/31; `PROJECT_MEMORY.md` S5f block; commit messages of every lane and fix commit; code at `apps/web/src/proxy.ts`, `apps/web/scripts/csp-check.mjs` (header), `apps/web/src/lib/privacy/identity.ts`; diffs of `29a6b8a`, `991926a`, `a07ce38`; `packages/crypto/src/constants.ts` at `914d5d0`.
+- **Probes by Guru (read-only):** `gh run list` / `gh run view` for the branch; the end-to-end test's import at `3020b10` against the module's exports there; a WebCrypto probe on Node 22.22.0 (HMAC default key length, IV and tag acceptance; reproduced from the snippet in `client-held-key-encryption/references/webcrypto-pitfalls.md`); insertion counts per commit group; `previous-tip-ci.sh --self-test` and three read-only real runs. No project suite re-run.
+
+### CI verification of every pushed tip
+
+15 pushed tips, 15 runs, 15 `success`, 0 failure, 0 cancelled, all `run_attempt` 1: `a551aed` 41089964893 · `2516380` 41113430736 · `ec20396` 41115146514 · `74592d6` 41116557595 · `c1178c0` 41126438258 · `b8c8e59` 41127716987 · `e3a2ad5` 41129797124 · `ae27c91` 41133018018 · `a0d2b08` 41134131598 · `e9ca110` 41135320764 · `ee8c600` 41137592015 · `0b2179d` 41141058555 · `991926a` 41142840509 · `9805ba9` 41144802179 · `29a6b8a` 41146639862 (in progress when the read started; re-read to completion, `success`). **CI is green on `29a6b8a` (run 41146639862).** Every push started after the previous tip's run had completed (run creation vs. completion times). No run exists for the unpushed-alone commits `e8fb1bc`, `3020b10`. SR-F1's two reds were followed up: three flakes fixed in tests only (`a551aed`), none recurred in 15 runs.
+
+### Lessons from the brief, checked against evidence
+
+| # | Expected lesson | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Crypto ladder (research → owner custody → design review → spec-first known answers from two implementations → implementation → runner with mutations → end-to-end → security review); what each caught | **Verified**, with two corrections | Retro "Four independent checks each caught a different class"; D0 3 H / 8 M / 12 L (`e3a2ad5`); QA 14 gaps, 366 cross-checks (README *Reference computation*); runner 145/0/8, 38/38 mutations (`38a8bf2`); e2e typing break (`0d03cf6`); security review 0/3/9 (ADR *Changes*). **Corrections:** (a) the "HMAC key-length divergence" was a defect in the record (G4: WebCrypto's default would give other hashes); the first implementation already set 32 bytes (`914d5d0` `L1_KEY_BITS`) — the implementation divergences QA did force were alias parsing, the cut rule and a failure class (`3fafe9c`); (b) the "non-existent check" and "no raw HTML" were false sentences about existing code in the draft (`b8c8e59` l. 76, l. 113). → new `client-held-key-encryption` §10, `review-design-before-code` 0.3.0, `independent-conformance-vectors` 0.5.0 |
+| 2 | Bind ciphertext to what the reader displays | **Verified** | D0 M1 put `thread_ref`/`type` in the AAD; the reader passes them as server data (`710db15`); security review M1 row swap; fix `7255d46` (red: "Y's names shown in X's row; canary decrypted to empty text"); limit recorded: the server still chooses which event is newest. Third iteration where a later gate's main finding sat in a D0 remedy (G4, S5d, S5f). → `client-held-key-encryption` §5, `review-design-before-code` |
+| 3 | Honest encryption labels; gate "remember" on CSP evidence | **Verified** (design, component tests, e2e in jsdom); real browsers **NOT RUN** | ADR §9, G9, G14, implementation decision "canary alone does not flip"; L5 `f056b67`; L1 gate `4a71bf2`; readiness "Remember on this device" BLOCKED (owner). → `client-held-key-encryption` §7–§8, `nonce-csp-rollout` §6 |
+| 4 | Secrets out of agent transcripts and child processes | **Verified** (pty process tests, review fixes red-first); Windows **NOT RUN** | D0 M3; security review M3 `a8a123d` (agent markers, non-TTY refusal, terminal restored); amendment "points only to `--privacy-key-file`"; L8 `f98723d`; explicit child env `3258c54`; TEST_PLAN row `/proc/<pid>/environ`. → `local-companion-process-hardening` 0.4.0 §8 |
+| 5 | Nonce CSP on Next.js 16; production verification without screenshots | **Verified** (local and public production routes); signed-in **NOT RUN** | `6c35838` (red: no nonce 1/12, static pages 8/12; real 12/12); production 6 public routes, 0 violations (`SPRINT-05f.md` Log; scratch script not committed); API policy L2 `a3e8aa4`. → new `nonce-csp-rollout` |
+| 6a | Rule-9 slips; rules not enforced by tooling slip | **Verified** | `ec20396` and `b8c8e59` pushed before the previous run was read (both green). Retro S5e: "a rule nothing enforces depends on memory". **Guru:** `gh run list` works in this checkpoint's shell, contradicting "The shell has no GitHub API access, so no script can enforce the rule" for this environment; the orchestrator's shell is not verified. → `fail-closed-checks` 0.2.0 (+ `scripts/previous-tip-ci.sh`) |
+| 6b | A gate step chained with `;` | **Not in this window** | No record in S5e/S5f files, session log or commits; the S5d occurrence (`d9b51eb`) is already packaged. |
+| 6c | Shared Vitest cache collisions across parallel lanes | **Verified** (event); mechanism **hypothesis** | Retro "One gate run broke on a shared Vitest cache while lanes ran tests in parallel"; no cache config in the repo; `node_modules/.vitest-cache` exists (642 entries). → `orchestrated-agent-team-lanes` 0.5.0 |
+| 6d | Cross-lane API break caught by the gate (e2e test vs fix lane) | **Verified from the tree**; detection by the gate **reported, not recorded** | At `e8fb1bc`/`3020b10` `privacy-e2e.test.tsx` imports `resolveIdentity`; the module exports `resolveThreadIdentity`, `resolveProjectEvent` only; `29a6b8a` fixes it; no CI run for either SHA. Not in the sprint file. → `orchestrated-agent-team-lanes` §3 |
+| 6e | Lockfile churn handled by hand | **Verified** (again) | `991926a` +3 importer lines; run 41142840509 green on the frozen-lockfile install. Data point only. |
+| 6f | Module description breaking a generated table | **Verified** | `a07ce38`: `L1\|L2` → `L1/L2`, code span removed; retro action is a convention. → `agent-second-memory` 0.3.4 |
+
+### Further verified lessons (Guru's own)
+
+1. **A leak test that could not fail.** The SSR-only sentinel test passed under a mutation that leaked the key through a server-action argument; the new test (real action, positive control) failed with "40 sentinel windows" (`69a23f6`, mutation evidence not committed). → `prove-secrets-and-pii-minimization` 0.3.0 §9.
+2. **Protected fields on their own event** keep the status signal when the class is lowered (D0 H1; e2e `cde4614`); **canary before install** (D0 H2). → `privacy-first-agent-telemetry-protocol` 0.5.0, which also corrects this skill's own "salted hashes" row for L1.
+3. **Worst-case arithmetic for size bounds:** "100 code points … never exceeds 256 bytes" was false (G6, 417 bytes). → `client-held-key-encryption` §4, `independent-conformance-vectors`.
+4. **WebCrypto defaults (Guru probe, Node 22.22.0):** HMAC `deriveKey` without `length` → 64-byte key, different MAC; 16-byte IV and `tagLength: 96` accepted; 11-byte IV rejected. The README mutation row "Accept any IV length (WebCrypto does)" overstates for Node (PV-F5). → `client-held-key-encryption/references/webcrypto-pitfalls.md`.
+5. **Test plan before lanes held:** `TEST_PLAN.md` §S5f in `b8c8e59`, before the first code commit `914d5d0`.
+6. **Cost data point (hypothesis):** security-review fixes ≈ 2 004 insertions vs. build ≈ 8 455 (≈ 24 %); vectors + runner + e2e ≈ 5 716. After S5b ≈ 50 %, S5c ≈ 24 %, S5d ≈ 12 % — confounded.
+
+### Findings needing orchestrator action (verified by reading; Guru changed nothing outside `guru/`)
+
+| ID | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| PV-F1 | medium | **Test evidence incomplete again** (G3-F2 / SR-F6 pattern, fourth time): `SPRINT-05f.md` Test evidence stops at the 2 225-test gate; no rows for the runner (145/0/8, 38/38 — Log only), the end-to-end test, the review fixes' red/green counts (commit messages only), the final gate ("2686+ tests" in `PROJECT_MEMORY.md` only) or any CI run id. S5e and S5f both end with "Guru checkpoint: —". | Add the rows with counts and run 41146639862; point both Guru sections at this entry. |
+| PV-F2 | medium | **QA reference programs not committed** (`ref.mjs`, `check.py`): the 366-check cross-check cannot be re-run; the L7 mutation evidence is also uncommitted. | Owner decision: commit them under `docs/jgr/conformance/privacy/reference/` (fake keys only) or record why not in the README. |
+| PV-F3 | low | **Cross-lane break not recorded:** `e8fb1bc` and `3020b10` contain a test importing a removed function (fixed in `29a6b8a`, never pushed alone). | One Team-log line in `SPRINT-05f.md`; adopt "gate after each merge; fix lanes list changed public signatures". |
+| PV-F4 | low | **Rule 9 can probably be scripted:** `gh` reads runs in Guru's shell; all 15 pushes were compliant in timing, but the two slips were caught by memory only. | Verify `gh run list` in the orchestrator's shell; if it works, run `guru/skills/fail-closed-checks/scripts/previous-tip-ci.sh` (copy, do not edit from `guru/`) as the first push step and update `TEAM.md` item 9 (owner decision). |
+| PV-F5 | low | **Decision text contradicts binding *Changes*:** ADR-0018 decision 4 ("cut to 100 code points first, so the payload never exceeds 256 bytes", superseded by G6) and decision 6 ("a token piped on stdin does not conflict", superseded by the amendment); TEST_PLAN §S5f padding row keeps "cut to 100 code points"; privacy README mutation row "Accept any IV length (WebCrypto does)" overstates (Guru probe). | Mark the sentences "superseded by …" in place; fix the wording at the next QA touch. |
+| PV-F6 | low | **Retro actions are conventions again:** "Clear `node_modules/.vitest-cache` before the gate" and "Keep `\|` and code spans out of `module.json` descriptions". | Clear the cache inside the gate script (or per-lane cache dirs); make `modules:registry` escape `\|` or fail `--check` on it. |
+| PV-F7 | low | **K5 cites the wrong commit:** "end-to-end test `991926a`" (the lockfile link); the test is `cde4614` (merge `7ea629f`). | Correct the reference. |
+
+Carried: G4 proposals 4, 5 and SR proposals 3, 4 open; SR-F1, SR-F2, SR-F4, SR-F5, SR-F7 closed in this window (`a551aed`, `2516380`, `b72addb`); SR-F3 addressed by measuring the shipped bundle (`a551aed`), no recurrence in 15 runs; SR-F6 continues as PV-F1. Owner items unchanged: ingest-token revocation (readiness row), L1/L2 owner runs (how-to step 7).
+
+### Still NOT RUN / UNVERIFIED
+
+Real browsers (Chromium beyond the CSP run, Safari, Firefox) for key setup, decryption and labels; the signed-in CSP run that unlocks "Remember on this device"; IndexedDB storage; `javi init --privacy` on the owner's machine and Windows (`CONIN$` prompt, profile ACLs); real git work trees beyond tests; the production CSP scratch script's code; the Vitest cache collision mechanism; whether the orchestrator's shell can reach the GitHub API; the gate run that caught the cross-lane break (reported, not recorded).
+
+### Hypotheses (unverified)
+
+- Splitting security-sensitive features into smaller sprints reduces slips and timebox overruns (retro proposal; not tried).
+- A scripted previous-tip check ends rule-9 slips (not tried in the origin's push step).
+- Lanes share the Vitest cache through the root `node_modules` (mechanism not recorded).
+- Reviewing the design first lowers total review cost (fourth confounded data point, ≈ 24 %).
+- An end-to-end test with row-bound fixtures would have found M1 before the security review — counterfactual; the e2e test used the server-supplied identity like the code.
+
+### Rejected or not packaged
+
+- Product-specific wording, module IDs, the `JDK1-` prefix, agent marker names and file paths: kept only as the origin example.
+- "Research read from source repositories when hosts are blocked" and "orchestrator re-checked three facts": already in `primary-source-research-with-agents`; data point only.
+- G9 purge verification (`c1178c0`): release-gate evidence, no new lesson beyond `bounded-production-verification`.
+- S5e F1 wording ("needs you"): covered by `truthful-live-status` §9.
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`client-held-key-encryption`](skills/client-held-key-encryption/SKILL.md) | 0.1.0 | new (+ `references/webcrypto-pitfalls.md`) | medium; low (real browsers) | Brief 1–3; lessons 2–4 |
+| [`nonce-csp-rollout`](skills/nonce-csp-rollout/SKILL.md) | 0.1.0 | new | medium; low (signed-in, other browsers) | Brief 5 |
+| [`review-design-before-code`](skills/review-design-before-code/SKILL.md) | 0.2.0 → 0.3.0 | claims about existing code; remedies name trusted inputs; security-review rung; third data point | high; medium; low (cost) | Brief 1, 2 |
+| [`independent-conformance-vectors`](skills/independent-conformance-vectors/SKILL.md) | 0.4.0 → 0.5.0 | two-implementation known answers; library defaults and size arithmetic; schema checker; named environments | high; medium | Brief 1; lessons 3, 4 |
+| [`prove-secrets-and-pii-minimization`](skills/prove-secrets-and-pii-minimization/SKILL.md) | 0.2.1 → 0.3.0 | §9 client-held secrets never reach the server | medium | Lesson 1 |
+| [`local-companion-process-hardening`](skills/local-companion-process-hardening/SKILL.md) | 0.3.0 → 0.4.0 | §8 secret input next to coding agents | medium; low | Brief 4 |
+| [`fail-closed-checks`](skills/fail-closed-checks/SKILL.md) | 0.1.0 → 0.2.0 | rules that slip become tri-state checks; `scripts/previous-tip-ci.sh` (self-test PASS) | high; medium | Brief 6a; PV-F4 |
+| [`orchestrated-agent-team-lanes`](skills/orchestrated-agent-team-lanes/SKILL.md) | 0.4.0 → 0.5.0 | gate after every merge; per-lane caches; §4b sprint-splitting | medium; high; low | Brief 6c–6e |
+| [`diagnose-red-ci-from-history`](skills/diagnose-red-ci-from-history/SKILL.md) | 0.3.0 → 0.3.1 | previous-tip check as a script; S5e/S5f history | medium | CI verification |
+| [`agent-second-memory`](skills/agent-second-memory/SKILL.md) | 0.3.3 → 0.3.4 | escape free text in generated tables; mark superseded decision lines | medium | Brief 6f; PV-F1, F5, F7 |
+| [`privacy-first-agent-telemetry-protocol`](skills/privacy-first-agent-telemetry-protocol/SKILL.md) | 0.4.1 → 0.5.0 | L1 keyed (corrects "salted"); identity event; canary; exact IV | medium; low | Lesson 2 |
+
+### Proposals for the owner
+
+1. **Push step** (PV-F4): if the orchestrator's shell reaches the GitHub API, adopt `previous-tip-ci.sh` (copied into `scripts/`) as the first command of every push and reword `TEAM.md` item 9 to name it.
+2. **Reference programs** (PV-F2): commit the QA cross-check programs with the vectors.
+3. **Generator over convention** (PV-F6): registry escaping and cache clearing in scripts.
+4. **Next Orcasus checkpoint (not now):** `fail-closed-checks` 0.2.0 with both scripts and `diagnose-red-ci-from-history` once a script runs in the origin's push step; `review-design-before-code` 0.3.0 and `independent-conformance-vectors` 0.5.0 supersede the versions named in the G4 PR proposal; `client-held-key-encryption` and `nonce-csp-rollout` are not candidates until a real-browser and signed-in run exist.
+
 ## 2026-10-30 · ad-hoc-self-report — S5d agent self-report MCP server (JD-C03): feature and test completion
 
 Ad-hoc checkpoint (trigger: feature + test completion, `CLAUDE.md` §7). Not G5: the roadmap assigns G5 to S6 (`docs/explanation/roadmap.md`), so this entry uses the `ad-hoc-<topic>` form from `.claude/skills/guru-checkpoint`. Not an Orcasus-PR checkpoint: no PR opened or drafted.

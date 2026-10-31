@@ -2,8 +2,8 @@
 name: diagnose-red-ci-from-history
 description: Diagnose a red CI run from the branch's run history instead of re-running it — find the first red run of the same assertion, separate pre-existing and flaky failures from regressions (a red run on a docs-only commit cannot come from its diff), reproduce timing races deterministically by delaying the collaborator, fix the wait rather than the assertion, keep the delay in the test so the race stays covered, and report "green on <sha>" precisely. Also covers fail-fast local gates (a gate that keeps going after a failed step lets a red change be pushed) and CI concurrency cancellation that leaves a pushed commit never evaluated. Includes a fail-fast gate script with a self-test and a read-only CI-history script that flags likely flakes. Use when CI is red after your change, when inheriting a branch or baseline from another session or teammate, before declaring an iteration closed, when a test passes locally but fails in CI, when real-process, network or timer-based tests fail intermittently, when a latency or timeout bound fails "by a few milliseconds", when tests time out only in full parallel runs, when a run fails with "unhandled rejection" although every test passed, when a negative `not.toContain` assertion fails once on an unrelated commit, when a latency bound fails again after it was "fixed", or when tempted to "just re-run CI".
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d)"
+  version: "0.3.1"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5e/S5f)"
   confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded reds found by the checkpoint, not the team: three windows (G2, G4, S5d); harness-overhead bound, oversubscription and unhandled-rejection diagnoses: once each, G4; random-needle flake: once, root cause read from the annotation)"
 ---
 
@@ -92,7 +92,7 @@ The same applies to **any scripted edit-then-commit sequence** (a script that up
 - Re-read the history at iteration close: a later docs-only commit going red is a flake signal about tests that are already merged.
 - Record flakes in the iteration's test evidence with run ids, even when you do not fix them yet, and open a diagnosis item. Never quarantine, skip or loosen a test to make the history green.
 - **A local flake that "passed on re-run" is still a flake:** record the test name, the count (1 of 500) and the seed or log, and open a diagnosis item.
-- **Check the last pushed tip's run before the next push.** A red result discovered after two more pushes is harder to attribute and leaves the record claiming "built" over a red branch. A rule in a skill was not enough in the origin (below); put it in the team's merge checklist or in the push script, and list every pushed tip's run in the iteration record.
+- **Check the last pushed tip's run before the next push.** A red result discovered after two more pushes is harder to attribute and leaves the record claiming "built" over a red branch. A rule in a skill was not enough in the origin (below), and a rule in the team's checklist slipped twice more; make it the first step of the push script with three answers (green / red / cannot tell) — `fail-closed-checks`, `scripts/previous-tip-ci.sh` — and list every pushed tip's run in the iteration record.
 
 ## Pitfalls
 
@@ -139,3 +139,11 @@ History read by Guru (`gh run list`, run attempts, check-run annotations) for `2
 - `6fa2f03` changed only `docs/sprints/SPRINT-05d.md`: `gemini-hook-process.test.ts:112 expected 1695 to be less than or equal to 1500` — the real-adapter bound kept by the G4 fix (`354bc05`), failing by 195 ms. Undiagnosed (Guru finding SR-F3). Hypothesis only: runner variance.
 - `08f7b2e` changed only `pnpm-lock.yaml` (+3 lines) and `REGISTRY.md`: `packages/analytics/test/reader.test.ts:545` `not to contain '777'`; the annotation's received JSON contains `"projectId":"f609498d-25ce-4777-…"` (a random UUID). Root cause verified from the annotation: the needle list includes `'777'` (Guru finding SR-F2).
 - Both later tips were green without a change to the failing tests, which is consistent with flakes and is not a diagnosis.
+
+### Update at ad-hoc-privacy (Sprints 5e and 5f, 2026-10-30/31)
+
+History read by Guru for `c5132d0..29a6b8a`: 15 pushed tips, 15 runs, 15 `success`, 0 failure, 0 cancelled, every `run_attempt` 1. `a551aed` 41089964893 · `2516380` 41113430736 · `ec20396` 41115146514 · `74592d6` 41116557595 · `c1178c0` 41126438258 · `b8c8e59` 41127716987 · `e3a2ad5` 41129797124 · `ae27c91` 41133018018 · `a0d2b08` 41134131598 · `e9ca110` 41135320764 · `ee8c600` 41137592015 · `0b2179d` 41141058555 · `991926a` 41142840509 · `9805ba9` 41144802179 · `29a6b8a` 41146639862 (running when the read started, re-read to completion). **CI is green on `29a6b8a` (run 41146639862).**
+
+- The three flakes found at the previous checkpoint were fixed in tests only (`a551aed`: the latency bound now times the shipped bundle, a cleanup race gets a retry, leak needles made distinctive) and none recurred in 15 runs — consistent with the fixes, not proof.
+- Each push started after the previous run had completed (run creation vs. completion times); the two recorded rule-9 slips were unread green runs.
+- No CI runs for the merge and docs commits between pushed tips (`e8fb1bc`, `3020b10`): never evaluated on their own; `3020b10` contains a test that imports a removed function (see `orchestrated-agent-team-lanes`).

@@ -1,10 +1,10 @@
 ---
 name: independent-conformance-vectors
-description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail; plus vectors for invariance claims (idempotency, replay, ordering) that vary what the claim says must not matter — the clock above all — and leak checks whose needles cannot occur by chance in random ids. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, when money or price rules need a second derivation, when vectors are merged before the runner or the code that satisfies them, when a claim says "a re-run is de-duplicated" or "the same input gives the same id", when a negative assertion (`not.toContain`) fails intermittently, or when asked for "conformance tests", "test vectors", "golden files", "contract tests" or "an independent QA pass".
+description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail; plus vectors for invariance claims (idempotency, replay, ordering) that vary what the claim says must not matter — the clock above all — and leak checks whose needles cannot occur by chance in random ids. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, when money or price rules need a second derivation, when vectors are merged before the runner or the code that satisfies them, when a claim says "a re-run is de-duplicated" or "the same input gives the same id", when a negative assertion (`not.toContain`) fails intermittently, when cryptographic or encoding rules (HKDF, HMAC, AES-GCM, base32/base64url, padding, Unicode normalisation) need known-answer vectors, when a spec claims a size bound ("N characters fit in M bytes"), or when asked for "conformance tests", "test vectors", "known-answer tests", "golden files", "contract tests" or "an independent QA pass".
 metadata:
-  version: "0.4.0"
-  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d)"
-  confidence: "high (independent vectors + runner + mutation checks: seven suites, seven iterations; the runner found product defects that developers and reviewers missed in two of them); medium (ambiguity register catching a defect in the brief or design: twice; strict-tolerance rule: one hidden defect; independent price derivation: once; invariance claims needing a moving clock: once, a defect every oracle missed; short leak needles as a flake source: once, verified in CI)"
+  version: "0.5.0"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5f)"
+  confidence: "high (independent vectors + runner + mutation checks: nine suites, eight iterations; the runner found product defects that developers and reviewers missed in two of them); medium (ambiguity register catching a defect in the brief or design: twice; strict-tolerance rule: one hidden defect; independent price derivation: once; invariance claims needing a moving clock: once, a defect every oracle missed; short leak needles as a flake source: once, verified in CI; known answers from two independent reference implementations: once, 366 checks; library-default and size-bound gaps found by writing exact bytes: once)"
 ---
 
 # Independent conformance vectors
@@ -47,6 +47,19 @@ In the origin, the unit test and the vectors both replayed a call under one pinn
 
 **Mutations come from the same model as the vectors.** They show the suite detects the deviations its authors imagined; they do not find a property nobody wrote a varying vector for.
 
+### Byte-exact contracts: known answers from two independent implementations
+
+For cryptography, encodings and padding, an expected value is only an oracle if something other than the implementation's library computed it. Compute every known answer twice, with programs that share no code: for example the runtime's own crypto API in one language, and in another language the standard library plus a hand-written KDF, a second crypto package and the OpenSSL CLI. Plant a change in a few vector files and check that the cross-check catches it. **Commit both programs** next to the vectors (fake keys only), so anyone can re-run the cross-check; scratch-only reference code is a gap.
+
+Writing exact bytes surfaces what prose hides:
+
+- **Library defaults that change outputs.** WebCrypto derives a 64-byte HMAC key unless `length` is given, which changes every hash; it accepts IV lengths and tag lengths your format forbids. Vector both the right and the default value, and add a mutation per default.
+- **Size claims that are arithmetic.** "100 characters per field fit in 256 bytes" fails for astral characters (4 bytes each) and JSON escapes; compute the worst case before writing the vector, and propose the exact rule.
+- **Two readings of an encoding** (base32 as a bit stream vs. as a big integer) give different strings: show both in the gap entry, encode one.
+- **A reconciliation point**: one fixed input whose output the implementer can check first ("bytes 00..1f, slug X → key id Y").
+
+When the implementation needs a seam to be tested (a fixed IV for encrypt-direction answers), name it test-only in the contract.
+
 ## 4. Write runner rules, then the runner
 
 The README specifies the fixed environment (fresh receiver per vector, temporary state directory), how side effects are observed, how events or rows are compared (canonical forms, matchers for generated ids), forbidden strings to scan for (identity canaries planted in requests), and result rules:
@@ -56,6 +69,10 @@ The README specifies the fixed environment (fresh receiver per vector, temporary
 - The runner asserts the vector count, so a deleted file fails the suite.
 
 Someone other than the QA author writes the runner from those rules, against the real handler (in-process server, real engine such as an embedded database). Prefer someone who is not the implementation's author either (a fresh lane), so neither oracle nor runner shares the implementer's reading.
+
+- **Validate every vector file against the suite's schema first**; if no validator is available, a minimal checker that **throws on any keyword it does not implement** is better than one that silently ignores it.
+- **Name the environment.** jsdom with Node's crypto is Node's engine, not a browser; report it so and keep real-browser runs NOT RUN until done.
+- **NOT RUN cases carry their reason in the test name** (no API for the raw primitive, the layer belongs to another lane).
 
 Runner rules that the origin learned the hard way:
 
@@ -110,6 +127,8 @@ If your environment blocks running mutations (an agent permission classifier did
 - **Replay vectors under the same clock.** They cannot falsify an id that embeds time.
 - **Short numeric needles in leak checks.** A random UUID will contain them eventually.
 - **Pushing vectors ahead of their runner or implementation** on a deploying branch.
+- **One reference implementation.** It shares its library's defaults with the code under test.
+- **Reference programs left in scratch.** The cross-check cannot be repeated.
 - **Lanes testing only against local doubles.** The end-to-end path is then first exercised at merge; add one integration test through the real adapters.
 
 ## Evidence from origin project
@@ -164,3 +183,11 @@ Self-report suite (`docs/jgr/conformance/self-report/`): 54 vectors — 22 MCP p
 - Spec gaps: "19 spec gaps; G8 was a design defect: an agent's `working` would have hidden a real permission prompt. All resolved in ADR-0017 (Changes 'QA spec gaps'). Developers A and B were told mid-lane" (`SPRINT-05d.md` Team log).
 - Same-clock replay: H12 "a fresh HOME with the same salt and clock replays H11 calls … get the same `event_id` as in H11 (a re-run hook dedupes)"; README "Run H11 and H12 in the same run with the same salt and clock". The pre-fix unit test used `now: () => CLOCK` for both runs. Code review M1 found the duplicate; fix test advances the clock 50 ms (`d6c989b`). At this checkpoint no vector moves the clock (Guru finding SR-F5).
 - Leak needle flake (Guru, from CI annotations): run 41080177974 on `08f7b2e` (a lockfile and registry commit) failed `packages/analytics/test/reader.test.ts:545` — `expected '{"generatedAt":…' not to contain '777'`; the received JSON contains `"projectId":"f609498d-25ce-4777-9101-…"`, tenant A's random UUID. The needle list there includes `'777'` and `'7.77'`. Not recorded in the sprint file (Guru finding SR-F2).
+
+### Update at ad-hoc-privacy (Sprints 5e and 5f, 2026-10-30/31)
+
+- S5e F2 (`b72addb`, runners `ec20396`): QA added the moved-clock vector H15 and four more from ADR-0017 only; "All 59 vectors pass, and a disabled seen-call marker is caught only by H15"; two more spec gaps (G20, G21) (`docs/sprints/SPRINT-05e.md`). Closes Guru finding SR-F5.
+- S5f privacy suite (`docs/jgr/conformance/privacy/`, `ac8c380`): 17 vectors, 153 cases from ADR-0018 at `e3a2ad5`, "before any JD-M11 code"; README *Reference computation*: Node 22.22.0 WebCrypto (primary) and Python 3.13 with stdlib, hand-written HKDF, `cryptography` 50.0.1 and the OpenSSL 3.0.13 CLI with a hand-written GHASH: "366 checks, 0 failures; a planted change in E04, K06 and P03 was caught". "Neither is committed; they are QA scratch work."
+- Gaps G1–G14; G4 (HMAC key length: `sha256:3a02…a855` with 32 bytes vs `sha256:b71c…db9a` with the 64-byte WebCrypto default) and G6 ("100 astral characters give 417 bytes") were defects in the record (sprint log). The first implementation already set the HMAC length; alignment commit `3fafe9c` changed alias parsing, the cut rule and a failure class, and added the test-only IV seam and the S1 reconciliation point.
+- Runner (`38a8bf2`, a lane that wrote neither): minimal draft-07 checker that "throws on any keyword it does not implement"; 145 PASS, 0 FAIL, 8 NOT RUN "with the reason in the test name"; "38 README mutations each killed". P03/P04 label vectors pass in the web app's own tests (`d554f16`).
+- Guru probe (Node 22.22.0): the README's mutation row "Accept any IV length (WebCrypto does)" overstates for Node — a 16-byte IV is accepted, an 11-byte IV is rejected (`OperationError`); the vectors remain valid.
