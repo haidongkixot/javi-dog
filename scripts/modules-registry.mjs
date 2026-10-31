@@ -57,9 +57,12 @@ if (errors.length) {
 const order = (id) => (id === 'JD-APP' ? '0' : id.startsWith('JD-M') ? `1${id}` : `2${id}`);
 modules.sort((a, b) => order(a.id).localeCompare(order(b.id)));
 
+/** Table-cell text: a `|` (even inside a code span) would split the cell, a newline the row. */
+const cell = (text) => String(text).replace(/\r?\n/g, ' ').replace(/\|/g, '\\|');
+
 const rows = modules.map(
   (m) =>
-    `| ${m.id} | \`${m.name}\` | \`${m.path}\` | ${m.status} | ${m.version} | ${m.description} | ${(m.consumes ?? []).join(', ') || '—'} |`,
+    `| ${m.id} | \`${m.name}\` | \`${m.path}\` | ${m.status} | ${m.version} | ${cell(m.description)} | ${(m.consumes ?? []).join(', ') || '—'} |`,
 );
 const md = `# Module Registry
 

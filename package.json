@@ -20,6 +20,7 @@
     "docs:drift": "node scripts/doc-drift.mjs",
     "docs:check": "pnpm docs:lint && pnpm docs:links && node scripts/modules-registry.mjs --check && pnpm --filter @javis-dog/ui tokens:check && pnpm docs:drift",
     "secrets:scan": "bash scripts/secret-scan.sh",
+    "gate": "bash scripts/gate.sh",
     "changeset": "changeset"
   },
   "devDependencies": {

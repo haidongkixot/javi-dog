@@ -29,7 +29,7 @@
 
 1. Diff touches only the declared paths.
 2. Lockfile adds no external package without owner approval.
-3. Re-run `pnpm format:check`, `lint`, `typecheck`, `test`, `build`, the migration drift check and `docs:check`; record exit codes and counts.
+3. Run `pnpm gate` (`scripts/gate.sh`: format, lint, typecheck, tests with the shared Vitest cache cleared and "Unhandled" treated as a failure, build, migration drift, docs; `--csp` adds the browser CSP check when web pages changed). Record the counts it prints.
 4. Secret scan of the pushed range with `pnpm secrets:scan origin/<branch>..HEAD` (`scripts/secret-scan.sh`: exit 0 clean, 1 match, 2 could not scan; only 0 lets the push go on). Its defaults cover `jd_it_…`, `npg_…`, `re_…`, connection strings with passwords and common key shapes (S5d Guru SR-F4).
 5. Changeset + README for contract changes; `module.json`, `planned.json`, registry consistent.
 6. Reviewer findings closed or logged.

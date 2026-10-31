@@ -44,7 +44,7 @@ Newest first: date — what changed — commit SHA.
   - **PV-F5:** ADR-0018 decisions 4 and 6 and the TEST_PLAN padding row now point to the binding Changes.
   - **PV-F7:** end-to-end SHAs corrected.
   - **PV-F4:** the push step stays on the GitHub MCP check, per this session's tool rules (no `gh`).
-  - **PV-F6:** a follow-up (gate script clears the Vitest cache; the registry generator escapes `|`).
+  - **PV-F6:** done in `scripts/gate.sh` (`pnpm gate`: fail-closed, clears the Vitest cache, treats "Unhandled" as a failure, `--csp` option; red: a planted format error → exit 1) and in the registry generator, which now escapes `|` and newlines in table cells (red: a planted `a|b` and a pipe in a code span broke the table; green after the fix).
 - 2026-10-31 — Security review (0 High, 3 Medium, 9 Low) and its fixes merged: collector `9805ba9` (M3, L4, L7, L8 and env typing), web `e8fb1bc` (M1, M2, L1–L7, L9). "Remember on this device" stays off until the owner's signed-in CSP run.
 - 2026-10-30 — End-to-end test merged (`javi init --privacy L2` → hook → ingest → reader → the web app's decryption): names show only with the key; another project's key and a flipped byte fail; lowering to L0 keeps the status signal and shows the rejection — test `cde4614`, lockfile `991926a`.
 - 2026-10-30 — K3 collector (`58c55d2`) and K4 web (`0b2179d`) merged; K5 runner (`ee8c600`): 145 PASS, 0 FAIL, 8 NOT RUN, 38 of 38 mutations caught.
