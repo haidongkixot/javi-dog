@@ -65,6 +65,8 @@ const fakeWorld = () => {
   const touch = (name: string) => {
     calls.push(name);
     // A driver error that echoes a connection string: it must never reach a log or a response.
+    // Built by concatenation so the repo's secret scan does not flag this fake credential shape
+    // (the sentinel is the fake password; nothing here is or resembles a real secret).
     if (state.failing.has(name) || state.failing.has('*')) {
       throw new Error('connect failed postgresql://user:' + SENTINEL + '@db.example/neondb');
     }

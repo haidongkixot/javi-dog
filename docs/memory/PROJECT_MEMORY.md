@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-11-01 · Current sprint: **S5g JD-M10 GitHub App bridge — built** (`docs/sprints/SPRINT-05g.md`, ADR-0019). Next: Guru checkpoint and S5g close; then the owner creates the GitHub App (`docs/how-to/set-up-github-app.md`). Other owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); release exceptions G2/G4/G5 and G13.
+> Last updated: 2026-11-01 · Current sprint: **S5g JD-M10 GitHub App bridge — CLOSED** (`docs/sprints/SPRINT-05g.md`, ADR-0019, Guru `ad-hoc-github-bridge`). Next: the owner creates the GitHub App (`docs/how-to/set-up-github-app.md`); then the S5 release gate. Other owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); release exceptions G2/G4/G5 and G13.
 
 ## What we are building
 

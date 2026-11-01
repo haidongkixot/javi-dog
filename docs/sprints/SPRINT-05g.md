@@ -1,6 +1,6 @@
 # Sprint 05g — GitHub App bridge (JD-M10)
 
-- Dates: 2026-11-01 → · Status: ACTIVE
+- Dates: 2026-11-01 → 2026-11-01 · Status: CLOSED (code complete; the owner creates the GitHub App and runs the first real delivery)
 - Goal (one sentence): everything for the GitHub App is built and tested against test secrets, so that the owner's five-minute setup (local helper, three env vars, install, claim, link) brings PR and CI signals into the project's dashboard.
 - Modules touched: JD-M10 (new), JD-M06 (migration 0006), JD-APP, JD-M07
 - Readiness gate: `docs/agent-ops/READINESS_MATRIX.md` rows "Repo signals" (B6), "GitHub webhook facts", "Migration 0006", "GitHub org installations"
@@ -41,6 +41,12 @@ Newest first: date — what changed — commit SHA.
 | `pnpm gate --csp` (wave 2 merged, before the QA runner) | 0 | 438 s | 3052 tests, 17 packages; `test:scripts` 5; CSP check | 0 | 0 | 0 | 0 | — |
 | `npx vitest run test/github-conformance.test.ts` (QA runner) | 0 | ~12 s | 257 (59 vectors, 174 route steps, 20 S01 cases, R21 supplement) | 0 | 0 | 0 | 0 | — |
 | QA mutation check (7 mutations, each restored) | — | — | 7 caught | 0 | 0 | 0 | 0 | — |
+| `pnpm gate --csp` (review fixes, before push 39bf130) | 0 | 348 s | 3330 tests, 17 packages; `test:scripts` 5; CSP check | 0 | 0 | 0 | 0 | — |
+| CI on pushed tips | 0 | — | dc26f32 run 41267384071, b96a25c run 41270489476, 39bf130 run 41271405032 — all success | 0 | 0 | 0 | 0 | — |
+| Production after b96a25c | — | — | `/api/health` 7 migrations, webhook secret `false`; `POST /api/github/webhook` → 503 `not_configured`; `/integrations/github` 200 | 0 | 0 | 0 | 0 | — |
+| Real GitHub delivery (owner) | — | — | — | — | — | — | 1 | owner step |
+
+QA mutations (each applied alone, then restored): (1) previous secret not tried → S01, S03; (2) hash recorded before `insertEvents` → R21 supplement only (no vector); (3) 3-day rule dropped → R13, R14; (4) `cancelled` → `task.completed` → M05, M14; (5) `head_branch` copied into `tool_name` → 48 steps incl. M01–M10, P01, P02; (6) raw non-GUID `X-GitHub-Delivery` logged → R22; (7) body-hash dedupe skipped → R01, R21. The QA cross-check reference programs (2 756 checks) were not committed (Guru GB-F3).
 | `pnpm gate` (wave 1 merged) | 0 | 266 s | 2856 tests, 17 packages; format, lint, typecheck, build, migration drift, docs | 0 | 0 | 0 | 0 | — |
 
 ## Team
@@ -77,4 +83,4 @@ Team log, newest first:
 
 ## Guru checkpoint
 
-—
+Sprint end, `ad-hoc-github-bridge` (d1e6caa): new skill `guru/skills/signed-webhook-receiver` (0.1.0); seven skills refined; `guru/WISDOM_LOG.md` S5g entry. Findings GB-F1 (evidence), GB-F2 (mutation list), GB-F4 (superseded ADR lines) and GB-F6 (scanner comment) closed in the S5g close commit; GB-F3 (QA reference programs) and GB-F5 (retro actions are conventions only) stay open as process proposals for the owner.

@@ -53,9 +53,9 @@ The orchestrator re-checked two facts:
    - The existing `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` belong to sign-in (B3) and are not reused.
 3. **Webhook route `POST /api/github/webhook`** (Node runtime, dynamic). Checks run in this order:
    1. **Configuration.** Without a configured secret: `503 not_configured`, with no claim of being connected.
-   2. **Body size.** The raw body is bounded at 1 MiB with JD-M05 `readBoundedBody` (`413` above it).
+   2. **Body size.** The raw body is bounded at 1 MiB with JD-M05 `readBoundedBody` (`413` above it). *(Superseded: the bridge's own `readRawBody` reads raw bytes; see Changes, wave 2.)*
    3. **Signature.** It is checked against the current secret, then the previous one, in constant time. Missing, malformed or wrong → `401`, without saying which. Nothing is parsed before the signature passes.
-   4. **Unwanted deliveries.** Unknown events or actions, `ping`, and deliveries for unlinked repositories → `202`, and nothing is stored.
+   4. **Unwanted deliveries.** Unknown events or actions, `ping`, and deliveries for unlinked repositories → `202`, and nothing is stored. *(Superseded by D0 H2 and Y11: no event is stored, but the body hash is recorded; see Changes, review M-1.)*
    5. **Old deliveries.** A delivery whose source timestamp is more than 3 days old is acknowledged and dropped (GitHub's redelivery window). This bounds replay of a captured body.
    6. **Inline handling.** Mapping, JD-M01 validation and the insert through JD-M06 all happen inline, inside GitHub's 10 s.
    7. **Failures.** A database failure → `500`, so the delivery shows as failed and can be redelivered.
@@ -72,10 +72,10 @@ The orchestrator re-checked two facts:
    - **Where `full_name` lives:** only in `github_repositories`, to show "linked to owner/repo" to members of that workspace. It never appears in events.
 5. **JGR mapping** (pure functions in JD-M10). The common fields:
    - `producer_id` is `gh-app_<installation_id>`, and `project_ref` is the linked project's slug.
-   - `thread_ref` is `gh_` plus 32 hex characters of SHA-256 over `pr|<repo_id>|<number>` (one thread per PR) or `run|<run_id>` (one per workflow run). These are only opaque, well-formed references: numeric ids are not secret, and this is **not** L1.
-   - `event_id` is a UUIDv5 under a fixed namespace from `<delivery GUID>:<index>`, so a redelivery deduplicates.
+   - `thread_ref` is `gh_` plus 32 hex characters of SHA-256 over `pr|<repo_id>|<number>` (one thread per PR) or `run|<run_id>` (one per workflow run). These are only opaque, well-formed references: numeric ids are not secret, and this is **not** L1. *(Superseded by D0 M3: run threads are `run|<run_id>|<run_attempt>`, check suites `suite|<id>`.)*
+   - `event_id` is a UUIDv5 under a fixed namespace from `<delivery GUID>:<index>`, so a redelivery deduplicates. *(Superseded by D0 H2 and G1: the name is `<body_sha256>:<index>` under namespace `fbb354ba-…`.)*
    - `occurred_at` is GitHub's own timestamp for the change.
-   - `sequence` is the action ordinal for a run thread (requested 0, in_progress 1, completed 2); for a PR thread, `updated_at` in epoch seconds.
+   - `sequence` is the action ordinal for a run thread (requested 0, in_progress 1, completed 2); for a PR thread, `updated_at` in epoch seconds. *(Superseded by D0 M3, G4 and G5: PR sequence = `updated_at` × 8 + action ordinal; check suites use `updated_at`.)*
 
    | Source | JGR |
    |---|---|
