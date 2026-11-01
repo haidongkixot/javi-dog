@@ -341,6 +341,7 @@ describe('claims (D0 M5)', () => {
     expect(list).toEqual([
       {
         installationId: INST,
+        accountId: ACCOUNT,
         accountType: 'User',
         suspendedAt: null,
         lastVerifiedDeliveryAt: null,
