@@ -5,7 +5,16 @@ import { Card, CardHead, EmptyState, Icon, MetricCard, PageHead } from '@javis-d
 import { OverviewUsage } from '@/components/analytics/usage-panels';
 import { ThreadIdentityLabel } from '@/components/privacy/thread-identity';
 import type { UsageLoad } from '@/lib/analytics';
-import { agentCount, attentionHeadline, byAttention, formatNumber, windowLabel } from './format';
+import {
+  agentCount,
+  agentThreads,
+  attentionHeadline,
+  byAttention,
+  formatNumber,
+  isGithubThread,
+  windowLabel,
+} from './format';
+import { GithubCountsCard, GithubSourceLabel } from './github-threads';
 import { FreshnessLabel, SignalTime, ThreadRef, ThreadStatusPill } from './signal';
 
 const linkClass = 'text-xs font-bold text-accent hover:underline';
@@ -51,7 +60,8 @@ function headline(s: DashboardSnapshot | null, notCurrent: boolean) {
   if (attention > 0) return { title: attentionHeadline(attention), description };
   // Stale data must not claim activity (or its absence) right now.
   if (notCurrent) return { title: 'Showing your pack’s last known state.', description };
-  if (s.threads.some((t) => t.freshness === 'fresh'))
+  // The pack is the agents: a fresh GitHub delivery alone does not put it in motion.
+  if (agentThreads(s.threads).some((t) => t.freshness === 'fresh'))
     return { title: 'Your pack is in motion.', description };
   return { title: 'Your pack is quiet right now.', description };
 }
@@ -162,6 +172,8 @@ function Activity({ snapshot: s }: { snapshot: DashboardSnapshot }) {
     <ol aria-label="Recent signals" className="px-5 pt-2 pb-4">
       {s.activity.map((a, i) => {
         const thread = threadsBySlugRef.get(`${a.projectSlug} ${a.threadRef}`);
+        // A GitHub signal names its source, never an agent (ADR-0019 decision 6).
+        const github = thread && isGithubThread(thread) ? thread : null;
         return (
           <li
             key={`${a.at}-${a.threadRef}-${a.type}-${i}`}
@@ -169,6 +181,12 @@ function Activity({ snapshot: s }: { snapshot: DashboardSnapshot }) {
           >
             <div className="min-w-0">
               <p className="truncate font-mono text-xs font-bold text-ink">
+                {github ? (
+                  <>
+                    <GithubSourceLabel kind={github.githubKind} />
+                    <span className="font-normal text-muted"> · </span>
+                  </>
+                ) : null}
                 {a.type}
                 {a.toolName ? (
                   <span className="font-normal text-muted"> · {a.toolName}</span>
@@ -177,7 +195,7 @@ function Activity({ snapshot: s }: { snapshot: DashboardSnapshot }) {
               <p className="mt-1 truncate text-xs text-muted">
                 {a.projectSlug} · <ThreadRef value={a.threadRef} />
               </p>
-              {thread ? (
+              {thread && !github ? (
                 <ThreadIdentityLabel
                   projectId={thread.projectId}
                   projectSlug={a.projectSlug}
@@ -291,7 +309,9 @@ function SquadMember({ t, now, notCurrent }: { t: ThreadState; now: string; notC
 }
 
 function Squad({ snapshot: s, notCurrent }: { snapshot: DashboardSnapshot; notCurrent: boolean }) {
-  if (s.threads.length === 0)
+  // GitHub threads are never agents (ADR-0019 decision 6): they have their own card.
+  const agents = agentThreads(s.threads);
+  if (agents.length === 0)
     return (
       <EmptyState
         title="No agents connected"
@@ -306,9 +326,7 @@ function Squad({ snapshot: s, notCurrent }: { snapshot: DashboardSnapshot; notCu
     );
   // Fresh threads plus any thread that needs you, even if it went quiet (ADR-0012), never an
   // ended one.
-  const squad = s.threads
-    .filter((t) => t.freshness === 'fresh' || t.needsAttention)
-    .sort(byAttention);
+  const squad = agents.filter((t) => t.freshness === 'fresh' || t.needsAttention).sort(byAttention);
   if (squad.length === 0)
     return (
       <EmptyState
@@ -319,8 +337,8 @@ function Squad({ snapshot: s, notCurrent }: { snapshot: DashboardSnapshot; notCu
           </Link>
         }
       >
-        No thread sent a signal in the last {windowLabel(s.freshnessWindowMs)}. Stale and ended
-        threads stay listed under Live agents.
+        No agent thread sent a signal in the last {windowLabel(s.freshnessWindowMs)}. Stale and
+        ended threads stay listed under Live agents.
       </EmptyState>
     );
   return (
@@ -438,6 +456,8 @@ export function OverviewView({
           )}
         </Card>
       </div>
+
+      {s ? <GithubCountsCard snapshot={s} /> : null}
     </>
   );
 }

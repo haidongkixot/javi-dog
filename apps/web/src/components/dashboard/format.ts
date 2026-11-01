@@ -1,4 +1,4 @@
-import type { StatusReason, ThreadState, ThreadStatus } from '@javis-dog/realtime';
+import type { GithubKind, StatusReason, ThreadState, ThreadStatus } from '@javis-dog/realtime';
 import type { StatusTone } from '@javis-dog/ui';
 
 // Formatting is deterministic (fixed locale, UTC for absolute times, ages measured against the
@@ -90,3 +90,40 @@ export const agentCount = (n: number) =>
 /** "One thread needs your attention." / "3 threads need your attention." */
 export const attentionHeadline = (n: number) =>
   n === 1 ? 'One thread needs your attention.' : `${n} threads need your attention.`;
+
+/**
+ * A thread the GitHub bridge wrote (ADR-0019 decision 6). The reader decides this from the
+ * reserved `gh-app_` producer prefix only; anything else is an agent thread.
+ */
+export const isGithubThread = (t: Pick<ThreadState, 'source'>) => t.source === 'github';
+
+/** Agent threads only: GitHub threads are never presented as agents. */
+export const agentThreads = (threads: ThreadState[]) => threads.filter((t) => !isGithubThread(t));
+
+/** "GitHub CI" or "GitHub PR": the label a GitHub thread carries wherever it is shown. */
+export const githubLabel = (kind: GithubKind | null) =>
+  kind === 'pr' ? 'GitHub PR' : kind === 'ci' ? 'GitHub CI' : 'GitHub';
+
+/**
+ * A GitHub thread's newest event in words. These are GitHub results, not agent statuses, so
+ * they never use the agent status labels; coral (danger) is kept for a failed run.
+ */
+const GITHUB_OUTCOMES = new Map<string, { text: string; tone: StatusTone }>(
+  Object.entries({
+    'task.started': { text: 'In progress', tone: 'info' },
+    'task.completed': { text: 'Completed', tone: 'ok' },
+    'task.failed': { text: 'Failed', tone: 'danger' },
+    'x.github.ci.cancelled': { text: 'Cancelled', tone: 'info' },
+    'x.github.ci.skipped': { text: 'Skipped', tone: 'info' },
+    'x.github.ci.attention': { text: 'Waiting on GitHub', tone: 'info' },
+    'x.github.pr.opened': { text: 'Open', tone: 'info' },
+    'x.github.pr.updated': { text: 'Updated', tone: 'info' },
+    'x.github.pr.ready': { text: 'Ready for review', tone: 'info' },
+    'x.github.pr.merged': { text: 'Merged', tone: 'ok' },
+    'x.github.pr.closed': { text: 'Closed', tone: 'info' },
+  } satisfies Record<string, { text: string; tone: StatusTone }>),
+);
+
+/** Words and tone for a GitHub thread's `lastType`; an unknown type is shown as sent. */
+export const githubOutcome = (lastType: string): { text: string; tone: StatusTone } =>
+  GITHUB_OUTCOMES.get(lastType) ?? { text: lastType, tone: 'info' };
