@@ -1,0 +1,25 @@
+{
+  "name": "@javis-dog/github-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "JD-M10 — GitHub App bridge: webhook signature, delivery classification, JGR mapping, installations and repository links (ADR-0019)",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@javis-dog/jgr-spec": "workspace:*",
+    "@javis-dog/projects": "workspace:*",
+    "drizzle-orm": "0.45.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
