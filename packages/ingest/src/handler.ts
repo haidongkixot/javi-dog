@@ -52,7 +52,20 @@ export const createIngestDeps = (db: AnyDb): IngestDeps => {
   };
 };
 
-type Rejected = { index: number; event_id?: string; issues: Issue[] };
+/**
+ * Receiver-side issue codes. `reserved_ref` (ADR-0019 D0 M2) is JD-M05's own until JD-M01's
+ * `IssueCode` list (spec §13) gains it.
+ */
+type IngestIssue = Omit<Issue, 'code'> & { code: Issue['code'] | 'reserved_ref' };
+type Rejected = { index: number; event_id?: string; issues: IngestIssue[] };
+
+/**
+ * Provenance reserved for the GitHub bridge (JD-M10, ADR-0019 D0 M2): only the bridge writes
+ * `producer_id` `gh-app_…` and `thread_ref` `gh_…`, and the dashboard's "GitHub" label comes only
+ * from these prefixes. Matched case-insensitively so look-alikes are refused too.
+ */
+const RESERVED_PRODUCER = /^gh-app_/i;
+const RESERVED_THREAD = /^gh_/i;
 
 const PRIVACY_RANK: Record<string, number> = { L0: 0, L1: 1, L2: 2 };
 const BEARER = /^Bearer ([^\s]+)$/;
@@ -100,8 +113,8 @@ const runOnStored = (deps: IngestDeps, scope: TokenScope, usageReports: number) 
 
 /**
  * `POST /api/v1/events` (JGR v0.1 §8, ADR-0008). Order: auth → rate limit → media type (415)
- * → bounded body (413, 415 for an unknown encoding) → JD-M01 validation → project scope and
- * privacy ceiling → idempotent insert → verified signal → optional `onStored` hook.
+ * → bounded body (413, 415 for an unknown encoding) → JD-M01 validation → reserved GitHub
+ * prefixes (`reserved_ref`), project scope and privacy ceiling → idempotent insert → verified signal → optional `onStored` hook.
  */
 export const createIngestHandler =
   (deps: IngestDeps) =>
@@ -184,7 +197,21 @@ export const createIngestHandler =
       const rows: NewEvent[] = [];
       result.accepted.forEach((event, n) => {
         const index = acceptedIndexes[n]!;
-        const issues: Issue[] = [];
+        const issues: IngestIssue[] = [];
+        if (RESERVED_PRODUCER.test(event.producer_id)) {
+          issues.push({
+            code: 'reserved_ref',
+            path: 'producer_id',
+            message: 'producer_id prefix "gh-app_" is reserved for the GitHub App bridge.',
+          });
+        }
+        if (RESERVED_THREAD.test(event.thread_ref)) {
+          issues.push({
+            code: 'reserved_ref',
+            path: 'thread_ref',
+            message: 'thread_ref prefix "gh_" is reserved for the GitHub App bridge.',
+          });
+        }
         if (event.project_ref !== scope.projectSlug && event.project_ref !== scope.projectId) {
           issues.push({
             code: 'project_mismatch',
