@@ -384,3 +384,10 @@ Written before the lanes start (ADR-0019). Risk: **HIGH**. This is an unauthenti
 | Integrations status: "not set up" → "waiting for the first delivery" → "connected" with time, only on evidence | Medium | Component | text | No |
 | Local helper: manifest values exact; `state` checked; code exchange against a stub GitHub; result file mode 0600; no secret in stdout or stderr | High | Process (stub) | file mode, captured output | No |
 | Real app (owner): a 200 in "Recent Deliveries" and a stored event | — | Runtime (owner) | dashboard | NOT RUN until owner run |
+| D0: the same body with a new GUID or a re-labelled `X-GitHub-Event` stores nothing new; old `installation_repositories` and `suspend` bodies replayed change nothing | High | Route test (PGlite) | rows unchanged | QA vectors |
+| D0: a repo moving between installations clears its link; deleting a project, workspace or claim clears links; the FK refuses a cross-workspace link at the SQL level | High | Migration and repository tests (PGlite) | SQL errors, rows | No |
+| D0: ingest rejects `producer_id` `gh-app_*` and `thread_ref` `gh_*` | High | Ingest handler test | rejected issues | No |
+| D0: per-event 3-day timestamps, `installation*` exempt | High | Unit | drop or keep | QA vectors |
+| D0: GitHub threads end on a terminal event, carry no status, stay out of the squad, agents-working and agent-task counts, and have separate CI/PR counts; `run_attempt` > 1 keeps strictly increasing sequences | High | Reader on PGlite + component | snapshot counts | QA vectors |
+| D0: `timingSafeEqual` only on equal-length buffers (code-level check, not a timing test); the 10 s budget is NOT RUN (S5a p95 1 529 ms as context) | Medium | Unit | no throw on a length mismatch | No |
+| D0: Windows file mode for the helper's result file is NOT RUN (owner) | Low | Owner | — | Owner |

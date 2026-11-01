@@ -116,7 +116,7 @@ The orchestrator re-checked two facts:
 ## Consequences
 
 - Good:
-  - CI and PR signals for any repository, even without agent hooks;
+  - CI and PR signals for the owner's repositories, even without agent hooks (owner-only MVP, design review D0 H1);
   - no code access, no runtime private key, no API rate limits, no new runtime dependency.
 - Bad:
   - **Organization installations wait** for a verified claim path.
@@ -138,3 +138,55 @@ The orchestrator re-checked two facts:
 ## Changes
 
 - 2026-11-01 — Created (S5g discovery, research and owner decisions).
+- 2026-11-01 — Design review D0, before any code: 4 High, 6 Medium, 5 Low. The orchestrator verified H1 (GitHub docs: a private app "can only be installed on the account that created it") and H2 (the dedupe key is `(project, producer, event_id)`, `event-store/src/events.ts:50`, and the delivery GUID header is unsigned). The rules below are **binding** and supersede the decisions above where they differ.
+
+  - **H1 Scope.**
+    - The MVP covers the app owner's own GitHub account only (`public: false`).
+    - The Integrations page and project page say this plainly to every other user: "available only to this deployment's owner". No install link is shown that cannot work.
+    - Any move to `public: true` needs its own ADR, covering purging unclaimed installations after N days, storing `full_name` only for claimed installations, and abuse limits.
+  - **H2 Replay and dedupe, signed content only.**
+    - Every verified delivery's raw-body SHA-256 goes into `github_deliveries(body_sha256 PK, received_at)`, purged after 3 days. A repeated body is acknowledged (`202`) and dropped. GitHub's own redeliveries have identical bodies, so they deduplicate too.
+    - `event_id` is a lower-case UUIDv5 (version nibble 5) from `<body_sha256>:<index>`.
+    - The event kind comes from a strict check of the payload's shape. `X-GitHub-Event` is only a hint and must agree, otherwise the delivery is ignored (`202`).
+    - The delivery GUID is used only in logs, only after verification, and only if it looks like a GUID.
+  - **H3 Schema and routing.** `github_repositories` gains `workspace_id`, with these constraints:
+    - FK `(project_id, workspace_id) → projects(id, workspace_id) ON DELETE SET NULL (project_id)`;
+    - FK `(installation_id, workspace_id) → github_installations(installation_id, claimed_workspace_id)`, backed by a matching UNIQUE;
+    - `claimed_workspace_id … ON DELETE SET NULL`.
+
+    The lifecycle rules:
+    - An upsert that changes a repository's `installation_id` clears its link.
+    - Routing requires the payload's `installation.id` to equal the row's `installation_id`, the installation to be unsuspended, and the claimed workspace to be the project's workspace.
+    - A missing `installation` in a `workflow_run` or `check_suite` payload → `202` and drop.
+    - Deleting a project, workspace or claim clears the link and never deletes the repository row.
+  - **H4 The 3-day rule, per event.** The timestamps are `workflow_run.updated_at`, `check_suite.updated_at` and `pull_request.updated_at`. `installation*` events are exempt: they carry no event time, and H2 protects them.
+  - **M1 GitHub threads on the dashboard.**
+    - GitHub `task.*` and `x.github.*` events carry **no `status`**.
+    - A thread whose last event is terminal (run completed, PR merged or closed) counts as `ended`.
+    - `ThreadState` gains `source: 'agent' | 'github'` (changeset).
+    - GitHub threads are left out of the squad, the "agents working" count and agent-task counters, and have their own CI and PR counts.
+    - Cancelled and skipped runs map to `x.github.ci.cancelled` / `x.github.ci.skipped`, not to `task.completed`.
+    - The bridge calls `touchSignal` for the linked project.
+  - **M2 Reserved provenance.** Ingest (`/api/v1/events`) rejects any `producer_id` starting `gh-app_` and any `thread_ref` starting `gh_`. Only the bridge writes them, and the "GitHub" label comes only from those prefixes.
+  - **M3 Strictly increasing sequences (JGR-R06).**
+    - Run threads are `run|<run_id>|<run_attempt>`, sequence = the action ordinal.
+    - Check-suite threads are `suite|<check_suite.id>`.
+    - PR sequence = `updated_at` in seconds × 8 + the action ordinal.
+  - **M4 Evidence for "Connected".** `github_installations.last_verified_delivery_at` is shown only to the claiming workspace. The Integrations copy loses "Commits" (push is out of scope).
+  - **M5 Claim lifecycle.**
+    - A claim is `UPDATE … WHERE claimed_workspace_id IS NULL` and the first claim wins.
+    - Owners can release a claim, which clears its links; re-claiming follows the same rule.
+    - Unlinking the GitHub account does not drop existing claims. The page shows that the claim can no longer be re-verified.
+    - Today a workspace has only its owner (`membershipLimit: 1`), so the "admin" rows are tested at the logic level only.
+  - **M6 Mapping gaps.**
+    - `neutral` → `task.completed`.
+    - `action_required` and `stale` → `x.github.ci.attention`, with no status.
+    - `converted_to_draft` → `x.github.pr.updated`.
+  - **L1 Body handling.** Before the body is read, any `Content-Encoding` other than identity is refused (`415`), as is a signature header that is not `sha256=` plus 64 hex characters (`401`). The HMAC covers the **raw bytes**, never decoded text. The decoded signature is length-checked before `timingSafeEqual`. A Vercel Firewall rate rule on this path is recommended for the owner.
+  - **L2 Privacy.** The sentinel tests also cover installation payloads (`contact_email`, `suspended_by`, `requester`, `sender`). The how-to recommends "Only select repositories".
+  - **L3 Local helper.**
+    - The manifest lists `redirect_url` explicitly.
+    - The helper binds to 127.0.0.1, checks the Host header, uses `state` once, and exits after the callback.
+    - On Windows it writes under the user profile and warns that file modes do not apply.
+  - **L4 Runbook.** If the first `installation` delivery is lost and not redelivered within 3 days, uninstall and reinstall.
+  - **L5 Secret rotation.** `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` must be removed once the rotation is done.
