@@ -1,0 +1,416 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://javis-dog.dev/jgr/conformance/github/schema.json",
+  "title": "GitHub App bridge conformance vector (ADR-0019, S5g)",
+  "description": "One vector file. S01: signature known answers (kind signature). Every other file: an ordered list of webhook deliveries (kind route) with the expected status, stored JGR events and github_* rows after each step. Every key is always present; null means 'not applicable' or 'not checked', as the README says per field.",
+  "oneOf": [{ "$ref": "#/definitions/signatureVector" }, { "$ref": "#/definitions/routeVector" }],
+  "definitions": {
+    "contract": { "type": "string", "pattern": "^ADR-0019 \\(056a203\\) " },
+    "ambiguities": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[GY][0-9]+$" },
+      "uniqueItems": true
+    },
+    "hex64": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "hexBytes": { "type": "string", "pattern": "^([0-9a-f]{2})*$" },
+    "utcSeconds": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+
+    "signatureVector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "id", "kind", "description", "contract", "ambiguities", "cases"],
+      "properties": {
+        "$schema": { "const": "./schema.json" },
+        "id": { "const": "S01" },
+        "kind": { "const": "signature" },
+        "description": { "type": "string", "minLength": 1 },
+        "contract": { "$ref": "#/definitions/contract" },
+        "ambiguities": { "$ref": "#/definitions/ambiguities" },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/signatureCase" }
+        }
+      }
+    },
+    "signatureCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "note", "secrets", "bodyHex", "header", "expect"],
+      "properties": {
+        "label": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "note": { "type": "string", "minLength": 1 },
+        "secrets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "bodyHex": { "$ref": "#/definitions/hexBytes" },
+        "header": { "type": ["string", "null"] },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["valid", "hmacHexPerSecret"],
+          "properties": {
+            "valid": { "type": "boolean" },
+            "hmacHexPerSecret": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2,
+              "items": { "$ref": "#/definitions/hex64" }
+            }
+          }
+        }
+      }
+    },
+
+    "routeVector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "id",
+        "kind",
+        "description",
+        "contract",
+        "ambiguities",
+        "clock",
+        "setup",
+        "steps",
+        "absentStrings"
+      ],
+      "properties": {
+        "$schema": { "const": "./schema.json" },
+        "id": { "type": "string", "pattern": "^(S(0[2-9]|[1-9][0-9])|[RMP][0-9]{2})$" },
+        "kind": { "const": "route" },
+        "description": { "type": "string", "minLength": 1 },
+        "contract": { "$ref": "#/definitions/contract" },
+        "ambiguities": { "$ref": "#/definitions/ambiguities" },
+        "clock": { "$ref": "#/definitions/utcSeconds" },
+        "setup": { "$ref": "#/definitions/setup" },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/step" } },
+        "absentStrings": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 8 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secrets", "workspaces", "installations", "repositories"],
+      "properties": {
+        "secrets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["current", "previous"],
+          "properties": {
+            "current": { "type": ["string", "null"], "minLength": 1 },
+            "previous": { "type": ["string", "null"], "minLength": 1 }
+          }
+        },
+        "workspaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "projects"],
+            "properties": {
+              "label": { "type": "string", "pattern": "^ws-[a-z]$" },
+              "projects": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["slug", "privacyClass"],
+                  "properties": {
+                    "slug": { "$ref": "#/definitions/slug" },
+                    "privacyClass": { "enum": ["L0", "L1", "L2"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "installations": { "type": "array", "items": { "$ref": "#/definitions/installationRow" } },
+        "repositories": { "type": "array", "items": { "$ref": "#/definitions/repositoryRow" } }
+      }
+    },
+    "installationRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installationId", "accountId", "accountType", "claimedBy", "suspended"],
+      "properties": {
+        "installationId": { "type": "integer", "minimum": 1 },
+        "accountId": { "type": "integer", "minimum": 1 },
+        "accountType": { "enum": ["User", "Organization"] },
+        "claimedBy": { "type": ["string", "null"], "pattern": "^ws-[a-z]$" },
+        "suspended": { "type": "boolean" }
+      }
+    },
+    "repositoryRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repoId", "installationId", "fullName", "project"],
+      "properties": {
+        "repoId": { "type": "integer", "minimum": 1 },
+        "installationId": { "type": "integer", "minimum": 1 },
+        "fullName": { "type": "string", "minLength": 3 },
+        "project": { "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/slug" }] }
+      }
+    },
+
+    "step": {
+      "oneOf": [{ "$ref": "#/definitions/deliveryStep" }, { "$ref": "#/definitions/actionStep" }]
+    },
+    "deliveryStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note", "action", "fault", "request", "expect"],
+      "properties": {
+        "note": { "type": "string", "minLength": 1 },
+        "action": { "type": "null" },
+        "fault": { "enum": [null, "store-unavailable"] },
+        "request": { "$ref": "#/definitions/request" },
+        "expect": { "$ref": "#/definitions/deliveryExpect" }
+      }
+    },
+    "actionStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note", "action", "fault", "request", "expect"],
+      "properties": {
+        "note": { "type": "string", "minLength": 1 },
+        "action": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["op", "installationId"],
+          "properties": {
+            "op": { "const": "releaseClaim" },
+            "installationId": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "fault": { "type": "null" },
+        "request": { "type": "null" },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "status",
+            "errorCode",
+            "equivalenceGroup",
+            "deliveryRecorded",
+            "events",
+            "state"
+          ],
+          "properties": {
+            "outcome": { "const": "action" },
+            "status": { "type": "null" },
+            "errorCode": { "type": "null" },
+            "equivalenceGroup": { "type": "null" },
+            "deliveryRecorded": { "type": "null" },
+            "events": { "type": "array", "maxItems": 0 },
+            "state": { "$ref": "#/definitions/state" }
+          }
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "headers",
+        "payload",
+        "bodyText",
+        "bodyHex",
+        "bodyPadBytes",
+        "bodyLength",
+        "bodySha256",
+        "signedWith"
+      ],
+      "properties": {
+        "headers": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9-]+$" },
+          "additionalProperties": { "type": "string" }
+        },
+        "payload": { "type": ["object", "null"] },
+        "bodyText": { "type": ["string", "null"] },
+        "bodyHex": { "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/hexBytes" }] },
+        "bodyPadBytes": { "type": ["integer", "null"], "minimum": 1 },
+        "bodyLength": { "type": "integer", "minimum": 0 },
+        "bodySha256": { "$ref": "#/definitions/hex64" },
+        "signedWith": { "enum": ["current", "previous", "other", "none", "literal"] }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "payload": { "type": "object" },
+            "bodyText": { "type": "null" },
+            "bodyHex": { "type": "null" }
+          }
+        },
+        {
+          "properties": {
+            "payload": { "type": "null" },
+            "bodyText": { "type": "string" },
+            "bodyHex": { "type": "null" },
+            "bodyPadBytes": { "type": "null" }
+          }
+        },
+        {
+          "properties": {
+            "payload": { "type": "null" },
+            "bodyText": { "type": "null" },
+            "bodyHex": { "type": "string" },
+            "bodyPadBytes": { "type": "null" }
+          }
+        }
+      ]
+    },
+    "deliveryExpect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "status",
+        "errorCode",
+        "equivalenceGroup",
+        "deliveryRecorded",
+        "events",
+        "state"
+      ],
+      "properties": {
+        "outcome": {
+          "enum": [
+            "stored",
+            "rows-changed",
+            "not-configured",
+            "rejected:encoding",
+            "rejected:signature",
+            "rejected:size",
+            "failed:store",
+            "dropped:duplicate",
+            "dropped:ping",
+            "dropped:unknown-event",
+            "dropped:shape",
+            "dropped:kind-mismatch",
+            "dropped:unknown-action",
+            "dropped:no-installation",
+            "dropped:too-old",
+            "dropped:unknown-repo",
+            "dropped:installation-mismatch",
+            "dropped:suspended",
+            "dropped:unclaimed",
+            "dropped:unlinked",
+            "dropped:actions-own-suite"
+          ]
+        },
+        "status": { "enum": [200, 202, 401, 413, 415, 500, 503] },
+        "errorCode": { "enum": [null, "not_configured"] },
+        "equivalenceGroup": { "enum": [null, "github-401"] },
+        "deliveryRecorded": { "type": "boolean" },
+        "events": { "type": "array", "items": { "$ref": "#/definitions/expectedEvent" } },
+        "state": { "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/state" }] }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installations", "repositories"],
+      "properties": {
+        "installations": { "type": "array", "items": { "$ref": "#/definitions/installationRow" } },
+        "repositories": { "type": "array", "items": { "$ref": "#/definitions/repositoryRow" } }
+      }
+    },
+    "expectedEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["derivation", "event", "attributes"],
+      "properties": {
+        "derivation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["threadKey", "eventIdName", "sequenceRule"],
+          "properties": {
+            "threadKey": {
+              "type": "string",
+              "pattern": "^(run\\|[0-9]+\\|[0-9]+|suite\\|[0-9]+|pr\\|[0-9]+\\|[0-9]+)$"
+            },
+            "eventIdName": { "type": "string", "pattern": "^[0-9a-f]{64}:[0-9]+$" },
+            "sequenceRule": { "type": "string", "minLength": 1 }
+          }
+        },
+        "event": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "jgr",
+            "event_id",
+            "producer_id",
+            "project_ref",
+            "thread_ref",
+            "sequence",
+            "type",
+            "occurred_at"
+          ],
+          "properties": {
+            "jgr": { "const": "0.1" },
+            "event_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "producer_id": { "type": "string", "pattern": "^gh-app_[0-9]+$" },
+            "project_ref": { "$ref": "#/definitions/slug" },
+            "thread_ref": { "type": "string", "pattern": "^gh_[0-9a-f]{32}$" },
+            "sequence": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "type": {
+              "enum": [
+                "task.started",
+                "task.completed",
+                "task.failed",
+                "x.github.ci.cancelled",
+                "x.github.ci.skipped",
+                "x.github.ci.attention",
+                "x.github.pr.opened",
+                "x.github.pr.updated",
+                "x.github.pr.ready",
+                "x.github.pr.merged",
+                "x.github.pr.closed"
+              ]
+            },
+            "occurred_at": { "$ref": "#/definitions/utcSeconds" }
+          }
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "tool_name": { "type": "string", "minLength": 1, "maxLength": 128 },
+            "task_kind": { "enum": ["ci.workflow", "ci.check_suite", "pr", "pr.draft"] },
+            "attempt": { "type": "integer", "minimum": 1 },
+            "duration_ms": { "type": "integer", "minimum": 0 },
+            "error_code": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["optional", "equals"],
+              "properties": {
+                "optional": { "const": true },
+                "equals": { "type": "string", "pattern": "^ci\\.[a-z_]+$" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

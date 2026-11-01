@@ -1,0 +1,466 @@
+{
+  "$schema": "./schema.json",
+  "id": "P05",
+  "kind": "route",
+  "description": "Installation payloads (created, suspend, unsuspend): contact_email, suspended_by, requester, sender, the account login, name and email, app_slug, single_file paths and URLs are absent from rows (except repository full_name), events and logs. Rows keep only ids, account type, claim, suspension and timestamps.",
+  "contract": "ADR-0019 (056a203) Changes D0 L2 (sentinel tests cover installation payloads: contact_email, suspended_by, requester, sender); decision 4 (table columns)",
+  "ambiguities": ["G3", "G16"],
+  "clock": "2026-11-01T12:00:00Z",
+  "setup": {
+    "secrets": { "current": "qa-webhook-secret-current-NOT-REAL", "previous": null },
+    "workspaces": [{ "label": "ws-a", "projects": [{ "slug": "web-app", "privacyClass": "L0" }] }],
+    "installations": [],
+    "repositories": []
+  },
+  "steps": [
+    {
+      "note": "installation created with repos 5001 and 5002",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-0000000000a2",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "installation",
+          "x-hub-signature": "sha1=76607bed2a607232a4e9aa2ab26ef51867241163",
+          "x-hub-signature-256": "sha256=3daef6edced1aa136a613ccca53e15c42f5309e9899d3db721ac2b96946cf361"
+        },
+        "payload": {
+          "action": "created",
+          "installation": {
+            "id": 1001,
+            "client_id": "qasentinel-client-id",
+            "account": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "node_id": "qasentinel-node-owner",
+              "avatar_url": "https://avatars.example.invalid/qasentinel-owner",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/qasentinel-owner",
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User",
+              "site_admin": false,
+              "name": "qasentinel owner display name",
+              "email": "qasentinel-owner@example.invalid"
+            },
+            "repository_selection": "selected",
+            "access_tokens_url": "https://api.github.com/app/installations/1001/access_tokens",
+            "repositories_url": "https://api.github.com/installation/repositories",
+            "html_url": "https://github.com/settings/installations/1001",
+            "app_id": 880001,
+            "app_slug": "qasentinel-app-slug",
+            "target_id": 7001,
+            "target_type": "User",
+            "permissions": {
+              "metadata": "read",
+              "pull_requests": "read",
+              "checks": "read",
+              "actions": "read"
+            },
+            "events": ["check_suite", "pull_request", "workflow_run"],
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "single_file_name": "qasentinel-single-file.txt",
+            "has_multiple_single_files": false,
+            "single_file_paths": ["qasentinel/config/qasentinel-path.yml"],
+            "suspended_by": null,
+            "suspended_at": null,
+            "contact_email": "qasentinel-contact@example.invalid"
+          },
+          "repositories": [
+            {
+              "id": 5001,
+              "node_id": "qasentinel-node-repo-5001",
+              "name": "qasentinel-repo-a",
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true
+            },
+            {
+              "id": 5002,
+              "node_id": "qasentinel-node-repo-5002",
+              "name": "qasentinel-repo-b",
+              "full_name": "qasentinel-owner/qasentinel-repo-b",
+              "private": true
+            }
+          ],
+          "requester": {
+            "login": "qasentinel-requester",
+            "id": 7110,
+            "node_id": "qasentinel-node-requester",
+            "avatar_url": "https://avatars.example.invalid/qasentinel-requester",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/qasentinel-requester",
+            "html_url": "https://github.com/qasentinel-requester",
+            "type": "User",
+            "site_admin": false,
+            "name": "qasentinel requester display name",
+            "email": "qasentinel-requester@example.invalid"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "node_id": "qasentinel-node-sender",
+            "avatar_url": "https://avatars.example.invalid/qasentinel-sender",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/qasentinel-sender",
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User",
+            "site_admin": false,
+            "name": "qasentinel sender display name",
+            "email": "qasentinel-sender@example.invalid"
+          }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2350,
+        "bodySha256": "4b7ff36a7ad2d2a7bfdb1705413662f28af865ab20cf6d9f23bbcc84c426f2ad",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rows-changed",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [],
+        "state": {
+          "installations": [
+            {
+              "installationId": 1001,
+              "accountId": 7001,
+              "accountType": "User",
+              "claimedBy": null,
+              "suspended": false
+            }
+          ],
+          "repositories": [
+            {
+              "repoId": 5001,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-a",
+              "project": null
+            },
+            {
+              "repoId": 5002,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-b",
+              "project": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "note": "installation suspend (suspended_by set)",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-0000000000a3",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "installation",
+          "x-hub-signature": "sha1=9edf41ac6aa5249b9649e419e12b41788a0d2e09",
+          "x-hub-signature-256": "sha256=5d1ef2240e42e46e12747ea027173458d1f9747d99fd2a1e9445070ad29e27f7"
+        },
+        "payload": {
+          "action": "suspend",
+          "installation": {
+            "id": 1001,
+            "client_id": "qasentinel-client-id",
+            "account": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "node_id": "qasentinel-node-owner",
+              "avatar_url": "https://avatars.example.invalid/qasentinel-owner",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/qasentinel-owner",
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User",
+              "site_admin": false,
+              "name": "qasentinel owner display name",
+              "email": "qasentinel-owner@example.invalid"
+            },
+            "repository_selection": "selected",
+            "access_tokens_url": "https://api.github.com/app/installations/1001/access_tokens",
+            "repositories_url": "https://api.github.com/installation/repositories",
+            "html_url": "https://github.com/settings/installations/1001",
+            "app_id": 880001,
+            "app_slug": "qasentinel-app-slug",
+            "target_id": 7001,
+            "target_type": "User",
+            "permissions": {
+              "metadata": "read",
+              "pull_requests": "read",
+              "checks": "read",
+              "actions": "read"
+            },
+            "events": ["check_suite", "pull_request", "workflow_run"],
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "single_file_name": "qasentinel-single-file.txt",
+            "has_multiple_single_files": false,
+            "single_file_paths": ["qasentinel/config/qasentinel-path.yml"],
+            "suspended_by": {
+              "login": "qasentinel-suspender",
+              "id": 7109,
+              "node_id": "qasentinel-node-suspender",
+              "avatar_url": "https://avatars.example.invalid/qasentinel-suspender",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/qasentinel-suspender",
+              "html_url": "https://github.com/qasentinel-suspender",
+              "type": "User",
+              "site_admin": false,
+              "name": "qasentinel suspender display name",
+              "email": "qasentinel-suspender@example.invalid"
+            },
+            "suspended_at": "2026-11-01T11:58:00Z",
+            "contact_email": "qasentinel-contact@example.invalid"
+          },
+          "repositories": [
+            {
+              "id": 5001,
+              "node_id": "qasentinel-node-repo-5001",
+              "name": "qasentinel-repo-a",
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true
+            },
+            {
+              "id": 5002,
+              "node_id": "qasentinel-node-repo-5002",
+              "name": "qasentinel-repo-b",
+              "full_name": "qasentinel-owner/qasentinel-repo-b",
+              "private": true
+            }
+          ],
+          "requester": {
+            "login": "qasentinel-requester",
+            "id": 7110,
+            "node_id": "qasentinel-node-requester",
+            "avatar_url": "https://avatars.example.invalid/qasentinel-requester",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/qasentinel-requester",
+            "html_url": "https://github.com/qasentinel-requester",
+            "type": "User",
+            "site_admin": false,
+            "name": "qasentinel requester display name",
+            "email": "qasentinel-requester@example.invalid"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "node_id": "qasentinel-node-sender",
+            "avatar_url": "https://avatars.example.invalid/qasentinel-sender",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/qasentinel-sender",
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User",
+            "site_admin": false,
+            "name": "qasentinel sender display name",
+            "email": "qasentinel-sender@example.invalid"
+          }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2763,
+        "bodySha256": "ac285f9ce66f14874c52e8827b6b538fbc93e53e84d0ad07234ec77f1de22b19",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rows-changed",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [],
+        "state": {
+          "installations": [
+            {
+              "installationId": 1001,
+              "accountId": 7001,
+              "accountType": "User",
+              "claimedBy": null,
+              "suspended": true
+            }
+          ],
+          "repositories": [
+            {
+              "repoId": 5001,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-a",
+              "project": null
+            },
+            {
+              "repoId": 5002,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-b",
+              "project": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "note": "installation unsuspend",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-0000000000a4",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "installation",
+          "x-hub-signature": "sha1=a5cc584c282395a2d2da18c34b9d60c043b96918",
+          "x-hub-signature-256": "sha256=842f31e9262e06fa7b0f9c43fd784d6f72ad383e91e67c8496ff781444864f8f"
+        },
+        "payload": {
+          "action": "unsuspend",
+          "installation": {
+            "id": 1001,
+            "client_id": "qasentinel-client-id",
+            "account": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "node_id": "qasentinel-node-owner",
+              "avatar_url": "https://avatars.example.invalid/qasentinel-owner",
+              "gravatar_id": "",
+              "url": "https://api.github.com/users/qasentinel-owner",
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User",
+              "site_admin": false,
+              "name": "qasentinel owner display name",
+              "email": "qasentinel-owner@example.invalid"
+            },
+            "repository_selection": "selected",
+            "access_tokens_url": "https://api.github.com/app/installations/1001/access_tokens",
+            "repositories_url": "https://api.github.com/installation/repositories",
+            "html_url": "https://github.com/settings/installations/1001",
+            "app_id": 880001,
+            "app_slug": "qasentinel-app-slug",
+            "target_id": 7001,
+            "target_type": "User",
+            "permissions": {
+              "metadata": "read",
+              "pull_requests": "read",
+              "checks": "read",
+              "actions": "read"
+            },
+            "events": ["check_suite", "pull_request", "workflow_run"],
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "single_file_name": "qasentinel-single-file.txt",
+            "has_multiple_single_files": false,
+            "single_file_paths": ["qasentinel/config/qasentinel-path.yml"],
+            "suspended_by": null,
+            "suspended_at": null,
+            "contact_email": "qasentinel-contact@example.invalid"
+          },
+          "repositories": [
+            {
+              "id": 5001,
+              "node_id": "qasentinel-node-repo-5001",
+              "name": "qasentinel-repo-a",
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true
+            },
+            {
+              "id": 5002,
+              "node_id": "qasentinel-node-repo-5002",
+              "name": "qasentinel-repo-b",
+              "full_name": "qasentinel-owner/qasentinel-repo-b",
+              "private": true
+            }
+          ],
+          "requester": {
+            "login": "qasentinel-requester",
+            "id": 7110,
+            "node_id": "qasentinel-node-requester",
+            "avatar_url": "https://avatars.example.invalid/qasentinel-requester",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/qasentinel-requester",
+            "html_url": "https://github.com/qasentinel-requester",
+            "type": "User",
+            "site_admin": false,
+            "name": "qasentinel requester display name",
+            "email": "qasentinel-requester@example.invalid"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "node_id": "qasentinel-node-sender",
+            "avatar_url": "https://avatars.example.invalid/qasentinel-sender",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/qasentinel-sender",
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User",
+            "site_admin": false,
+            "name": "qasentinel sender display name",
+            "email": "qasentinel-sender@example.invalid"
+          }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2352,
+        "bodySha256": "d55826d83f4c7630b063929db815a459dc73fd8ca9d5892f9112c533b5f9a7d8",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rows-changed",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [],
+        "state": {
+          "installations": [
+            {
+              "installationId": 1001,
+              "accountId": 7001,
+              "accountType": "User",
+              "claimedBy": null,
+              "suspended": false
+            }
+          ],
+          "repositories": [
+            {
+              "repoId": 5001,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-a",
+              "project": null
+            },
+            {
+              "repoId": 5002,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-b",
+              "project": null
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "3daef6edced1aa136a613ccca53e15c42f5309e9899d3db721ac2b96946cf361",
+    "5d1ef2240e42e46e12747ea027173458d1f9747d99fd2a1e9445070ad29e27f7",
+    "76607bed2a607232a4e9aa2ab26ef51867241163",
+    "842f31e9262e06fa7b0f9c43fd784d6f72ad383e91e67c8496ff781444864f8f",
+    "9edf41ac6aa5249b9649e419e12b41788a0d2e09",
+    "a5cc584c282395a2d2da18c34b9d60c043b96918",
+    "qa-webhook-secret-current-NOT-REAL",
+    "qa-webhook-secret-other-NOT-REAL",
+    "qa-webhook-secret-previous-NOT-REAL"
+  ]
+}
