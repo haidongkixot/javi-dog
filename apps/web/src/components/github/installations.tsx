@@ -18,6 +18,9 @@ import { GithubActionButton } from './action-button';
 export const NOT_REVERIFIABLE_TEXT =
   'Your GitHub account is no longer linked to your sign-in, so this claim can’t be re-verified. It stays in place until a workspace owner or admin releases it.';
 
+export const OTHER_ACCOUNT_TEXT =
+  'The GitHub account linked to your sign-in doesn’t own this installation, so this claim can’t be re-verified from here. It stays in place until a workspace owner or admin releases it.';
+
 function Claimable({ overview }: { overview: GithubOverview }) {
   if (!overview.canManage)
     return (
@@ -87,8 +90,10 @@ function Claimed({
               'No verified delivery yet.'
             )}
           </p>
-          {!overview.githubLinked ? (
-            <p className="mt-1 text-xs font-bold text-ink">{NOT_REVERIFIABLE_TEXT}</p>
+          {!i.reverifiable ? (
+            <p className="mt-1 text-xs font-bold text-ink">
+              {overview.githubLinked ? OTHER_ACCOUNT_TEXT : NOT_REVERIFIABLE_TEXT}
+            </p>
           ) : null}
           {i.repositories.length === 0 ? (
             <p className="mt-2 text-xs text-muted">No repositories shared with the app yet.</p>

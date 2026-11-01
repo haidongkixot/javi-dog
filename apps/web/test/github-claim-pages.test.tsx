@@ -49,7 +49,8 @@ vi.mock('next/navigation', () => ({
 
 const { default: GithubPage } = await import('@/app/integrations/github/page');
 const { default: ProjectPage } = await import('@/app/projects/[id]/page');
-const { NOT_REVERIFIABLE_TEXT } = await import('@/components/github/installations');
+const { NOT_REVERIFIABLE_TEXT, OTHER_ACCOUNT_TEXT } =
+  await import('@/components/github/installations');
 const { OWNER_ONLY_TEXT } = await import('@/components/github/status');
 
 let client: PGlite;
@@ -303,6 +304,21 @@ describe('/integrations/github — claims', () => {
     const region = screen.getByRole('region', { name: 'Installations' });
     expect(region.textContent).toContain(NOT_REVERIFIABLE_TEXT);
     expect(region.textContent).toContain('ana/alpha-repo');
+  });
+
+  it('with a different GitHub account linked the claim stays and says it can’t be re-verified', async () => {
+    fullyConfigured();
+    await claimDirect(w.A, INST.A, GH.ownerA);
+    await client.query(
+      `update accounts set account_id = '99999' where provider_id = 'github' and user_id = $1`,
+      [w.ownerA],
+    );
+    signInAs(w.ownerA, w.A);
+    await renderPage(githubPage());
+    expect(await claimedBy(INST.A)).toBe(w.A);
+    const region = screen.getByRole('region', { name: 'Installations' });
+    expect(region.textContent).toContain(OTHER_ACCOUNT_TEXT);
+    expect(region.textContent).not.toContain(NOT_REVERIFIABLE_TEXT);
   });
 });
 

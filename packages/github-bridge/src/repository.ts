@@ -59,6 +59,8 @@ export interface RouteTarget {
 
 export interface WorkspaceInstallation {
   installationId: number;
+  /** GitHub numeric account id from the signed webhook (the claim rule, ADR-0019 §4). */
+  accountId: number;
   accountType: 'User' | 'Organization';
   suspendedAt: Date | null;
   lastVerifiedDeliveryAt: Date | null;
@@ -372,6 +374,7 @@ export const createGithubRepository = (db: GithubDb) => {
       if (!isUuid(workspaceId)) return [];
       const rows = rowsOf<{
         installation_id: number | string;
+        account_id: number | string;
         account_type: 'User' | 'Organization';
         suspended_at: string | null;
         last_verified_delivery_at: string | null;
@@ -381,7 +384,7 @@ export const createGithubRepository = (db: GithubDb) => {
         linked_at: string | null;
       }>(
         await db.execute(sql`
-        select i.installation_id, i.account_type, i.suspended_at, i.last_verified_delivery_at,
+        select i.installation_id, i.account_id, i.account_type, i.suspended_at, i.last_verified_delivery_at,
                r.repo_id, r.full_name,
                case when r.workspace_id = i.claimed_workspace_id then r.project_id end as project_id,
                case when r.workspace_id = i.claimed_workspace_id then r.linked_at end as linked_at
@@ -397,6 +400,7 @@ export const createGithubRepository = (db: GithubDb) => {
         if (!inst) {
           inst = {
             installationId: id,
+            accountId: Number(row.account_id),
             accountType: row.account_type,
             suspendedAt: toDate(row.suspended_at),
             lastVerifiedDeliveryAt: toDate(row.last_verified_delivery_at),

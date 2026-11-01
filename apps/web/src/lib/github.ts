@@ -128,7 +128,11 @@ export interface GithubOverview {
   /** Owner or admin of the viewer's workspace (`canManageProject`). */
   canManage: boolean;
   /** Installations claimed by the viewer's workspace, with repository names (members only). */
-  installations: WorkspaceInstallation[];
+  /**
+   * The workspace's claimed installations. `reverifiable` is false when the viewer's linked GitHub
+   * account is missing or is not the installation's account (D0 M5: the claim stays).
+   */
+  installations: Array<WorkspaceInstallation & { reverifiable: boolean }>;
   /** Unclaimed installations of the viewer's own GitHub account (owners and admins only). */
   claimable: Array<{ installationId: number; accountType: 'User' | 'Organization' }>;
 }
@@ -191,7 +195,10 @@ export const loadGithubOverview = async (
       installUrl: ownerInstallUrl(config, githubAccountId),
       isAppOwner,
       githubLinked: githubAccountId !== null,
-      installations,
+      installations: installations.map((i) => ({
+        ...i,
+        reverifiable: githubAccountId !== null && i.accountId === githubAccountId,
+      })),
       claimable,
     };
   } catch (error) {
