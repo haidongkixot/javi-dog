@@ -295,8 +295,7 @@ describe('claims (D0 M5)', () => {
     expect(await claim(a.workspaceId)).toBe('claimed');
     expect(await claim(a.workspaceId)).toBe('already_yours');
     expect(await claim(b.workspaceId)).toBe('claimed_elsewhere');
-    expect(await claim(b.workspaceId, ACCOUNT, 555)).toBe('not_found');
-    expect(await claim('not-a-uuid')).toBe('not_found');
+    expect(await claim('not-a-uuid')).toBe('account_mismatch');
 
     await gh.applyInstallationChange({
       ...upsert(300),
@@ -310,8 +309,51 @@ describe('claims (D0 M5)', () => {
     ).toEqual({ claimed_workspace_id: null });
   });
 
+  it('an id the claimer’s GitHub account does not own gets one generic answer (no enumeration, L-2)', async () => {
+    const a = await setup('Team A');
+    const b = await setup('Team B');
+    const OTHER = 7777;
+    // Foreign rows: unclaimed, claimed by another workspace, and an organization.
+    await gh.applyInstallationChange({
+      ...upsert(INST),
+      installation: { installationId: INST, accountId: OTHER, accountType: 'User' },
+    });
+    await gh.applyInstallationChange({
+      ...upsert(200),
+      installation: { installationId: 200, accountId: OTHER, accountType: 'User' },
+    });
+    expect(
+      await gh.claimInstallation({
+        workspaceId: a.workspaceId,
+        installationId: 200,
+        githubAccountId: OTHER,
+      }),
+    ).toBe('claimed');
+    await gh.applyInstallationChange({
+      ...upsert(300),
+      installation: { installationId: 300, accountId: OTHER, accountType: 'Organization' },
+    });
+    const claim = (installationId: number) =>
+      gh.claimInstallation({
+        workspaceId: b.workspaceId,
+        installationId,
+        githubAccountId: ACCOUNT,
+      });
+    const answers = await Promise.all([INST, 200, 300, 555].map(claim));
+    // Unknown (555) and foreign (unclaimed, claimed elsewhere, organization) read the same.
+    expect(answers).toEqual(Array(4).fill('account_mismatch'));
+    expect(
+      (
+        await ctx.client.query<{ c: string | null }>(
+          'select claimed_workspace_id as c from github_installations order by installation_id',
+        )
+      ).rows.map((r) => r.c),
+    ).toEqual([null, a.workspaceId, null]);
+  });
+
   it('release clears the claim and its links; another workspace cannot release it', async () => {
     const s = await linked();
+    await gh.touchVerifiedDelivery(INST, new Date('2026-10-31T12:00:00Z'));
     const other = await setup('Other');
     expect(await gh.releaseInstallation(other.workspaceId, INST)).toBe(false);
     expect(await repoRow(1)).toMatchObject({ project_id: s.projectId });
@@ -328,6 +370,9 @@ describe('claims (D0 M5)', () => {
         githubAccountId: ACCOUNT,
       }),
     ).toBe('claimed');
+    // The old claim's delivery evidence does not carry over to the new claim (L-3).
+    const [inst] = await gh.workspaceInstallations(other.workspaceId);
+    expect(inst?.lastVerifiedDeliveryAt).toBeNull();
   });
 
   it('lists claimable installations of an account and the workspace’s installations', async () => {
@@ -375,6 +420,26 @@ describe('links (ADR-0019 §4, D0 H3)', () => {
     expect(await gh.unlinkRepository(s.workspaceId, 1)).toBe(true);
     expect(await link(s.workspaceId, second.id)).toBe('linked');
     expect(await repoRow(1)).toMatchObject({ project_id: second.id, workspace_id: s.workspaceId });
+  });
+
+  it('a second link to another project is refused once the first committed (L-5)', async () => {
+    const s = await setup();
+    await gh.applyInstallationChange(upsert(INST, [[1, 'octo/one']]));
+    await gh.claimInstallation({
+      workspaceId: s.workspaceId,
+      installationId: INST,
+      githubAccountId: ACCOUNT,
+    });
+    const second = await projectsRepo.createProject(s.workspaceId, {
+      name: 'Second',
+      platforms: ['claude-code'],
+    });
+    const link = (projectId: string) =>
+      gh.linkRepository({ workspaceId: s.workspaceId, repoId: 1, projectId, userId: USER });
+    // Both start from an unlinked row; the second runs after the first committed.
+    const [first, late] = await Promise.all([link(s.projectId), link(second.id)]);
+    expect([first, late]).toEqual(['linked', 'linked_elsewhere']);
+    expect(await repoRow(1)).toMatchObject({ project_id: s.projectId });
   });
 
   it('refuses cross-workspace links at the SQL level', async () => {

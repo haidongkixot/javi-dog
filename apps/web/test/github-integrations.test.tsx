@@ -38,6 +38,9 @@ afterEach(() => {
 });
 
 const AT = new Date('2026-10-30T08:15:00.000Z');
+/** Server time for the status (the 7-day staleness rule, M-2). */
+const NOW = new Date('2026-11-01T12:00:00.000Z');
+const DAY = 86_400_000;
 const inst = (over: { suspendedAt?: Date | null; lastVerifiedDeliveryAt?: Date | null } = {}) => ({
   suspendedAt: null,
   lastVerifiedDeliveryAt: null,
@@ -67,7 +70,7 @@ describe('githubStatus (label logic)', () => {
     ],
     [
       'claimed, no verified delivery → waiting (claimed)',
-      { configured: true, isAppOwner: false, installations: [inst()] },
+      { configured: true, isAppOwner: false, installations: [inst()], now: NOW },
       { kind: 'waiting', claimed: true },
     ],
     [
@@ -76,6 +79,7 @@ describe('githubStatus (label logic)', () => {
         configured: true,
         isAppOwner: false,
         installations: [inst({ lastVerifiedDeliveryAt: AT })],
+        now: NOW,
       },
       { kind: 'connected', at: AT },
     ],
@@ -89,8 +93,52 @@ describe('githubStatus (label logic)', () => {
           inst({ lastVerifiedDeliveryAt: AT }),
           inst(),
         ],
+        now: NOW,
       },
       { kind: 'connected', at: AT },
+    ],
+    [
+      'a suspended installation’s delivery does not count: suspended with one + active without → waiting',
+      {
+        configured: true,
+        isAppOwner: true,
+        installations: [inst({ suspendedAt: AT, lastVerifiedDeliveryAt: AT }), inst()],
+        now: NOW,
+      },
+      { kind: 'waiting', claimed: true },
+    ],
+    [
+      'the newest delivery is taken over unsuspended installations only',
+      {
+        configured: true,
+        isAppOwner: true,
+        installations: [
+          inst({ suspendedAt: AT, lastVerifiedDeliveryAt: AT }),
+          inst({ lastVerifiedDeliveryAt: new Date(NOW.getTime() - 9 * DAY) }),
+        ],
+        now: NOW,
+      },
+      { kind: 'stale', at: new Date(NOW.getTime() - 9 * DAY) },
+    ],
+    [
+      'a verified delivery 8 days old → stale, not connected',
+      {
+        configured: true,
+        isAppOwner: false,
+        installations: [inst({ lastVerifiedDeliveryAt: new Date(NOW.getTime() - 8 * DAY) })],
+        now: NOW,
+      },
+      { kind: 'stale', at: new Date(NOW.getTime() - 8 * DAY) },
+    ],
+    [
+      'exactly 7 days old is still connected (stale means older than 7 days)',
+      {
+        configured: true,
+        isAppOwner: false,
+        installations: [inst({ lastVerifiedDeliveryAt: new Date(NOW.getTime() - 7 * DAY) })],
+        now: NOW,
+      },
+      { kind: 'connected', at: new Date(NOW.getTime() - 7 * DAY) },
     ],
     [
       'every claimed installation suspended → suspended',
@@ -122,6 +170,33 @@ describe('config and the owner-only install link (D0 H1)', () => {
       lib.githubAppConfig({ GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: FAKE_SECRET }).configured,
     ).toBe(false);
     expect(lib.githubAppConfig({ GITHUB_APP_WEBHOOK_SECRET: '   ' }).configured).toBe(false);
+  });
+
+  it('a secret with surrounding whitespace is not set up, as the webhook answers 503 (L-1)', () => {
+    expect(lib.githubAppConfig({ GITHUB_APP_WEBHOOK_SECRET: 'abc\n' }).configured).toBe(false);
+    expect(lib.githubAppConfig({ GITHUB_APP_WEBHOOK_SECRET: ` ${FAKE_SECRET}` }).configured).toBe(
+      false,
+    );
+    expect(
+      lib.githubAppConfig({
+        GITHUB_APP_WEBHOOK_SECRET: FAKE_SECRET,
+        GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: 'old\n',
+      }).configured,
+    ).toBe(false);
+    // A whitespace-only previous secret is ignored, as the webhook ignores it.
+    expect(
+      lib.githubAppConfig({
+        GITHUB_APP_WEBHOOK_SECRET: FAKE_SECRET,
+        GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: '  ',
+      }).configured,
+    ).toBe(true);
+  });
+
+  it('“abc\\n” as the secret: the setup card says not set up', () => {
+    const configured = lib.githubAppConfig({ GITHUB_APP_WEBHOOK_SECRET: 'abc\n' }).configured;
+    const status = lib.githubStatus({ configured, isAppOwner: true, installations: [] });
+    render(<GithubSetupCard overview={overview({ status })} backFromGithub={false} />);
+    expect(document.body.textContent).toContain('GitHub: not set up');
   });
 
   it.each(['../evil', 'a b', 'x/y', '-lead', 'trail-', ''])(
@@ -164,6 +239,7 @@ describe('status line copy (ADR-0019 §8, D0 M4)', () => {
     { kind: 'waiting', claimed: true },
     { kind: 'suspended' },
     { kind: 'connected', at: AT },
+    { kind: 'stale', at: AT },
     { kind: 'unavailable' },
   ];
 
@@ -187,6 +263,20 @@ describe('status line copy (ADR-0019 §8, D0 M4)', () => {
     expect(document.body.textContent).toContain('Last verified delivery from GitHub');
   });
 
+  it('stale: “No verified delivery since <UTC time>” in the warn tone, with a hint, never “Connected” (M-2)', () => {
+    render(<GithubStatusLine status={{ kind: 'stale', at: AT }} />);
+    const { label, tone, detail } = githubStatusLabel({ kind: 'stale', at: AT });
+    expect(tone).toBe('warn');
+    expect(label).toBe('No verified delivery since');
+    expect(detail).toMatch(/webhook secret/);
+    expect(detail).toMatch(/Recent Deliveries/);
+    const pill = screen.getByText(/No verified delivery since/);
+    const time = pill.querySelector('time');
+    expect(time?.getAttribute('dateTime')).toBe(AT.toISOString());
+    expect(time?.textContent).toContain('08:15 UTC');
+    expect(document.body.textContent).not.toMatch(/connected|\blive\b/i);
+  });
+
   it('owner only names the scope plainly', () => {
     render(<GithubStatusLine status={{ kind: 'owner_only' }} />);
     expect(document.body.textContent).toContain(OWNER_ONLY_TEXT);
@@ -208,6 +298,7 @@ const overview = (over: Partial<GithubOverview> = {}): GithubOverview => ({
   canManage: true,
   installations: [],
   claimable: [],
+  checkedAt: NOW,
   ...over,
 });
 

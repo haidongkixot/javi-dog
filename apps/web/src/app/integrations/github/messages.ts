@@ -6,12 +6,11 @@ export const CLAIM_MESSAGES = {
   already_yours: 'This workspace already holds this installation.',
   claimed_elsewhere:
     'Another workspace has already claimed this installation. It can be claimed again once that workspace releases it.',
-  not_found:
-    'We have no record of that installation. GitHub sends it right after the app is installed; reload in a minute.',
   organization:
-    'Organization installations can’t be claimed yet. Javi’s Dog can only verify installations on your personal GitHub account for now.',
+    'Organization installations aren’t supported yet. Install the app on your personal GitHub account instead.',
+  // One answer for an unknown id and for another account's installation (review L-2).
   account_mismatch:
-    'This installation belongs to a different GitHub account than the one you signed in with.',
+    'Your GitHub account has no installation with that id. If you just installed the app, reload in a minute: GitHub’s signed notice may still be on its way.',
   no_github_account:
     'Sign in with GitHub first. A claim checks that the installation belongs to your GitHub account.',
 } as const;

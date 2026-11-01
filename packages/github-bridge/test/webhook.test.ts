@@ -26,6 +26,8 @@ import {
   SENTINEL,
   workflowRunPayload,
 } from './fixtures.ts';
+// Not re-exported from the package index yet (a shared edit); tested here at its source.
+import { githubWebhookSecretsState } from '../src/webhook.ts';
 
 // TEST_PLAN §S5g rows "Signature", "Route", "Never stored" (logs), the D0 replay row, "D0:
 // per-event 3-day timestamps" and "D0: timingSafeEqual only on equal-length buffers", plus the
@@ -168,6 +170,61 @@ describe('configuration (ADR-0019 §3.1, G13)', () => {
       expect(w.readBody).not.toHaveBeenCalled();
       expect(w.calls).toEqual([]);
     }
+  });
+
+  // L-1: the handler, the UI config (JD-APP `githubAppConfig`) and health agree on one rule.
+  it('treats a whitespace-only current secret as absent: 503 not_configured', async () => {
+    for (const blank of [' ', '\n', ' \t ']) {
+      const w = fakeWorld();
+      const r = await send(w, { secret: blank }, { secrets: { current: blank } });
+      expect(r.status).toBe(503);
+      expect(r.json).toEqual({ error: 'not_configured' });
+      expect(w.logs).toEqual([expect.objectContaining({ status: 503, outcome: 'not_configured' })]);
+      expect(w.calls).toEqual([]);
+    }
+  });
+
+  it('refuses a secret with leading or trailing whitespace: 503, logged as misconfigured_secret without the value', async () => {
+    for (const secrets of [
+      { current: 'abc\n' },
+      { current: ' abc' },
+      { current: CURRENT, previous: `${PREVIOUS} ` },
+    ]) {
+      const w = fakeWorld();
+      const r = await send(w, { secret: secrets.current }, { secrets });
+      expect(r.status).toBe(503);
+      expect(r.json).toEqual({ error: 'not_configured' });
+      expect(w.logs).toEqual([
+        {
+          level: 'warn',
+          module: 'JD-M10',
+          msg: 'github webhook',
+          status: 503,
+          outcome: 'misconfigured_secret',
+        },
+      ]);
+      expect(JSON.stringify(w.logs)).not.toContain('abc');
+      expect(w.readBody).not.toHaveBeenCalled();
+      expect(w.calls).toEqual([]);
+    }
+  });
+
+  it('ignores a whitespace-only previous secret: a body signed with it is a 401', async () => {
+    const w = fakeWorld();
+    const r = await send(w, { secret: ' ' }, { secrets: { current: CURRENT, previous: ' ' } });
+    expect(r.status).toBe(401);
+    expect((await send(w, {}, { secrets: { current: CURRENT, previous: ' ' } })).status).toBe(200);
+  });
+
+  it('githubWebhookSecretsState names the same three states', () => {
+    expect(githubWebhookSecretsState({ current: CURRENT })).toBe('configured');
+    expect(githubWebhookSecretsState({ current: CURRENT, previous: '  ' })).toBe('configured');
+    expect(githubWebhookSecretsState({ current: '  ', previous: PREVIOUS })).toBe('not_configured');
+    expect(githubWebhookSecretsState({})).toBe('not_configured');
+    expect(githubWebhookSecretsState({ current: 'abc\n' })).toBe('misconfigured_secret');
+    expect(githubWebhookSecretsState({ current: CURRENT, previous: '\told' })).toBe(
+      'misconfigured_secret',
+    );
   });
 });
 

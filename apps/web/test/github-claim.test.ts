@@ -331,12 +331,16 @@ describe('claim: the GitHub-id rule (account_id from the signed webhook row)', (
     expect(await claimedBy(INST.A)).toBeNull();
   });
 
-  it('Organization installations are refused with a clear message', async () => {
+  it('Organization installations are refused: a foreign one gets the generic answer, one of the viewer’s own account the plain message', async () => {
     signInAs(w.ownerA, w.A);
-    const result = await claim(INST.ORG);
-    expect(result).toEqual({ error: CLAIM_MESSAGES.organization });
-    expect(result.error).toMatch(/Organization installations can’t be claimed yet/);
+    // An organization's account id is the organization's, never the viewer's (L-2).
+    expect(await claim(INST.ORG)).toEqual({ error: CLAIM_MESSAGES.account_mismatch });
     expect(await claimedBy(INST.ORG)).toBeNull();
+    await installation(777, GH.ownerA, [], 'Organization');
+    const result = await claim(777);
+    expect(result).toEqual({ error: CLAIM_MESSAGES.organization });
+    expect(result.error).toMatch(/Organization installations aren’t supported yet/);
+    expect(await claimedBy(777)).toBeNull();
   });
 
   it('a spoofed installation id (another account’s, as in a forged setup_url) claims nothing', async () => {
@@ -351,17 +355,25 @@ describe('claim: the GitHub-id rule (account_id from the signed webhook row)', (
   });
 
   it.each(['', 'abc', '-501', '0', '1e3', '501.5', '501 OR 1=1', '99999999999999999999'])(
-    'a malformed installation id %j is not found and nothing is claimed',
+    'a malformed installation id %j gets the generic answer and nothing is claimed',
     async (bad) => {
       signInAs(w.ownerA, w.A);
-      expect(await claim(bad)).toEqual({ error: CLAIM_MESSAGES.not_found });
+      expect(await claim(bad)).toEqual({ error: CLAIM_MESSAGES.account_mismatch });
       expect(await claimedBy(INST.A)).toBeNull();
     },
   );
 
-  it('an unknown installation id is not found', async () => {
+  it('unknown and foreign installation ids get the same answer, so ids cannot be enumerated (L-2)', async () => {
+    await claimDirect(w.B, INST.B, GH.ownerB);
     signInAs(w.ownerA, w.A);
-    expect(await claim(424242)).toEqual({ error: CLAIM_MESSAGES.not_found });
+    const unknown = await claim(424242);
+    const foreignUnclaimed = await claim(INST.MEMBER);
+    const foreignClaimedElsewhere = await claim(INST.B);
+    expect(unknown).toEqual({ error: CLAIM_MESSAGES.account_mismatch });
+    expect(foreignUnclaimed).toEqual(unknown);
+    expect(foreignClaimedElsewhere).toEqual(unknown);
+    expect(await claimedBy(INST.B)).toBe(w.B);
+    expect(await claimedBy(INST.MEMBER)).toBeNull();
   });
 
   it('first claim wins; the same workspace again is idempotent', async () => {

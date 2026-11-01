@@ -46,16 +46,47 @@ export type GithubWebhookStore = Pick<
 
 /**
  * `GITHUB_APP_WEBHOOK_SECRET` (`current`) and `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` (`previous`).
- * Without a non-empty `current` the handler answers 503, even when `previous` is set (G13).
+ * Without a usable `current` the handler answers 503, even when `previous` is set (G13). See
+ * `githubWebhookSecretsState` for what counts as usable.
  */
 export interface GithubWebhookSecrets {
   current?: string | null | undefined;
   previous?: string | null | undefined;
 }
 
+/**
+ * One rule for the handler, JD-APP's setup status and health (review L-1):
+ *
+ * - a secret that is unset or whitespace only is **absent** (a blank `previous` is ignored);
+ * - a secret with leading or trailing whitespace is a **configuration error** (a pasted newline
+ *   would otherwise make every signature fail as a 401), for `current` and `previous` alike;
+ * - `'configured'` needs a `current` that is neither.
+ *
+ * The values are never returned or logged.
+ */
+export type GithubWebhookSecretsState = 'configured' | 'not_configured' | 'misconfigured_secret';
+
+type SecretShape = 'absent' | 'padded' | 'ok';
+
+const secretShape = (v: string | null | undefined): SecretShape => {
+  if (typeof v !== 'string' || v.trim() === '') return 'absent';
+  return v.trim() === v ? 'ok' : 'padded';
+};
+
+export const githubWebhookSecretsState = (
+  secrets: GithubWebhookSecrets,
+): GithubWebhookSecretsState => {
+  const current = secretShape(secrets.current);
+  if (current === 'absent') return 'not_configured';
+  return current === 'padded' || secretShape(secrets.previous) === 'padded'
+    ? 'misconfigured_secret'
+    : 'configured';
+};
+
 /** Why the handler answered as it did. A fixed vocabulary: never derived from request data. */
 export type GithubWebhookOutcome =
   | 'not_configured'
+  | 'misconfigured_secret'
   | 'unsupported_encoding'
   | 'unauthorized'
   | 'too_large'
@@ -137,8 +168,6 @@ const LOGGABLE_EVENTS: ReadonlySet<string> = new Set([
 
 const EMPTY = new Uint8Array(0);
 
-const nonEmpty = (v: string | null | undefined): v is string => typeof v === 'string' && v !== '';
-
 const levelOf = (status: number): GithubWebhookLogEntry['level'] =>
   status >= 500 && status !== 503 ? 'error' : status >= 400 ? 'warn' : 'info';
 
@@ -167,12 +196,15 @@ const toRow = (
 /**
  * Builds the `POST /api/github/webhook` handler (ADR-0019 §3). Checks, in this order:
  *
- * 1. no non-empty current secret → 503 `not_configured` (also with only the previous one, G13);
+ * 1. no usable current secret → 503 `not_configured` (also with only the previous one, G13); a
+ *    secret with surrounding whitespace → 503 `not_configured`, logged `misconfigured_secret`
+ *    (`githubWebhookSecretsState`, review L-1);
  * 2. `Content-Encoding` other than `identity` (any case) → 415, before the body is read (L1, G19);
  * 3. `X-Hub-Signature-256` missing or not `sha256=` + 64 lower-case hex → 401, before reading;
  * 4. body over 1 MiB → 413 (an unreadable stream → 400);
- * 5. HMAC-SHA256 of the raw bytes, current then previous secret, constant time → else 401. All
- *    401s have the same body, whatever failed. Nothing is parsed before this passes;
+ * 5. HMAC-SHA256 of the raw bytes, current then previous secret (a blank previous is ignored),
+ *    constant time → else 401. All 401s have the same body, whatever failed. Nothing is parsed
+ *    before this passes;
  * 6. body SHA-256 already in `github_deliveries` → 202 (D0 H2);
  * 7. not UTF-8 or not JSON → 202 and dropped (G18);
  * 8. classification by payload shape, `X-GitHub-Event` must agree (unknown, `ping`, mismatch,
@@ -219,15 +251,15 @@ export const createGithubWebhookHandler = (deps: GithubWebhookDeps) => {
       finish(status, outcome, { ok: true, outcome });
     const unauthorized = () => finish(401, 'unauthorized', { error: 'unauthorized' });
 
-    // 1. Configuration.
-    const current = deps.secrets.current;
-    if (!nonEmpty(current)) {
+    // 1. Configuration. A misconfigured secret answers like a missing one; only the log differs.
+    const configuration = githubWebhookSecretsState(deps.secrets);
+    if (configuration !== 'configured') {
       log({
         level: 'warn',
         module: 'JD-M10',
         msg: 'github webhook',
         status: 503,
-        outcome: 'not_configured',
+        outcome: configuration,
       });
       return githubWebhookNotConfigured();
     }
@@ -251,7 +283,10 @@ export const createGithubWebhookHandler = (deps: GithubWebhookDeps) => {
     }
 
     // 5. Signature over the raw bytes.
-    const secrets = [current, deps.secrets.previous].filter(nonEmpty);
+    // Both are `ok` or `absent` here (checked in step 1); an absent previous is left out.
+    const secrets = [deps.secrets.current, deps.secrets.previous].filter(
+      (v): v is string => secretShape(v) === 'ok',
+    );
     if (verifyGithubSignature(body.bytes, signature, secrets) !== 'ok') return unauthorized();
 
     // Verified from here on. The GUID is unsigned: logged only, and only in GUID shape.

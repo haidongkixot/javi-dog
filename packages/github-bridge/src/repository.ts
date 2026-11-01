@@ -33,15 +33,20 @@ export const deliveryHashKind = (kind: DeliveryKind): DeliveryHashKind =>
 /** Activity hashes older than this are purged; GitHub redelivers manually for 3 days (D0 H2). */
 export const deliveryCutoff = (now: Date) => new Date(now.getTime() - DELIVERY_MAX_AGE_MS);
 
+/**
+ * Only `account_mismatch` is possible for an installation the claimer's GitHub account does not
+ * own, and for an unknown or malformed id: the answers never tell them apart, so installation ids
+ * cannot be enumerated (review L-2). The other results describe the claimer's own installations.
+ */
 export type ClaimResult =
   | 'claimed'
   /** Already claimed by this workspace (idempotent success). */
   | 'already_yours'
+  /** The claimer's own installation, claimed by another workspace. */
   | 'claimed_elsewhere'
-  | 'not_found'
   /** Organization installations need an API-verified claim path (ADR-0019 §4, follow-up). */
   | 'organization'
-  /** The signed-in GitHub account is not the installation's account. */
+  /** Not an installation of the signed-in GitHub account, or no such installation. */
   | 'account_mismatch';
 
 export type LinkResult =
@@ -218,7 +223,8 @@ export const createGithubRepository = (db: GithubDb) => {
     /**
      * Claims an installation for a workspace (D0 M5): first claim wins (`… where
      * claimed_workspace_id is null`), only for a `User` installation whose `account_id` equals the
-     * signed-in user's GitHub account id. The caller checks the owner/admin role first.
+     * signed-in user's GitHub account id. The account is checked first: any other row, and an
+     * unknown id, is `account_mismatch` (L-2). The caller checks the owner/admin role first.
      */
     async claimInstallation(input: {
       workspaceId: string;
@@ -227,7 +233,7 @@ export const createGithubRepository = (db: GithubDb) => {
     }): Promise<ClaimResult> {
       const { workspaceId, installationId, githubAccountId } = input;
       if (!isUuid(workspaceId) || !isId(installationId) || !isId(githubAccountId)) {
-        return 'not_found';
+        return 'account_mismatch';
       }
       const [row] = rowsOf<{
         account_id: number | string;
@@ -249,18 +255,20 @@ export const createGithubRepository = (db: GithubDb) => {
           from github_installations i
          where i.installation_id = ${installationId}`),
       );
-      if (!row) return 'not_found';
+      // First: nothing about a row the claimer's account does not own (or a missing one) leaks.
+      if (!row || Number(row.account_id) !== githubAccountId) return 'account_mismatch';
       if (row.claimed === 1) return 'claimed';
       if (row.claimed_workspace_id === workspaceId) return 'already_yours';
-      if (row.claimed_workspace_id !== null) return 'claimed_elsewhere';
       if (row.account_type !== 'User') return 'organization';
-      return 'account_mismatch';
+      // Unclaimed in this statement's snapshot, yet not claimed by it: a concurrent claim won.
+      return 'claimed_elsewhere';
     },
 
     /**
      * Releases this workspace's claim and clears its repository links in one statement (D0 M5; a
      * data-modifying CTE always runs, and the composite FK is checked at the end of the statement).
-     * `false` when the workspace did not hold the claim.
+     * The delivery evidence goes too (review L-3): the next claim starts at "Waiting for the first
+     * delivery". `false` when the workspace did not hold the claim.
      */
     async releaseInstallation(workspaceId: string, installationId: number): Promise<boolean> {
       if (!isUuid(workspaceId) || !isId(installationId)) return false;
@@ -274,7 +282,7 @@ export const createGithubRepository = (db: GithubDb) => {
              and workspace_id = ${workspaceId}::uuid
           returning repo_id)
         update github_installations
-           set claimed_workspace_id = null, updated_at = now()
+           set claimed_workspace_id = null, last_verified_delivery_at = null, updated_at = now()
          where installation_id = ${installationId}
            and claimed_workspace_id = ${workspaceId}::uuid
         returning installation_id`),
@@ -285,7 +293,9 @@ export const createGithubRepository = (db: GithubDb) => {
     /**
      * Links a repository of an installation this workspace claimed to a project of the same
      * workspace (ADR-0019 §4). One project per repository: a repository linked elsewhere must be
-     * unlinked first. The caller checks the role and the L1/L2 confirmation first.
+     * unlinked first. The UPDATE re-checks the row's own `project_id` (review L-5): a concurrent
+     * link to another project that committed first is re-read under READ COMMITTED and wins, and
+     * this one answers `linked_elsewhere`. The caller checks the role and the L1/L2 confirmation.
      */
     async linkRepository(input: {
       workspaceId: string;
@@ -312,6 +322,7 @@ export const createGithubRepository = (db: GithubDb) => {
             from target t
            where r.repo_id = t.repo_id
              and (t.current_project is null or t.current_project = ${projectId}::uuid)
+             and (r.project_id is null or r.project_id = ${projectId}::uuid)
           returning r.repo_id)
         select (select count(*) from target)::int as found,
                (select count(*) from linked)::int as linked`),

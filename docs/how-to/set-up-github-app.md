@@ -82,7 +82,7 @@ Vercel → project **javisdog** → **Settings → Environment Variables**, envi
 | `GITHUB_APP_SLUG` | App slug | Public identifier, used for the install link |
 | `GITHUB_APP_OWNER_ID` | Owner account id | Public identifier. The install link is shown only to this GitHub account. |
 
-Copy the secret straight from the file into Vercel, for example by opening the file in an editor. Do not echo it in a shared terminal.
+Copy the secret straight from the file into Vercel, for example by opening the file in an editor. Do not echo it in a shared terminal. Copy it without a trailing newline: a secret that starts or ends with whitespace is refused as a configuration error.
 
 Variables only reach new deployments: redeploy production (Deployments → latest → ⋯ → **Redeploy**). These are separate from the sign-in variables `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`; do not reuse them.
 
@@ -100,7 +100,7 @@ Both can be regenerated later on the app's settings page on GitHub. The webhook 
 ## 4. Install the app on selected repositories
 
 1. Open `https://github.com/apps/<slug>/installations/new` (the helper prints it), or GitHub → Settings → Developer settings → GitHub Apps → the app → **Install App**.
-2. Choose your personal account.
+2. Choose your personal account. Organization installations aren't supported yet: install the app on your personal account.
 3. Choose **Only select repositories** and pick the repositories whose PRs and CI you want to see (design review L2). Avoid **All repositories**.
 4. Click **Install**. GitHub then opens the setup URL, `/integrations/github`.
 
@@ -113,10 +113,12 @@ Both can be regenerated later on the app's settings page on GitHub. The webhook 
 
 ## 6. Verify with evidence
 
-Until a signed delivery has been stored, the Integrations page shows **"Waiting for the first delivery"**. It shows **"Connected"** only with the time of the last verified delivery. Do not call the integration working before both checks below pass.
+Until a signed delivery has been stored, the Integrations page shows **"Waiting for the first delivery"**. It shows **"Connected"** only with the time of the last verified delivery, and only while that delivery is less than 7 days old; after that it shows **"No verified delivery since …"**. A project page says "Connected" only once a repository is linked to that project. Do not call the integration working before both checks below pass.
 
-1. **GitHub side:** GitHub → Settings → Developer settings → GitHub Apps → the app → **Advanced** → **Recent Deliveries**. The `installation` delivery and the next PR or CI delivery should show response **200**. A **202** means GitHub's request was accepted and dropped on purpose, for example a repository that is not linked yet.
-2. **Javi's Dog side:** open or update a pull request, or run a workflow, in a linked repository. A "GitHub PR" or "GitHub CI" thread appears on the project's dashboard, and the Integrations page shows the time of the last verified delivery.
+Deliveries that arrived before you claimed and linked were acknowledged (**202**) and remembered, so redelivering them stores nothing. The first stored event needs a **new** one after linking.
+
+1. **Javi's Dog side:** in a linked repository, re-run a workflow or push a commit to a pull request. A "GitHub PR" or "GitHub CI" thread appears on the project's dashboard, and the Integrations page shows the time of the last verified delivery.
+2. **GitHub side:** GitHub → Settings → Developer settings → GitHub Apps → the app → **Advanced** → **Recent Deliveries**. The `installation` delivery and that new PR or CI delivery should show response **200**. A **202** means GitHub's request was accepted and dropped on purpose, for example a repository that was not linked yet.
 
 Record the result (status codes and times, no payloads) in the sprint log. Until then the "Real app" row of TEST_PLAN §S5g stays NOT RUN.
 
@@ -124,16 +126,17 @@ Record the result (status codes and times, no payloads) in the sprint log. Until
 
 | Symptom | Check | Action |
 |---|---|---|
-| Recent Deliveries show `503` | `GITHUB_APP_WEBHOOK_SECRET` missing on Production | Add it (Sensitive) and redeploy. Setting only `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` also gives `503`. |
+| Recent Deliveries show `503` | `GITHUB_APP_WEBHOOK_SECRET` missing on Production, or either secret starts or ends with a space or newline | Add it (Sensitive), or paste it again without the extra whitespace, and redeploy. Setting only `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` also gives `503`. The Integrations page shows "GitHub: not set up" in all these cases. |
 | Recent Deliveries show `401` | The secret in Vercel differs from the app's webhook secret | Put the same value in both places, redeploy, then redeliver. |
-| `202` for a repository you want | The repository is not linked, the installation is not claimed or is suspended | Claim and link (step 5), then redeliver. |
+| `202` for a repository you want | The repository is not linked, the installation is not claimed or is suspended | Claim and link (step 5), then trigger a new event: re-run a workflow or push to a pull request. Redelivering the old delivery stores nothing, because it was already acknowledged. |
 | `500` | A database failure on our side | See [operate-production.md](operate-production.md), then redeliver from Recent Deliveries. |
+| "No verified delivery since …" | Nothing verified for over 7 days: a changed webhook secret, or simply no PR or CI activity | Look at Recent Deliveries. `401`s mean the secret differs (row above). If there was no activity, the next PR or CI run clears it. |
 | The installation never shows up to claim | The first `installation` delivery failed | Redeliver it from Recent Deliveries within 3 days. After 3 days: uninstall the app and install it again (design review L4). |
 
 Things to know:
 
 - **GitHub does not retry failed deliveries.** You can redeliver from Recent Deliveries for 3 days. Deliveries whose event time is more than 3 days old are acknowledged and dropped by Javi's Dog, so signals from a longer outage are lost.
-- **Redeliveries are deduplicated.** A redelivered body that was already stored is acknowledged (`202`) and stores nothing new.
+- **Redeliveries are deduplicated.** A redelivered body that Javi's Dog already acknowledged (stored, or dropped with `202`) is acknowledged again (`202`) and stores nothing new. Redelivery helps only for a delivery that failed (`500`) or never arrived.
 
 ### Rotate the webhook secret
 
