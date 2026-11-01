@@ -266,6 +266,9 @@ importers:
 
   packages/event-store:
     dependencies:
+      '@javis-dog/github-bridge':
+        specifier: workspace:*
+        version: link:../github-bridge
       '@javis-dog/identity':
         specifier: workspace:*
         version: link:../identity

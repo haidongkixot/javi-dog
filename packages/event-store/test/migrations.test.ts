@@ -14,6 +14,9 @@ const ALL_TABLES = [
   'accounts',
   'budget_alerts',
   'events',
+  'github_deliveries',
+  'github_installations',
+  'github_repositories',
   'ingest_rate_windows',
   'ingest_tokens',
   'invitations',
@@ -26,17 +29,22 @@ const ALL_TABLES = [
   'workspaces',
 ];
 
-describe('migrations 0000–0005', () => {
-  it('creates the JD-M04, JD-M03 and JD-M06 tables and records every migration', async () => {
+describe('migrations 0000–0006', () => {
+  it('creates the JD-M04, JD-M03, JD-M06, JD-M12 and JD-M10 tables and records every migration', async () => {
     const { client, db } = await freshDb();
     expect(await publicTables(client)).toEqual(ALL_TABLES);
-    expect((await pingDb(db)).migrationsApplied).toBe(6);
+    expect((await pingDb(db)).migrationsApplied).toBe(7);
   });
 
   it('rolls back with the committed down SQL (newest first) and re-applies cleanly', async () => {
     const { client, db } = await freshDb();
     const index = `select 1 from pg_indexes where indexname = 'events_workspace_received_idx'`;
     expect((await client.query(index)).rows).toHaveLength(1);
+    await client.exec(rollbackSql('0006'));
+    for (const t of ['github_installations', 'github_repositories', 'github_deliveries']) {
+      expect(await publicTables(client)).not.toContain(t);
+    }
+    expect((await pingDb(db)).migrationsApplied).toBe(6);
     await client.exec(rollbackSql('0005'));
     expect(await publicTables(client)).not.toContain('project_budgets');
     expect(await publicTables(client)).not.toContain('budget_alerts');
@@ -64,6 +72,24 @@ describe('migrations 0000–0005', () => {
     expect((await client.query(index)).rows).toHaveLength(1);
   });
 
+  it('0006 rolls back with data in it and re-applies cleanly', async () => {
+    const { client, db } = await freshDb();
+    await client.exec(`insert into workspaces (name, slug) values ('A', 'a')`);
+    await client.exec(
+      `insert into github_installations (installation_id, account_id, account_type, claimed_workspace_id)
+       select 1, 2, 'User', id from workspaces`,
+    );
+    await client.exec(
+      `insert into github_repositories (repo_id, installation_id, full_name) values (3, 1, 'o/r')`,
+    );
+    await client.exec(`insert into github_deliveries (body_sha256) values ('${'a'.repeat(64)}')`);
+    await client.exec(rollbackSql('0006'));
+    expect((await pingDb(db)).migrationsApplied).toBe(6);
+    await migrate(db, { migrationsFolder });
+    expect(await publicTables(client)).toEqual(ALL_TABLES);
+    expect((await pingDb(db)).migrationsApplied).toBe(7);
+  });
+
   it('reports 0 applied migrations on an empty database', async () => {
     const { client, db } = await freshDb();
     await client.exec('drop schema drizzle cascade');
@@ -72,6 +98,7 @@ describe('migrations 0000–0005', () => {
 
   it('0003 refuses to apply while non-canonical ids exist (why the pre-check matters)', async () => {
     const { client, db } = await freshDb();
+    await client.exec(rollbackSql('0006'));
     await client.exec(rollbackSql('0005'));
     await client.exec(rollbackSql('0004'));
     await client.exec(rollbackSql('0003'));

@@ -1,3 +1,4 @@
+import { deliveryCutoff, githubDeliveries } from '@javis-dog/github-bridge';
 import { canonicalEventId } from '@javis-dog/jgr-spec';
 import { projects } from '@javis-dog/projects';
 import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
@@ -156,7 +157,8 @@ export const createEventRepository = (db: EventsDb) => ({
   /**
    * Retention (ADR-0008, ADR-0009): deletes events received before `cutoff` in bounded batches
    * (oldest first) until a batch comes back short or the time budget is spent (H3), then stale
-   * rate windows. `complete: false` means the next run continues.
+   * rate windows and JD-M10 delivery hashes older than 3 days (ADR-0019 D0 H2, GitHub's manual
+   * redelivery window). `complete: false` means the next run continues.
    */
   async purgeEventsBefore(
     cutoff: Date,
@@ -195,6 +197,7 @@ export const createEventRepository = (db: EventsDb) => ({
     await db
       .delete(ingestRateWindows)
       .where(lt(ingestRateWindows.windowStart, new Date(now.getTime() - 60 * RATE_WINDOW_MS)));
+    await db.delete(githubDeliveries).where(lt(githubDeliveries.receivedAt, deliveryCutoff(now)));
     return { deleted, batches, complete };
   },
 
