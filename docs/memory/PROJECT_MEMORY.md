@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-10-29 · Current sprint: **S5c Codex CLI collector — built** (`docs/sprints/SPRINT-05c.md`, ADR-0016 S5c entries). Next: the S5 release gate (`docs/how-to/release-checklist.md`) and Guru G4. Owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); production stays on `dev-agent` (cutover deferred); the first purge run is checked 2026-10-30 20:20 UTC.
+> Last updated: 2026-11-01 · Current sprint: **S5g JD-M10 GitHub App bridge — built** (`docs/sprints/SPRINT-05g.md`, ADR-0019). Next: Guru checkpoint and S5g close; then the owner creates the GitHub App (`docs/how-to/set-up-github-app.md`). Other owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); release exceptions G2/G4/G5 and G13.
 
 ## What we are building
 
@@ -94,6 +94,16 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
   2686+ tests. "Remember on this device" is off until the owner's signed-in CSP run. Owner runs: how-to step 7.
 
+- S5g (2026-11-01, ADR-0019). Owner decisions: PRs and CI only; owner install link with an L1/L2 warning on link; local helper; migration 0006. Built:
+  - JD-M10 `@javis-dog/github-bridge`: signature over raw bytes, strict shape classification, body-hash dedupe, per-event 3-day rule, L0-only JGR mapping, installations and repository links with composite workspace FKs;
+  - migration 0006 on `dev-agent` and `main` (restore branch `restore-pre-0006-2026-11-01`);
+  - `POST /api/github/webhook` (503 until the owner sets `GITHUB_APP_WEBHOOK_SECRET`);
+  - claim/link on `/integrations/github` and the project card, with honest status (not set up → waiting → connected → stale);
+  - reader `ThreadState.source`, GitHub CI/PR counts, GitHub threads kept out of agent views;
+  - local helper `scripts/github-app-create.mjs` + how-to; new public env `GITHUB_APP_OWNER_ID`.
+
+  Checks: 59 QA vectors through the real route (7/7 mutations caught), design review D0 (4 High) and wave-2 review (0 High, 2 Medium, 6 Low), fixed red-first except logged follow-ups L-4 and L-6. 3300+ tests.
+
 ## Decisions in force
 
 | Ref | Decision |
@@ -115,6 +125,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 | ADR-0008 | Accepted 2026-10-23: `events` in JD-M06 (dedupe per project), 30-day raw retention, Postgres per-token rate limit (60/min), receiver codes `project_mismatch` / `privacy_class_not_allowed`, 256 KB after gzip |
 | ADR-0007 | Accepted 2026-10-22: welcome email via Resend REST from `onUserCreated`; PII-free auth logging; `errorURL` → `/sign-in` |
 | ADR-0006 | Accepted 2026-10-22: Better Auth organization plugin mapped onto `workspaces`; personal workspace (owner) on first sign-in; open sign-up; telemetry off; OAuth tokens encrypted |
+| ADR-0019 | Accepted 2026-11-01: GitHub App bridge, PRs and CI only, webhooks only (no API calls, no runtime private key). Signed raw body, body-hash dedupe, per-event 3-day rule, L0-only events with reserved `gh-app_`/`gh_` provenance. Owner-only MVP (`public: false`); claims verified by the signed installation `account_id`; organization installs wait. Honest status labels; local manifest helper |
 | ADR-0018 | Accepted 2026-10-30: privacy classes L1/L2 with an owner-held recovery key. HKDF per project gives the `kid`, the HMAC keys for L1 and the AES-GCM key for L2. Identifiers travel on `x.javi.thread.identity`; the AAD binds the event, thread, type, slug, producer and `kid`; payloads are padded to 256 bytes. Decryption happens only in the browser, with honest labels. A nonce CSP covers every page, and remembering keys waits for the owner's signed-in CSP run |
 | ADR-0017 | Accepted 2026-10-30: agent self-report through javi's local MCP server (`javi mcp`, two tools with fixed lists). The post-tool hook emits the event in the session's thread. A hand-written server; the reason goes in `error_code`; opt-in registration without pre-granted permissions (opt-in `--allow-self-report`). The dashboard labels the agent's own claim and keeps it until real activity |
 | ADR-0016 | Accepted 2026-10-29: one `javi` CLI with pure platform adapters (JD-C02). For Gemini: hooks per project, OTel as a user opt-in with forced `logPrompts:false` and a redirection guard; cost estimated only for per-token auth; `estimated:false` because the tokens are exact. Codex follows in S5c (opt-in logs allowlist); S5c: logs-only Codex usage (statsig untouched), cost only for `ApiKey`, sub-agents attributed to the parent, stable launcher, smol-toml block edit, loopback `NO_PROXY` rule, system-proxy guard, persisted accepted ids |
@@ -137,8 +148,9 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 5. Owner: review the G4 Orcasus PR proposal and the `CLAUDE.md` §2 rule-4 proposal in `guru/WISDOM_LOG.md` (nothing opened).
 6. Owner (optional): approve upgrading dev-only tooling with advisories (`markdownlint-cli2`, `drizzle-kit`; readiness "Dependency advisories").
 7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).
-8. Agent: JD-M11 is built (S5f). The remaining S5 roadmap module is JD-M10 GitHub App (blocked on the owner creating the app).
+8. Agent: JD-M11 (S5f) and JD-M10 (S5g) are built. JD-M10 follow-ups: L-4 (late delivery restores an old `full_name`), L-6 (lost `completed` delivery counts as running for 24 h; L0 → L1/L2 change keeps a link without a warning), organization installations (needs an ADR).
 9. Owner: L1/L2 runs (how-to step 7): key setup in the browser with the console checked for CSP errors, which unlocks "Remember on this device"; `javi init --privacy L2` on your machine, including Windows' hidden prompt; the dashboard names after pasting the key.
+10. Owner: create the GitHub App with `node scripts/github-app-create.mjs` on your machine (`docs/how-to/set-up-github-app.md`), set `GITHUB_APP_WEBHOOK_SECRET` (Sensitive), `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_OWNER_ID` in Vercel Production, redeploy, install on selected repositories, claim and link, then re-run a workflow. Unverified until then: GitHub accepting a loopback `redirect_url` in the manifest. Optional: a Vercel Firewall rate rule on `/api/github/webhook`.
 
 ## Process (owner decisions 2026-10-28)
 

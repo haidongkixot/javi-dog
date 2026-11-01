@@ -2,6 +2,14 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-11-01 · Session 2 (cloud), continued — S5g GitHub App bridge (JD-M10)
+
+- **Design:** ADR-0019 with owner decisions (PRs + CI only, owner link + L1/L2 warning, local helper, migration 0006). Design review D0 (4 High) and 23 QA spec gaps folded in before code.
+- **Migration 0006:** applied to `dev-agent`, then `main` after a restore branch; ledgers 7/7, schema diff empty; production `/api/health` → 7 migrations.
+- **Lanes:** wave 1 (package, migration, ingest prefixes, QA vectors) pushed `dc26f32`; wave 2 (webhook route, claim/link UI, reader source, helper, QA runner) pushed `b96a25c`; review fixes merged after a read-only adversarial review (0 High).
+- **Process notes:** a gate failure under lane CPU load was diagnosed, not retried blindly; the secret scan caught fake DB URLs in tests (reshaped, scanner unchanged).
+- **State left:** S5g built; production webhook answers 503 until the owner sets the secret. Next: Guru checkpoint, S5g close, owner creates the app.
+
 ## 2026-10-31 · Session 2 (cloud), continued — S5f privacy classes L1/L2 (JD-M11)
 
 - **G9 PASS:** the first purge was verified by data (`c1178c0`).

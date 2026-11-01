@@ -21,7 +21,7 @@
 |---|---|---|---|---|
 | H1 | `@javis-dog/github-bridge`: signature verification, delivery routing, pure JGR mapping, ids, refs | JD-M10 | TEST_PLAN unit rows; QA vectors pass | DONE (59/59 vectors) |
 | H2 | Migration 0006 and the installations/repositories repository | JD-M06 | migration tests; applied to `dev-agent` and `main` after CI is green | DONE |
-| H3 | Webhook route, claim and link actions, project-page GitHub card, Integrations status, source labels | JD-APP, JD-M07 | TEST_PLAN route, claim, link, dashboard and status rows | BUILT (review fixes in progress; real delivery NOT RUN, owner) |
+| H3 | Webhook route, claim and link actions, project-page GitHub card, Integrations status, source labels | JD-APP, JD-M07 | TEST_PLAN route, claim, link, dashboard and status rows | DONE (review fixes merged; real delivery NOT RUN, owner) |
 | H4 | Local helper `scripts/github-app-create.mjs` and the owner how-to | tooling | TEST_PLAN helper row | BUILT ([how-to](../how-to/set-up-github-app.md); `pnpm test:scripts` 5/5; real GitHub run NOT RUN, owner) |
 | H5 | QA vectors (`docs/jgr/conformance/github/`) and runner | QA | every vector passes, mutation-checked | DONE (59/59, 174 steps, 7/7 mutations caught) |
 
@@ -54,6 +54,7 @@ Newest first: date — what changed — commit SHA.
 
 Team log, newest first:
 
+- 2026-11-01 — Developer F + Orchestrator — Review fixes merged (a8ac0e4, fe92c73): M-1 runbook, M-2 stale/suspended/project-level status, L-1 one secret rule shared by handler, setup status and health, L-2 account checked first, L-3 release clears evidence, L-5 link guard, R21 README note. Every new test failed before its fix except the PGlite link race (PGlite runs one statement at a time; a statement-shape test covers the guard).
 - 2026-11-01 03:47 — Orchestrator — Secret scan matched fake database URLs in three new tests (dead endpoints `127.0.0.1:9`, `db.example`); reshaped so they no longer look like credentials (b96a25c); scan clean. Wave 2 pushed `dc26f32..b96a25c` after `pnpm gate` PASS (3 309 tests) and CI green on dc26f32.
 - 2026-11-01 — Reviewer — Adversarial review of wave 2 (read-only): 0 High, 2 Medium (M-1 the runbook said "redeliver after linking", but an unrouted 202 records the hash, so redelivery dedupes; M-2 "Connected" ignored suspension and never went stale), 6 Low (L-1 whitespace secrets; L-2 claim results allowed id enumeration, org branch unreachable; L-3 release kept `last_verified_delivery_at`; L-4 a late delivery can revert a renamed `full_name` (display only, logged, not fixed); L-5 concurrent links, last wins; L-6 a run whose `completed` delivery was lost counts as running for 24 h, and an L0→L1/L2 class change keeps a link without a warning (both logged as follow-ups)). M-1 fixed in the runbook, not the hash rule (H2 binding, Y11 vectors). Developer F lane fixes M-1, M-2, L-1, L-2, L-3, L-5.
 - 2026-11-01 — QA — Runner merged: 59/59 vectors through the real route on PGlite; 7/7 mutations caught. Vector gap: R21 cannot catch "hash before a failed insert" (its fault fails `hasDelivery` first); the runner adds an insert-only supplement. Not run: JD-M01 re-validation of stored events (`@javis-dog/jgr-spec` is not a web dependency; the handler validates before insert).
@@ -70,9 +71,9 @@ Team log, newest first:
 
 ## Retro
 
-- Went well:
-- Hurt:
-- Change next sprint:
+- Went well: QA vectors written before code found the installation-replay gap, the namespace mismatch and G24; the injected-deps handler avoided a workspace cycle; the review found no High after D0.
+- Hurt: running three lanes' test suites at once pushed load to ~20 and made a 5 s test time out in the gate; lanes could not add workspace dependencies, so two lanes typechecked only with a temporary line.
+- Change next sprint: run the gate only when lanes are idle; declare needed workspace dependencies in the plan so the orchestrator adds them before lanes start.
 
 ## Guru checkpoint
 
