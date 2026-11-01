@@ -18,6 +18,11 @@ const snap = (generatedAt: string): DashboardSnapshot => ({
     tokensLastHour: { value: 0, lastSignalAt: null, reports: 0 },
     tasksCompleted24h: { value: 0, lastSignalAt: null },
   },
+  github: {
+    ciRunning: { value: 0, lastSignalAt: null },
+    ciFailed24h: { value: 0, lastSignalAt: null },
+    prsOpen: { value: 0, lastSignalAt: null },
+  },
   threads: [],
   activity: [],
   projects: [],

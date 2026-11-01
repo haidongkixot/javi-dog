@@ -32,6 +32,8 @@ const thread = (over: Partial<ThreadState>): ThreadState => ({
   projectSlug: 'alpha',
   projectName: 'Alpha app',
   threadRef: 'cc_0000000000000000000000000000aaaa',
+  source: 'agent',
+  githubKind: null,
   status: 'working',
   statusSource: 'collector',
   statusReason: null,
@@ -83,6 +85,11 @@ const SNAPSHOT: DashboardSnapshot = {
     agentsWorking: { value: 1, lastSignalAt: ago(12) },
     tokensLastHour: { value: 1500, lastSignalAt: ago(40), reports: 3 },
     tasksCompleted24h: { value: 4, lastSignalAt: ago(900) },
+  },
+  github: {
+    ciRunning: { value: 0, lastSignalAt: null },
+    ciFailed24h: { value: 0, lastSignalAt: null },
+    prsOpen: { value: 0, lastSignalAt: null },
   },
   // Deliberately not attention-first: the views must sort.
   threads: [WORKING, ENDED, WAITING_STALE],

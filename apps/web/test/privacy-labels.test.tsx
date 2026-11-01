@@ -501,12 +501,19 @@ describe('dashboard rows show the identity (ADR-0018 §8)', () => {
       tokensLastHour: { value: 0, lastSignalAt: null, reports: 0 },
       tasksCompleted24h: { value: 0, lastSignalAt: null },
     },
+    github: {
+      ciRunning: { value: 0, lastSignalAt: null },
+      ciFailed24h: { value: 0, lastSignalAt: null },
+      prsOpen: { value: 0, lastSignalAt: null },
+    },
     threads: [
       {
         projectId: P1,
         projectSlug: 'web-app',
         projectName: 'Web app',
         threadRef: identity.threadRef,
+        source: 'agent',
+        githubKind: null,
         status: 'working',
         statusSource: 'collector',
         statusReason: null,
