@@ -190,3 +190,26 @@ The orchestrator re-checked two facts:
     - On Windows it writes under the user profile and warns that file modes do not apply.
   - **L4 Runbook.** If the first `installation` delivery is lost and not redelivered within 3 days, uninstall and reinstall.
   - **L5 Secret rotation.** `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` must be removed once the rotation is done.
+- 2026-11-01 — QA spec gaps (vectors in `docs/jgr/conformance/github/`, 2 756 independent checks). These rules are binding:
+
+  | Gap | Rule |
+  |---|---|
+  | G1 | The event-id namespace is `fbb354ba-6443-5e61-8995-5f0d8fb04b91` = UUIDv5(NAMESPACE_URL, `https://javisdog.vercel.app/api/github/webhook`). The name is `<64 lower-case hex>:<index from 0>`. |
+  | G2 | `occurred_at` is the same per-event `updated_at` the 3-day rule uses. |
+  | G3 | 200 when a delivery is handled (an event stored or an installation change applied); 202 whenever it is acknowledged and dropped. |
+  | G4 | The check-suite sequence is `check_suite.updated_at` in epoch seconds. |
+  | G5 | PR action ordinals: opened 0, reopened 1, synchronize 2, converted_to_draft 3, ready_for_review 4, closed 5. |
+  | G6 | `reopened` → `x.github.pr.opened`. |
+  | G7 | `check_suite` uses the `workflow_run` conclusion table; the attributes are `tool_name` and `task_kind` only. |
+  | G8 | `error_code` is absent on success, otherwise absent or `ci.<conclusion>`. |
+  | G9 | The CI app slug list is the implementation's documented list; the owner confirms it. An unknown slug → `other`. |
+  | G10–G12 | Strict shape: exactly one kind must match; the signature header is `^sha256=[0-9a-f]{64}$`; a missing `X-GitHub-Event` counts as disagreeing (→ 202). |
+  | G13 | With only the previous secret set: 503. |
+  | G14 | The body hash is recorded only after successful processing. A 500 leaves no hash, so GitHub's redelivery is processed; activity events also deduplicate by their body-derived `event_id`. |
+  | G15 | GitHub events carry no `agent_ref`, and their attribute set is closed. |
+  | G16 | `installation created` inserts its `repositories[]` as unlinked rows. |
+  | G17 | Hashes of `installation*` deliveries are never purged (a replay after 3 days would otherwise act again); only `activity` hashes are purged after 3 days. |
+  | G20 | `full_name` is refreshed from any signed delivery that carries `repository.full_name` for a known repository. |
+  | G23 | A missing `installation` in any activity payload → 202. |
+
+  Still open, with no vector: G18 (a valid signature over a body that is not JSON or not UTF-8 → 202 and dropped); G19 (check order: encoding 415 before a malformed-header 401; `identity` matched case-insensitively); G21 (an event time more than 5 minutes in the future → validation rejects it and nothing is stored); G22 (a null or unknown `conclusion` → 202 and dropped). These rules are adopted here, and the route tests cover them.
