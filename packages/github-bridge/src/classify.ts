@@ -301,15 +301,10 @@ const classifyCheckSuite = (p: Obj): ClassifiedDelivery => {
   const suiteId = suite.id;
   const conclusion = suite.conclusion;
   const app = suite.app;
-  const slug = isObj(app) ? app.slug : undefined;
+  // A missing or non-string slug is an unknown app → `other` (ADR-0019 G24, vector M12).
+  const slug = isObj(app) && typeof app.slug === 'string' ? app.slug : undefined;
   const updatedAt = deliveryTimestamp('check_suite', p);
-  if (
-    !repository ||
-    !posInt(suiteId) ||
-    !oneOf(CI_CONCLUSIONS, conclusion) ||
-    typeof slug !== 'string' ||
-    !updatedAt
-  ) {
+  if (!repository || !posInt(suiteId) || !oneOf(CI_CONCLUSIONS, conclusion) || !updatedAt) {
     return ignored('shape');
   }
   if (slug === 'github-actions') return ignored('github_actions_suite');
@@ -320,7 +315,7 @@ const classifyCheckSuite = (p: Obj): ClassifiedDelivery => {
     repository,
     suiteId,
     conclusion,
-    ciApp: oneOf(CI_APP_SLUGS, slug) ? slug : 'other',
+    ciApp: slug !== undefined && oneOf(CI_APP_SLUGS, slug) ? slug : 'other',
     updatedAt,
   };
 };

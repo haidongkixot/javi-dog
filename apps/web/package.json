@@ -18,6 +18,7 @@
     "@javis-dog/analytics": "workspace:*",
     "@javis-dog/crypto": "workspace:*",
     "@javis-dog/event-store": "workspace:*",
+    "@javis-dog/github-bridge": "workspace:*",
     "@javis-dog/identity": "workspace:*",
     "@javis-dog/ingest": "workspace:*",
     "@javis-dog/notify": "workspace:*",

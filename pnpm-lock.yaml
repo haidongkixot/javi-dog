@@ -50,6 +50,9 @@ importers:
       '@javis-dog/event-store':
         specifier: workspace:*
         version: link:../../packages/event-store
+      '@javis-dog/github-bridge':
+        specifier: workspace:*
+        version: link:../../packages/github-bridge
       '@javis-dog/identity':
         specifier: workspace:*
         version: link:../../packages/identity

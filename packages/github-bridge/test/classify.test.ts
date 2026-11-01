@@ -63,6 +63,17 @@ describe('classifyDelivery: kinds from the payload shape', () => {
     expect(
       classifyDelivery(checkSuitePayload('completed', { slug: 'my-own-ci' }), 'check_suite'),
     ).toMatchObject({ kind: 'check_suite', ciApp: 'other' });
+    // G24: an app without a string slug is an unknown app, not a malformed delivery.
+    const noSlug = checkSuitePayload('completed') as {
+      check_suite: { app: Record<string, unknown> };
+    };
+    delete noSlug.check_suite.app.slug;
+    expect(classifyDelivery(noSlug, 'check_suite')).toMatchObject({
+      kind: 'check_suite',
+      ciApp: 'other',
+    });
+    noSlug.check_suite.app.slug = 42;
+    expect(classifyDelivery(noSlug, 'check_suite')).toMatchObject({ ciApp: 'other' });
   });
 
   it('pull_request actions, draft and merged', () => {
