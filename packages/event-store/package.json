@@ -19,6 +19,7 @@
     "db:statements": "node scripts/migration-statements.ts"
   },
   "dependencies": {
+    "@javis-dog/github-bridge": "workspace:*",
     "@javis-dog/identity": "workspace:*",
     "@javis-dog/jgr-spec": "workspace:*",
     "@javis-dog/projects": "workspace:*",

@@ -259,6 +259,41 @@ describe('partial acceptance and tenant rules', () => {
     expect(owners.rows).toEqual([{ workspace_id: mine.ws.id }]);
   });
 
+  it('rejects the GitHub bridge’s reserved prefixes per event (ADR-0019 D0 M2)', async () => {
+    const { token } = await setup();
+    const res = await handler()(
+      post(token, {
+        events: [
+          event(1, { producer_id: 'gh-app_12345' }),
+          event(2, { thread_ref: `gh_${'a'.repeat(32)}` }),
+          event(3, { producer_id: 'GH-APP_1', thread_ref: 'GH_x' }),
+          event(4, { producer_id: 'gh-appx', thread_ref: 'ghx_1' }),
+          event(5),
+        ],
+      }),
+    );
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as {
+      accepted: number;
+      rejected: Array<{ index: number; issues: Array<{ code: string; path: string }> }>;
+    };
+    expect(body.accepted).toBe(2);
+    expect(body.rejected.map((r) => [r.index, r.issues.map((i) => `${i.code}@${i.path}`)])).toEqual(
+      [
+        [0, ['reserved_ref@producer_id']],
+        [1, ['reserved_ref@thread_ref']],
+        [2, ['reserved_ref@producer_id', 'reserved_ref@thread_ref']],
+      ],
+    );
+    const stored = await client.query<{ producer_id: string; thread_ref: string }>(
+      'select producer_id, thread_ref from events order by sequence',
+    );
+    expect(stored.rows).toEqual([
+      { producer_id: 'gh-appx', thread_ref: 'ghx_1' },
+      { producer_id: 'prod_claude-code_7f3a', thread_ref: 'sess_2b9c' },
+    ]);
+  });
+
   it('enforces the project privacy class as a ceiling', async () => {
     const { token } = await setup('L0');
     const l1 = event(1, {

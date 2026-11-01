@@ -1,0 +1,19 @@
+{
+  "id": "JD-M10",
+  "name": "@javis-dog/github-bridge",
+  "version": "0.1.0",
+  "status": "in-progress",
+  "description": "GitHub App bridge (ADR-0019): webhook signature check over the raw body, strict delivery classification, pure JGR mapping of workflow runs, check suites and pull requests (L0 only, no personal or code data), installation and repository-link tables composed by JD-M06 (migration 0006) and their workspace-scoped repository.",
+  "owner": "platform",
+  "provides": [
+    "verifyGithubSignature()",
+    "classifyDelivery()",
+    "deliveryTimestamp() / isTooOld()",
+    "mapDelivery()",
+    "installationChange()",
+    "githubTables",
+    "createGithubRepository()",
+    "GITHUB_EVENT_ID_NAMESPACE"
+  ],
+  "consumes": ["JD-M01", "JD-M04"]
+}
