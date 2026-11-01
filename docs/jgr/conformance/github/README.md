@@ -265,7 +265,7 @@ Each mutation must turn at least the listed vector to FAIL.
 | 3-day rule on `created_at`, `run_started_at` or `head_commit.timestamp`; `>=` instead of `>` | R13, R14 |
 | 3-day rule applied to `installation*` | R15 |
 | Record the body hash only for stored events (replays of `installation*` act again) | R16, R17 |
-| Record the hash before a failed insert | R21 |
+| Record the hash before a failed insert | R21 supplement in the runner (R21 itself cannot: its fault fails every database call, so `hasDelivery` throws before any hash is written; the supplement fails only the event insert) |
 | Keep a link when a repository changes installation | R18 |
 | `event_id` from the GUID, upper case, another namespace, or index 1 | every vector with events (G1); R02 (GUID) |
 | Run thread without `run_attempt`, or ordinal sequence restarting across attempts on one thread | M10 |
