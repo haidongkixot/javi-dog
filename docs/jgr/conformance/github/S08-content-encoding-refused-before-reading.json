@@ -1,0 +1,476 @@
+{
+  "$schema": "./schema.json",
+  "id": "S08",
+  "kind": "route",
+  "description": "Any Content-Encoding other than identity is refused with 415 before the body is read, even with a valid signature over the sent bytes and even when the body is over 1 MiB; identity is accepted.",
+  "contract": "ADR-0019 (056a203) Changes L1 (Content-Encoding other than identity refused, 415, before the body is read)",
+  "ambiguities": ["G1", "G2", "G3", "G8", "G15"],
+  "clock": "2026-11-01T12:00:00Z",
+  "setup": {
+    "secrets": { "current": "qa-webhook-secret-current-NOT-REAL", "previous": null },
+    "workspaces": [{ "label": "ws-a", "projects": [{ "slug": "web-app", "privacyClass": "L0" }] }],
+    "installations": [
+      {
+        "installationId": 1001,
+        "accountId": 7001,
+        "accountType": "User",
+        "claimedBy": "ws-a",
+        "suspended": false
+      },
+      {
+        "installationId": 1002,
+        "accountId": 7002,
+        "accountType": "User",
+        "claimedBy": null,
+        "suspended": false
+      }
+    ],
+    "repositories": [
+      {
+        "repoId": 5001,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-a",
+        "project": "web-app"
+      },
+      {
+        "repoId": 5002,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-b",
+        "project": null
+      },
+      {
+        "repoId": 5003,
+        "installationId": 1002,
+        "fullName": "qasentinel-other/qasentinel-repo-c",
+        "project": null
+      }
+    ]
+  },
+  "steps": [
+    {
+      "note": "gzip body, valid signature over the gzip bytes",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000001b",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=0982d83623b7dea0584a8626687c7390eb203775",
+          "x-hub-signature-256": "sha256=0da1832fd82614a65edde0fdb163c029cedc6e063424d73ba67129decdf06a3e",
+          "content-encoding": "gzip"
+        },
+        "payload": null,
+        "bodyText": null,
+        "bodyHex": "1f8b0800000000000203b556db6edb300cfd1583cf4e23f91e3fed23b6970d43404b742d4c965d5d7ac1d07f1f64c7459a2edb8a626fb14889e4393c07f90928bc9a0cb420a671d6e449420a0f93fdd1ebe9e1688381f62728096dce196729181c095ab84347c62b433ad992932594c240288f9d4523865789bbf56cd713fa605f32dd80d0022f7ac1eb86ca4c88bacfa929ba0aabb2c944971f0e79c7b34385398fb766f4f1e19b5be587d0edb7f26e7f564aa89ba751430a52b959e3d3d12baf2ffa3e85922594f4934d6c30c93226a46083399a307664a1ad53a07b321e5a98831b2005e7d10777819a988cd0c1ad70ba200439770e664431638cf114c440e2c7d105e569392ed802eee0477d0c56430b83f7b36bf7fb75ca1b318de7f34d0f86ecf981a579dae17e65d3ed6d306ebf8d3207ad8f96ee0239efa0fdb6f279608c15590adb90f1772424f26da97f4ddd6c773176a23002b0b05623c91cf38638a3bccb2b51d74c368422e358f1a6a28c77b59465c493e6695ba59231fefc9c42878eae958bb1cb725d99b11e0b5ee6b9e80f8de8b35e94bdec9a9a0e5549d45779fcc6df967bfe9e82b0849ee411239519cbaa1de73bc63f73de96ac65ec2ba410667935a768f99283c24f363eafa75b655ef7bec6d2a572cd23d9ffccea76d53fcd7157bf38b2f0bcae227a4fe3eca1e5ebb7f368ff36c9222f318da3f21b1440ac1285147d9397541792679968faa6a828afbaa266152b2b59d5b2831446720e6f2f44b33e979c625131bb65cddaa4578f891f2871242cf9c40fcadcc659d448cee338bfe9b3389cfac4e08715ceb7e6b2c6366ba11195be807b49f8448f188578a3cc3d6a2521ae57dc01a7fc649fce3721853eeae14da96b9a8a02b2ea1e3d41eb6da08fab74696e7385adb59331fcdd5edf657fd1a7e27bd117eee3eddf2880ed58f699672dfb8302dee47cd8a93a3d75e7c7927a0cda9f24bfff97f1fe23c54be21581afb193c0d9bb04be5dbd10f8c7172a0547465e6df9147c31a5fc1d355fee5e34ad8cf3a835ae7f1f56f0f9e2b4bf00f5ad132055080000",
+        "bodyPadBytes": null,
+        "bodyLength": 766,
+        "bodySha256": "ad18af9ec365272666fbc045e37a98796464a1f743c57f41c4ac13e864ac0dcf",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rejected:encoding",
+        "status": 415,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "gzip label on the plain body, valid signature",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000001c",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4a7f60cbbd61fa48ea482d41584cc049d7efeba2",
+          "x-hub-signature-256": "sha256=f420839cb6861b9ba1d2b6bf157ff7060f7ccf595f7d0e8567f40c55742c33ad",
+          "content-encoding": "gzip"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31010,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "14fc178e52cc7f3e84b6a6582cb3993b1296a31e",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31010",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40010,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31010",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "e06c4dcf835e74d122c8f846e36b4706056d67db",
+              "message": "qasentinel commit message run-31010: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "d1fedb446772545ae1177ac8efbf6a4710cbaef577ee42f4ddd92e5711fbddc0",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rejected:encoding",
+        "status": 415,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "br body, valid signature over the sent bytes",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000001d",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=175b0f0bf1b350c044a981c084414927242a71a9",
+          "x-hub-signature-256": "sha256=0903e86d180f868a2f43084c7f2c177373635eb1d6b8208bb4954425ead4b16d",
+          "content-encoding": "br"
+        },
+        "payload": null,
+        "bodyText": null,
+        "bodyHex": "1b5408201c07b939f44e3445da7e9004415473a56caa7d88dc194f13c485c766d1e9eabb6e96f2d32ce9475b307aea1cf431eefe6fccd599a6c5bebc56bf4efde69835b33b4c338d102985d709d15223077414d3eacb04ce124845b7d63f6726c4a80df044fc3e23ca1ef4cfdc518c803068728db86b22b6e6a3df1c7fc2cb80d64b1211b66fc9bdb8ec0e5f575fafa79a08a52334af49117973b95c3d3a9de2c66bf1455a7a18eb01141f11de389bc9367e0f5e6abfb5e3edecfdee1b40a1288838ba2e56bf433937afece18cb4ffe06c49005ba77c80a921c21db60c9f0bb833548c08982d3c1148d42c0f12c5459109b27812c417d36e51acdaa414b58a078a61660d9172c8ba6cbbeaafd3adfd30ebfbca1eeb6830eb2a92a9437a527aa20400a1c138f12c728294bfa2fa813d7329d72c2c0e01715f999feae2c35e08c59735cc20bd4e1be151742dc26b99e9833e6a34455298fb1f217ca116d1ec9c7e459312f449703247971e1d75a49d4d61b574560d195f747f3d5dfc90007da9cd12af25f6bf21be017e21fafdb11dc00fd8ab5ba464876b756b4ed50265aea3fb6c2e6a3c92e35511aba5518e0cf15fbe283d1ae536cb90c28b28af2f3118ceb0ecb723281abf4a1f6848c650f02c9344a2f076d162bd62a03035d5f2029d70e40dd7280f21c2d6ef96f71f7cc0ffd64c7a727602ae8adc5d4d268b550b7b798ebeb059d724c0b64fc02d3f7e9c66733e747cc81f06efe8d99cea3718cc6048096ded726935025adb2075bde644a5fea930d05a779752d8ab5540d27e98ea7bd7ce4f020f782893767019b7eb16ab37cd763616b93e92ac7fb43fc2ffca32fa5e28c7c9acd3f48196b6a7d71e53755cfab0aed762cfea529a588bbb57d68d23c5bf188a2d",
+        "bodyPadBytes": null,
+        "bodyLength": 644,
+        "bodySha256": "361522ac0393f4400c8519ed757e2b6c42e842db6e33037351885d3b382ff7f8",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rejected:encoding",
+        "status": 415,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "deflate body, valid signature over the sent bytes",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000001e",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=6b65d5778494c79ad48aa52581264e026a0e1480",
+          "x-hub-signature-256": "sha256=f7553f50156075078753121087ac20540afea9cd548eabe541f89b3b06be4459",
+          "content-encoding": "deflate"
+        },
+        "payload": null,
+        "bodyText": null,
+        "bodyHex": "789cb556db6edb300cfd1583cf4e23f91e3fed23b6970d43404b742d4c965d5d7ac1d07f1f64c7459a2edb8a626fb14889e4393c07f90928bc9a0cb420a671d6e449420a0f93fdd1ebe9e1688381f62728096dce196729181c095ab84347c62b433ad992932594c240288f9d4523865789bbf56cd713fa605f32dd80d0022f7ac1eb86ca4c88bacfa929ba0aabb2c944971f0e79c7b34385398fb766f4f1e19b5be587d0edb7f26e7f564aa89ba751430a52b959e3d3d12baf2ffa3e85922594f4934d6c30c93226a46083399a307664a1ad53a07b321e5a98831b2005e7d10777819a988cd0c1ad70ba200439770e664431638cf114c440e2c7d105e569392ed802eee0477d0c56430b83f7b36bf7fb75ca1b318de7f34d0f86ecf981a579dae17e65d3ed6d306ebf8d3207ad8f96ee0239efa0fdb6f279608c15590adb90f1772424f26da97f4ddd6c773176a23002b0b05623c91cf38638a3bccb2b51d74c368422e358f1a6a28c77b59465c493e6695ba59231fefc9c42878eae958bb1cb725d99b11e0b5ee6b9e80f8de8b35e94bdec9a9a0e5549d45779fcc6df967bfe9e82b0849ee411239519cbaa1de73bc63f73de96ac65ec2ba410667935a768f99283c24f363eafa75b655ef7bec6d2a572cd23d9ffccea76d53fcd7157bf38b2f0bcae227a4fe3eca1e5ebb7f368ff36c9222f318da3f21b1440ac1285147d9397541792679968faa6a828afbaa266152b2b59d5b2831446720e6f2f44b33e979c625131bb65cddaa4578f891f2871242cf9c40fcadcc659d448cee338bfe9b3389cfac4e08715ceb7e6b2c6366ba11195be807b49f8448f188578a3cc3d6a2521ae57dc01a7fc649fce3721853eeae14da96b9a8a02b2ea1e3d41eb6da08fab74696e7385adb59331fcdd5edf657fd1a7e27bd117eee3eddf2880ed58f699672dfb8302dee47cd8a93a3d75e7c7927a0cda9f24bfff97f1fe23c54be21581afb193c0d9bb04be5dbd10f8c7172a0547465e6df9147c31a5fc1d355fee5e34ad8cf3a835ae7f1f56f0f9e2b4bf00cbd1c5ce",
+        "bodyPadBytes": null,
+        "bodyLength": 754,
+        "bodySha256": "9c06f45cb82bd31a972610a9ef93f88f4834ca78ea2e8145a1b9380815e37df6",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rejected:encoding",
+        "status": 415,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "gzip of a body over 1 MiB: 415, not 413",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000001f",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=79883922f6a1d642dea83886e1cb83f1f61fc49f",
+          "x-hub-signature-256": "sha256=f2ddd52334fa71b359ea9d9ffc3919af89645ecaff47ccd889e6c6f059c9010f",
+          "content-encoding": "gzip"
+        },
+        "payload": null,
+        "bodyText": null,
+        "bodyHex": "1f8b0800000000000203edd6cb6edb461400d05f11662dc7a4ded6aa1fd16e5a14c6881c4544294ae5236950e4df0b4a56e03875d320e8aae7ac2cce903373efdc0bff1962d157a7266c43713a9eebd4a7324cc3fb53fbdbbe3ebd7f6c87266cff0c5519b6f33ccbb36968e231856df83d76a9e9ab26d593dbe4c965681a0e29968fbb3636c5e1b38977d76777fb14fba1fd34b33bc4b00df9625fe4eb4d5ace8a62bd9fa7cd62b78aabe56656ece60f0ff35d3e7b58c5793ebe758efdf8e1376fabfe30ecee6fcb77f7cf962aaa371f8e759886b2eace75fcf0d8577dfd62df4f4393cbd0647f6a27edd04c2ec70cd3d00ecd63331c77a90ddbf534a477a9e9c3369c87ee10a6a1eb633f742fa2569c9aa21eba6b38bba12852d73d0fe618c5599665f934148754fcf6d80d559f2e8f17d925b887fe583f0e6d1db6e1d0f7e76e7b7f7f3de59be2747c7ebed3fb26b5cf1fb4e97cba8bf7d76c76f7edd074f7b7a39c87ba7e6cd3ef43eafa2e6c7fb9e6f321cbb2c56c1a6e871cff1e1332e6bb4dfbcf53776eefc6b1a7148e01b8646d1d53398ff34dcab334dfcd57c57a9d959b148b591e57f9669566f96e5d96cb319ee97cba5da56596e51f3f4ec32e76e9b5e5c6b197cbed96b36c1f17f9723e2ff60f9b623fdb17cb7db9dbacd3c36a99d27e351f7fc7bf5deee3afd350b429f6a97c8c632a67d96c7597e77759fe639e6f97d936cb7e0ed3309ccb57e72cb6f9654e2cfa533b7ebe3ebdad9acff77e1d9b5e565ee763b2ff75566faff61fcee35dfda94b6df878bd8ab1efd3f1dc876d7efdddf5b1fdda492ee5559c8ec7aabf8522a46c552cca62bf992fd37a51e6b359b1d96f16ab345fed16eb6c952d57e56a5deec2341c53d7c5b72f8ae6fab9c9d3d8583177976bb69decab3f26fd214dba54b4a99ff487aa793b9ea53aa6ae8fc7f317fb5c3c3ced330efde11ace2f9bcb75ecd65ad23156f58b705f26fc90fe886321bea99a77b1aeca305eaff10e74557f6a3f3cbf09d3b01febe18ba55eaba9b180daea5dec53d8f6ed90bebf4a2f9bbb7585dbd69e1ac3d7dbeb37b5bfb14f8ddf1bfbc2bbf1edbfa980ec2e9bfd98cfb6d93f54c01773bebb53edead3eef9e332ede350f74f257fff6f8ef71fa6f832f19502bf8e3d1578f64d057e7bf545817fff859a862e35e5ab5b7e1afcd494e6dfb0e6a7775f6cba6aba3ed675bcfefb700d7e7ee9b4130000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e07fed2f6398dfc101001000",
+        "bodyPadBytes": null,
+        "bodyLength": 1899,
+        "bodySha256": "bd677a3ff65c20ad6092965da9c52fc48ff4d1d9eba74112ff6dfd4c71295297",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "rejected:encoding",
+        "status": 415,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "Content-Encoding: identity is processed (stored)",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000020",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4a7f60cbbd61fa48ea482d41584cc049d7efeba2",
+          "x-hub-signature-256": "sha256=f420839cb6861b9ba1d2b6bf157ff7060f7ccf595f7d0e8567f40c55742c33ad",
+          "content-encoding": "identity"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31010,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "14fc178e52cc7f3e84b6a6582cb3993b1296a31e",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31010",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40010,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31010",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "e06c4dcf835e74d122c8f846e36b4706056d67db",
+              "message": "qasentinel commit message run-31010: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "d1fedb446772545ae1177ac8efbf6a4710cbaef577ee42f4ddd92e5711fbddc0",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "stored",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [
+          {
+            "derivation": {
+              "threadKey": "run|31010|1",
+              "eventIdName": "d1fedb446772545ae1177ac8efbf6a4710cbaef577ee42f4ddd92e5711fbddc0:0",
+              "sequenceRule": "run action ordinal completed = 2"
+            },
+            "event": {
+              "jgr": "0.1",
+              "event_id": "977e71c1-2814-5c35-a979-3159f4ca509f",
+              "producer_id": "gh-app_1001",
+              "project_ref": "web-app",
+              "thread_ref": "gh_0eead73583b2ea5e9c3a12bbeff315a3",
+              "sequence": 2,
+              "type": "task.completed",
+              "occurred_at": "2026-11-01T11:54:10Z"
+            },
+            "attributes": {
+              "tool_name": "github-actions",
+              "task_kind": "ci.workflow",
+              "attempt": 1,
+              "duration_ms": 250000
+            }
+          }
+        ],
+        "state": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "0903e86d180f868a2f43084c7f2c177373635eb1d6b8208bb4954425ead4b16d",
+    "0982d83623b7dea0584a8626687c7390eb203775",
+    "0da1832fd82614a65edde0fdb163c029cedc6e063424d73ba67129decdf06a3e",
+    "14fc178e52cc7f3e84b6a6582cb3993b1296a31e",
+    "175b0f0bf1b350c044a981c084414927242a71a9",
+    "4a7f60cbbd61fa48ea482d41584cc049d7efeba2",
+    "6b65d5778494c79ad48aa52581264e026a0e1480",
+    "79883922f6a1d642dea83886e1cb83f1f61fc49f",
+    "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+    "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+    "e06c4dcf835e74d122c8f846e36b4706056d67db",
+    "f2ddd52334fa71b359ea9d9ffc3919af89645ecaff47ccd889e6c6f059c9010f",
+    "f420839cb6861b9ba1d2b6bf157ff7060f7ccf595f7d0e8567f40c55742c33ad",
+    "f7553f50156075078753121087ac20540afea9cd548eabe541f89b3b06be4459",
+    "qa-webhook-secret-current-NOT-REAL",
+    "qa-webhook-secret-other-NOT-REAL",
+    "qa-webhook-secret-previous-NOT-REAL"
+  ]
+}

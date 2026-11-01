@@ -1,0 +1,1647 @@
+{
+  "$schema": "./schema.json",
+  "id": "S05",
+  "kind": "route",
+  "description": "Every missing or malformed X-Hub-Signature-256 gets the same 401 and stores nothing; a valid sha1 header alone does not help. The last step proves the body itself was fine.",
+  "contract": "ADR-0019 (056a203) decision 3 (Signature: missing, malformed or wrong, without saying which); Changes L1 (sha256= plus 64 hex, checked before the body is read)",
+  "ambiguities": ["G1", "G2", "G3", "G8", "G11", "G15"],
+  "clock": "2026-11-01T12:00:00Z",
+  "setup": {
+    "secrets": { "current": "qa-webhook-secret-current-NOT-REAL", "previous": null },
+    "workspaces": [{ "label": "ws-a", "projects": [{ "slug": "web-app", "privacyClass": "L0" }] }],
+    "installations": [
+      {
+        "installationId": 1001,
+        "accountId": 7001,
+        "accountType": "User",
+        "claimedBy": "ws-a",
+        "suspended": false
+      },
+      {
+        "installationId": 1002,
+        "accountId": 7002,
+        "accountType": "User",
+        "claimedBy": null,
+        "suspended": false
+      }
+    ],
+    "repositories": [
+      {
+        "repoId": 5001,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-a",
+        "project": "web-app"
+      },
+      {
+        "repoId": 5002,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-b",
+        "project": null
+      },
+      {
+        "repoId": 5003,
+        "installationId": 1002,
+        "fullName": "qasentinel-other/qasentinel-repo-c",
+        "project": null
+      }
+    ]
+  },
+  "steps": [
+    {
+      "note": "X-Hub-Signature-256 absent (the sha1 X-Hub-Signature is present and correct)",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000006",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "empty value",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000007",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": ""
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "sha256= only",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000008",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256="
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "63 hex characters",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000009",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256=9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c9"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "65 hex characters",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000000a",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256=9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c980"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "64 non-hex characters",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000000b",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "correct HMAC with prefix sha1= (G11)",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000000c",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha1=9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c98"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "correct HMAC with prefix SHA256= (G11)",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000000d",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "SHA256=9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c98"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "correct HMAC in upper-case hex (G11)",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000000e",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256=9DF5477DC78FC8CE501C90BE29B6B478866EB73FD07F99747C97C95253118C98"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "correct HMAC without prefix",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-00000000000f",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c98"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "correct HMAC base64-encoded",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000010",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256=nfVHfcePyM5QHJC+Kba0eIZutz/Qf5l0fJfJUlMRjJg="
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "correct HMAC with a second value appended",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000011",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256=9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c98,sha256=9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c98"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "literal"
+      },
+      "expect": {
+        "outcome": "rejected:signature",
+        "status": 401,
+        "errorCode": null,
+        "equivalenceGroup": "github-401",
+        "deliveryRecorded": false,
+        "events": [],
+        "state": null
+      }
+    },
+    {
+      "note": "control: the same body with the correct header is stored",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000012",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "workflow_run",
+          "x-hub-signature": "sha1=4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+          "x-hub-signature-256": "sha256=9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c98"
+        },
+        "payload": {
+          "action": "completed",
+          "workflow_run": {
+            "id": 31006,
+            "name": "qasentinel workflow name",
+            "head_branch": "qasentinel-branch-feature",
+            "head_sha": "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "display_title": "qasentinel display title for run 31006",
+            "run_number": 7,
+            "event": "push",
+            "status": "completed",
+            "conclusion": "success",
+            "workflow_id": 20001,
+            "check_suite_id": 40006,
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/actions/runs/31006",
+            "pull_requests": [
+              {
+                "id": 900042,
+                "number": 42,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "created_at": "2026-11-01T11:50:00Z",
+            "updated_at": "2026-11-01T11:54:10Z",
+            "actor": {
+              "login": "qasentinel-actor",
+              "id": 7101,
+              "html_url": "https://github.com/qasentinel-actor",
+              "type": "User"
+            },
+            "run_attempt": 1,
+            "run_started_at": "2026-11-01T11:50:00Z",
+            "head_commit": {
+              "id": "68596fcfdfc5292341e042a438247545462eb616",
+              "message": "qasentinel commit message run-31006: fix the secret thing",
+              "timestamp": "2026-11-01T11:49:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            },
+            "repository": {
+              "id": 5001,
+              "full_name": "qasentinel-owner/qasentinel-repo-a",
+              "private": true,
+              "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+            }
+          },
+          "workflow": {
+            "id": 20001,
+            "name": "qasentinel workflow name",
+            "path": ".github/workflows/qasentinel-ci.yml",
+            "state": "active",
+            "created_at": "2026-10-02T12:00:00Z",
+            "updated_at": "2026-10-02T12:00:00Z",
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a/blob/qasentinel-default-branch/.github/workflows/qasentinel-ci.yml"
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 2133,
+        "bodySha256": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "stored",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [
+          {
+            "derivation": {
+              "threadKey": "run|31006|1",
+              "eventIdName": "8fce7c7ea7ed675d6408b75eeff91aa0556be86a4d471633410beff1c0cb11f3:0",
+              "sequenceRule": "run action ordinal completed = 2"
+            },
+            "event": {
+              "jgr": "0.1",
+              "event_id": "81cfa6d9-a3a3-514f-b974-d69a3abd1972",
+              "producer_id": "gh-app_1001",
+              "project_ref": "web-app",
+              "thread_ref": "gh_d6b9a8152a8be2702db04cc7b5b777d8",
+              "sequence": 2,
+              "type": "task.completed",
+              "occurred_at": "2026-11-01T11:54:10Z"
+            },
+            "attributes": {
+              "tool_name": "github-actions",
+              "task_kind": "ci.workflow",
+              "attempt": 1,
+              "duration_ms": 250000
+            }
+          }
+        ],
+        "state": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "4ce9b43b446f8153438139976f62fbd1fd3dd5fd",
+    "68596fcfdfc5292341e042a438247545462eb616",
+    "7aed3a38e10e3b36c770d8eac21a6186e21b7dd5",
+    "7b616c1f8f1c60ed6e3bbf925f40a61cb99e4441",
+    "9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c9",
+    "9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c98",
+    "9df5477dc78fc8ce501c90be29b6b478866eb73fd07f99747c97c95253118c980",
+    "b520fa41533cf98cf2fc5fdb87e965eef63c5fda",
+    "qa-webhook-secret-current-NOT-REAL",
+    "qa-webhook-secret-other-NOT-REAL",
+    "qa-webhook-secret-previous-NOT-REAL"
+  ]
+}

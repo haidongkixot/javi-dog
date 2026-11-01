@@ -1,0 +1,147 @@
+{
+  "$schema": "./schema.json",
+  "id": "R07",
+  "kind": "route",
+  "description": "A signed ping is acknowledged with 202 and stores nothing.",
+  "contract": "ADR-0019 (056a203) decision 3 (Unwanted deliveries: ping 202, nothing stored)",
+  "ambiguities": ["G3"],
+  "clock": "2026-11-01T12:00:00Z",
+  "setup": {
+    "secrets": { "current": "qa-webhook-secret-current-NOT-REAL", "previous": null },
+    "workspaces": [{ "label": "ws-a", "projects": [{ "slug": "web-app", "privacyClass": "L0" }] }],
+    "installations": [
+      {
+        "installationId": 1001,
+        "accountId": 7001,
+        "accountType": "User",
+        "claimedBy": "ws-a",
+        "suspended": false
+      },
+      {
+        "installationId": 1002,
+        "accountId": 7002,
+        "accountType": "User",
+        "claimedBy": null,
+        "suspended": false
+      }
+    ],
+    "repositories": [
+      {
+        "repoId": 5001,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-a",
+        "project": "web-app"
+      },
+      {
+        "repoId": 5002,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-b",
+        "project": null
+      },
+      {
+        "repoId": 5003,
+        "installationId": 1002,
+        "fullName": "qasentinel-other/qasentinel-repo-c",
+        "project": null
+      }
+    ]
+  },
+  "steps": [
+    {
+      "note": "ping",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000043",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "ping",
+          "x-hub-signature": "sha1=3e9e932e5e7ec18e6f05558e3c16c0f02f819396",
+          "x-hub-signature-256": "sha256=64430fdc0c4e8965417b96864b81a88f0d61f738c7ebd0c64d3219470a821a0e"
+        },
+        "payload": {
+          "zen": "qasentinel zen: Design for failure.",
+          "hook_id": 470001,
+          "hook": {
+            "type": "App",
+            "id": 470001,
+            "active": true,
+            "config": { "content_type": "json", "insecure_ssl": "0" },
+            "updated_at": "2026-11-01T11:59:00Z",
+            "created_at": "2026-11-01T11:59:00Z",
+            "app_id": 880001
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 363,
+        "bodySha256": "02da5749d1b3e5e9e8bcd2c56971d7b369df476e93d7b411679d9e49395c9a96",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "dropped:ping",
+        "status": 202,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [],
+        "state": {
+          "installations": [
+            {
+              "installationId": 1001,
+              "accountId": 7001,
+              "accountType": "User",
+              "claimedBy": "ws-a",
+              "suspended": false
+            },
+            {
+              "installationId": 1002,
+              "accountId": 7002,
+              "accountType": "User",
+              "claimedBy": null,
+              "suspended": false
+            }
+          ],
+          "repositories": [
+            {
+              "repoId": 5001,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-a",
+              "project": "web-app"
+            },
+            {
+              "repoId": 5002,
+              "installationId": 1001,
+              "fullName": "qasentinel-owner/qasentinel-repo-b",
+              "project": null
+            },
+            {
+              "repoId": 5003,
+              "installationId": 1002,
+              "fullName": "qasentinel-other/qasentinel-repo-c",
+              "project": null
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "absentStrings": [
+    "3e9e932e5e7ec18e6f05558e3c16c0f02f819396",
+    "64430fdc0c4e8965417b96864b81a88f0d61f738c7ebd0c64d3219470a821a0e",
+    "qa-webhook-secret-current-NOT-REAL",
+    "qa-webhook-secret-other-NOT-REAL",
+    "qa-webhook-secret-previous-NOT-REAL"
+  ]
+}

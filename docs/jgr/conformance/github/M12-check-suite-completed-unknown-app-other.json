@@ -1,0 +1,452 @@
+{
+  "$schema": "./schema.json",
+  "id": "M12",
+  "kind": "route",
+  "description": "check_suite completed from an app whose slug is not on the list (or has no slug) maps with tool_name \"other\"; the slug itself is never stored.",
+  "contract": "ADR-0019 (056a203) decision 5 table (tool_name from a fixed list of CI app slugs, otherwise \"other\")",
+  "ambiguities": ["G1", "G2", "G3", "G4", "G7", "G8", "G15"],
+  "clock": "2026-11-01T12:00:00Z",
+  "setup": {
+    "secrets": { "current": "qa-webhook-secret-current-NOT-REAL", "previous": null },
+    "workspaces": [{ "label": "ws-a", "projects": [{ "slug": "web-app", "privacyClass": "L0" }] }],
+    "installations": [
+      {
+        "installationId": 1001,
+        "accountId": 7001,
+        "accountType": "User",
+        "claimedBy": "ws-a",
+        "suspended": false
+      },
+      {
+        "installationId": 1002,
+        "accountId": 7002,
+        "accountType": "User",
+        "claimedBy": null,
+        "suspended": false
+      }
+    ],
+    "repositories": [
+      {
+        "repoId": 5001,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-a",
+        "project": "web-app"
+      },
+      {
+        "repoId": 5002,
+        "installationId": 1001,
+        "fullName": "qasentinel-owner/qasentinel-repo-b",
+        "project": null
+      },
+      {
+        "repoId": 5003,
+        "installationId": 1002,
+        "fullName": "qasentinel-other/qasentinel-repo-c",
+        "project": null
+      }
+    ]
+  },
+  "steps": [
+    {
+      "note": "unknown slug, failure",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000081",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "check_suite",
+          "x-hub-signature": "sha1=b9e332ed07541f0b649fa273acc96cd341565115",
+          "x-hub-signature-256": "sha256=0b108996790dabdf3ac6255c0384ce48fdde5f0b82901c75abd7d52dfd9f0f4b"
+        },
+        "payload": {
+          "action": "completed",
+          "check_suite": {
+            "id": 63003,
+            "head_branch": "qasentinel-branch-suite",
+            "head_sha": "0e59ee64dcc7e990844ca8fde1cb8901eaee4741",
+            "status": "completed",
+            "conclusion": "failure",
+            "before": "5622176a2868b3fec559ea01f9af15117e5543fc",
+            "after": "0e59ee64dcc7e990844ca8fde1cb8901eaee4741",
+            "pull_requests": [
+              {
+                "id": 900043,
+                "number": 43,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "13403794c35e42a21e5fc6ccf0e9ecb46c195bf1",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "f85f8530be82572b174d0f8ba637b0fc2d0b4239",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "app": {
+              "id": 810001,
+              "owner": {
+                "login": "qasentinel-app-owner",
+                "id": 7104,
+                "html_url": "https://github.com/qasentinel-app-owner",
+                "type": "User"
+              },
+              "name": "qasentinel app display name",
+              "html_url": "https://github.com/apps/qasentinel-app",
+              "created_at": "2025-09-27T12:00:00Z",
+              "updated_at": "2026-09-22T12:00:00Z",
+              "slug": "qasentinel-unknown-ci-app"
+            },
+            "created_at": "2026-11-01T11:45:00Z",
+            "updated_at": "2026-11-01T11:55:00Z",
+            "head_commit": {
+              "id": "e803ca7e41f78cb57054d4de52fa44ffd8b2f7ee",
+              "message": "qasentinel commit message suite-63003: fix the secret thing",
+              "timestamp": "2026-11-01T11:44:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            }
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 1626,
+        "bodySha256": "47bdc787cadfa8d492e9fdc189b76d41e5f81e885342d6a20cf54ddadc1b3875",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "stored",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [
+          {
+            "derivation": {
+              "threadKey": "suite|63003",
+              "eventIdName": "47bdc787cadfa8d492e9fdc189b76d41e5f81e885342d6a20cf54ddadc1b3875:0",
+              "sequenceRule": "check_suite.updated_at epoch seconds = 1793534100"
+            },
+            "event": {
+              "jgr": "0.1",
+              "event_id": "7353fe03-df2a-5bf2-9d1b-c2800b16b520",
+              "producer_id": "gh-app_1001",
+              "project_ref": "web-app",
+              "thread_ref": "gh_770d378c159021e2daff829ddfced300",
+              "sequence": 1793534100,
+              "type": "task.failed",
+              "occurred_at": "2026-11-01T11:55:00Z"
+            },
+            "attributes": {
+              "tool_name": "other",
+              "task_kind": "ci.check_suite",
+              "error_code": { "optional": true, "equals": "ci.failure" }
+            }
+          }
+        ],
+        "state": null
+      }
+    },
+    {
+      "note": "app without slug, success",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000082",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "check_suite",
+          "x-hub-signature": "sha1=4e4eb278903c8a63c92ce7c3f9f7acc8e7754154",
+          "x-hub-signature-256": "sha256=7f19a20de98f8da229780e2cae8f6d3796d1e84d1d80958a5d671ddccabeb8d7"
+        },
+        "payload": {
+          "action": "completed",
+          "check_suite": {
+            "id": 63004,
+            "head_branch": "qasentinel-branch-suite",
+            "head_sha": "a01fd8c9eee977fc864669666d3409368aff7728",
+            "status": "completed",
+            "conclusion": "success",
+            "before": "8254281cfe29e376a462b52c65cd0cca0e0ff855",
+            "after": "a01fd8c9eee977fc864669666d3409368aff7728",
+            "pull_requests": [
+              {
+                "id": 900043,
+                "number": 43,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "13403794c35e42a21e5fc6ccf0e9ecb46c195bf1",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "f85f8530be82572b174d0f8ba637b0fc2d0b4239",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "app": {
+              "id": 810001,
+              "owner": {
+                "login": "qasentinel-app-owner",
+                "id": 7104,
+                "html_url": "https://github.com/qasentinel-app-owner",
+                "type": "User"
+              },
+              "name": "qasentinel app display name",
+              "html_url": "https://github.com/apps/qasentinel-app",
+              "created_at": "2025-09-27T12:00:00Z",
+              "updated_at": "2026-09-22T12:00:00Z"
+            },
+            "created_at": "2026-11-01T11:45:00Z",
+            "updated_at": "2026-11-01T11:56:40Z",
+            "head_commit": {
+              "id": "9f730fc521bd7c26a0f3ba8baa204797e548a2b5",
+              "message": "qasentinel commit message suite-63004: fix the secret thing",
+              "timestamp": "2026-11-01T11:44:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            }
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 1591,
+        "bodySha256": "b915801d5e7c81cce763e39f447a3672ed7958a2dc2efca989d60a711a76ba15",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "stored",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [
+          {
+            "derivation": {
+              "threadKey": "suite|63004",
+              "eventIdName": "b915801d5e7c81cce763e39f447a3672ed7958a2dc2efca989d60a711a76ba15:0",
+              "sequenceRule": "check_suite.updated_at epoch seconds = 1793534200"
+            },
+            "event": {
+              "jgr": "0.1",
+              "event_id": "c80fda1c-78be-5954-9c7a-e6ce0ee1d6eb",
+              "producer_id": "gh-app_1001",
+              "project_ref": "web-app",
+              "thread_ref": "gh_701d6492c09311e18985a20e397ce3f0",
+              "sequence": 1793534200,
+              "type": "task.completed",
+              "occurred_at": "2026-11-01T11:56:40Z"
+            },
+            "attributes": { "tool_name": "other", "task_kind": "ci.check_suite" }
+          }
+        ],
+        "state": null
+      }
+    },
+    {
+      "note": "unknown slug, timed_out",
+      "action": null,
+      "fault": null,
+      "request": {
+        "headers": {
+          "content-type": "application/json",
+          "user-agent": "GitHub-Hookshot/qa0019",
+          "x-github-delivery": "d0c0ffee-0019-11f1-8000-000000000083",
+          "x-github-hook-id": "470001",
+          "x-github-hook-installation-target-id": "880001",
+          "x-github-hook-installation-target-type": "integration",
+          "x-github-event": "check_suite",
+          "x-hub-signature": "sha1=a2c9fd6f750971bebcda235854b927b38a3570d1",
+          "x-hub-signature-256": "sha256=8a36dbacf4544b432f6e897d3a7af2cbb7609c0c5e171e791a68ce2abd8417dc"
+        },
+        "payload": {
+          "action": "completed",
+          "check_suite": {
+            "id": 63005,
+            "head_branch": "qasentinel-branch-suite",
+            "head_sha": "133daf25e1304949bb6ec3c7706c8a99cb06de08",
+            "status": "completed",
+            "conclusion": "timed_out",
+            "before": "731842003ae1a5c787af0586bde1a590eec23c40",
+            "after": "133daf25e1304949bb6ec3c7706c8a99cb06de08",
+            "pull_requests": [
+              {
+                "id": 900043,
+                "number": 43,
+                "head": {
+                  "ref": "qasentinel-pr-head-branch",
+                  "sha": "13403794c35e42a21e5fc6ccf0e9ecb46c195bf1",
+                  "repo": { "id": 5001 }
+                },
+                "base": {
+                  "ref": "qasentinel-pr-base-branch",
+                  "sha": "f85f8530be82572b174d0f8ba637b0fc2d0b4239",
+                  "repo": { "id": 5001 }
+                }
+              }
+            ],
+            "app": {
+              "id": 810001,
+              "owner": {
+                "login": "qasentinel-app-owner",
+                "id": 7104,
+                "html_url": "https://github.com/qasentinel-app-owner",
+                "type": "User"
+              },
+              "name": "qasentinel app display name",
+              "html_url": "https://github.com/apps/qasentinel-app",
+              "created_at": "2025-09-27T12:00:00Z",
+              "updated_at": "2026-09-22T12:00:00Z",
+              "slug": "qasentinel-other-ci-app"
+            },
+            "created_at": "2026-11-01T11:45:00Z",
+            "updated_at": "2026-11-01T11:58:20Z",
+            "head_commit": {
+              "id": "18c67e233a503f877bc5d267e09baf20d324fad5",
+              "message": "qasentinel commit message suite-63005: fix the secret thing",
+              "timestamp": "2026-11-01T11:44:00Z",
+              "author": {
+                "name": "qasentinel author name",
+                "email": "qasentinel-author@example.invalid"
+              }
+            }
+          },
+          "repository": {
+            "id": 5001,
+            "full_name": "qasentinel-owner/qasentinel-repo-a",
+            "private": true,
+            "owner": {
+              "login": "qasentinel-owner",
+              "id": 7001,
+              "html_url": "https://github.com/qasentinel-owner",
+              "type": "User"
+            },
+            "html_url": "https://github.com/qasentinel-owner/qasentinel-repo-a"
+          },
+          "sender": {
+            "login": "qasentinel-sender",
+            "id": 7103,
+            "html_url": "https://github.com/qasentinel-sender",
+            "type": "User"
+          },
+          "installation": { "id": 1001 }
+        },
+        "bodyText": null,
+        "bodyHex": null,
+        "bodyPadBytes": null,
+        "bodyLength": 1626,
+        "bodySha256": "f2479b9bab2114d2b5410091ff10fe0355c24a746d925d0de96f2fd07201d0dd",
+        "signedWith": "current"
+      },
+      "expect": {
+        "outcome": "stored",
+        "status": 200,
+        "errorCode": null,
+        "equivalenceGroup": null,
+        "deliveryRecorded": true,
+        "events": [
+          {
+            "derivation": {
+              "threadKey": "suite|63005",
+              "eventIdName": "f2479b9bab2114d2b5410091ff10fe0355c24a746d925d0de96f2fd07201d0dd:0",
+              "sequenceRule": "check_suite.updated_at epoch seconds = 1793534300"
+            },
+            "event": {
+              "jgr": "0.1",
+              "event_id": "01f1f6dc-bbcf-5295-8a63-efc997d8b6af",
+              "producer_id": "gh-app_1001",
+              "project_ref": "web-app",
+              "thread_ref": "gh_4045035d3b785a07687fd721ecec91c4",
+              "sequence": 1793534300,
+              "type": "task.failed",
+              "occurred_at": "2026-11-01T11:58:20Z"
+            },
+            "attributes": {
+              "tool_name": "other",
+              "task_kind": "ci.check_suite",
+              "error_code": { "optional": true, "equals": "ci.timed_out" }
+            }
+          }
+        ],
+        "state": null
+      }
+    }
+  ],
+  "absentStrings": [
+    "0b108996790dabdf3ac6255c0384ce48fdde5f0b82901c75abd7d52dfd9f0f4b",
+    "0e59ee64dcc7e990844ca8fde1cb8901eaee4741",
+    "133daf25e1304949bb6ec3c7706c8a99cb06de08",
+    "13403794c35e42a21e5fc6ccf0e9ecb46c195bf1",
+    "18c67e233a503f877bc5d267e09baf20d324fad5",
+    "4e4eb278903c8a63c92ce7c3f9f7acc8e7754154",
+    "5622176a2868b3fec559ea01f9af15117e5543fc",
+    "731842003ae1a5c787af0586bde1a590eec23c40",
+    "7f19a20de98f8da229780e2cae8f6d3796d1e84d1d80958a5d671ddccabeb8d7",
+    "8254281cfe29e376a462b52c65cd0cca0e0ff855",
+    "8a36dbacf4544b432f6e897d3a7af2cbb7609c0c5e171e791a68ce2abd8417dc",
+    "9f730fc521bd7c26a0f3ba8baa204797e548a2b5",
+    "a01fd8c9eee977fc864669666d3409368aff7728",
+    "a2c9fd6f750971bebcda235854b927b38a3570d1",
+    "b9e332ed07541f0b649fa273acc96cd341565115",
+    "e803ca7e41f78cb57054d4de52fa44ffd8b2f7ee",
+    "f85f8530be82572b174d0f8ba637b0fc2d0b4239",
+    "qa-webhook-secret-current-NOT-REAL",
+    "qa-webhook-secret-other-NOT-REAL",
+    "qa-webhook-secret-previous-NOT-REAL"
+  ]
+}

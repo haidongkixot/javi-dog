@@ -1,0 +1,236 @@
+{
+  "$schema": "./schema.json",
+  "id": "S01",
+  "kind": "signature",
+  "description": "Known answers for X-Hub-Signature-256 verification: GitHub's documented test vector, the raw-byte rule, current and previous secrets, and malformed headers.",
+  "contract": "ADR-0019 (056a203) decision 3 (Signature: HMAC-SHA256 of the raw body, current then previous secret, constant time); Changes L1 (raw bytes; sha256= plus 64 hex)",
+  "ambiguities": ["G11", "Y4"],
+  "cases": [
+    {
+      "label": "github-docs-vector",
+      "note": "GitHub's documented test vector (secret \"It's a Secret to Everybody\", body \"Hello, World!\")",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+      "expect": {
+        "valid": true,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "last-hex-digit-changed",
+      "note": "same body, last hex digit of the signature changed",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e18",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "trailing-newline",
+      "note": "body differs only by a trailing LF; header of the original body",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c64210a",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["8fde2e970f9163923fb1cb61bb945626ff2b4091d87e622ee3ad600160592325"]
+      }
+    },
+    {
+      "label": "utf8-bom-prefix",
+      "note": "body prefixed with the UTF-8 BOM EF BB BF (TextDecoder strips it); header of the original body",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "efbbbf48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["80ee6e59c2c455a62ca908d9fca9167a761193b44e028fa717a67a15f68a8f0d"]
+      }
+    },
+    {
+      "label": "crlf-vs-lf",
+      "note": "JSON body with CRLF where the signed body had LF",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "7b0d0a2261223a310d0a7d",
+      "header": "sha256=9b26a4553963c2aa1e0dbab8f09910c8857543c325de1958fd2e51f3669d9d1d",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["3ca4c1f3dfa9a797bf112dd8a219aea1bd11b3865dc77e1495ba796b214c8632"]
+      }
+    },
+    {
+      "label": "wrong-secret-case",
+      "note": "secret differs only in case",
+      "secrets": ["it's a secret to everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["05e4c326f226561bdf576ba97951abbea2822d8e8df641580a291e11a58df3f5"]
+      }
+    },
+    {
+      "label": "previous-secret-matches",
+      "note": "current secret does not match, previous secret does",
+      "secrets": ["qa-webhook-secret-current-NOT-REAL", "It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+      "expect": {
+        "valid": true,
+        "hmacHexPerSecret": [
+          "c803b46efcc6028328d5e1efc07b079b0a5fdda83df5baeb1bb0697fd2b6aafa",
+          "757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"
+        ]
+      }
+    },
+    {
+      "label": "neither-secret-matches",
+      "note": "neither the current nor the previous secret matches",
+      "secrets": ["qa-webhook-secret-current-NOT-REAL", "qa-webhook-secret-previous-NOT-REAL"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": [
+          "c803b46efcc6028328d5e1efc07b079b0a5fdda83df5baeb1bb0697fd2b6aafa",
+          "6160427dfb7216b08369888393fc9aabe3d8e1da565f55ab18e70bb680643485"
+        ]
+      }
+    },
+    {
+      "label": "upper-case-hex",
+      "note": "correct HMAC written in upper-case hex (G11)",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107EA0EB2509FC211221CCE984B8A37570B6D7586C22C46F4379C8B043E17",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "upper-case-prefix",
+      "note": "correct HMAC with prefix SHA256= (G11)",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "SHA256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "hex-63",
+      "note": "sha256= plus 63 hex characters",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e1",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "hex-65",
+      "note": "sha256= plus 65 hex characters",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e170",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "non-hex-64",
+      "note": "sha256= plus 64 non-hex characters",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "sha1-in-256-header",
+      "note": "a correct sha1= HMAC-SHA1 value in the SHA-256 header",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha1=01dc10d0c83e72ed246219cdd91669667fe2ca59",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "prefix-only",
+      "note": "sha256= with nothing after it",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "empty-header",
+      "note": "empty header value",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "missing-header",
+      "note": "no header at all (header null)",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": null,
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["757107ea0eb2509fc211221cce984b8a37570b6d7586c22c46f4379c8b043e17"]
+      }
+    },
+    {
+      "label": "raw-bytes-invalid-utf8",
+      "note": "body bytes that are not valid UTF-8; the HMAC is over the raw bytes, so it is valid",
+      "secrets": ["It's a Secret to Everybody"],
+      "bodyHex": "7b2262223a22fffe227d",
+      "header": "sha256=bb26255319ceba325df9683dd25ae12fd2e8ddb7ca89925993191cc9fe7bc546",
+      "expect": {
+        "valid": true,
+        "hmacHexPerSecret": ["bb26255319ceba325df9683dd25ae12fd2e8ddb7ca89925993191cc9fe7bc546"]
+      }
+    },
+    {
+      "label": "utf8-secret",
+      "note": "a non-ASCII secret: the HMAC key is the UTF-8 bytes of the secret (Y4)",
+      "secrets": ["clé-secrète-🐕"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=adac2ad375dd681a41ff8a5f58d2fe555a137f9fc177ae72f4083885ecd8e6a9",
+      "expect": {
+        "valid": true,
+        "hmacHexPerSecret": ["adac2ad375dd681a41ff8a5f58d2fe555a137f9fc177ae72f4083885ecd8e6a9"]
+      }
+    },
+    {
+      "label": "utf8-secret-latin1-header",
+      "note": "header computed with the secret encoded as Latin-1 instead of UTF-8 (Y4)",
+      "secrets": ["clé-secrète-🐕"],
+      "bodyHex": "48656c6c6f2c20576f726c6421",
+      "header": "sha256=e3c342f8ef71cc683585a7cc51ee40cba0fc6516299c773567c416c1bd38da6b",
+      "expect": {
+        "valid": false,
+        "hmacHexPerSecret": ["adac2ad375dd681a41ff8a5f58d2fe555a137f9fc177ae72f4083885ecd8e6a9"]
+      }
+    }
+  ]
+}
