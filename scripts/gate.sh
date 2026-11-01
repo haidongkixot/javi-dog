@@ -35,6 +35,7 @@ step() {
 step 'format:check' pnpm -s format:check
 step 'lint' pnpm -s lint
 step 'typecheck' pnpm -s typecheck
+step 'test:scripts' pnpm -s test:scripts
 
 rm -rf node_modules/.vitest-cache
 log=$(mktemp) || fail 'cannot create a temporary log'

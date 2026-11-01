@@ -12,6 +12,7 @@
     "lint": "turbo run lint && eslint scripts",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --concurrency=2",
+    "test:scripts": "node --test \"scripts/test/*.test.mjs\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "modules:registry": "node scripts/modules-registry.mjs",

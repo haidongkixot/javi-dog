@@ -33,6 +33,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm test:scripts
       - run: pnpm build
       - name: Migration drift (schema vs committed SQL, ADR-0005)
         run: |

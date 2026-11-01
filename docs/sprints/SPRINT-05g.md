@@ -22,7 +22,7 @@
 | H1 | `@javis-dog/github-bridge`: signature verification, delivery routing, pure JGR mapping, ids, refs | JD-M10 | TEST_PLAN unit rows; QA vectors pass | BUILT (vector runner in wave 2) |
 | H2 | Migration 0006 and the installations/repositories repository | JD-M06 | migration tests; applied to `dev-agent` and `main` after CI is green | DONE |
 | H3 | Webhook route, claim and link actions, project-page GitHub card, Integrations status, source labels | JD-APP, JD-M07 | TEST_PLAN route, claim, link, dashboard and status rows | PLANNED |
-| H4 | Local helper `scripts/github-app-create.mjs` and the owner how-to | tooling | TEST_PLAN helper row | PLANNED |
+| H4 | Local helper `scripts/github-app-create.mjs` and the owner how-to | tooling | TEST_PLAN helper row | BUILT ([how-to](../how-to/set-up-github-app.md); `pnpm test:scripts` 5/5; real GitHub run NOT RUN, owner) |
 | H5 | QA vectors (`docs/jgr/conformance/github/`) and runner | QA | every vector passes, mutation-checked | PLANNED |
 
 ## Log
@@ -50,6 +50,7 @@ Newest first: date — what changed — commit SHA.
 
 Team log, newest first:
 
+- 2026-11-01 — Developer D — Local helper + how-to merged (25ff837). 5/5 `node:test` against a stub GitHub API (manifest exact, state single-use, 0600 file outside the repo, no secret in output, Host check, failed exchange, timeout). Facts checked in `github/docs` and the REST OpenAPI description; unverified: GitHub accepting a loopback `redirect_url` in a manifest (owner's first run). Orchestrator added `test:scripts` to package.json, `scripts/gate.sh` and CI, and the five `GITHUB_APP_*` lines to `.env.example`.
 - 2026-11-01 — Orchestrator — Wave 2 launched in worktrees: Developer B (webhook handler with injected deps + route; `event-store` already depends on `github-bridge`, so no cycle), Developer E (reader `source`, GitHub counts, labels), Developer C (claim/link, `/integrations/github`, status card), Developer D (local helper + how-to). Decision: public env `GITHUB_APP_OWNER_ID` gates the install link (ADR-0019 Changes). QA runner follows Developer B.
 - 2026-11-01 — Reviewer — Design review D0 of ADR-0019, before code: 4 High (owner-only scope; replay and dedupe on unsigned headers; the schema could not enforce the workspace; the 3-day rule had no timestamp), 6 Medium, 5 Low. The orchestrator verified H1 and H2 in sources and code. All were folded into ADR-0019 as binding rules; TEST_PLAN rows added.
 - 2026-11-01 — Orchestrator — The research agent re-read GitHub's docs through `github/docs` and the OpenAPI description (docs.github.com is blocked). The orchestrator re-checked the HMAC test vector and the Contents-read requirement for push.
