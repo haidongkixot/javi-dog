@@ -50,6 +50,7 @@ Newest first: date — what changed — commit SHA.
 
 Team log, newest first:
 
+- 2026-11-01 — Orchestrator — Wave 2 launched in worktrees: Developer B (webhook handler with injected deps + route; `event-store` already depends on `github-bridge`, so no cycle), Developer E (reader `source`, GitHub counts, labels), Developer C (claim/link, `/integrations/github`, status card), Developer D (local helper + how-to). Decision: public env `GITHUB_APP_OWNER_ID` gates the install link (ADR-0019 Changes). QA runner follows Developer B.
 - 2026-11-01 — Reviewer — Design review D0 of ADR-0019, before code: 4 High (owner-only scope; replay and dedupe on unsigned headers; the schema could not enforce the workspace; the 3-day rule had no timestamp), 6 Medium, 5 Low. The orchestrator verified H1 and H2 in sources and code. All were folded into ADR-0019 as binding rules; TEST_PLAN rows added.
 - 2026-11-01 — Orchestrator — The research agent re-read GitHub's docs through `github/docs` and the OpenAPI description (docs.github.com is blocked). The orchestrator re-checked the HMAC test vector and the Contents-read requirement for push.
 
