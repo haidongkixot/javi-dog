@@ -1,6 +1,7 @@
 import type { AnyDb } from '@javis-dog/event-store';
 import { readActivity, readDbNow, readProjects, readThreads, type ThreadRow } from './queries.ts';
 import {
+  GITHUB_TERMINAL_TYPES,
   STATUS_REASONS,
   THREAD_IDENTITY_TYPE,
   type ActivityItem,
@@ -8,6 +9,7 @@ import {
   type Counter,
   type DashboardSnapshot,
   type Freshness,
+  type GithubKind,
   type ProjectFreshness,
   type ProjectHealth,
   type StatusReason,
@@ -117,7 +119,55 @@ const toIdentity = (raw: unknown, row: ThreadRow): ThreadIdentity | null => {
 
 const FRESHNESS_RANK: Record<Freshness, number> = { fresh: 0, stale: 1, ended: 2 };
 
+const GITHUB_TERMINAL: ReadonlySet<string> = new Set(GITHUB_TERMINAL_TYPES);
+
+/** `ci.*` → `ci`, `pr` / `pr.*` → `pr`; without a known kind, the type family decides. */
+const githubKindOf = (taskKind: string | null, lastType: string): GithubKind | null => {
+  if (taskKind !== null) {
+    if (taskKind.startsWith('ci.')) return 'ci';
+    if (taskKind === 'pr' || taskKind.startsWith('pr.')) return 'pr';
+  }
+  if (lastType.startsWith('x.github.ci.')) return 'ci';
+  if (lastType.startsWith('x.github.pr.')) return 'pr';
+  return null;
+};
+
+/**
+ * A GitHub bridge thread (ADR-0019 decision 6, D0 M1): no status ever, never attention, `ended`
+ * once its newest event (by sequence) is a result, a merge or a close; otherwise the usual
+ * freshness rules. Agent task counters leave it out (the query already did).
+ */
+const toGithubThread = (row: ThreadRow, now: Date): ThreadState => {
+  const last = Number(row.last_ms);
+  const lastType = row.github_last_type ?? row.last_type;
+  return {
+    projectId: row.project_id,
+    projectSlug: row.project_slug,
+    projectName: row.project_name,
+    threadRef: row.thread_ref,
+    source: 'github',
+    githubKind: githubKindOf(row.github_task_kind, lastType),
+    status: null,
+    statusSource: 'collector',
+    statusReason: null,
+    lastType,
+    firstSignalAt: iso(Number(row.first_ms)),
+    lastSignalAt: iso(last),
+    freshness: GITHUB_TERMINAL.has(lastType)
+      ? 'ended'
+      : threadFreshness(lastType, new Date(last), now),
+    attention: false,
+    needsAttention: false,
+    agents: Number(row.agents),
+    tasksCompleted: Number(row.tasks_completed),
+    inputTokens: Number(row.input_tokens),
+    outputTokens: Number(row.output_tokens),
+    identity: toIdentity(row.identity, row),
+  };
+};
+
 const toThread = (row: ThreadRow, now: Date): ThreadState => {
+  if (row.github) return toGithubThread(row, now);
   const last = Number(row.last_ms);
   // A self-report wins until later clearing activity; the query already decided which (§6).
   const fromAgent = row.agent_status !== null;
@@ -131,6 +181,8 @@ const toThread = (row: ThreadRow, now: Date): ThreadState => {
     projectSlug: row.project_slug,
     projectName: row.project_name,
     threadRef: row.thread_ref,
+    source: 'agent',
+    githubKind: null,
     status,
     statusSource,
     statusReason: fromAgent ? reasonOf(row.agent_status, row.agent_error_code) : null,
@@ -185,12 +237,24 @@ export const createDashboardReader = (db: AnyDb) => ({
 
     const threads = threadRows.map((r) => toThread(r, now)).sort(compareThreads);
     const fresh = threads.filter((t) => t.freshness === 'fresh');
-    const working = fresh.filter((t) => t.status === 'working');
+    // GitHub threads carry no status, so they are never "working"; the filter states the rule.
+    const working = fresh.filter((t) => t.source === 'agent' && t.status === 'working');
+    const ci = threads.filter((t) => t.source === 'github' && t.githubKind === 'ci');
+    const ciRunning = ci.filter((t) => t.freshness !== 'ended' && t.lastType === 'task.started');
+    const ciFailed = ci.filter((t) => t.lastType === 'task.failed');
+    const prsOpen = threads.filter(
+      (t) => t.source === 'github' && t.githubKind === 'pr' && t.freshness !== 'ended',
+    );
 
     const counter = (value: number, signals: (string | null)[]): Counter => ({
       value,
       lastSignalAt: newest(signals),
     });
+    const threadCounter = (group: ThreadState[]) =>
+      counter(
+        group.length,
+        group.map((t) => t.lastSignalAt),
+      );
     const sum = (f: (r: ThreadRow) => number | string) =>
       threadRows.reduce((acc, r) => acc + Number(f(r)), 0);
 
@@ -228,10 +292,7 @@ export const createDashboardReader = (db: AnyDb) => ({
           new Set(fresh.map((t) => t.projectId)).size,
           fresh.map((t) => t.lastSignalAt),
         ),
-        agentsWorking: counter(
-          working.length,
-          working.map((t) => t.lastSignalAt),
-        ),
+        agentsWorking: threadCounter(working),
         tokensLastHour: {
           ...counter(
             sum((r) => r.hour_tokens),
@@ -239,10 +300,16 @@ export const createDashboardReader = (db: AnyDb) => ({
           ),
           reports: sum((r) => r.hour_reports),
         },
+        // The query counts agent `task.completed` events only (GitHub results are excluded).
         tasksCompleted24h: counter(
           sum((r) => r.tasks_completed),
           threadRows.map((r) => isoOrNull(r.last_task_ms)),
         ),
+      },
+      github: {
+        ciRunning: threadCounter(ciRunning),
+        ciFailed24h: threadCounter(ciFailed),
+        prsOpen: threadCounter(prsOpen),
       },
       threads,
       activity,

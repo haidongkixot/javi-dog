@@ -18,7 +18,8 @@ export function atClientTime(s: DashboardSnapshot, now: string): DashboardSnapsh
     t.freshness === 'fresh' && expired(t) ? { ...t, freshness: 'stale' as const } : t,
   );
   const fresh = threads.filter((t) => t.freshness === 'fresh');
-  const working = fresh.filter((t) => t.status === 'working');
+  // GitHub threads carry no status; the source check states the reader's rule (ADR-0019).
+  const working = fresh.filter((t) => t.source !== 'github' && t.status === 'working');
   const counter = (value: number, group: ThreadState[]): Counter => ({
     value,
     lastSignalAt: newest(group.map((t) => t.lastSignalAt)),

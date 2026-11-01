@@ -30,6 +30,37 @@ export type StatusReason = (typeof STATUS_REASONS)[number];
 export type StatusSource = 'agent' | 'collector';
 
 /**
+ * Where a thread comes from (ADR-0019 decision 6, D0 M1, M2): `github` when every event of the
+ * thread has a `producer_id` starting with `gh-app_` (a prefix that only the JD-M10 bridge may
+ * write; ingest rejects it for everyone else), otherwise `agent`. The label comes from that
+ * reserved prefix only, never from a tool name or a thread ref.
+ */
+export type ThreadSource = 'agent' | 'github';
+
+/** Producer-id prefix reserved for the GitHub App bridge (ADR-0019 D0 M2). */
+export const GITHUB_PRODUCER_PREFIX = 'gh-app_';
+
+/**
+ * What a GitHub thread is about, from its `task_kind` (`ci.*` → `ci`, `pr` / `pr.*` → `pr`); a
+ * thread without one falls back to its type family (`x.github.ci.*`, `x.github.pr.*`).
+ */
+export type GithubKind = 'ci' | 'pr';
+
+/**
+ * Newest event types that end a GitHub thread (ADR-0019 D0 M1): a run or suite result
+ * (`task.completed`, `task.failed`, `x.github.ci.cancelled`, `x.github.ci.skipped`) or a PR that
+ * was merged or closed. `x.github.ci.attention` is not terminal.
+ */
+export const GITHUB_TERMINAL_TYPES = Object.freeze([
+  'task.completed',
+  'task.failed',
+  'x.github.ci.cancelled',
+  'x.github.ci.skipped',
+  'x.github.pr.merged',
+  'x.github.pr.closed',
+] as const);
+
+/**
  * JGR extension type that carries a thread's L1 hashes and, in an L2 project, its encrypted
  * repo and branch names (ADR-0018 §5). It counts as a signal for freshness, but it is never a
  * status, a task or an activity item.
@@ -74,8 +105,16 @@ export interface ThreadState {
   projectId: string;
   projectSlug: string;
   projectName: string;
-  /** Opaque, hashed by the producer (e.g. `cc_…`). */
+  /** Opaque, hashed by the producer (e.g. `cc_…`, `gh_…` for GitHub). */
   threadRef: string;
+  /**
+   * `github` for a JD-M10 bridge thread (see `ThreadSource`). A GitHub thread is never an agent:
+   * its `status` is always null, it never needs attention, and the overview's agent counters and
+   * the squad leave it out.
+   */
+  source: ThreadSource;
+  /** `ci` or `pr` for a GitHub thread (null when neither can be told); always null for agents. */
+  githubKind: GithubKind | null;
   /**
    * The agent's latest self-reported status while no later activity cleared it (ADR-0017 §6);
    * otherwise the last non-null `status` of an event that is not a self-report, or null.
@@ -88,10 +127,13 @@ export interface ThreadState {
   /**
    * Type of the newest event that is not an identity event (an identity event follows a status
    * event and must not hide it); the identity type only when the thread sent nothing else.
+   * For a GitHub thread, "newest" is the highest `sequence` (strictly increasing per thread,
+   * D0 M3), because GitHub may deliver out of order.
    */
   lastType: string;
   firstSignalAt: string;
   lastSignalAt: string;
+  /** `ended` for a GitHub thread whose `lastType` is in `GITHUB_TERMINAL_TYPES`. */
   freshness: Freshness;
   /** `status` is `waiting`, or `blocked` as reported by the agent (owner, 2026-10-30). */
   attention: boolean;
@@ -101,6 +143,7 @@ export interface ThreadState {
    */
   needsAttention: boolean;
   agents: number;
+  /** `task.completed` events of agents; GitHub CI results never count (0 for a GitHub thread). */
   tasksCompleted: number;
   inputTokens: number;
   outputTokens: number;
@@ -137,17 +180,37 @@ export interface Counter {
   lastSignalAt: string | null;
 }
 
+/**
+ * GitHub counts (ADR-0019 D0 M1), from GitHub threads with a signal in the snapshot window.
+ * GitHub sends no heartbeat, so `lastSignalAt` is the time of the newest delivery that counted.
+ */
+export interface GithubCounts {
+  /** CI threads (`ci`) whose newest event is `task.started` (requested or in progress). */
+  ciRunning: Counter;
+  /** CI threads whose newest event is `task.failed`. */
+  ciFailed24h: Counter;
+  /** PR threads that are not ended (newest event opened, updated or ready for review). */
+  prsOpen: Counter;
+}
+
 export interface DashboardSnapshot {
   generatedAt: string;
   freshnessWindowMs: number;
   windowHours: number;
   overview: {
+    /**
+     * Projects with a fresh thread of either source: a GitHub delivery is a verified signal of
+     * the project (the bridge also touches its `last_signal_at`), just not an agent.
+     */
     activeProjects: Counter;
+    /** Fresh agent threads reporting `working`; GitHub threads never count. */
     agentsWorking: Counter;
     /** Input + output tokens reported in the last 60 min. */
     tokensLastHour: Counter & { reports: number };
+    /** Agent `task.completed` events in the window; GitHub CI results never count. */
     tasksCompleted24h: Counter;
   };
+  github: GithubCounts;
   threads: ThreadState[];
   activity: ActivityItem[];
   projects: ProjectHealth[];

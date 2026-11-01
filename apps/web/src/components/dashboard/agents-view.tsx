@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import type { DashboardSnapshot, ThreadState } from '@javis-dog/realtime';
 import { Card, CardHead, EmptyState, Icon, MetricCard } from '@javis-dog/ui/components';
 import { ThreadIdentityLabel } from '@/components/privacy/thread-identity';
-import { byAttention, formatNumber, windowLabel } from './format';
+import { agentThreads, byAttention, formatNumber, windowLabel } from './format';
+import { GithubThreadsCard } from './github-threads';
 import { FreshnessLabel, FreshnessPill, SignalTime, ThreadRef, ThreadStatusPill } from './signal';
 
 const columns = [
@@ -51,7 +52,8 @@ function Metrics({
   snapshot: DashboardSnapshot | null;
   notCurrent: boolean;
 }) {
-  const threads = s?.threads ?? [];
+  // Agent threads only; GitHub threads have their own card (ADR-0019 decision 6).
+  const threads = agentThreads(s?.threads ?? []);
   const show = (n: number) => (s && threads.length > 0 ? formatNumber(n) : null);
   const fresh = threads.filter((t) => t.freshness === 'fresh');
   const attention = threads.filter((t) => t.needsAttention);
@@ -124,7 +126,7 @@ function ThreadTable({
   snapshot: DashboardSnapshot;
   notCurrent: boolean;
 }) {
-  const threads = [...s.threads].sort(byAttention);
+  const threads = agentThreads(s.threads).sort(byAttention);
   return (
     <div className="mt-4 overflow-x-auto">
       <table className="w-full border-collapse text-left whitespace-nowrap">
@@ -213,7 +215,7 @@ export function AgentsView({
                 : 'Every thread with its status, freshness and last signal'
             }
           />
-          {s && s.threads.length > 0 ? (
+          {s && agentThreads(s.threads).length > 0 ? (
             <ThreadTable snapshot={s} notCurrent={notCurrent} />
           ) : (
             <EmptyState title="No threads connected">
@@ -224,6 +226,7 @@ export function AgentsView({
         </Card>
         {inspector}
       </div>
+      {s ? <GithubThreadsCard snapshot={s} notCurrent={notCurrent} /> : null}
     </>
   );
 }
