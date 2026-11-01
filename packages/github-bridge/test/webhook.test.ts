@@ -64,7 +64,7 @@ const fakeWorld = () => {
     calls.push(name);
     // A driver error that echoes a connection string: it must never reach a log or a response.
     if (state.failing.has(name) || state.failing.has('*')) {
-      throw new Error(`connect failed postgresql://user:${SENTINEL}@db.example/neondb`);
+      throw new Error('connect failed postgresql://user:' + SENTINEL + '@db.example/neondb');
     }
   };
   const store: GithubWebhookStore = {

@@ -49,7 +49,7 @@ vi.mock('@javis-dog/event-store', async (orig) => ({
 const route = await import('@/app/api/github/webhook/route');
 const { resetGithubWebhookForTests } = await import('@/lib/github-webhook');
 
-const DATABASE_URL = 'postgresql://qa:qa@127.0.0.1:9/not-a-real-db';
+const DATABASE_URL = 'postgresql://qa@127.0.0.1:9/not-a-real-db';
 const URL = 'https://javisdog.test/api/github/webhook';
 const MARKER = 'qasentinel';
 

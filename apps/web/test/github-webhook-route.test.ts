@@ -26,7 +26,7 @@ const { getGithubWebhookHandler, resetGithubWebhookForTests } =
 
 const CURRENT = 'test-route-webhook-secret-NOT-REAL';
 const PREVIOUS = 'test-route-webhook-secret-previous-NOT-REAL';
-const DATABASE_URL = 'postgresql://test:test@127.0.0.1:9/not-a-real-db';
+const DATABASE_URL = 'postgresql://test@127.0.0.1:9/not-a-real-db';
 const SENTINEL = 'routesentinel';
 
 const INSTALLATION = 5150;
