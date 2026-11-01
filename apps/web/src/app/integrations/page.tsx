@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import {
   Card,
   CardHead,
@@ -8,6 +9,7 @@ import {
   StatusPill,
 } from '@javis-dog/ui/components';
 import type { StatusTone } from '@javis-dog/ui';
+import { GithubDirectoryStatus } from '@/components/github/directory-status';
 
 export const metadata: Metadata = { title: 'JGR & Integrations' };
 
@@ -17,6 +19,8 @@ const integrations: ReadonlyArray<{
   desc: string;
   status: string;
   tone: StatusTone;
+  /** Status read on the server from real evidence instead of a fixed label (GitHub, ADR-0019 §8). */
+  evidence?: 'github';
 }> = [
   {
     key: 'CC',
@@ -35,9 +39,11 @@ const integrations: ReadonlyArray<{
   {
     key: 'GH',
     name: 'GitHub',
-    desc: 'Commits, pull requests and CI for any tool',
-    status: 'Planned · Sprint 6',
+    // Pull requests and CI only: push (commits) needs Contents access, out of scope (ADR-0019 §1).
+    desc: 'Pull requests and CI for any tool',
+    status: 'Checking…',
     tone: 'info',
+    evidence: 'github',
   },
   {
     key: 'API',
@@ -121,9 +127,17 @@ export default function IntegrationsPage() {
                   <p className="text-xs font-bold">{i.name}</p>
                   <p className="mt-0.5 text-xs text-muted">{i.desc}</p>
                 </div>
-                <div className="ml-auto text-right">
-                  <StatusPill tone={i.tone}>{i.status}</StatusPill>
-                  <p className="mt-1 text-[11px] text-muted">Connection not verified yet.</p>
+                <div className="ml-auto max-w-[60%] text-right">
+                  {i.evidence === 'github' ? (
+                    <Suspense fallback={<StatusPill tone={i.tone}>{i.status}</StatusPill>}>
+                      <GithubDirectoryStatus />
+                    </Suspense>
+                  ) : (
+                    <>
+                      <StatusPill tone={i.tone}>{i.status}</StatusPill>
+                      <p className="mt-1 text-[11px] text-muted">Connection not verified yet.</p>
+                    </>
+                  )}
                 </div>
               </li>
             ))}
