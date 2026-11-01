@@ -1,4 +1,5 @@
 import type { DbPing } from '@javis-dog/event-store';
+import { githubWebhookSecretsState } from '@javis-dog/github-bridge';
 
 /** Env vars whose presence the health route reports. Names only — values never leave the server. */
 export const HEALTH_ENV_NAMES = [
@@ -62,7 +63,16 @@ const checkDb = async (deps: HealthDeps): Promise<DbStatus> => {
 export const checkHealth = async (deps: HealthDeps) => {
   const db = await checkDb(deps);
   const env = Object.fromEntries(
-    HEALTH_ENV_NAMES.map((name) => [name, present(deps.env[name])]),
+    HEALTH_ENV_NAMES.map((name) => [
+      name,
+      // The webhook secret counts only when the handler would use it (JD-M10, review L-1).
+      name === 'GITHUB_APP_WEBHOOK_SECRET'
+        ? githubWebhookSecretsState({
+            current: deps.env.GITHUB_APP_WEBHOOK_SECRET,
+            previous: deps.env.GITHUB_APP_WEBHOOK_SECRET_PREVIOUS,
+          }) === 'configured'
+        : present(deps.env[name]),
+    ]),
   ) as HealthBody['env'];
   const body: HealthBody = {
     status: db.status === 'ok' ? 'ok' : 'degraded',

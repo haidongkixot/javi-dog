@@ -1,5 +1,9 @@
 import type { Db } from '@javis-dog/event-store';
-import { createGithubRepository, type WorkspaceInstallation } from '@javis-dog/github-bridge';
+import {
+  createGithubRepository,
+  githubWebhookSecretsState,
+  type WorkspaceInstallation,
+} from '@javis-dog/github-bridge';
 import { getDb } from './auth';
 import { canManageProject } from './permissions';
 
@@ -10,19 +14,15 @@ import { canManageProject } from './permissions';
 type Env = Readonly<Record<string, string | undefined>>;
 
 /**
- * The webhook handler's secret rule (JD-M10 `githubWebhookSecretsState`, review L-1), repeated
- * here because JD-APP imports JD-M10 only through its index: unset or whitespace-only is absent
- * (a blank previous secret is ignored); surrounding whitespace on either secret is a configuration
- * error, which the webhook answers with 503. Both cases read as "not set up".
+ * The webhook handler's own secret rule (JD-M10 `githubWebhookSecretsState`, review L-1): unset or
+ * whitespace-only is absent; surrounding whitespace on either secret is a configuration error,
+ * which the webhook answers with 503. Both read as "not set up".
  */
-const secretShape = (value: string | undefined): 'absent' | 'padded' | 'ok' => {
-  if (typeof value !== 'string' || value.trim() === '') return 'absent';
-  return value.trim() === value ? 'ok' : 'padded';
-};
-
 const webhookConfigured = (env: Env) =>
-  secretShape(env.GITHUB_APP_WEBHOOK_SECRET) === 'ok' &&
-  secretShape(env.GITHUB_APP_WEBHOOK_SECRET_PREVIOUS) !== 'padded';
+  githubWebhookSecretsState({
+    current: env.GITHUB_APP_WEBHOOK_SECRET,
+    previous: env.GITHUB_APP_WEBHOOK_SECRET_PREVIOUS,
+  }) === 'configured';
 
 /** GitHub numeric ids: digits only, positive, safe integers. Anything else is `null`. */
 export const parseGithubId = (value: unknown): number | null => {

@@ -220,3 +220,11 @@ The orchestrator re-checked two facts:
   - **G21 and the hash.** A mapped event that JD-M01 rejects (e.g. more than 5 minutes in the future) → `202 rejected`, nothing stored and **no hash recorded**; every other `202` records the hash. The signed body cannot change, so a later redelivery is judged again on its own time.
   - **GitHub Actions' own suites** are dropped by classification before the repository is read, so they do not refresh `full_name` (G20 still holds for every routed kind).
   - **Health.** `/api/health` reports `GITHUB_APP_WEBHOOK_SECRET` presence as a boolean, like the other names.
+- 2026-11-01 — Wave-2 adversarial review (0 High, 2 Medium, 6 Low), fixed before release:
+  - **M-1.** A delivery that arrives before the claim or link is acknowledged (`202 unrouted`) and its hash is recorded (H2 and Y11 unchanged). Redelivering it after linking stores nothing, so the runbook now says: after linking, trigger a new event. Redelivery helps only after a `500` or a lost delivery.
+  - **M-2.** "Connected" uses the newest verified delivery of **unsuspended** installations only. Older than 7 days → "No verified delivery since <time>" (warn). The project card says "Connected" only when a repository is linked to that project.
+  - **L-1.** One secret rule (`githubWebhookSecretsState`) for the handler, the setup status and `/api/health`: unset or whitespace-only is absent; leading or trailing whitespace on either secret → `503`, logged as `misconfigured_secret`.
+  - **L-2.** `claimInstallation` checks the account first; unknown and foreign ids get one generic answer. Organization installations are explained as not supported yet.
+  - **L-3.** Releasing a claim clears `last_verified_delivery_at`.
+  - **L-5.** A concurrent second link to another project cannot overwrite the first.
+  - **Follow-ups, not fixed:** L-4 (a late delivery can briefly restore an old `full_name`, display only); L-6 (a run whose `completed` delivery was lost counts as running for 24 h; an L0 → L1/L2 class change keeps an existing link without a warning).

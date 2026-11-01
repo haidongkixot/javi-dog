@@ -30,6 +30,20 @@ describe('checkHealth', () => {
     expect(body.env.EMAIL_FROM).toBe(false);
   });
 
+  it('reports the webhook secret only when the handler would use it (review L-1)', async () => {
+    const flag = async (env: Record<string, string>) =>
+      (await checkHealth({ env, ping: ok })).body.env.GITHUB_APP_WEBHOOK_SECRET;
+    expect(await flag({ GITHUB_APP_WEBHOOK_SECRET: 'fake-NOT-REAL' })).toBe(true);
+    expect(await flag({ GITHUB_APP_WEBHOOK_SECRET: 'fake-NOT-REAL\n' })).toBe(false);
+    expect(
+      await flag({
+        GITHUB_APP_WEBHOOK_SECRET: 'fake-NOT-REAL',
+        GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: ' old-NOT-REAL',
+      }),
+    ).toBe(false);
+    expect(await flag({ GITHUB_APP_WEBHOOK_SECRET_PREVIOUS: 'old-NOT-REAL' })).toBe(false);
+  });
+
   it('returns 200 with latency and migration count when the DB answers', async () => {
     const r = await checkHealth({
       env: { DATABASE_URL: SECRET, VERCEL_ENV: 'preview', VERCEL_GIT_COMMIT_SHA: 'abcdef1234567' },

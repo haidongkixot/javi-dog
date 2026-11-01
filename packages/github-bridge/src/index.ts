@@ -73,6 +73,7 @@ export {
   consoleGithubWebhookLog,
   createGithubWebhookHandler,
   githubWebhookNotConfigured,
+  githubWebhookSecretsState,
   type GithubEventRow,
   type GithubWebhookDeps,
   type GithubWebhookHandler,
@@ -80,5 +81,6 @@ export {
   type GithubWebhookLogEntry,
   type GithubWebhookOutcome,
   type GithubWebhookSecrets,
+  type GithubWebhookSecretsState,
   type GithubWebhookStore,
 } from './webhook.ts';

@@ -25,7 +25,7 @@ Status: **in-progress** (S5g, ADR-0019 and its design review D0). Pure functions
 
 | `GithubWebhookDeps` field | Real wiring (JD-APP) | Notes |
 |---|---|---|
-| `secrets: { current?, previous? }` | `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` | Read per request. Without a non-empty `current` → 503, even with `previous` set (G13) |
+| `secrets: { current?, previous? }` | `GITHUB_APP_WEBHOOK_SECRET`, `GITHUB_APP_WEBHOOK_SECRET_PREVIOUS` | Read per request through `githubWebhookSecretsState` (review L-1): unset or whitespace-only is absent (a blank `previous` is ignored); no usable `current` → 503, even with `previous` set (G13); leading or trailing whitespace on either secret → 503, logged as `misconfigured_secret` (never the value) |
 | `store: GithubWebhookStore` | `createGithubRepository(db)` | `Pick` of `hasDelivery`, `recordDelivery`, `applyInstallationDelivery`, `refreshRepositoryName`, `routeTarget`, `touchVerifiedDelivery` |
 | `insertEvents(rows: GithubEventRow[])` | JD-M06 `createEventRepository(db).insertEvents` | `GithubEventRow` is structurally a JD-M06 `NewEvent` (L0, `status` and `agent_ref` null) |
 | `touchSignal(scope, at)` | JD-M06 `touchSignal` | For the linked project (D0 M1) |
@@ -37,7 +37,7 @@ Checks, in this order (ADR-0019 §3 with D0 L1/H2/H3/H4 and gaps G3, G13, G14, G
 
 | # | Check | Answer |
 |---|---|---|
-| 1 | No non-empty current secret | `503 { error: "not_configured" }` |
+| 1 | No usable current secret, or a whitespace-padded current/previous secret (`githubWebhookSecretsState`) | `503 { error: "not_configured" }` |
 | 2 | `Content-Encoding` present and not `identity` (case-insensitive), before the body is read | `415 { error: "unsupported_media_type" }` |
 | 3 | `X-Hub-Signature-256` missing or not `^sha256=[0-9a-f]{64}$`, before the body is read | `401 { error: "unauthorized" }` |
 | 4 | Raw body over 1 048 576 bytes (`WEBHOOK_MAX_BODY_BYTES`; a declared larger `Content-Length` is refused unread); an aborted stream | `413 { error: "too_large" }`; `400 { error: "unreadable" }` |
@@ -87,9 +87,9 @@ Single statements (neon-http has no interactive transactions); workspace ids com
 | `applyInstallationDelivery(change, bodySha256, at?)` | `'duplicate'` for a known body; else applies the change, then records the hash as `installation` → `'applied'`. A failing change throws with nothing recorded |
 | `applyInstallationChange(change, at?)` | Ordered, idempotent: installation upsert (account fields set once) → suspend/unsuspend → repository upserts (a repository that moved installation loses its link) → removals (only while still under this installation). `delete` cascades to repositories |
 | `refreshRepositoryName(installationId, repo)` | Refreshes `full_name` from a signed run/suite/PR delivery, same installation only |
-| `claimInstallation({ workspaceId, installationId, githubAccountId })` | `claimed` · `already_yours` · `claimed_elsewhere` · `not_found` · `organization` · `account_mismatch`. First claim wins; `User` installations whose `account_id` equals the signed-in GitHub id only. Role checks stay with the caller |
-| `releaseInstallation(workspaceId, installationId)` | Clears the claim and its links in one statement |
-| `linkRepository({ workspaceId, repoId, projectId, userId })` | `linked` · `not_found` · `linked_elsewhere` (one project per repository) |
+| `claimInstallation({ workspaceId, installationId, githubAccountId })` | `claimed` · `already_yours` · `claimed_elsewhere` · `organization` · `account_mismatch`. The account is checked **first**: unknown, foreign and malformed ids all return `account_mismatch`, so ids cannot be enumerated (review L-2). First claim wins (a concurrent loser gets `claimed_elsewhere`); `User` installations whose `account_id` equals the signed-in GitHub id only. Role checks stay with the caller |
+| `releaseInstallation(workspaceId, installationId)` | Clears the claim, its links and `last_verified_delivery_at` in one statement (review L-3) |
+| `linkRepository({ workspaceId, repoId, projectId, userId })` | `linked` · `not_found` · `linked_elsewhere` (one project per repository; the UPDATE re-checks the row's own `project_id`, so a concurrent second link cannot overwrite the first, review L-5) |
 | `unlinkRepository(workspaceId, repoId)` | Clears this workspace's link |
 | `routeTarget(installationId, repoId)` | `{ workspaceId, projectId, projectSlug }` only for a linked repository of that installation, claimed, unsuspended, same workspace; else `null` |
 | `touchVerifiedDelivery(installationId, at)` | Forward-only `last_verified_delivery_at`, capped by the database clock |
