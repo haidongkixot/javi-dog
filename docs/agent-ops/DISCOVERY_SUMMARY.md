@@ -43,6 +43,20 @@ See ADR-0001 (modular monolith vs. microservices vs. folders) and ADR-0002 (stac
 
 Grouped in the readiness matrix: B1–B5 are needed before Sprint 2; B2 can be done now with confirmation; D1 confirmation needed during Sprint 1.
 
+## Delta — S5g planning (2026-11-01)
+
+- **Scope:** JD-M10 GitHub App bridge, prepared and testable without a real app (owner choice). Decisions are in ADR-0019.
+- **Available:**
+  - JD-M05's bounded body reader;
+  - JD-M01 validation and the JD-M06 event repository;
+  - Better Auth `accounts` with GitHub account ids, used for the installation claim;
+  - `node:crypto` for HMAC.
+
+  No new runtime dependency.
+- **Missing (owner):** the GitHub App itself (B6), its webhook secret in Vercel, and an installation.
+- **Approved:** migration 0006 (two additive tables).
+- **Unknown until the owner's run:** real delivery headers and timing on Vercel; the localhost redirect in the manifest flow.
+
 ## Delta — S5f planning (2026-10-30)
 
 - **Scope:** JD-M11 privacy classes L1/L2, end to end (owner choice 2026-10-30). Decisions are in ADR-0018.

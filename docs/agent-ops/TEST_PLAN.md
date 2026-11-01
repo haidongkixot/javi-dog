@@ -365,3 +365,22 @@ Written before the lanes start (ADR-0018). Risk: **HIGH**. This is cryptography,
 | IndexedDB "remember" storage | Medium | Owner's browser run (jsdom has no IndexedDB); the feature is off until then (`REMEMBER_ON_DEVICE_ENABLED`) | NOT RUN in CI; logic tested with an in-memory fake and the gate forced on | Owner |
 | Windows file mode for the stored key | Medium | Not testable on POSIX CI | NOT RUN; documented | Owner |
 | Real runs (owner's browser and machine, Windows) | — | Runtime (owner) | labels, fields | NOT RUN until owner run |
+
+## S5g — GitHub App bridge (2026-11-01)
+
+Written before the lanes start (ADR-0019). Risk: **HIGH**. This is an unauthenticated public endpoint, cross-tenant linking, and payloads full of personal data. Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| Signature: GitHub's test vector; wrong, missing, malformed or other-length signatures → 401; current and previous secret; constant-time compare; nothing parsed before verification | High | Unit (JD-M10) | exact results | QA vectors |
+| Route: no secret → 503; over 1 MiB → 413; unknown event, `ping`, unlinked repo → 202 with nothing stored; delivery older than 3 days dropped; DB failure → 500; logs hold only GUID, event, action and outcome | High | Route test on PGlite | status codes, rows, captured logs | No |
+| Mapping: `workflow_run`, `check_suite`, `pull_request` → JGR as in ADR-0019 §5; UUIDv5 ids stable across redelivery; refs and sequences; JD-M01-valid | High | Unit (pure) | payload → events | QA vectors |
+| Never stored: sentinel strings in commit messages, titles, bodies, logins, emails, file paths, branch and tag names, URLs and workflow paths → absent from events, rows and logs | High | Unit + route | sentinel search | QA vectors |
+| Installations: filled only from signed `installation*` deliveries; removal and deletion clean up links; `full_name` refreshed | High | Route + repository (PGlite) | rows | No |
+| Claim: only an owner or admin whose GitHub account id equals the installation's `account_id`; org installations refused; spoofed `installation_id` in `setup_url` ignored | High | Unit + action tests | role and identity matrix | No |
+| Link: same workspace only, one project per repo, L1/L2 warning and confirmation; cross-workspace attempts refused | High | Action tests | matrix | No |
+| Migration 0006: up, down, ledger, composite workspace check | High | PGlite migration test | schema | Neon apply (orchestrator) |
+| Dashboard: GitHub threads labelled with their source, never as agents; no effect on agent status or self-reports | Medium | Reader + component | rows → text | No |
+| Integrations status: "not set up" → "waiting for the first delivery" → "connected" with time, only on evidence | Medium | Component | text | No |
+| Local helper: manifest values exact; `state` checked; code exchange against a stub GitHub; result file mode 0600; no secret in stdout or stderr | High | Process (stub) | file mode, captured output | No |
+| Real app (owner): a 200 in "Recent Deliveries" and a stored event | — | Runtime (owner) | dashboard | NOT RUN until owner run |
