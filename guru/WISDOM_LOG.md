@@ -2,6 +2,88 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-11-01 · ad-hoc-github-bridge — S5g GitHub App bridge (JD-M10): sprint end
+
+Sprint-end checkpoint (trigger: sprint end, `CLAUDE.md` §7). Not G5: the roadmap assigns G5 to S6, so this entry uses the `ad-hoc-<topic>` form. Not an Orcasus-PR checkpoint: no PR opened or drafted.
+
+- **Window:** `29a6b8a..39bf130` — 45 commits (185 files, +40 544 / −114): previous Guru entry (`b88a307`); S5e/S5f close-out against PV-F1…F7 (`15f7dee`); gate script and registry escaping (`0223371`, PV-F6); S5g discovery and ADR-0019 (`971d61c`), design review D0 (`056a203`); QA spec gaps (`4d4ce64`); wave 1: package (`7f74132`), ingest prefixes (`10e0d88`), migration 0006 (`baba46b`), QA vectors (`ed3f497`), installation hashes (`3d7effc`), merges `0960bae`, `d2f15e8`, shared edits `bbb7ae8`, migration apply record `dc26f32`; wave 2: handler (`fbebc0c`), route (`470351f`), claim/link (`643641b`), labels (`f79ca0c`), reader (`77e0daa`), helper (`d693f77`), orchestrator fixes (`f62dabf`, `0459de6`, `99abf5b`) and test `4adaa16`, runner (`1c70a7c`), merges `25ff837`, `2e1009a`, `4d6d749`, `17c0ba5`, `46131a3`; fixture reshape (`b96a25c`); review fixes (`a18304f`, `8695ebd`, `4cc0583`, merge `a8ac0e4`, `fe92c73`); records (`1c08c11`, `a138f6b`, `eecf791`, `82cfbaa`, `39bf130`).
+- **Records read:** `docs/sprints/SPRINT-05g.md` (log, test evidence, team log, retro); ADR-0019 incl. every *Changes* entry; `docs/agent-ops/TEST_PLAN.md` §S5g; `docs/agent-ops/TEAM.md`; `docs/jgr/conformance/github/README.md` (sources, processing order, gaps G1–G23, readings Y1–Y15, mutation table, not covered, reference computation); `docs/memory/SESSION_LOG.md` 2026-11-01; `PROJECT_MEMORY.md` S5g block; commit messages of every lane, merge and fix commit; diffs of `b96a25c`, `fe92c73`, `4cc0583` (runbook before and after), `1c08c11`; `packages/event-store/package.json`; `scripts/secret-scan.sh` (unchanged in the window).
+- **Probes by Guru (read-only):** `gh run list` / `gh run view` for the branch; `git diff` of the scanner over the window; insertion counts per commit group. No project suite re-run.
+
+### CI verification of every pushed tip
+
+8 pushed tips, 8 runs, 8 `success`, 0 failure, 0 cancelled, all `run_attempt` 1: `15f7dee` 41173379264 · `0223371` 41244619385 · `971d61c` 41258954673 · `056a203` 41259559379 · `4d4ce64` 41261456763 · `dc26f32` 41267384071 · `b96a25c` 41270489476 · `39bf130` 41271405032 (in progress when the read started; re-read to completion at 04:09:37 UTC, `success`). **CI is green on `39bf130` (run 41271405032).** Every push started after the previous tip's run had completed (closest: 45 s). No runs for the commits between tips (merges and docs), as expected.
+
+### Lessons from the brief, checked against evidence
+
+| # | Expected lesson | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Lane CPU contention timed out a 5 s test in the gate; diagnosed by isolating the file, not by retrying or raising the timeout | **Verified** | Team log 03:17 (`1c08c11`): 5 007 ms vs. 5 000 ms, load 19.8, three lanes testing, file alone 8/8 in 3.9 s, "Not pushed … no timeout change, no skip"; retro. Second oversubscription case after S5a. → `diagnose-red-ci-from-history` 0.3.2, `orchestrated-agent-team-lanes` 0.6.0 |
+| 2 | Secret scanner flagged fake DB URLs; fixtures reshaped, scanner not weakened | **Verified, with a nuance** | `b96a25c`: two URLs lost `user:password@`; the third (a driver-error redaction test) keeps a credential-shaped string at run time, built by concatenation around a sentinel — the same technique that would hide a real secret. Scanner unchanged (`git diff 29a6b8a..39bf130 -- scripts/secret-scan.sh` empty). → `fail-closed-checks` 0.2.1 |
+| 3 | Lanes needing a new workspace dependency cannot typecheck without a shared-file edit; declare dependencies before lanes | **Verified** | `470351f`, `643641b`: "Needs `@javis-dog/github-bridge` … (orchestrator-owned)"; added in `f62dabf`; retro "two lanes typechecked only with a temporary line". → `orchestrated-agent-team-lanes` §2 |
+| 4 | A dependency cycle constraint shaped an injected-deps handler | **Verified** | `packages/event-store/package.json` depends on the bridge (migration composition); `createGithubWebhookHandler(deps: GithubWebhookDeps)` (`fbebc0c`); wave-2 launch note; retro. The same seam carried the R21 fault and the fake-world tests. → `signed-webhook-receiver` §7, `orchestrated-agent-team-lanes` §2 |
+| 5 | QA vectors from the ADR before code found real gaps; R21 could not catch its own listed mutation; the runner found that | **Verified**; "found by the mutation check" **not recorded** | README "Written … before any JD-M10 code"; G17 installation replay and G14 hash timing → `3d7effc` (also the G1 namespace); G24 via M12 (`f62dabf`). R21: `1c70a7c` message and `4cc0583` README row ("its fault fails every database call, so `hasDelivery` throws before any hash is written"). Whether the runner lane ran the mutation or reasoned it out is not recorded. → `independent-conformance-vectors` 0.6.0 |
+| 6 | A runbook promise (redeliver after linking) contradicted a binding dedupe rule; reviewer traced it; fix was the runbook | **Verified** | Review M-1 (Team log; ADR-0019 *Changes* wave-2); `4cc0583` how-to diff ("Claim and link (step 5), then redeliver" → "trigger a new event"). **Guru addition:** decision 3.4 still says unlinked deliveries are dropped "and nothing is stored", unmarked, above the binding H2 hash rule; the old how-to said "already stored". That this caused M-1 is a hypothesis. → `review-design-before-code` 0.4.0, `signed-webhook-receiver` §2 |
+| 7 | Honest-status labels need suspension and staleness rules, not just "last seen" | **Verified** | Review M-2; `8695ebd` (unsuspended only, 7 days → "No verified delivery since …", project-level "Connected"); L-3 release clears evidence (`a18304f`); L-1 one secret rule (`fe92c73`). The 7-day window is a product choice, not validated. → `truthful-live-status` §10, `presence-only-health-endpoint` 0.1.2 |
+| 8 | Rule 9 held; pushes deferred while CI ran | **Verified by timing** | All 8 pushes started after the previous run completed; "CI green on dc26f32" recorded before the wave-2 push. Still memory-based (PV-F4 decision: GitHub MCP check, no script). "Deferred" itself is not recorded beyond timing. → `fail-closed-checks`, `diagnose-red-ci-from-history` data points |
+
+### Further verified lessons (Guru's own)
+
+1. **The design review's dedupe remedy carried three later findings** — G14, G17 (QA) and M-1 (code review) all come from the signed-body hash table meeting a path that re-sends the same bytes (failed write, purge, late link). Fourth iteration of "remedies are new design" (G4, S5d, S5f, S5g). → `review-design-before-code` 0.4.0.
+2. **A reusable webhook receiver pattern**, evidenced end to end except for a real delivery: check order, raw-byte HMAC (the record's text-decoding helper conflicted with the raw-byte rule; the implementer wrote a byte reader), body-hash dedupe and ids, hash-recording table, strict shape over the header, claims from signed account ids (setup-URL id only a hint), enumeration-safe claim answers, link race guard. → new `signed-webhook-receiver` 0.1.0 (+ `references/mutation-checklist.md`).
+3. **Test plan before lanes held** again: `TEST_PLAN.md` §S5g in `971d61c`, before the first code commit `7f74132`.
+4. **Cost data point (hypothesis):** review fixes ≈ 646 insertions vs. build ≈ 11 015 (≈ 6 %); series S5b ≈ 50 %, S5c ≈ 24 %, S5d ≈ 12 %, S5f ≈ 24 %. Confounded (migration snapshots inflate the build; the review found no High).
+5. **Closed from the previous entry:** PV-F1, PV-F3, PV-F5, PV-F7 (`15f7dee`), PV-F6 (`0223371`: the gate clears the Vitest cache in the script and fails on "Unhandled"; the registry escapes `|`); PV-F2 decided (programs lost, recorded); PV-F4 decided (GitHub MCP check, not `gh`). No shared-cache failure is recorded in S5g.
+
+### Findings needing orchestrator action (verified by reading; Guru changed nothing outside `guru/`)
+
+| ID | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| GB-F1 | medium | **Test evidence incomplete again** (PV-F1 pattern, closed for S5f, recurring): the 3 309-test gate before the wave-2 push is only in the Team log; no gate row for the review-fix push (`a8ac0e4`, `fe92c73`, `39bf130`) — `PROJECT_MEMORY.md` says "3300+ tests" without a run; no CI run ids; "Guru checkpoint: —". | Add rows (counts, exit codes) and runs 41267384071, 41270489476, 41271405032 (all green); point the Guru section at this entry. Consider a sprint-close check that fails while "Guru checkpoint: —" or a pushed tip without a run id remains. |
+| GB-F2 | low | **Mutations not named:** "7/7 caught" without which of the README's ~30 suggested mutations ran or which vectors failed. | List them in the Test evidence row or the README. |
+| GB-F3 | low | **QA reference programs not committed again** (PV-F2 pattern): "Neither is committed; they are QA scratch work" (GitHub README); the 2 756-check cross-check cannot be re-run. | Commit them under `docs/jgr/conformance/github/reference/` (fake secrets only) at the next QA touch, or record the decision in the README. |
+| GB-F4 | low | **Superseded decision text unmarked in ADR-0019** (PV-F5 applied to ADR-0018, not adopted for the next ADR): decision 3.2 (`readBoundedBody`), 3.4 ("nothing is stored"), 5 (`event_id` from the GUID, `run\|<run_id>` threads, cancelled → `task.completed`). | Mark each "superseded by D0 H2/M1/M3 / wave-2" in place; add "mark superseded lines" to the ADR template or the D0 merge step. |
+| GB-F5 | low | **Retro actions are conventions again:** "run the gate only when lanes are idle", "declare needed workspace dependencies in the plan". | Gate script prints the load average at start and on failure; lane-brief template gets a "new imports / workspace dependencies" field the orchestrator fills before launch. |
+| GB-F6 | low | **Fixture built to avoid the scanner** (`b96a25c`, `packages/github-bridge/test/webhook.test.ts`): acceptable for a sentinel-bound value, but undocumented at the line. | One comment at the line ("built at run time: credential-shaped on purpose, sentinel only"). |
+
+### Still NOT RUN / UNVERIFIED
+
+A real GitHub delivery (owner: create the app, set the secret, install, claim, link); GitHub accepting the helper's loopback `redirect_url`; the 10 s response budget; Windows file modes for the helper; organization installations (refused by design); JD-M01 re-validation of stored events in the runner (I1); a recorded gate run for the review-fix push (CI on `39bf130` is green).
+
+### Hypotheses (unverified)
+
+- The unmarked decision 3.4 sentence led to the runbook's "redeliver" step.
+- A 7-day staleness window suits PR/CI activity.
+- Gating only when lanes are idle prevents load timeouts without slowing the sprint (not tried).
+- Reviewing the design first lowers total review cost (fifth confounded data point, ≈ 6 %).
+
+### Rejected or not packaged
+
+- GitHub-specific facts (permissions per event, manifest flow, 25 MB cap, `X-GitHub-*` names, Probot): kept only as the origin example; the manifest helper is product tooling, already close to `local-companion-process-hardening` (loopback, Host check, single-use state, 0600 file, no secret printed) — data point, no update.
+- Migration 0006 apply with a restore branch and schema compare: release evidence covered by `reviewed-schema-migrations`; no new lesson.
+- L-2 enumeration-safe claim answers and L-5 conditional-update race guard: covered by `tenant-isolation-by-construction` and `independent-conformance-vectors` (single-connection engines); packaged only inside `signed-webhook-receiver` §5.
+- Research through `github/docs` and the OpenAPI description when the docs host is blocked: already in `primary-source-research-with-agents`.
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`signed-webhook-receiver`](skills/signed-webhook-receiver/SKILL.md) | 0.1.0 | new (+ `references/mutation-checklist.md`) | medium; low (real delivery) | Brief 4–6; lessons 1–2 |
+| [`review-design-before-code`](skills/review-design-before-code/SKILL.md) | 0.3.0 → 0.4.0 | remembered-state remedies vs. every re-send path; runbooks as design; superseded lines marked in place; S5g data | high; medium; low (cost) | Brief 6; lesson 1 |
+| [`independent-conformance-vectors`](skills/independent-conformance-vectors/SKILL.md) | 0.5.0 → 0.6.0 | vectors must be able to kill their listed mutation (faults at one call); name the mutations run | high; medium | Brief 5; GB-F2 |
+| [`truthful-live-status`](skills/truthful-live-status/SKILL.md) | 0.2.0 → 0.3.0 | §10 "Connected" labels for push-based integrations | medium; low | Brief 7 |
+| [`presence-only-health-endpoint`](skills/presence-only-health-endpoint/SKILL.md) | 0.1.1 → 0.1.2 | presence by the consumer's validity rule | medium (rule) | Brief 7 (L-1) |
+| [`orchestrated-agent-team-lanes`](skills/orchestrated-agent-team-lanes/SKILL.md) | 0.5.0 → 0.6.0 | declare workspace dependencies and check direction before lanes; gate only when lanes are idle | medium | Brief 1, 3, 4 |
+| [`diagnose-red-ci-from-history`](skills/diagnose-red-ci-from-history/SKILL.md) | 0.3.1 → 0.3.2 | local gate timeouts under agent load; S5g history | medium | Brief 1, 8 |
+| [`fail-closed-checks`](skills/fail-closed-checks/SKILL.md) | 0.2.0 → 0.2.1 | scanner hits in fixtures: fix the fixture, never widen the scanner | medium | Brief 2, 8 |
+
+### Proposals for the owner
+
+1. **Record completeness** (GB-F1): finish the S5g Test evidence; consider a small `docs:check` rule that flags a closed sprint with "Guru checkpoint: —" or without a CI run id for its last pushed tip.
+2. **Generator over convention** (GB-F5): load average in `scripts/gate.sh` output; a dependency field in lane briefs.
+3. **Reference programs** (GB-F3): commit QA cross-check programs with the vectors from now on.
+4. **Next Orcasus checkpoint (not now):** `review-design-before-code` 0.4.0 and `independent-conformance-vectors` 0.6.0 supersede the versions in the G4 PR proposal. `signed-webhook-receiver` is **not** a candidate until a real delivery has run and a second iteration or vendor confirms it. Earlier carried proposals unchanged.
+
 ## 2026-10-31 · ad-hoc-privacy — S5e follow-ups and S5f privacy classes L1/L2 (JD-M11): security-sensitive feature and test completion
 
 Ad-hoc checkpoint (trigger: feature + test completion of a security-sensitive feature, `CLAUDE.md` §7). Not G5: the roadmap assigns G5 to S6, so this entry uses the `ad-hoc-<topic>` form. Not an Orcasus-PR checkpoint: no PR opened or drafted.

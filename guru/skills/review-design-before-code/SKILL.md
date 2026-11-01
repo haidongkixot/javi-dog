@@ -1,10 +1,10 @@
 ---
 name: review-design-before-code
-description: Put an adversarial review on the design record before any implementation lane starts, then spec-first conformance vectors written from the reviewed record, then a second review on the code with compiled probes against the target's exact dependency versions and reproductions on the built artifact, then an independent conformance runner — gates that each catch a different defect class. Covers what a design review can and cannot catch, recording its findings as decisions that supersede the draft, "probe the remedy, not only the risk" (the fix itself can rest on a wrong assumption about a third-party parser, matcher or rewriter, or trade away a property the record still claims — ordering vs. idempotency, one overwrite fixed by its opposite), handing every design-review remedy to the next gates as an explicit target, probes pinned to the target's lockfile, searching for the twin of every finding, and how to compare review cost honestly between iterations. Use when integrating with a third-party tool, protocol or file format you do not control; before launching parallel implementation agents; when a previous iteration's review round cost as much as the build; when a decision record (ADR, RFC, design doc) is drafted; when a reviewer says "probably" about library behaviour; when a QA author finds "spec gaps" in a design record; when a security-sensitive or cryptographic feature (keys, encryption, tokens, auth) is planned; when a decision record states facts about existing code ("the setup command already checks…", "no raw HTML today"); or when asked for a "design review", "ADR review", "pre-implementation review", "layered review" or "review the plan first".
+description: Put an adversarial review on the design record before any implementation lane starts, then spec-first conformance vectors written from the reviewed record, then a second review on the code with compiled probes against the target's exact dependency versions and reproductions on the built artifact, then an independent conformance runner — gates that each catch a different defect class. Covers what a design review can and cannot catch, recording its findings as decisions that supersede the draft, "probe the remedy, not only the risk" (the fix itself can rest on a wrong assumption about a third-party parser, matcher or rewriter, or trade away a property the record still claims — ordering vs. idempotency, one overwrite fixed by its opposite), handing every design-review remedy to the next gates as an explicit target, probes pinned to the target's lockfile, searching for the twin of every finding, and how to compare review cost honestly between iterations. Use when integrating with a third-party tool, protocol or file format you do not control; before launching parallel implementation agents; when a previous iteration's review round cost as much as the build; when a decision record (ADR, RFC, design doc) is drafted; when a reviewer says "probably" about library behaviour; when a QA author finds "spec gaps" in a design record; when a security-sensitive or cryptographic feature (keys, encryption, tokens, auth) is planned; when a decision record states facts about existing code ("the setup command already checks…", "no raw HTML today"); when a remedy adds remembered state (a dedupe table, a "seen" marker, a cache) that retries, redelivery or replay will meet; when a how-to or runbook tells users to "retry", "redeliver" or "re-run"; or when asked for a "design review", "ADR review", "pre-implementation review", "layered review" or "review the plan first".
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G4; updated ad-hoc-self-report (S5d), ad-hoc-privacy (S5f)"
-  confidence: "high (gates catching different defect classes: three iterations; a design-review remedy, or its implementation, carrying a later gate's main finding: three iterations); medium (false claims about existing code caught by the design review: once, two claims; compiled probes: once); low (that this ordering lowers total cost: four confounded data points)"
+  version: "0.4.0"
+  origin: "javis-dog G4; updated ad-hoc-self-report (S5d), ad-hoc-privacy (S5f), ad-hoc-github-bridge (S5g)"
+  confidence: "high (gates catching different defect classes: four iterations; a design-review remedy, or its implementation, carrying a later gate's main finding: four iterations); medium (false claims about existing code caught by the design review: once, two claims; compiled probes: once; a runbook promise contradicting a binding rule, caught by the code review: once); low (that this ordering lowers total cost: five confounded data points)"
 ---
 
 # Review the design before the code
@@ -47,11 +47,17 @@ A design review fixes what it finds by adding rules, and those rules have not be
 
 A third iteration showed the same shape one level down: the design review added the thread and message type to an encryption's associated data (AAD) so a ciphertext could not be shown under another thread — correct — and the first implementation built that AAD from the object the server returned, which carries the thread and type, so the protection held only against an honest server. The security review found the row swap. A remedy is only as good as **where its inputs come from**; name the trusted source in the remedy ("from the row the reader displays, never from server data").
 
+A fourth iteration showed the most common shape: **a remedy that adds remembered state.** The design review replaced dedupe on an unsigned delivery-id header with a table of signed-body hashes, purged after the replay window — correct against replay. Three later findings were all consequences of that table meeting a path that re-sends the same bytes: a failed write that had already recorded the hash would swallow the vendor's redelivery (QA gap); lifecycle events exempt from the age rule would act again once their hashes were purged (QA gap); and a delivery dropped before the user linked a target was remembered, so the runbook's "link, then redeliver" could never work (code review). For a remedy that remembers something, enumerate every path that sends the same input again — retries, redelivery, replay after purge, a later state change — and write the expected outcome of each.
+
 So, for every remedy:
 
 1. Write the **property it must preserve** next to the property it adds ("keeps spool order *and* still de-duplicates re-runs").
 2. Ask what it **trades away**, and in which direction it can now fail.
 3. List the remedies in the briefs of QA and the code reviewer as explicit targets.
+
+### Runbooks and how-tos are part of the design
+
+Recovery instructions ("redeliver", "retry", "re-run the command", "reinstall") are claims about the system's state rules. Give them to the code reviewer with the binding rules, and when they disagree, decide which one is wrong — in the origin the binding dedupe rule was right and the runbook was fixed. Mark decision lines that a later *Changes* entry supersedes **in place**: the origin's record still said "unlinked deliveries → 202, and nothing is stored" above the binding rule that stores every verified body's hash, and the runbook followed the older sentence (Guru's reading; the author's reasoning is not recorded).
 
 ## 2. Gate 0.5 — spec-first vectors from the reviewed record
 
@@ -108,6 +114,8 @@ Retros will say "the review round cost as much as the build". Before adopting a 
 - **Treating gate 0 as complete.** It finds risk classes; vectors, probes and the runner verify the remedies.
 - **Unlabelled remedies.** A remedy nobody lists as new design is reviewed by nobody.
 - **Fixing the instance.** The twin ships.
+- **A remembered-state remedy checked only against the attack it stops.** Check it against every legitimate re-send too.
+- **A runbook nobody reviews against the rules.** Users follow the runbook, not the record.
 
 ## Template
 
@@ -151,3 +159,13 @@ Privacy classes with a client-held key (ADR-0018; `docs/sprints/SPRINT-05f.md`).
 - QA spec gaps after D0: 14 (G1–G14), "G4 and G6 were real defects" (sprint log); see `independent-conformance-vectors`.
 - Security review of `e3a2ad5..0b2179d`: 0 High, 3 Medium, 9 Low, all fixed red-first (`9805ba9`, `e8fb1bc`); L7 "tests that can now fail" — the new sentinel test failed under a leaking mutation that the old SSR-only test passed (`69a23f6`).
 - Cost data point (Guru's insertion counts, confounded: security feature, many Lows fixed): build `914d5d0`, `920aa68`, `6c35838`, `3fafe9c`, `3258c54`, `710db15`, `2d1cf37`, `d554f16` ≈ 8 455; security-review fixes (15 commits `7255d46` … `422d8b5`) ≈ 2 004 (≈ 24 %). S5b ≈ 50 %, S5c ≈ 24 %, S5d ≈ 12 %. Still a hypothesis.
+
+### Update at ad-hoc-github-bridge (Sprint 5g, 2026-11-01)
+
+GitHub App webhook bridge (ADR-0019; `docs/sprints/SPRINT-05g.md`). Retro: "QA vectors written before code found the installation-replay gap, the namespace mismatch and G24 … the review found no High after D0."
+
+- D0 on the draft (`056a203`): 4 High, 6 Medium, 5 Low; "The orchestrator verified H1 and H2 in sources and code" (GitHub docs: a private app "can only be installed on the account that created it"; dedupe key `(project, producer, event_id)` at `event-store/src/events.ts:50`, the GUID header unsigned).
+- Remedy → later findings (Guru, from the record text): D0 H2 "Every verified delivery's raw-body SHA-256 goes into `github_deliveries` … purged after 3 days", next to decision 3.7 "A database failure → `500`, so the delivery … can be redelivered" and H4 "`installation*` events are exempt … H2 protects them". QA G14 (hash timing vs. the `500` redelivery) and G17 (installation hashes purged → replay acts again) → `3d7effc`; wave-2 review M-1 (unrouted `202` remembered, runbook said "redeliver after linking") → runbook `4cc0583`, "not the hash rule (H2 binding, Y11 vectors)".
+- Superseded text left unmarked: decision 3.4 "deliveries for unlinked repositories → `202`, and nothing is stored"; decision 5 "`event_id` … from `<delivery GUID>:<index>`" and `run|<run_id>` threads (superseded by H2, M3). The previous runbook said "A redelivered body that was already stored is acknowledged" (`4cc0583^`). That the stale sentence caused M-1 is a hypothesis.
+- Wave-2 adversarial review of the built code: 0 High, 2 Medium, 6 Low; six fixed (`a18304f`, `8695ebd`, `4cc0583`, `fe92c73`), two logged as follow-ups with reasons (ADR-0019 *Changes*).
+- Cost data point (Guru's insertion counts, confounded: migration snapshot JSON inflates the build, the review found no High): build `7f74132`, `10e0d88`, `baba46b`, `fbebc0c`, `470351f`, `643641b`, `f79ca0c`, `77e0daa`, `d693f77`, `3d7effc`, `6a7a253`, `f62dabf`, `0459de6` ≈ 11 015; review fixes `a18304f`, `8695ebd`, `4cc0583`, `fe92c73` ≈ 646 (≈ 6 %). Series S5b ≈ 50 %, S5c ≈ 24 %, S5d ≈ 12 %, S5f ≈ 24 %, S5g ≈ 6 %. Still a hypothesis.

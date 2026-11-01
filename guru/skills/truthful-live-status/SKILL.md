@@ -1,10 +1,10 @@
 ---
 name: truthful-live-status
-description: Keep dashboards, status pages, cards, notifications and emails truthful once real data flows — freshness derived by the reader from a trusted clock (fresh / stale / ended, never sent by producers), status and staleness shown together, every derived flag the UI needs carried in the contract type instead of re-derived per component, distinct states never merged into one field ("sent" vs "covered" vs "failed"), ages that keep running on the client clock, absolute timestamps on server-rendered or read-once views instead of a relative "ago" that freezes, "not current" when refreshes fail, request timeouts so polling never stops silently, display rounding that can never cross a decision threshold, and "estimated" counts propagated through every aggregate; and states an agent or producer reports about itself shown as labelled claims next to measured signals, with precedence rules that let real evidence (a permission prompt) win. Use when building a live or near-real-time dashboard, polling or streaming UI, freshness or heartbeat indicators, "last seen / updated N ago" labels, usage or cost analytics, budget or quota cards, alert or delivery status ("emailed", "sent", "delivered"), percent-of-limit badges, self-reported agent status ("blocked", "done", "reported by agent"), or when reviewing a UI that could show stale, estimated, undelivered or merely claimed data as current, exact, done or measured.
+description: Keep dashboards, status pages, cards, notifications and emails truthful once real data flows — freshness derived by the reader from a trusted clock (fresh / stale / ended, never sent by producers), status and staleness shown together, every derived flag the UI needs carried in the contract type instead of re-derived per component, distinct states never merged into one field ("sent" vs "covered" vs "failed"), ages that keep running on the client clock, absolute timestamps on server-rendered or read-once views instead of a relative "ago" that freezes, "not current" when refreshes fail, request timeouts so polling never stops silently, display rounding that can never cross a decision threshold, and "estimated" counts propagated through every aggregate; and states an agent or producer reports about itself shown as labelled claims next to measured signals, with precedence rules that let real evidence (a permission prompt) win. Also covers "Connected" labels for push-based integrations (webhooks) where silence is ambiguous: only eligible (unsuspended, claimed) sources count, a staleness window with honest wording, project-level scope, evidence cleared on release, and one configuration-validity rule shared with the receiver. Use when building a live or near-real-time dashboard, polling or streaming UI, freshness or heartbeat indicators, "last seen / updated N ago" labels, usage or cost analytics, budget or quota cards, alert or delivery status ("emailed", "sent", "delivered"), percent-of-limit badges, self-reported agent status ("blocked", "done", "reported by agent"), an integration's "Connected" / "Not set up" / "Waiting for the first delivery" label, or when reviewing a UI that could show stale, estimated, undelivered or merely claimed data as current, exact, done or measured.
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog G3; updated ad-hoc-self-report (S5d)"
-  confidence: "medium (sections 1–8: three consecutive iterations of one product, each time found by an adversarial reviewer and fixed red-first; section 9: one iteration, precedence pinned by independent vectors and mutations); low (behaviour with real users, real traffic and real agents — not yet observed)"
+  version: "0.3.0"
+  origin: "javis-dog G3; updated ad-hoc-self-report (S5d), ad-hoc-github-bridge (S5g)"
+  confidence: "medium (sections 1–8: three consecutive iterations of one product, each time found by an adversarial reviewer and fixed red-first; section 9: one iteration, precedence pinned by independent vectors and mutations); low (behaviour with real users, real traffic and real agents — not yet observed); section 10: one iteration, found by an adversarial reviewer and fixed red-first, no real deliveries yet"
 ---
 
 # Truthful live status
@@ -96,8 +96,28 @@ Some producers report a state about themselves: an agent says "blocked: missing 
 - **Say it in words.** "Blocked · missing credentials · reported by agent", with an accessible name, in every place a status appears (cards, tables, activity feeds) — not a colour or an icon alone.
 - **Expect false claims.** A manipulated agent can claim `completed`. The label and the measured events next to it are the defence; do not let a claim close alerts or budgets.
 
+## 10. "Connected" labels for push-based integrations
+
+An integration that only receives (webhooks, a vendor pushing events) cannot tell "nothing happened" from "the pipe is broken". "Last seen" alone is not enough. Derive the label in one server function from evidence, with these states:
+
+| State | Condition | Words (example) |
+|---|---|---|
+| Not set up | The secret or config is missing **or invalid by the receiver's own rule** (rule 4 below) | "Not set up" |
+| Waiting | Configured, no verified delivery stored yet | "Waiting for the first delivery" |
+| Connected | Newest verified delivery from an **eligible** source, younger than a staleness window | "Connected · last verified delivery 10:15 UTC" |
+| Silent | Newest eligible delivery older than the window | "No verified delivery since <date time UTC>", warning tone, with the two likely causes (changed secret, or simply no activity) |
+
+Rules:
+
+1. **Only eligible sources count.** Exclude suspended, revoked or released installations; a suspended source's last delivery is not evidence that anything works now.
+2. **Match the scope of the claim.** A project card says "Connected" only when that project has a linked source; the workspace-level status is not the project's.
+3. **Clear the evidence with the relationship.** Releasing a claim or unlinking clears its "last verified" time, so a re-claim starts at "Waiting".
+4. **One configuration rule.** "Not set up" uses the same validity function as the receiver and the health endpoint (whitespace-padded secrets are not "set up" if the receiver refuses them).
+5. **The window is a product choice.** Write it down with its reason (the origin chose 7 days for PR and CI activity; not validated against real usage) and say what silence can mean instead of implying failure.
+
 ## Pitfalls
 
+- **"Connected" from a suspended or released source,** or a workspace-level "Connected" on a project with nothing linked.
 - **An agent's claim hiding a measured wait.** The precedence rule that fixes one overwrite (idle erasing "blocked") can create the opposite one (a claim surviving a permission prompt). Write both directions into the vectors.
 - **Rule in a hook, not in the contract.** The next component (a server-rendered card) does not use the hook.
 - **Relative ages on server-rendered pages.** They freeze and look current.
@@ -126,3 +146,12 @@ Agent self-report through a local MCP server (ADR-0017 decision 6; `docs/sprints
 - Structural source: "An agent status is … a `heartbeat` that carries a `tool_name`. No collector heartbeat has a `tool_name`" (review L1). Mutations "Keep the agent status on `attention.requested`" → R02, R13; "Match `statusSource` on tool names" → R11 (README mutation table); runner 18/18, mutations caught as recorded (`a78066b`).
 - Words, not colour: pill text "Blocked · missing credentials · reported by agent" in squad, feed and agents table (`8c85373`, `bd616f6`); vocabulary equality test between the reader and the shared vocabulary module, red-first (3 new tests failed before the fix, `d9b51eb`).
 - Open: whether "N waiting for you" should also count agent-`blocked` threads — wording logged as follow-up F1, not changed.
+
+### Update at ad-hoc-github-bridge (Sprint 5g, 2026-11-01)
+
+GitHub App bridge: an Integrations status and a project card for a webhook-only integration (ADR-0019 decision 8, D0 M4; `docs/sprints/SPRINT-05g.md`). Confidence **medium** for §10 (one iteration; reviewer finding fixed red-first); **low** for the 7-day window and real use (no real delivery yet).
+
+- Decision 8 before code: "not set up" until the secret is configured, "Waiting for the first delivery" until a signed delivery is stored, "Connected" only with the time of the last verified delivery; D0 M4 shows that time only to the claiming workspace.
+- Wave-2 adversarial review M-2: "'Connected' ignored suspension and never went stale". Fix `8695ebd`: newest verified delivery over **unsuspended** installations only; older than 7 days → "No verified delivery since <UTC time>" (warn tone, hint to check the secret and the vendor's delivery log); the project card says "Connected" only when a repository is linked to that project. L-3: releasing a claim clears `last_verified_delivery_at` (`a18304f`). L-1: the setup status applies the receiver's secret rule (`8695ebd`, `fe92c73`). "Every new test failed before its fix except the PGlite link race" (sprint Team log).
+- The runbook names both meanings of silence: "a changed webhook secret, or simply no PR or CI activity" (`4cc0583`).
+- Not verified: whether 7 days is a useful window for real repositories; how the labels read to the owner on a real installation (owner run NOT RUN).

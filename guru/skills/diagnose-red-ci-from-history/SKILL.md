@@ -2,9 +2,9 @@
 name: diagnose-red-ci-from-history
 description: Diagnose a red CI run from the branch's run history instead of re-running it — find the first red run of the same assertion, separate pre-existing and flaky failures from regressions (a red run on a docs-only commit cannot come from its diff), reproduce timing races deterministically by delaying the collaborator, fix the wait rather than the assertion, keep the delay in the test so the race stays covered, and report "green on <sha>" precisely. Also covers fail-fast local gates (a gate that keeps going after a failed step lets a red change be pushed) and CI concurrency cancellation that leaves a pushed commit never evaluated. Includes a fail-fast gate script with a self-test and a read-only CI-history script that flags likely flakes. Use when CI is red after your change, when inheriting a branch or baseline from another session or teammate, before declaring an iteration closed, when a test passes locally but fails in CI, when real-process, network or timer-based tests fail intermittently, when a latency or timeout bound fails "by a few milliseconds", when tests time out only in full parallel runs, when a run fails with "unhandled rejection" although every test passed, when a negative `not.toContain` assertion fails once on an unrelated commit, when a latency bound fails again after it was "fixed", or when tempted to "just re-run CI".
 metadata:
-  version: "0.3.1"
-  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5e/S5f)"
-  confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded reds found by the checkpoint, not the team: three windows (G2, G4, S5d); harness-overhead bound, oversubscription and unhandled-rejection diagnoses: once each, G4; random-needle flake: once, root cause read from the annotation)"
+  version: "0.3.2"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5e/S5f), ad-hoc-github-bridge (S5g)"
+  confidence: "medium (history check and deterministic race reproduction: verified once each; unrecorded reds found by the checkpoint, not the team: three windows (G2, G4, S5d); harness-overhead bound and unhandled-rejection diagnoses: once each, G4; oversubscription timeouts: twice (S5a full run, S5g gate under lane load); random-needle flake: once, root cause read from the annotation)"
 ---
 
 # Diagnose red CI from history
@@ -53,6 +53,8 @@ A latency bound (`expect(ms).toBeLessThanOrEqual(1500)`) that fails by a few mil
 ### Timeouts that grow with parallel load
 
 A test that takes 4 s alone and times out at 30 s in a full run is usually starved, not slow. Measure it alone and in the full run at the default concurrency; count the worker processes (each test runner process with its own WASM or browser workers) against the CPU cores. Cap the orchestrator's concurrency (for example `turbo run test --concurrency=2`) and record wall time before and after. Do not raise the timeout or skip the test.
+
+The same happens in a **local gate** when other agents or worktrees run their suites on the same machine. Record the load average (`uptime`) with the failure, run the failing file alone, and re-run the gate when the machine is idle; push nothing in between. In the origin: 5 007 ms against a 5 000 ms limit at load 19.8 with three lanes testing; alone, 8/8 in 3.9 s.
 
 ### "All tests passed" but the run failed
 
@@ -147,3 +149,11 @@ History read by Guru for `c5132d0..29a6b8a`: 15 pushed tips, 15 runs, 15 `succes
 - The three flakes found at the previous checkpoint were fixed in tests only (`a551aed`: the latency bound now times the shipped bundle, a cleanup race gets a retry, leak needles made distinctive) and none recurred in 15 runs — consistent with the fixes, not proof.
 - Each push started after the previous run had completed (run creation vs. completion times); the two recorded rule-9 slips were unread green runs.
 - No CI runs for the merge and docs commits between pushed tips (`e8fb1bc`, `3020b10`): never evaluated on their own; `3020b10` contains a test that imports a removed function (see `orchestrated-agent-team-lanes`).
+
+### Update at ad-hoc-github-bridge (Sprint 5g, 2026-11-01)
+
+History read by Guru for `29a6b8a..39bf130` (`gh run list`, read-only): 8 pushed tips, every `run_attempt` 1. `15f7dee` 41173379264 · `0223371` 41244619385 · `971d61c` 41258954673 · `056a203` 41259559379 · `4d4ce64` 41261456763 · `dc26f32` 41267384071 · `b96a25c` 41270489476 · `39bf130` 41271405032 (in progress when the read started; re-read to completion) — all `success`. **CI is green on `39bf130` (run 41271405032).**
+
+- Every push started after the previous tip's run had completed (run creation vs. completion; closest margin 45 s: `056a203` created 01:05:11, `971d61c`'s run completed 01:04:26). The Team log records "CI green on dc26f32" before the wave-2 push. No rule-9 slip is recorded; the rule is still kept by memory, not by `previous-tip-ci.sh`.
+- Local gate under lane load (`1c08c11`): one FAIL diagnosed by load average and an isolated run, no rerun until the lanes finished, no timeout change (see "Timeouts that grow with parallel load").
+- Not recorded: a gate run for the review-fix push (`a8ac0e4`, `fe92c73`, `39bf130`); `PROJECT_MEMORY.md` says "3300+ tests" without a run.

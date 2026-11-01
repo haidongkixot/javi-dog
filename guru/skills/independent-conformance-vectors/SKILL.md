@@ -2,9 +2,9 @@
 name: independent-conformance-vectors
 description: Build black-box conformance vectors for an API, protocol endpoint, webhook receiver or parser as an independent test oracle — written by a QA agent or person from the contract text only (decision records, spec, external standards), never from the implementation; one data file per case with every key explicit; an ambiguity register that turns unclear contract lines into owner questions; runner rules that keep PASS, FAIL, BLOCKED, SKIPPED and NOT RUN distinct; and mutation checks that break one rule in the implementation and expect exactly the matching vectors to fail; plus vectors for invariance claims (idempotency, replay, ordering) that vary what the claim says must not matter — the clock above all — and leak checks whose needles cannot occur by chance in random ids. Use when a contract (HTTP endpoint, OTLP/webhook receiver, file format, CLI protocol) gets a second implementation or a hardening pass, when tests were written by the same agent that wrote the code, when a brief or spec may contradict an external standard, when you need evidence that a test suite actually detects regressions, when a runner compares numbers with a tolerance or runs "parallel" steps on a single-connection test database, when money or price rules need a second derivation, when vectors are merged before the runner or the code that satisfies them, when a claim says "a re-run is de-duplicated" or "the same input gives the same id", when a negative assertion (`not.toContain`) fails intermittently, when cryptographic or encoding rules (HKDF, HMAC, AES-GCM, base32/base64url, padding, Unicode normalisation) need known-answer vectors, when a spec claims a size bound ("N characters fit in M bytes"), or when asked for "conformance tests", "test vectors", "known-answer tests", "golden files", "contract tests" or "an independent QA pass".
 metadata:
-  version: "0.5.0"
-  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5f)"
-  confidence: "high (independent vectors + runner + mutation checks: nine suites, eight iterations; the runner found product defects that developers and reviewers missed in two of them); medium (ambiguity register catching a defect in the brief or design: twice; strict-tolerance rule: one hidden defect; independent price derivation: once; invariance claims needing a moving clock: once, a defect every oracle missed; short leak needles as a flake source: once, verified in CI; known answers from two independent reference implementations: once, 366 checks; library-default and size-bound gaps found by writing exact bytes: once)"
+  version: "0.6.0"
+  origin: "javis-dog G2; updated G3, G4, ad-hoc-self-report (S5d), ad-hoc-privacy (S5f), ad-hoc-github-bridge (S5g)"
+  confidence: "high (independent vectors + runner + mutation checks: ten suites, nine iterations; the runner found product defects that developers and reviewers missed in two of them); medium (ambiguity register catching a defect in the brief or design: twice; strict-tolerance rule: one hidden defect; independent price derivation: once; invariance claims needing a moving clock: once, a defect every oracle missed; short leak needles as a flake source: once, verified in CI; known answers from two independent reference implementations: once, 366 checks; library-default and size-bound gaps found by writing exact bytes: once; a whole-request fault unable to kill its own listed mutation: once)"
 ---
 
 # Independent conformance vectors
@@ -113,6 +113,10 @@ For each rule that matters (status code for a class of error, a security check, 
 
 A **surviving** mutation is either a missing vector (add one; in the origin a new vector killed a shared-baseline mutation) or a mutation that cannot occur under the implementation's invariants. Record which, with the reason; do not count unexplained survivors as killed.
 
+**A vector must be able to kill the mutation it is listed for.** Check the mechanism, not only the row in the table. A fault that fails *every* dependency call of a request fails the first call (often a dedupe read), so it cannot detect the order of later writes ("record the dedupe marker before an insert that fails"). Inject the fault at the one call the rule is about — fail only the insert — or add a supplement case next to the vector and say why. In the origin, the README listed that mutation against a whole-request "store unavailable" vector; the runner lane noticed it could never fail and added an insert-only supplement.
+
+**Name the mutations you ran.** "7/7 caught" without the list cannot be repeated or compared with the table of suggested mutations. Record each mutation, the vectors that failed and that it was restored.
+
 If your environment blocks running mutations (an agent permission classifier did in the origin's first attempt), record the check as BLOCKED and ask for permission up front next time.
 
 ## Pitfalls
@@ -122,6 +126,7 @@ If your environment blocks running mutations (an agent permission classifier did
 - **Choosing a reading without logging it.** Ambiguities resolved silently resurface as bugs.
 - **Counting BLOCKED as PASS.** A vector that could not run proves nothing.
 - **A green suite as evidence of detection.** Only a mutation that turns it red shows that.
+- **Whole-request faults for ordering rules.** The first call fails; the order of the later ones is never observed.
 - **Widening a tolerance in the runner.** It turns a contract into a suggestion and hides edge-of-tolerance defects.
 - **Parallel steps on one connection reported as PASS.**
 - **Replay vectors under the same clock.** They cannot falsify an id that embeds time.
@@ -191,3 +196,15 @@ Self-report suite (`docs/jgr/conformance/self-report/`): 54 vectors — 22 MCP p
 - Gaps G1–G14; G4 (HMAC key length: `sha256:3a02…a855` with 32 bytes vs `sha256:b71c…db9a` with the 64-byte WebCrypto default) and G6 ("100 astral characters give 417 bytes") were defects in the record (sprint log). The first implementation already set the HMAC length; alignment commit `3fafe9c` changed alias parsing, the cut rule and a failure class, and added the test-only IV seam and the S1 reconciliation point.
 - Runner (`38a8bf2`, a lane that wrote neither): minimal draft-07 checker that "throws on any keyword it does not implement"; 145 PASS, 0 FAIL, 8 NOT RUN "with the reason in the test name"; "38 README mutations each killed". P03/P04 label vectors pass in the web app's own tests (`d554f16`).
 - Guru probe (Node 22.22.0): the README's mutation row "Accept any IV length (WebCrypto does)" overstates for Node — a 16-byte IV is accepted, an 11-byte IV is rejected (`OperationError`); the vectors remain valid.
+
+### Update at ad-hoc-github-bridge (Sprint 5g, 2026-11-01)
+
+GitHub App webhook suite (`docs/jgr/conformance/github/`, vectors `ed3f497`, merged `d2f15e8`; runner `1c70a7c`, merged `46131a3`). Signed bodies byte for byte, four groups (signature, routing/dedupe/replay, mapping, privacy).
+
+| Suite | Vectors / gaps | Runner | Mutations |
+|---|---|---|---|
+| GitHub webhook | 59 vectors, 174 steps, 20 signature cases; 23 spec gaps + 15 readings from ADR-0019 at `056a203`; 2 756 checks by Node and an independent Python + OpenSSL program, 163 payloads checked against the vendor's OpenAPI schemas (programs not committed) | 257 PASS through the real route on PGlite, schema-validated files with negative controls; JD-M01 re-validation of stored events NOT RUN (not a dependency of the app) | "7/7 caught" (which 7 is not recorded); R21 could not kill its listed mutation → insert-only supplement |
+
+- Gaps that were defects: G14 (a `500` that leaves the body hash swallows the vendor's redelivery) and G17 (installation hashes purged after 3 days → replay acts again); both in the design review's dedupe remedy; fixed in `3d7effc`. G1 (event-id namespace) aligned the implementation's namespace in the same commit. Vector M12 found G24 in the implementation (`f62dabf`).
+- R21 (`4cc0583`, README mutation row): "R21 itself cannot: its fault fails every database call, so `hasDelivery` throws before any hash is written; the supplement fails only the event insert". Whether the runner lane found this by running the mutation or by reading it is not recorded.
+- Payload fixtures are minimal, not captures; values checked against the vendor's OpenAPI webhook schemas (names, types, enums; `required` not enforced).

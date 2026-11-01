@@ -1,9 +1,9 @@
 ---
 name: fail-closed-checks
-description: Make guard checks fail closed — every check that protects a push, a commit, an install or an edit of someone's file answers yes, no or unknown, and "unknown" (the tool errored, timed out, is missing, or got bad input) is treated like the unsafe answer unless the user explicitly overrides it. Covers three-valued exit codes that shell idioms collapse to two (grep 0/1/2 read by `if grep` or `! grep`; `git ls-files --error-unmatch` 0/1/128; `diff`/`cmp` 0/1/2; timeouts and missing binaries), validating the check's own inputs (pattern compiles, revision range resolves, argument present), chaining guards with `&&` and making the chain a script rather than a habit, self-tests that prove a check can say "cannot", choosing the failure direction deliberately when the guarded action is recording data rather than changing it, and searching for twins of a fail-open check. Also covers turning a team rule that lives in memory ("read CI on the previous tip before pushing") into a three-valued check. Includes a fail-closed secret-scan script and a previous-tip CI check, each with a self-test. Use when writing a pre-push or pre-commit secret scan, a "is this file tracked/ignored/committed" check, a guard before editing a user's config, a CI or release gate, any `check; act` or `check && act` shell line, a wrapper around grep/git/diff exit codes, or when a check "passed" on a machine where its tool is missing, when a process rule keeps slipping because nothing runs it, or when asked to "add a safety check", "scan before push" or "refuse unless".
+description: Make guard checks fail closed — every check that protects a push, a commit, an install or an edit of someone's file answers yes, no or unknown, and "unknown" (the tool errored, timed out, is missing, or got bad input) is treated like the unsafe answer unless the user explicitly overrides it. Covers three-valued exit codes that shell idioms collapse to two (grep 0/1/2 read by `if grep` or `! grep`; `git ls-files --error-unmatch` 0/1/128; `diff`/`cmp` 0/1/2; timeouts and missing binaries), validating the check's own inputs (pattern compiles, revision range resolves, argument present), chaining guards with `&&` and making the chain a script rather than a habit, self-tests that prove a check can say "cannot", choosing the failure direction deliberately when the guarded action is recording data rather than changing it, and searching for twins of a fail-open check. Also covers turning a team rule that lives in memory ("read CI on the previous tip before pushing") into a three-valued check. Includes a fail-closed secret-scan script and a previous-tip CI check, each with a self-test. Use when writing a pre-push or pre-commit secret scan, a "is this file tracked/ignored/committed" check, a guard before editing a user's config, a CI or release gate, any `check; act` or `check && act` shell line, a wrapper around grep/git/diff exit codes, or when a check "passed" on a machine where its tool is missing, when a process rule keeps slipping because nothing runs it, when a secret scanner flags a fake credential in a test fixture, or when asked to "add a safety check", "scan before push" or "refuse unless".
 metadata:
-  version: "0.2.0"
-  origin: "javis-dog ad-hoc-self-report (S5d), drawing on G2–G4 records; updated ad-hoc-privacy (S5e/S5f)"
+  version: "0.2.1"
+  origin: "javis-dog ad-hoc-self-report (S5d), drawing on G2–G4 records; updated ad-hoc-privacy (S5e/S5f), ad-hoc-github-bridge (S5g)"
   confidence: "high (the failure class: seven recorded fail-open or ungated guard slips in four checkpoint windows, three of them after the team had recorded the rule against them); medium (the remedies: a tri-state git check fixed red-first once; the secret-scan script adopted in the origin's push checklist; the previous-tip CI script verified by its self-test and two read-only runs only)"
 ---
 
@@ -81,6 +81,14 @@ scripts/previous-tip-ci.sh "$BRANCH" && scripts/gate.sh "<steps…>" && \
 
 A self-test or unit test per guard with at least: a known-safe input (passes), a known-unsafe input (fails), and a broken environment (bad pattern, missing tool, error exit, timeout) that must fail. Run the self-test in CI so a later edit of the pattern or wrapper cannot silently turn the guard off. Build test secrets at run time so the test file itself never matches a scanner.
 
+**When the scanner flags a test fixture, fix the fixture, not the scanner.** In order:
+
+1. If the test does not need a credential shape, remove it: a fake database URL that points at a dead endpoint needs no password (`postgresql://test@127.0.0.1:9/x`).
+2. If the test needs one at run time (it asserts that a driver error echoing a connection string never reaches a log), build the string at run time from a value that carries an explicit fake marker (`SENTINEL`, `NOT-REAL`), with a comment saying why.
+3. Never widen the scanner: no pattern change, no "skip `test/`" path rule. The next real credential pasted into a test would pass.
+
+Option 2 is the same technique that would hide a real secret, so keep it rare, marker-bound and visible in review.
+
 ## 6. Choose the direction when the guarded action records data
 
 "Fail closed" means *fail toward the recoverable outcome*:
@@ -133,3 +141,8 @@ Guru verification at this checkpoint:
 - Rule 9 ("read CI on the previous pushed tip"): slipped on `ec20396` ("went out before CI on `2516380` was read … green (41113430736)", `SPRINT-05e.md` Team log) and on `b8c8e59` ("pushed before CI on `c1178c0` was read … green (41126438258). The shell has no GitHub API access, so no script can enforce the rule", `SPRINT-05f.md` Team log). Retro S5e: "a rule nothing enforces depends on memory".
 - Guru verification: in this checkpoint's shell, `gh run list` for the branch works (read-only). `scripts/previous-tip-ci.sh --self-test` → 10 checks ok, "self-test PASS"; real reads: `9805ba9` → "CI green on 9805ba9 (run 41144802179)", exit 0; `3020b10` (never pushed alone) → "no CI run", exit 2; `29a6b8a` while running → "not finished", exit 2. The first real read with an abbreviated SHA returned "no run" (exit 2, fail-closed but wrong); fixed by resolving the SHA with git. Whether the orchestrator's own shell can reach the API is not verified.
 - No `;` gate slip is recorded for S5e/S5f.
+
+### Update at ad-hoc-github-bridge (Sprint 5g, 2026-11-01)
+
+- Scanner hit on fixtures (`SPRINT-05g.md` Team log 03:47): "Secret scan matched fake database URLs in three new tests (dead endpoints `127.0.0.1:9`, `db.example`); reshaped so they no longer look like credentials (b96a25c); scan clean." Guru read the diff: two URLs lost their `user:password@` part (option 1); one test that asserts a driver error never leaks keeps the credential-shaped string at run time, now built by concatenation around a sentinel constant (option 2). `scripts/secret-scan.sh` is unchanged in the window (`git diff 29a6b8a..39bf130 -- scripts/secret-scan.sh` empty). Confidence **medium** (once).
+- Rule 9 held by timing in all 8 pushes of the window (see `diagnose-red-ci-from-history`); still a habit — `previous-tip-ci.sh` is not in the origin's push step (proposal PV-F4 open).

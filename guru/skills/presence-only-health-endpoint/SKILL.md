@@ -1,9 +1,9 @@
 ---
 name: presence-only-health-endpoint
-description: Ship a small public health/diagnostics endpoint that reports which configuration variables are set as booleans only (never values), which build answered (environment name and commit), and whether the database responds (status word, latency, migration count) — so an agent or developer without access to the hosting platform's settings can observe a deployed environment, detect that a config change has not reached the running build yet, and catch wrong assumptions about deployment targets. Covers the security rules (no values, no driver messages, no caching, timeouts), a database ping that works on an unmigrated database, and tests that prove no secret leaks. Use when an agent gets 403 on listing or setting platform env vars, when you cannot tell what is configured in preview or production, after changing env vars on Vercel/Netlify/Render/Fly/Heroku/Kubernetes, when adding /health, /healthz, /status or readiness probes, or when a deploy "works locally but not in production".
+description: Ship a small public health/diagnostics endpoint that reports which configuration variables are set as booleans only (never values), which build answered (environment name and commit), and whether the database responds (status word, latency, migration count) — so an agent or developer without access to the hosting platform's settings can observe a deployed environment, detect that a config change has not reached the running build yet, and catch wrong assumptions about deployment targets. Covers the security rules (no values, no driver messages, no caching, timeouts), a database ping that works on an unmigrated database, and tests that prove no secret leaks. Use when an agent gets 403 on listing or setting platform env vars, when you cannot tell what is configured in preview or production, after changing env vars on Vercel/Netlify/Render/Fly/Heroku/Kubernetes, when adding /health, /healthz, /status or readiness probes, when health says a secret is set but the feature says "not configured", or when a deploy "works locally but not in production".
 metadata:
-  version: "0.1.1"
-  origin: "javis-dog G2-prep; updated G2"
+  version: "0.1.2"
+  origin: "javis-dog G2-prep; updated G2, ad-hoc-github-bridge (S5g)"
   confidence: "high (observing deployed config and migration state); medium (DB ping implementation details)"
 ---
 
@@ -34,6 +34,7 @@ The rule: **the running build describes itself — which variables exist, which 
 ```
 
 - **`env`:** an explicit allowlist of names in code — never iterate over the process environment. A blank or whitespace-only value counts as missing.
+- **Presence means "the consumer would use it".** When another component applies a stricter validity rule to a variable (a webhook secret with a trailing newline is refused; a "previous" rotation secret alone is not enough), export that rule from the consumer and report its verdict here. A separate "non-empty" check lets health say `true` while the feature answers "not configured".
 - **`deployment`:** environment name and short commit from the platform's build variables (for example `VERCEL_ENV` / `VERCEL_GIT_COMMIT_SHA`; other platforms expose similar ones). This is what tells you *which build* answered.
 - **`db`:** a state word; latency and migration count only when the state is `ok`.
 - **`checkedAt`:** the server's time for this check. The endpoint reports a check, not a "live" status.
@@ -77,6 +78,7 @@ Write each finding into the readiness record with the commit it came from. When 
 - **Echoing `error.message`.** The most common leak path; tests must include a fake secret in the thrown message.
 - **Iterating over all environment variables.** The allowlist is the privacy boundary.
 - **Calling it "live".** It is a point-in-time check with a timestamp.
+- **A second definition of "set".** Health, setup screens and the consumer each checking the variable their own way.
 - **Cached health.** A pre-rendered or CDN-cached health page reports the build-time state forever.
 
 ## Evidence from origin project
@@ -101,3 +103,8 @@ The endpoint stayed the agent's deployment check in every iteration; reads are r
 - S3d: `98c7974` READY with 3 migrations; after migration `0003`, **4 migrations**; then `1bb95e9` healthy (`SPRINT-03d.md`).
 - S3e: "production `/api/health` ok on `a3e4ce8`" (`SPRINT-03e.md` Log).
 - A new required variable was added to the endpoint's boolean list in the same change that introduced it (`CRON_SECRET`, `07dfa99`), so its absence was visible from the first deploy.
+
+### Update at ad-hoc-github-bridge (Sprint 5g, 2026-11-01)
+
+- A new webhook secret joined the boolean list in the same change that read it (`f62dabf`, "health reports the webhook secret presence"), as with `CRON_SECRET` in S3b.
+- Wave-2 adversarial review L-1: whitespace-only or padded secrets. The receiver got one rule (`githubWebhookSecretsState`: unset or whitespace-only is absent; surrounding whitespace is a configuration error → `503`, logged by name) in `a18304f`; the setup page had re-implemented it and health used plain presence. `fe92c73` made both call the receiver's exported rule; test "reports the webhook secret only when the handler would use it" (trailing newline → `false`, padded previous → `false`, previous alone → `false`). Recorded as red-first in the sprint Team log. Confidence for this rule: **medium** (one finding, one fix).
