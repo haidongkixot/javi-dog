@@ -14,7 +14,9 @@ export type IssueCode =
   /** Receiver-side (ADR-0008): `project_ref` is not the ingest token's project. */
   | 'project_mismatch'
   /** Receiver-side (ADR-0008): event privacy class is above the project's opt-in class. */
-  | 'privacy_class_not_allowed';
+  | 'privacy_class_not_allowed'
+  /** Receiver-side (ADR-0019 D0 M2): `producer_id` `gh-app_*` or `thread_ref` `gh_*` is reserved for JD-M10. */
+  | 'reserved_ref';
 
 export type Issue = { code: IssueCode; path: string; message: string };
 

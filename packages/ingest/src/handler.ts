@@ -52,12 +52,7 @@ export const createIngestDeps = (db: AnyDb): IngestDeps => {
   };
 };
 
-/**
- * Receiver-side issue codes. `reserved_ref` (ADR-0019 D0 M2) is JD-M05's own until JD-M01's
- * `IssueCode` list (spec §13) gains it.
- */
-type IngestIssue = Omit<Issue, 'code'> & { code: Issue['code'] | 'reserved_ref' };
-type Rejected = { index: number; event_id?: string; issues: IngestIssue[] };
+type Rejected = { index: number; event_id?: string; issues: Issue[] };
 
 /**
  * Provenance reserved for the GitHub bridge (JD-M10, ADR-0019 D0 M2): only the bridge writes
@@ -197,7 +192,7 @@ export const createIngestHandler =
       const rows: NewEvent[] = [];
       result.accepted.forEach((event, n) => {
         const index = acceptedIndexes[n]!;
-        const issues: IngestIssue[] = [];
+        const issues: Issue[] = [];
         if (RESERVED_PRODUCER.test(event.producer_id)) {
           issues.push({
             code: 'reserved_ref',

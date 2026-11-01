@@ -1,10 +1,1 @@
-[
-  {
-    "id": "JD-M10",
-    "name": "@javis-dog/github-bridge",
-    "path": "packages/github-bridge",
-    "status": "planned",
-    "sprint": "S5",
-    "description": "GitHub App webhooks, opt-in archive"
-  }
-]
+[]

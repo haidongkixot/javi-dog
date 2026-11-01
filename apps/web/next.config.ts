@@ -31,6 +31,7 @@ const nextConfig: NextConfig = {
     '@javis-dog/analytics',
     '@javis-dog/crypto',
     '@javis-dog/event-store',
+    '@javis-dog/github-bridge',
     '@javis-dog/identity',
     '@javis-dog/ingest',
     '@javis-dog/jgr-spec',
