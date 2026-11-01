@@ -18,6 +18,9 @@ import { GithubActionButton } from './action-button';
 export const NOT_REVERIFIABLE_TEXT =
   'Your GitHub account is no longer linked to your sign-in, so this claim can’t be re-verified. It stays in place until a workspace owner or admin releases it.';
 
+export const ORGANIZATION_TEXT =
+  'Organization installations aren’t supported yet: install the app on your personal GitHub account.';
+
 export const OTHER_ACCOUNT_TEXT =
   'The GitHub account linked to your sign-in doesn’t own this installation, so this claim can’t be re-verified from here. It stays in place until a workspace owner or admin releases it.';
 
@@ -166,6 +169,7 @@ export function GithubInstallationsCard({
       </h3>
       <div className="pb-5">
         <Claimable overview={overview} />
+        <p className="px-5 pt-3 text-xs text-muted">{ORGANIZATION_TEXT}</p>
       </div>
     </Card>
   );

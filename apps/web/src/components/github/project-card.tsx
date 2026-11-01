@@ -1,15 +1,16 @@
 import Link from 'next/link';
-import { Card, CardHead } from '@javis-dog/ui/components';
+import { Card, CardHead, StatusPill } from '@javis-dog/ui/components';
 import { unlinkRepositoryAction } from '@/app/integrations/github/actions';
-// Type only: lib/github reads env and the database on the server.
-import type { GithubOverview } from '@/lib/github';
+// A server component: lib/github reads env and the database on the server.
+import { projectGithubStatus, type GithubOverview } from '@/lib/github';
 import { GithubActionButton } from './action-button';
 import { LinkRepositoryForm } from './link-form';
 import { GithubStatusLine, OWNER_ONLY_TEXT } from './status';
 
-// Project page GitHub card (ADR-0019 §4, design review D0 H1, H3). Repository names come only
-// from installations the viewer's workspace claimed (`workspaceInstallations`), so they are shown
-// to members of that workspace only. Owners and admins link and unlink; members read.
+// Project page GitHub card (ADR-0019 §4, design review D0 H1, H3, review M-2). Repository names
+// come only from installations the viewer's workspace claimed (`workspaceInstallations`), so they
+// are shown to members of that workspace only. Owners and admins link and unlink; members read.
+// "Connected" here needs a repository linked to this project (`projectGithubStatus`).
 
 const setupLink = (
   <Link href="/integrations/github" className="font-bold text-ink underline">
@@ -27,6 +28,7 @@ export function GithubProjectCard({
   privacyClass: 'L0' | 'L1' | 'L2';
 }) {
   const { status, installations, canManage } = overview;
+  const shown = projectGithubStatus(overview, projectId);
   const repos = installations.flatMap((i) => i.repositories);
   const linked = repos.filter((r) => r.projectId === projectId);
   const available = repos.filter((r) => r.projectId === null);
@@ -38,7 +40,17 @@ export function GithubProjectCard({
         subtitle="Pull request and CI signals for this project from the GitHub App. It has no access to your code."
       />
       <div className="px-5 pt-4 text-xs">
-        <GithubStatusLine status={status} />
+        {shown.kind === 'not_linked' ? (
+          <div>
+            <StatusPill tone="info">No repository linked yet</StatusPill>
+            <p className="mt-1 text-[11px] text-muted">
+              Nothing from GitHub reaches this project until a repository is linked to it. The
+              workspace’s connection is on {setupLink}.
+            </p>
+          </div>
+        ) : (
+          <GithubStatusLine status={shown} />
+        )}
       </div>
       {status.kind === 'not_set_up' || status.kind === 'unavailable' ? (
         <p className="px-5 pt-3 pb-5 text-xs text-muted">See {setupLink} for what it needs.</p>

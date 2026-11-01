@@ -9,7 +9,20 @@ import { canManageProject } from './permissions';
 
 type Env = Readonly<Record<string, string | undefined>>;
 
-const present = (value: string | undefined) => typeof value === 'string' && value.trim() !== '';
+/**
+ * The webhook handler's secret rule (JD-M10 `githubWebhookSecretsState`, review L-1), repeated
+ * here because JD-APP imports JD-M10 only through its index: unset or whitespace-only is absent
+ * (a blank previous secret is ignored); surrounding whitespace on either secret is a configuration
+ * error, which the webhook answers with 503. Both cases read as "not set up".
+ */
+const secretShape = (value: string | undefined): 'absent' | 'padded' | 'ok' => {
+  if (typeof value !== 'string' || value.trim() === '') return 'absent';
+  return value.trim() === value ? 'ok' : 'padded';
+};
+
+const webhookConfigured = (env: Env) =>
+  secretShape(env.GITHUB_APP_WEBHOOK_SECRET) === 'ok' &&
+  secretShape(env.GITHUB_APP_WEBHOOK_SECRET_PREVIOUS) !== 'padded';
 
 /** GitHub numeric ids: digits only, positive, safe integers. Anything else is `null`. */
 export const parseGithubId = (value: unknown): number | null => {
@@ -26,7 +39,8 @@ const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/i;
 export interface GithubAppConfig {
   /**
    * `GITHUB_APP_WEBHOOK_SECRET` is set, so signed deliveries can be verified (ADR-0019 §3). With
-   * only the previous secret the webhook answers 503 (QA G13), so that counts as not set up.
+   * only the previous secret the webhook answers 503 (QA G13), and so it does for a secret with
+   * leading or trailing whitespace (review L-1): both count as not set up.
    */
   configured: boolean;
   /** `GITHUB_APP_SLUG` (public identifier), or `null` when unset or malformed. */
@@ -38,7 +52,7 @@ export interface GithubAppConfig {
 export const githubAppConfig = (env: Env = process.env): GithubAppConfig => {
   const slug = env.GITHUB_APP_SLUG?.trim() ?? '';
   return {
-    configured: present(env.GITHUB_APP_WEBHOOK_SECRET),
+    configured: webhookConfigured(env),
     slug: SLUG.test(slug) ? slug : null,
     ownerAccountId: parseGithubId(env.GITHUB_APP_OWNER_ID ?? ''),
   };
@@ -79,9 +93,13 @@ export const viewerGithubAccountId = async (db: Db, userId: string): Promise<num
 /** The JD-M10 repository on the shared handle. */
 export const githubRepository = (db: Db) => createGithubRepository(db);
 
+/** A verified delivery older than this no longer counts as "Connected" (review M-2). */
+export const GITHUB_STALE_AFTER_MS = 7 * 86_400_000;
+
 /**
- * The honest status label (ADR-0019 §8, D0 M4). "Connected" needs a recorded verified delivery
- * for an installation this workspace claimed; nothing here ever says "live" or "secure".
+ * The honest status label (ADR-0019 §8, D0 M4, review M-2). "Connected" needs a verified delivery
+ * from the last 7 days for an unsuspended installation this workspace claimed; nothing here ever
+ * says "live" or "secure".
  */
 export type GithubStatus =
   /** The webhook secret is not configured on this deployment. */
@@ -92,8 +110,10 @@ export type GithubStatus =
   | { kind: 'waiting'; claimed: boolean }
   /** Every installation this workspace claimed is suspended on GitHub. */
   | { kind: 'suspended' }
-  /** A verified delivery was recorded; `at` is the newest one. */
+  /** The newest verified delivery (unsuspended installations), `at`, is from the last 7 days. */
   | { kind: 'connected'; at: Date }
+  /** The newest verified delivery, `at`, is older than 7 days: never shown as connected. */
+  | { kind: 'stale'; at: Date }
   /** Reading the installations failed. */
   | { kind: 'unavailable' };
 
@@ -103,17 +123,47 @@ export const githubStatus = (input: {
   installations: ReadonlyArray<
     Pick<WorkspaceInstallation, 'suspendedAt' | 'lastVerifiedDeliveryAt'>
   >;
+  /** Server time for the 7-day rule; defaults to now. */
+  now?: Date;
 }): GithubStatus => {
-  const { configured, isAppOwner, installations } = input;
+  const { configured, isAppOwner, installations, now = new Date() } = input;
   if (!configured) return { kind: 'not_set_up' };
   if (installations.length === 0)
     return isAppOwner ? { kind: 'waiting', claimed: false } : { kind: 'owner_only' };
-  if (installations.every((i) => i.suspendedAt !== null)) return { kind: 'suspended' };
-  const newest = installations
+  // A suspended installation's deliveries are dropped, so its old evidence does not count.
+  const active = installations.filter((i) => i.suspendedAt === null);
+  if (active.length === 0) return { kind: 'suspended' };
+  const newest = active
     .map((i) => i.lastVerifiedDeliveryAt)
     .filter((d): d is Date => d !== null)
     .sort((a, b) => b.getTime() - a.getTime())[0];
-  return newest ? { kind: 'connected', at: newest } : { kind: 'waiting', claimed: true };
+  if (!newest) return { kind: 'waiting', claimed: true };
+  return now.getTime() - newest.getTime() > GITHUB_STALE_AFTER_MS
+    ? { kind: 'stale', at: newest }
+    : { kind: 'connected', at: newest };
+};
+
+/**
+ * The status for one project's card (review M-2): the workspace status, narrowed to the
+ * installations holding a repository linked to that project. `'not_linked'` when the workspace has
+ * verified deliveries but none can be for this project, so the card never claims it is connected.
+ */
+export const projectGithubStatus = (
+  overview: Pick<GithubOverview, 'status' | 'installations' | 'isAppOwner' | 'checkedAt'>,
+  projectId: string,
+): GithubStatus | { kind: 'not_linked' } => {
+  const { status } = overview;
+  if (status.kind !== 'connected' && status.kind !== 'stale') return status;
+  const linked = overview.installations.filter((i) =>
+    i.repositories.some((r) => r.projectId === projectId),
+  );
+  if (linked.length === 0) return { kind: 'not_linked' };
+  return githubStatus({
+    configured: true,
+    isAppOwner: overview.isAppOwner,
+    installations: linked,
+    now: overview.checkedAt,
+  });
 };
 
 export interface GithubOverview {
@@ -135,6 +185,8 @@ export interface GithubOverview {
   installations: Array<WorkspaceInstallation & { reverifiable: boolean }>;
   /** Unclaimed installations of the viewer's own GitHub account (owners and admins only). */
   claimable: Array<{ installationId: number; accountType: 'User' | 'Organization' }>;
+  /** Server time the status was computed at (the 7-day rule). */
+  checkedAt: Date;
 }
 
 const logFailure = (error: unknown) =>
@@ -163,11 +215,13 @@ export interface GithubViewer {
 export const loadGithubOverview = async (
   viewer: GithubViewer | null,
   env: Env = process.env,
+  now: Date = new Date(),
 ): Promise<GithubOverview> => {
   const config = githubAppConfig(env);
   const canManage = canManageProject(viewer?.role);
   const base: GithubOverview = {
     status: githubStatus({ configured: config.configured, isAppOwner: false, installations: [] }),
+    checkedAt: now,
     installUrl: null,
     isAppOwner: false,
     signedIn: viewer !== null,
@@ -191,7 +245,7 @@ export const loadGithubOverview = async (
         : [];
     return {
       ...base,
-      status: githubStatus({ configured: config.configured, isAppOwner, installations }),
+      status: githubStatus({ configured: config.configured, isAppOwner, installations, now }),
       installUrl: ownerInstallUrl(config, githubAccountId),
       isAppOwner,
       githubLinked: githubAccountId !== null,

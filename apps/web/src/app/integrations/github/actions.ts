@@ -62,7 +62,8 @@ const revalidateGithub = (projectId?: string) => {
  * Claims an installation for the viewer's workspace (form field `installationId`). Checks, in
  * order: signed in → owner/admin → database → a well-formed id → the viewer's linked GitHub
  * account → JD-M10 `claimInstallation` (first claim wins, `User` installations only, the
- * installation's `account_id` from the signed webhook must equal the viewer's GitHub id).
+ * installation's `account_id` from the signed webhook must equal the viewer's GitHub id; unknown
+ * and foreign ids get the same answer, so ids cannot be enumerated).
  */
 export async function claimInstallationAction(
   _prev: GithubActionState,
@@ -71,7 +72,8 @@ export async function claimInstallationAction(
   const s = await scope();
   if ('error' in s) return { error: s.error };
   const installationId = parseGithubId(form.get('installationId'));
-  if (installationId === null) return { error: CLAIM_MESSAGES.not_found };
+  // A malformed id reads like any id the viewer's account does not own (review L-2).
+  if (installationId === null) return { error: CLAIM_MESSAGES.account_mismatch };
   try {
     const githubAccountId = await viewerGithubAccountId(s.db, s.viewer.user.id);
     if (githubAccountId === null) return { error: CLAIM_MESSAGES.no_github_account };

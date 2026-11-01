@@ -49,7 +49,7 @@ vi.mock('next/navigation', () => ({
 
 const { default: GithubPage } = await import('@/app/integrations/github/page');
 const { default: ProjectPage } = await import('@/app/projects/[id]/page');
-const { NOT_REVERIFIABLE_TEXT, OTHER_ACCOUNT_TEXT } =
+const { NOT_REVERIFIABLE_TEXT, ORGANIZATION_TEXT, OTHER_ACCOUNT_TEXT } =
   await import('@/components/github/installations');
 const { OWNER_ONLY_TEXT } = await import('@/components/github/status');
 
@@ -281,6 +281,17 @@ describe('/integrations/github — claims', () => {
     expect(document.body.textContent).toContain('Only workspace owners and admins can claim');
   });
 
+  it('explains plainly that organization installations aren’t supported yet (L-2)', async () => {
+    fullyConfigured();
+    signInAs(w.ownerA, w.A);
+    await renderPage(githubPage());
+    const region = screen.getByRole('region', { name: 'Installations' });
+    expect(region.textContent).toContain(
+      'Organization installations aren’t supported yet: install the app on your personal GitHub account.',
+    );
+    expect(ORGANIZATION_TEXT).toMatch(/personal GitHub account/);
+  });
+
   it('the owner sees the claim with a release control', async () => {
     fullyConfigured();
     await claimDirect(w.A, INST.A, GH.ownerA);
@@ -353,6 +364,35 @@ describe('status labels from real rows (ADR-0019 §8, D0 M4)', () => {
     expect(statusText()).not.toContain('08:15');
   });
 
+  it('release and re-claim: the old claim’s delivery does not make the new claim “Connected” (L-3)', async () => {
+    fullyConfigured();
+    await claimDirect(w.A, INST.A, GH.ownerA);
+    const repo = createGithubRepository(db);
+    await repo.touchVerifiedDelivery(INST.A, new Date(Date.now() - 60_000));
+    expect(await repo.releaseInstallation(w.A, INST.A)).toBe(true);
+    expect(await claimDirect(w.A, INST.A, GH.ownerA)).toBe('claimed');
+    signInAs(w.ownerA, w.A);
+    await renderPage(githubPage());
+    expect(statusText()).toContain('Waiting for the first delivery');
+    expect(statusText()).not.toContain('Connected');
+  });
+
+  it('a verified delivery older than 7 days is stale, not “Connected” (M-2)', async () => {
+    fullyConfigured();
+    await claimDirect(w.A, INST.A, GH.ownerA);
+    const at = new Date(Date.now() - 8 * 86_400_000);
+    await createGithubRepository(db).touchVerifiedDelivery(INST.A, at);
+    signInAs(w.ownerA, w.A);
+    await renderPage(githubPage());
+    expect(statusText()).toContain('No verified delivery since');
+    expect(statusText()).not.toContain('Connected');
+    expect(
+      screen
+        .getByRole('region', { name: 'Status and setup' })
+        .querySelector(`time[datetime="${at.toISOString()}"]`),
+    ).not.toBeNull();
+  });
+
   it('never says live or secure', async () => {
     fullyConfigured();
     await claimDirect(w.A, INST.A, GH.ownerA);
@@ -382,6 +422,69 @@ describe('project page GitHub card', () => {
     // Only unlinked repositories are offered for linking.
     const options = [...card().querySelectorAll('option')].map((o) => o.textContent);
     expect(options).toEqual(['ana/second-repo']);
+  });
+
+  it('“Connected” only when a repository is linked to this project (M-2)', async () => {
+    fullyConfigured();
+    await claimDirect(w.A, INST.A, GH.ownerA);
+    const repo = createGithubRepository(db);
+    await repo.touchVerifiedDelivery(INST.A, new Date(Date.now() - 60_000));
+    // The workspace has a fresh verified delivery, but nothing is linked to this project.
+    signInAs(w.ownerA, w.A);
+    await renderPage(projectPage(w.PA));
+    expect(card().textContent).toContain('No repository linked yet');
+    expect(card().textContent).not.toContain('Connected');
+    expect(
+      within(card())
+        .getAllByRole('link')
+        .some((a) => a.getAttribute('href') === '/integrations/github'),
+    ).toBe(true);
+    cleanup();
+
+    // A repository linked to another project of the workspace does not count either.
+    await repo.linkRepository({
+      workspaceId: w.A,
+      repoId: REPO.A2,
+      projectId: w.PL1,
+      userId: w.ownerA,
+    });
+    await renderPage(projectPage(w.PA));
+    expect(card().textContent).not.toContain('Connected');
+    cleanup();
+
+    await repo.linkRepository({
+      workspaceId: w.A,
+      repoId: REPO.A1,
+      projectId: w.PA,
+      userId: w.ownerA,
+    });
+    await renderPage(projectPage(w.PA));
+    expect(card().textContent).toContain('Connected');
+  });
+
+  it('a linked repository whose installation is suspended is not “Connected” on the card', async () => {
+    fullyConfigured();
+    // A second, active installation of the same account keeps the workspace "Connected".
+    await installation(503, GH.ownerA, [[9003, 'ana/third-repo']]);
+    await claimDirect(w.A, 503, GH.ownerA);
+    await claimDirect(w.A, INST.A, GH.ownerA);
+    const repo = createGithubRepository(db);
+    await repo.linkRepository({
+      workspaceId: w.A,
+      repoId: REPO.A1,
+      projectId: w.PA,
+      userId: w.ownerA,
+    });
+    await repo.touchVerifiedDelivery(INST.A, new Date(Date.now() - 60_000));
+    await repo.touchVerifiedDelivery(503, new Date(Date.now() - 60_000));
+    await client.query(
+      'update github_installations set suspended_at = now() where installation_id = $1',
+      [INST.A],
+    );
+    signInAs(w.ownerA, w.A);
+    await renderPage(projectPage(w.PA));
+    expect(card().textContent).toContain('Suspended on GitHub');
+    expect(card().textContent).not.toContain('Connected');
   });
 
   it('an L1 project warns about the repository name and asks for an explicit confirmation', async () => {
