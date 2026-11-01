@@ -9,12 +9,14 @@ import { Card, CardHead, EmptyState, PageHead, StatusPill } from '@javis-dog/ui/
 import { revokeTokenAction } from '@/app/projects/actions';
 import { ProjectUsage } from '@/components/analytics/usage-panels';
 import { BudgetCard } from '@/components/budget/budget-card';
+import { GithubProjectCard } from '@/components/github/project-card';
 import { SignInPrompt } from '@/components/sign-in-prompt';
 import { PrivacyCard } from '@/components/privacy/privacy-card';
 import { IssueTokenForm } from '@/components/token-panel';
 import { analyticsDeps, loadUsage } from '@/lib/analytics';
 import { budgetDeps, canManageBudget, loadBudget } from '@/lib/budgets';
 import { dashboardDeps, loadDashboard } from '@/lib/dashboard';
+import { loadGithubOverview } from '@/lib/github';
 import { canManageProject } from '@/lib/permissions';
 import { getViewer, isUuid } from '@/lib/viewer';
 
@@ -30,7 +32,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
   // Scoped by the viewer's workspace: another workspace's project id is simply not found.
   const project = isUuid(id) ? await viewer.projects.getProject(viewer.workspaceId, id) : null;
   if (!project) notFound();
-  const [tokens, usage, budget, dashboard] = await Promise.all([
+  const [tokens, usage, budget, dashboard, github] = await Promise.all([
     viewer.projects.listTokens(viewer.workspaceId, project.id),
     // The project id comes from the workspace-scoped lookup above, never from the URL directly;
     // the viewer is reused, so the reader is scoped to the same workspace (ADR-0013). Usage by
@@ -44,6 +46,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     // The newest identity events of this project's threads (JD-M07), as opaque data for the
     // browser's key check (ADR-0018 §8, §9). Same viewer, same workspace scope.
     loadDashboard({ ...dashboardDeps, getViewer: async () => viewer }),
+    // GitHub installations claimed by this workspace and their repositories (ADR-0019 §4); never
+    // throws: a failed read shows "Status unavailable".
+    loadGithubOverview(viewer),
   ]);
   const identities =
     dashboard.kind === 'ready'
@@ -156,6 +161,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         canManage={canManage}
         identities={identities}
       />
+      <GithubProjectCard overview={github} projectId={project.id} privacyClass={privacyClass} />
       <Card labelledBy="project-usage-title">
         <CardHead
           id="project-usage-title"
