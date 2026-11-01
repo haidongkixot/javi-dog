@@ -1,11 +1,14 @@
 import { createHash } from 'node:crypto';
 
+/** RFC 9562 predefined namespace for URLs (`NAMESPACE_URL`). */
+export const UUID_NAMESPACE_URL = '6ba7b811-9dad-11d1-80b4-00c04fd430c8';
+
 /**
- * Fixed UUIDv5 namespace for GitHub-derived event ids (ADR-0019 §5, D0 H2). Chosen once at random
- * on 2026-11-01 (S5g); never change it, or redelivered bodies would get new event ids and dedupe
- * would break.
+ * Fixed UUIDv5 namespace for GitHub-derived event ids (ADR-0019 §5, D0 H2): UUIDv5(NAMESPACE_URL,
+ * `https://javisdog.vercel.app/api/github/webhook`), so anyone can re-derive it (test/map.test.ts).
+ * Never change it, or redelivered bodies would get new event ids and dedupe would break.
  */
-export const GITHUB_EVENT_ID_NAMESPACE = 'a12f7c76-a99e-4db8-8b03-f0b8638b36da';
+export const GITHUB_EVENT_ID_NAMESPACE = 'fbb354ba-6443-5e61-8995-5f0d8fb04b91';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA256_HEX = /^[0-9a-f]{64}$/;

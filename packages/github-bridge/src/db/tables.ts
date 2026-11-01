@@ -90,16 +90,28 @@ export const githubRepositories = pgTable(
   ],
 );
 
-/** Raw-body SHA-256 of every verified delivery, kept 3 days: replay and redelivery dedupe (D0 H2). */
+/**
+ * Raw-body SHA-256 of every verified delivery: replay and redelivery dedupe (D0 H2).
+ * `activity` hashes (runs, suites, PRs) are purged after 3 days: older bodies are refused by the
+ * 3-day rule anyway (D0 H4). `installation` hashes (`installation*`, exempt from that rule) are
+ * kept for good, so a captured `removed` / `suspend` / `created` body can never be replayed;
+ * they are not deleted with their installation either, or an old `created` body could
+ * resurrect it.
+ */
 export const githubDeliveries = pgTable(
   'github_deliveries',
   {
     bodySha256: text('body_sha256').primaryKey(),
+    kind: text('kind').notNull().default('activity'),
     receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     check('github_deliveries_body_sha256_check', sql`${t.bodySha256} ~ '^[0-9a-f]{64}$'`),
-    index('github_deliveries_received_idx').on(t.receivedAt),
+    check('github_deliveries_kind_check', sql`${t.kind} in ('activity', 'installation')`),
+    // Only activity hashes are ever purged by age.
+    index('github_deliveries_activity_received_idx')
+      .on(t.receivedAt)
+      .where(sql`${t.kind} = 'activity'`),
   ],
 );
 

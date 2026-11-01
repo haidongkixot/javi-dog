@@ -11,6 +11,7 @@ import {
   runThreadRef,
   sha256Hex,
   suiteThreadRef,
+  UUID_NAMESPACE_URL,
   uuidV5,
   type MapContext,
 } from '../src/index.ts';
@@ -53,8 +54,15 @@ describe('ids and refs', () => {
     );
   });
 
+  it('the event-id namespace is UUIDv5(NAMESPACE_URL, webhook URL), and stays fixed', () => {
+    expect(UUID_NAMESPACE_URL).toBe('6ba7b811-9dad-11d1-80b4-00c04fd430c8');
+    expect(uuidV5(UUID_NAMESPACE_URL, 'https://javisdog.vercel.app/api/github/webhook')).toBe(
+      GITHUB_EVENT_ID_NAMESPACE,
+    );
+    expect(GITHUB_EVENT_ID_NAMESPACE).toBe('fbb354ba-6443-5e61-8995-5f0d8fb04b91');
+  });
+
   it('event ids are lower-case UUIDv5 of <bodySha256>:<index> under the fixed namespace', () => {
-    expect(GITHUB_EVENT_ID_NAMESPACE).toBe('a12f7c76-a99e-4db8-8b03-f0b8638b36da');
     const id = deliveryEventId(BODY, 0);
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     expect(id).toBe(uuidV5(GITHUB_EVENT_ID_NAMESPACE, `${BODY}:0`));

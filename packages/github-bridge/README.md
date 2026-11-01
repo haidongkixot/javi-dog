@@ -14,11 +14,12 @@ Status: **in-progress** (S5g, ADR-0019 and its design review D0). Pure functions
 | `githubTables` (`github_installations`, `github_repositories`, `github_deliveries`) | Drizzle tables composed into the JD-M06 schema |
 | `createGithubRepository(db)` | See "Repository" below |
 | `deliveryEventId`, `uuidV5`, `GITHUB_EVENT_ID_NAMESPACE`, `githubProducerId`, `runThreadRef`, `suiteThreadRef`, `prThreadRef`, `sha256Hex`, `isSha256Hex` | Id and ref helpers |
-| `deliveryCutoff(now)` | `now − 3 days`; JD-M06's daily `purgeEventsBefore` purges `github_deliveries` with it |
+| `deliveryCutoff(now)`, `deliveryHashKind(kind)`, `DeliveryHashKind` | `now − 3 days`, JD-M06's daily `purgeEventsBefore` purges **activity** delivery hashes with it; the retention class of a delivery's hash |
+| `UUID_NAMESPACE_URL` | RFC 9562 `NAMESPACE_URL`, the parent of `GITHUB_EVENT_ID_NAMESPACE` |
 
 ## Mapping (ADR-0019 §5, D0)
 
-Common fields: `jgr` `0.1`, `privacy_class` `L0`, **no `status`**, `producer_id` `gh-app_<installation_id>`, `project_ref` the linked project's slug, `occurred_at` GitHub's `updated_at`, `event_id` = lower-case UUIDv5 of `<body_sha256>:<index>` under the namespace **`a12f7c76-a99e-4db8-8b03-f0b8638b36da`** (fixed; changing it breaks redelivery dedupe).
+Common fields: `jgr` `0.1`, `privacy_class` `L0`, **no `status`**, `producer_id` `gh-app_<installation_id>`, `project_ref` the linked project's slug, `occurred_at` GitHub's `updated_at`, `event_id` = lower-case UUIDv5 of `<body_sha256>:<index>` under the namespace **`fbb354ba-6443-5e61-8995-5f0d8fb04b91`** = UUIDv5(NAMESPACE_URL `6ba7b811-9dad-11d1-80b4-00c04fd430c8`, `https://javisdog.vercel.app/api/github/webhook`) (fixed; changing it breaks redelivery dedupe).
 
 | Source | `type` | `thread_ref` key (`gh_` + 32 hex of SHA-256) | `sequence` | `attributes` |
 |---|---|---|---|---|
@@ -40,11 +41,14 @@ Only these payload paths are ever read (enforced by a Proxy read recorder in `te
 
 Single statements (neon-http has no interactive transactions); workspace ids come from the caller's verified session.
 
+**Delivery-hash order for the webhook route (D0 H2, QA G14):** `hasDelivery` first (a known body → `202`, nothing changes); then process (events inserted, or the installation change applied); then `recordDelivery` **last**. A failure in between answers `500` with nothing recorded, so GitHub's manual redelivery is processed. Activity redeliveries also dedupe on their body-derived `event_id`; installation changes are idempotent. `applyInstallationDelivery` does all three for `installation*` deliveries.
+
 | Method | Behaviour |
 |---|---|
-| `recordDelivery(bodySha256, receivedAt?)` | Insert-if-absent; `true` new, `false` repeat (D0 H2) |
-| `forgetDelivery(bodySha256)` | Removes a recorded hash, for a route whose processing failed after recording it (so GitHub's manual redelivery is processed) |
-| `purgeDeliveriesBefore(cutoff)` | Deletes older hashes; returns the count |
+| `hasDelivery(bodySha256)` | `true` when this body was already processed |
+| `recordDelivery(bodySha256, kind, receivedAt?)` | Insert-if-absent after processing; `true` new, `false` repeat. `kind` (`DeliveryHashKind`, from `deliveryHashKind(kind)`): `activity` (runs, suites, PRs) or `installation` (`installation*`) |
+| `purgeDeliveriesBefore(cutoff)` | Deletes **activity** hashes older than `cutoff`; installation hashes are never purged. Returns the count |
+| `applyInstallationDelivery(change, bodySha256, at?)` | `'duplicate'` for a known body; else applies the change, then records the hash as `installation` → `'applied'`. A failing change throws with nothing recorded |
 | `applyInstallationChange(change, at?)` | Ordered, idempotent: installation upsert (account fields set once) → suspend/unsuspend → repository upserts (a repository that moved installation loses its link) → removals (only while still under this installation). `delete` cascades to repositories |
 | `refreshRepositoryName(installationId, repo)` | Refreshes `full_name` from a signed run/suite/PR delivery, same installation only |
 | `claimInstallation({ workspaceId, installationId, githubAccountId })` | `claimed` · `already_yours` · `claimed_elsewhere` · `not_found` · `organization` · `account_mismatch`. First claim wins; `User` installations whose `account_id` equals the signed-in GitHub id only. Role checks stay with the caller |
@@ -59,6 +63,6 @@ Single statements (neon-http has no interactive transactions); workspace ids com
 
 - `github_installations`: `installation_id` PK, `account_id`, `account_type` (`User`/`Organization`), `claimed_workspace_id` → `workspaces` `ON DELETE SET NULL`, `suspended_at`, `last_verified_delivery_at`, timestamps; `UNIQUE (installation_id, claimed_workspace_id)`.
 - `github_repositories`: `repo_id` PK, `installation_id` → installations `ON DELETE CASCADE`, `full_name`, `workspace_id`, `project_id`, `linked_at`, `linked_by`, timestamps. `(project_id, workspace_id)` → `projects(id, workspace_id)` `ON DELETE SET NULL` (clears both columns); `(installation_id, workspace_id)` → `github_installations(installation_id, claimed_workspace_id)`; check: `project_id` and `workspace_id` are both null or both set.
-- `github_deliveries`: `body_sha256` PK (64 lower-case hex), `received_at`; purged after 3 days.
+- `github_deliveries`: `body_sha256` PK (64 lower-case hex), `kind` (`activity` default, or `installation`), `received_at`; partial index on `received_at` for activity rows. Activity hashes are purged after 3 days (older bodies fail the 3-day rule anyway). Installation hashes are **kept for good**, because `installation*` bodies are exempt from the 3-day rule: a captured `removed`, `suspend` or `created` body can never be replayed. They are not deleted with their installation either, or an old `created` body could bring it back. They are tiny and rare.
 
 Database tests live in `packages/event-store/test/github.test.ts` and `migrations.test.ts` (same pattern as JD-M12).

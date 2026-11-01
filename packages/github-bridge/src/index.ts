@@ -39,6 +39,7 @@ export {
   runThreadRef,
   sha256Hex,
   suiteThreadRef,
+  UUID_NAMESPACE_URL,
   uuidV5,
 } from './ids.ts';
 export {
@@ -58,7 +59,9 @@ export {
 export {
   createGithubRepository,
   deliveryCutoff,
+  deliveryHashKind,
   type ClaimResult,
+  type DeliveryHashKind,
   type GithubDb,
   type GithubRepository,
   type LinkResult,

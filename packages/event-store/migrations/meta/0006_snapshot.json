@@ -1,5 +1,5 @@
 {
-  "id": "09545e01-1c38-4d4c-b55b-094557ce7032",
+  "id": "bcee287b-4461-42c1-b87b-42bab75e8ee9",
   "prevId": "8fff6c1f-3791-4cde-85b0-3f93c9d0825a",
   "version": "7",
   "dialect": "postgresql",
@@ -451,6 +451,13 @@
           "primaryKey": true,
           "notNull": true
         },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'activity'"
+        },
         "received_at": {
           "name": "received_at",
           "type": "timestamp with time zone",
@@ -460,8 +467,8 @@
         }
       },
       "indexes": {
-        "github_deliveries_received_idx": {
-          "name": "github_deliveries_received_idx",
+        "github_deliveries_activity_received_idx": {
+          "name": "github_deliveries_activity_received_idx",
           "columns": [
             {
               "expression": "received_at",
@@ -471,6 +478,7 @@
             }
           ],
           "isUnique": false,
+          "where": "\"github_deliveries\".\"kind\" = 'activity'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -484,6 +492,10 @@
         "github_deliveries_body_sha256_check": {
           "name": "github_deliveries_body_sha256_check",
           "value": "\"github_deliveries\".\"body_sha256\" ~ '^[0-9a-f]{64}$'"
+        },
+        "github_deliveries_kind_check": {
+          "name": "github_deliveries_kind_check",
+          "value": "\"github_deliveries\".\"kind\" in ('activity', 'installation')"
         }
       },
       "isRLSEnabled": false

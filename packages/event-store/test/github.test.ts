@@ -1,6 +1,7 @@
 import {
   classifyDelivery,
   createGithubRepository,
+  deliveryHashKind,
   installationChange,
   sha256Hex,
   type InstallationChange,
@@ -95,29 +96,96 @@ const linked = async () => {
 describe('delivery hashes (D0 H2)', () => {
   const h = sha256Hex('a body');
 
-  it('records a body once; a repeat is reported, a forgotten one can be recorded again', async () => {
-    expect(await gh.recordDelivery(h)).toBe(true);
-    expect(await gh.recordDelivery(h)).toBe(false);
-    await gh.forgetDelivery(h);
-    expect(await gh.recordDelivery(h)).toBe(true);
-    await expect(gh.recordDelivery('ABC')).rejects.toThrow(RangeError);
+  it('records a body once; a repeat is reported whatever its kind', async () => {
+    expect(await gh.hasDelivery(h)).toBe(false);
+    expect(await gh.recordDelivery(h, 'activity')).toBe(true);
+    expect(await gh.hasDelivery(h)).toBe(true);
+    expect(await gh.recordDelivery(h, 'activity')).toBe(false);
+    expect(await gh.recordDelivery(h, 'installation')).toBe(false); // the body is the key
+    expect(await gh.hasDelivery('ABC')).toBe(false);
+    await expect(gh.recordDelivery('ABC', 'activity')).rejects.toThrow(RangeError);
+    await expect(gh.recordDelivery(h, 'other' as 'activity')).rejects.toThrow(RangeError);
     await expect(
       ctx.client.exec(`insert into github_deliveries (body_sha256) values ('${'A'.repeat(64)}')`),
     ).rejects.toThrow();
+    await expect(
+      ctx.client.exec(
+        `insert into github_deliveries (body_sha256, kind) values ('${'b'.repeat(64)}', 'other')`,
+      ),
+    ).rejects.toThrow(/github_deliveries_kind_check/);
   });
 
-  it('is purged after 3 days, by itself and by the daily retention purge', async () => {
+  it('maps delivery kinds to hash classes', () => {
+    expect(deliveryHashKind('installation')).toBe('installation');
+    expect(deliveryHashKind('installation_repositories')).toBe('installation');
+    for (const k of ['workflow_run', 'check_suite', 'pull_request'] as const) {
+      expect(deliveryHashKind(k)).toBe('activity');
+    }
+  });
+
+  it('purges activity hashes after 3 days, by itself and by the daily retention purge', async () => {
     const now = new Date('2026-11-04T00:00:00Z');
-    await gh.recordDelivery(sha256Hex('old'), new Date('2026-10-31T23:59:59Z'));
-    await gh.recordDelivery(sha256Hex('edge'), new Date('2026-11-01T00:00:00Z'));
-    await gh.recordDelivery(sha256Hex('new'), new Date('2026-11-03T00:00:00Z'));
+    await gh.recordDelivery(sha256Hex('old'), 'activity', new Date('2026-10-31T23:59:59Z'));
+    await gh.recordDelivery(sha256Hex('edge'), 'activity', new Date('2026-11-01T00:00:00Z'));
+    await gh.recordDelivery(sha256Hex('new'), 'activity', new Date('2026-11-03T00:00:00Z'));
     expect(await gh.purgeDeliveriesBefore(new Date('2026-11-01T00:00:00Z'))).toBe(1);
-    await gh.recordDelivery(sha256Hex('old'), new Date('2026-10-30T00:00:00Z'));
+    await gh.recordDelivery(sha256Hex('old'), 'activity', new Date('2026-10-30T00:00:00Z'));
     await events.purgeEventsBefore(new Date('2026-10-01T00:00:00Z'), now);
     const left = await ctx.client.query<{ body_sha256: string }>(
       'select body_sha256 from github_deliveries order by received_at',
     );
     expect(left.rows.map((r) => r.body_sha256)).toEqual([sha256Hex('edge'), sha256Hex('new')]);
+  });
+
+  it('keeps installation hashes for good: an old body replayed after the purges is still a duplicate', async () => {
+    const removed = sha256Hex('{"action":"removed","installation":{"id":100}}');
+    const suspend = sha256Hex('{"action":"suspend","installation":{"id":100}}');
+    const longAgo = new Date('2026-01-01T00:00:00Z');
+    expect(await gh.recordDelivery(removed, 'installation', longAgo)).toBe(true);
+    expect(await gh.recordDelivery(suspend, 'installation', longAgo)).toBe(true);
+    await gh.recordDelivery(sha256Hex('activity'), 'activity', longAgo);
+
+    const now = new Date('2026-11-04T00:00:00Z');
+    expect(await gh.purgeDeliveriesBefore(now)).toBe(1); // the activity hash only
+    await events.purgeEventsBefore(new Date('2026-10-01T00:00:00Z'), now);
+    // Deleting the installation keeps them too (an old `created` body must not resurrect it).
+    await gh.applyInstallationChange(upsert(INST));
+    await gh.applyInstallationChange({ op: 'delete', installationId: INST });
+
+    expect(await gh.recordDelivery(removed, 'installation')).toBe(false);
+    expect(await gh.recordDelivery(suspend, 'installation')).toBe(false);
+    expect(await gh.recordDelivery(sha256Hex('activity'), 'activity')).toBe(true);
+  });
+
+  it('applyInstallationDelivery applies once, then records the hash; a replay changes nothing', async () => {
+    const body = sha256Hex('{"action":"suspend"}');
+    const at = new Date('2026-11-01T10:00:00Z');
+    expect(
+      await gh.applyInstallationDelivery(upsert(INST, [], { suspended: true }), body, at),
+    ).toBe('applied');
+    await gh.applyInstallationChange(upsert(INST, [], { suspended: false }));
+    // Replaying the captured suspend body (years later, after every purge) is refused.
+    await events.purgeEventsBefore(
+      new Date('2030-01-01T00:00:00Z'),
+      new Date('2030-01-01T00:00:00Z'),
+    );
+    expect(await gh.applyInstallationDelivery(upsert(INST, [], { suspended: true }), body)).toBe(
+      'duplicate',
+    );
+    expect(await one('select suspended_at from github_installations')).toEqual({
+      suspended_at: null,
+    });
+    expect(await one('select kind from github_deliveries')).toEqual({ kind: 'installation' });
+  });
+
+  it('applyInstallationDelivery records nothing when the change fails (GitHub can redeliver)', async () => {
+    const body = sha256Hex('{"action":"created"}');
+    const bad = upsert(INST, [[-1, 'octo/x']]);
+    // A repository row for an installation that cannot be created: force a failure.
+    bad.installation = { installationId: INST, accountId: ACCOUNT, accountType: 'Bogus' as 'User' };
+    await expect(gh.applyInstallationDelivery(bad, body)).rejects.toThrow();
+    expect(await gh.hasDelivery(body)).toBe(false);
+    expect(await gh.applyInstallationDelivery(upsert(INST), body)).toBe('applied');
   });
 });
 
