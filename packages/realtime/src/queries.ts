@@ -5,7 +5,7 @@
 // parsing is involved.
 import type { AnyDb } from '@javis-dog/event-store';
 import { sql, type SQL } from 'drizzle-orm';
-import { THREAD_IDENTITY_TYPE } from './types.ts';
+import { GITHUB_PRODUCER_PREFIX, THREAD_IDENTITY_TYPE } from './types.ts';
 
 // neon-http and PGlite both return `{ rows }` (same accessor as JD-M06 client.ts).
 const rowsOf = <T>(result: unknown): T[] => (result as { rows: T[] }).rows;
@@ -46,6 +46,19 @@ const clearsSelfReport = sql`(e.type in ('task.started', 'task.completed', 'task
  * never a status, a self-report clearer, a task, the thread's last type or an activity item.
  */
 const isIdentity = sql`(e.type = ${THREAD_IDENTITY_TYPE})`;
+
+/**
+ * An event written by the JD-M10 GitHub bridge (ADR-0019 D0 M2): its `producer_id` starts with
+ * the reserved `gh-app_` prefix, which ingest refuses to everyone else. Such an event never sets
+ * or clears a status and is never an agent task, whatever thread it sits in.
+ */
+const isGithub = sql`(left(e.producer_id, ${GITHUB_PRODUCER_PREFIX.length}::int) = ${GITHUB_PRODUCER_PREFIX})`;
+
+/**
+ * Order for a GitHub thread's newest event: its `sequence` first (strictly increasing per thread,
+ * D0 M3), because GitHub may deliver a run's `in_progress` after its `completed`.
+ */
+const GITHUB_LATEST_FIRST = sql`e.sequence desc, e.received_at desc, e.id desc`;
 
 /** `error_code` of a self-report only (it carries `<status>.<reason>`); null for every other event. */
 const selfReportCode = sql`case when ${isSelfReport} then e.attributes ->> 'error_code' end`;
@@ -100,6 +113,12 @@ export interface ThreadRow {
   hour_tokens: number | string;
   hour_reports: number | string;
   hour_last_ms: number | string | null;
+  /** True when every event of the thread comes from the GitHub bridge (`gh-app_` producer). */
+  github: boolean;
+  /** Type of the GitHub event with the highest sequence (identity events excluded), or null. */
+  github_last_type: string | null;
+  /** `attributes.task_kind` of the newest GitHub event that carries one, or null. */
+  github_task_kind: string | null;
 }
 
 /**
@@ -108,10 +127,12 @@ export interface ThreadRow {
  * event that is either a self-report or clearing activity (full `LATEST_FIRST` order) and keeps
  * its status only when that event is the self-report, so one scan decides the precedence.
  * `status` is the collector fallback: self-reports never count towards it (QA gap G6).
+ * GitHub bridge events (ADR-0019 D0 M1) never count towards `status`, `agent_status` (neither
+ * as a report nor as clearing activity) or the agent task counters.
  */
 export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => {
   const isUsage = sql`e.type = 'usage.reported'`;
-  const isTask = sql`e.type = 'task.completed'`;
+  const isTask = sql`(e.type = 'task.completed' and not ${isGithub})`;
   const inLastHour = sql`e.received_at > ${now(s)} - interval '60 minutes'`;
   const tokens = sql`(${usageCounter('input_tokens')} + ${usageCounter('output_tokens')})`;
   return rowsOf<ThreadRow>(
@@ -124,11 +145,13 @@ export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => 
                       (array_agg(e.type order by ${LATEST_FIRST}))[1]) as last_type,
              (array_agg(e.status order by ${LATEST_FIRST})
                 filter (where e.status is not null and not ${isSelfReport}
-                        and not ${isIdentity}))[1] as status,
+                        and not ${isIdentity} and not ${isGithub}))[1] as status,
              (array_agg(case when ${isSelfReport} then e.status end order by ${LATEST_FIRST})
-                filter (where ${isSelfReport} or ${clearsSelfReport}))[1] as agent_status,
+                filter (where (${isSelfReport} or ${clearsSelfReport})
+                        and not ${isGithub}))[1] as agent_status,
              (array_agg(${selfReportCode} order by ${LATEST_FIRST})
-                filter (where ${isSelfReport} or ${clearsSelfReport}))[1] as agent_error_code,
+                filter (where (${isSelfReport} or ${clearsSelfReport})
+                        and not ${isGithub}))[1] as agent_error_code,
              count(distinct e.agent_ref)::int as agents,
              (count(*) filter (where ${isTask}))::int as tasks_completed,
              ${epochMs(sql`max(e.received_at) filter (where ${isTask})`)} as last_task_ms,
@@ -150,7 +173,13 @@ export const readThreads = async (db: AnyDb, s: Scope): Promise<ThreadRow[]> => 
                as hour_tokens,
              (count(*) filter (where ${isUsage} and ${inLastHour}))::int as hour_reports,
              ${epochMs(sql`max(e.received_at) filter (where ${isUsage} and ${inLastHour})`)}
-               as hour_last_ms
+               as hour_last_ms,
+             bool_and(${isGithub}) as github,
+             (array_agg(e.type order by ${GITHUB_LATEST_FIRST})
+                filter (where ${isGithub} and not ${isIdentity}))[1] as github_last_type,
+             (array_agg(e.attributes ->> 'task_kind' order by ${GITHUB_LATEST_FIRST})
+                filter (where ${isGithub} and e.attributes ->> 'task_kind' is not null))[1]
+               as github_task_kind
         from events e
         join projects p on p.id = e.project_id and p.workspace_id = e.workspace_id
        where ${inWindow(s)} and p.workspace_id = ${s.workspaceId}::uuid
