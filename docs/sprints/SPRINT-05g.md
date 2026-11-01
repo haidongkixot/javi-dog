@@ -19,16 +19,17 @@
 
 | # | Task | Module | Acceptance criteria | Status |
 |---|---|---|---|---|
-| H1 | `@javis-dog/github-bridge`: signature verification, delivery routing, pure JGR mapping, ids, refs | JD-M10 | TEST_PLAN unit rows; QA vectors pass | BUILT (vector runner in wave 2) |
+| H1 | `@javis-dog/github-bridge`: signature verification, delivery routing, pure JGR mapping, ids, refs | JD-M10 | TEST_PLAN unit rows; QA vectors pass | DONE (59/59 vectors) |
 | H2 | Migration 0006 and the installations/repositories repository | JD-M06 | migration tests; applied to `dev-agent` and `main` after CI is green | DONE |
-| H3 | Webhook route, claim and link actions, project-page GitHub card, Integrations status, source labels | JD-APP, JD-M07 | TEST_PLAN route, claim, link, dashboard and status rows | PLANNED |
+| H3 | Webhook route, claim and link actions, project-page GitHub card, Integrations status, source labels | JD-APP, JD-M07 | TEST_PLAN route, claim, link, dashboard and status rows | BUILT (review fixes in progress; real delivery NOT RUN, owner) |
 | H4 | Local helper `scripts/github-app-create.mjs` and the owner how-to | tooling | TEST_PLAN helper row | BUILT ([how-to](../how-to/set-up-github-app.md); `pnpm test:scripts` 5/5; real GitHub run NOT RUN, owner) |
-| H5 | QA vectors (`docs/jgr/conformance/github/`) and runner | QA | every vector passes, mutation-checked | PLANNED |
+| H5 | QA vectors (`docs/jgr/conformance/github/`) and runner | QA | every vector passes, mutation-checked | DONE (59/59, 174 steps, 7/7 mutations caught) |
 
 ## Log
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-11-01 — Wave 2 merged: webhook handler + `POST /api/github/webhook` (2e1009a), claim/link + `/integrations/github` + project card + status (4d6d749), reader `source` + GitHub counts + labels (17c0ba5), QA runner (46131a3); orchestrator: G24 (f62dabf), re-verify across GitHub accounts (0459de6), fixtures (99abf5b).
 - 2026-11-01 — Migration 0006 applied: `dev-agent` first (12 statements, one transaction; ledger 7, 3 github tables), then restore branch `restore-pre-0006-2026-11-01` from `main`, then `main` (same transaction). Verified: `main` ledger 7 with the 0006 hash last; `compare_database_schema` `main` vs `dev-agent` empty. Code pushed after the migration (purge reads `github_deliveries`).
 - 2026-11-01 — Wave 1 merged: Developer A lane (JD-M10 package, migration 0006, reserved ingest prefixes), QA vectors (59, `docs/jgr/conformance/github/`), shared edits — 0960bae, bbb7ae8.
 - 2026-11-01 — Discovery, research (primary sources through source repositories; two facts re-checked), owner decisions, ADR-0019, TEST_PLAN §S5g, readiness rows.
@@ -37,6 +38,9 @@ Newest first: date — what changed — commit SHA.
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm gate --csp` (wave 2 merged, before the QA runner) | 0 | 438 s | 3052 tests, 17 packages; `test:scripts` 5; CSP check | 0 | 0 | 0 | 0 | — |
+| `npx vitest run test/github-conformance.test.ts` (QA runner) | 0 | ~12 s | 257 (59 vectors, 174 route steps, 20 S01 cases, R21 supplement) | 0 | 0 | 0 | 0 | — |
+| QA mutation check (7 mutations, each restored) | — | — | 7 caught | 0 | 0 | 0 | 0 | — |
 | `pnpm gate` (wave 1 merged) | 0 | 266 s | 2856 tests, 17 packages; format, lint, typecheck, build, migration drift, docs | 0 | 0 | 0 | 0 | — |
 
 ## Team
@@ -50,6 +54,9 @@ Newest first: date — what changed — commit SHA.
 
 Team log, newest first:
 
+- 2026-11-01 — Reviewer — Adversarial review of wave 2 (read-only): 0 High, 2 Medium (M-1 the runbook said "redeliver after linking", but an unrouted 202 records the hash, so redelivery dedupes; M-2 "Connected" ignored suspension and never went stale), 6 Low (L-1 whitespace secrets; L-2 claim results allowed id enumeration, org branch unreachable; L-3 release kept `last_verified_delivery_at`; L-4 a late delivery can revert a renamed `full_name` (display only, logged, not fixed); L-5 concurrent links, last wins; L-6 a run whose `completed` delivery was lost counts as running for 24 h, and an L0→L1/L2 class change keeps a link without a warning (both logged as follow-ups)). M-1 fixed in the runbook, not the hash rule (H2 binding, Y11 vectors). Developer F lane fixes M-1, M-2, L-1, L-2, L-3, L-5.
+- 2026-11-01 — QA — Runner merged: 59/59 vectors through the real route on PGlite; 7/7 mutations caught. Vector gap: R21 cannot catch "hash before a failed insert" (its fault fails `hasDelivery` first); the runner adds an insert-only supplement. Not run: JD-M01 re-validation of stored events (`@javis-dog/jgr-spec` is not a web dependency; the handler validates before insert).
+- 2026-11-01 — Developers B, C, E — Merged. B: `readRawBody` instead of JD-M05 `readBoundedBody` (decoded text conflicts with L1); G24 found via M12 (fixed by the orchestrator). C: install link only for `GITHUB_APP_OWNER_ID`; gap "re-verify across accounts" closed by the orchestrator (`accountId` on `workspaceInstallations`). E: GitHub rows never set status or count as agent tasks, ended by highest sequence.
 - 2026-11-01 03:17 — Orchestrator — `pnpm gate` FAIL at test: `apps/web/test/privacy-session.test.tsx` "/sign-in" timed out at 5 007 ms (limit 5 000 ms); the claude-code collector task shows no failing test (turbo stopped it after the failure). Diagnosis: CPU contention, load average 19.8 with three lanes running tests in worktrees; the file alone passes 8/8 in 3.9 s. Not pushed; the gate reruns once the lanes finish (no timeout change, no skip).
 - 2026-11-01 — Developer D — Local helper + how-to merged (25ff837). 5/5 `node:test` against a stub GitHub API (manifest exact, state single-use, 0600 file outside the repo, no secret in output, Host check, failed exchange, timeout). Facts checked in `github/docs` and the REST OpenAPI description; unverified: GitHub accepting a loopback `redirect_url` in a manifest (owner's first run). Orchestrator added `test:scripts` to package.json, `scripts/gate.sh` and CI, and the five `GITHUB_APP_*` lines to `.env.example`.
 - 2026-11-01 — Orchestrator — Wave 2 launched in worktrees: Developer B (webhook handler with injected deps + route; `event-store` already depends on `github-bridge`, so no cycle), Developer E (reader `source`, GitHub counts, labels), Developer C (claim/link, `/integrations/github`, status card), Developer D (local helper + how-to). Decision: public env `GITHUB_APP_OWNER_ID` gates the install link (ADR-0019 Changes). QA runner follows Developer B.
