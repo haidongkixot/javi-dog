@@ -49,8 +49,8 @@ export type GithubWebhookStore = Pick<
  * Without a non-empty `current` the handler answers 503, even when `previous` is set (G13).
  */
 export interface GithubWebhookSecrets {
-  current?: string | null;
-  previous?: string | null;
+  current?: string | null | undefined;
+  previous?: string | null | undefined;
 }
 
 /** Why the handler answered as it did. A fixed vocabulary: never derived from request data. */
