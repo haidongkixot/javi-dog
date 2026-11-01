@@ -19,8 +19,8 @@
 
 | # | Task | Module | Acceptance criteria | Status |
 |---|---|---|---|---|
-| H1 | `@javis-dog/github-bridge`: signature verification, delivery routing, pure JGR mapping, ids, refs | JD-M10 | TEST_PLAN unit rows; QA vectors pass | PLANNED |
-| H2 | Migration 0006 and the installations/repositories repository | JD-M06 | migration tests; applied to `dev-agent` and `main` after CI is green | PLANNED |
+| H1 | `@javis-dog/github-bridge`: signature verification, delivery routing, pure JGR mapping, ids, refs | JD-M10 | TEST_PLAN unit rows; QA vectors pass | BUILT (vector runner in wave 2) |
+| H2 | Migration 0006 and the installations/repositories repository | JD-M06 | migration tests; applied to `dev-agent` and `main` after CI is green | DONE |
 | H3 | Webhook route, claim and link actions, project-page GitHub card, Integrations status, source labels | JD-APP, JD-M07 | TEST_PLAN route, claim, link, dashboard and status rows | PLANNED |
 | H4 | Local helper `scripts/github-app-create.mjs` and the owner how-to | tooling | TEST_PLAN helper row | PLANNED |
 | H5 | QA vectors (`docs/jgr/conformance/github/`) and runner | QA | every vector passes, mutation-checked | PLANNED |
@@ -29,12 +29,15 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-11-01 — Migration 0006 applied: `dev-agent` first (12 statements, one transaction; ledger 7, 3 github tables), then restore branch `restore-pre-0006-2026-11-01` from `main`, then `main` (same transaction). Verified: `main` ledger 7 with the 0006 hash last; `compare_database_schema` `main` vs `dev-agent` empty. Code pushed after the migration (purge reads `github_deliveries`).
+- 2026-11-01 — Wave 1 merged: Developer A lane (JD-M10 package, migration 0006, reserved ingest prefixes), QA vectors (59, `docs/jgr/conformance/github/`), shared edits — 0960bae, bbb7ae8.
 - 2026-11-01 — Discovery, research (primary sources through source repositories; two facts re-checked), owner decisions, ADR-0019, TEST_PLAN §S5g, readiness rows.
 
 ## Test evidence
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm gate` (wave 1 merged) | 0 | 266 s | 2856 tests, 17 packages; format, lint, typecheck, build, migration drift, docs | 0 | 0 | 0 | 0 | — |
 
 ## Team
 
