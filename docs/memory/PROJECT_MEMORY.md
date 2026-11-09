@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-11-01 · Current sprint: **S5g JD-M10 GitHub App bridge — CLOSED** (`docs/sprints/SPRINT-05g.md`, ADR-0019, Guru `ad-hoc-github-bridge`). Next: the owner creates the GitHub App (`docs/how-to/set-up-github-app.md`); then the S5 release gate. Other owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); release exceptions G2/G4/G5 and G13.
+> Last updated: 2026-11-01 · Current sprint: **S5g JD-M10 GitHub App bridge — CLOSED** (`docs/sprints/SPRINT-05g.md`, ADR-0019, Guru `ad-hoc-github-bridge`). GitHub App live since 2026-11-09 (real deliveries stored). Next: revoke the 2026-10-29 ingest token (still active); then the S5 release gate. Other owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); release exceptions G2/G4/G5 and G13.
 
 ## What we are building
 
@@ -141,7 +141,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 
 ## Next actions
 
-1. Owner: revoke the ingest token pasted in chat on 2026-10-29 (project `test-01-project-horizos`) and issue a new one.
+1. Owner: revoke the ingest token pasted in chat on 2026-10-29 (project `test-01-project-horizos`) and issue a new one. **Still open on 2026-11-09:** that token (created 2026-10-29, never used) is still active. Steps: Part A of `docs/how-to/local-agent-github-app-and-token.md`.
 2. Owner: run the real Claude Code, Gemini CLI and Codex CLI sessions (`docs/how-to/run-first-real-sessions.md`, e.g. via a local Claude Code) and paste the "Report back" items → closes release-checklist G6 and the UNVERIFIED runtime rows (session-id match, Gemini/Codex hook behaviour, Windows). Step 6 covers agent self-report (S5d): protocol version, approval prompts, Windows spawn.
 3. Owner: decide the release exceptions in `docs/how-to/release-checklist.md` (G2 cutover deferred; G4/G5 measured on `dev-agent`) and G13 (paid plans / Vercel Hobby terms).
 4. Done 2026-10-30: the first purge run was verified by data, so G9 is PASS.
@@ -150,7 +150,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).
 8. Agent: JD-M11 (S5f) and JD-M10 (S5g) are built. JD-M10 follow-ups: L-4 (late delivery restores an old `full_name`), L-6 (lost `completed` delivery counts as running for 24 h; L0 → L1/L2 change keeps a link without a warning), organization installations (needs an ADR).
 9. Owner: L1/L2 runs (how-to step 7): key setup in the browser with the console checked for CSP errors, which unlocks "Remember on this device"; `javi init --privacy L2` on your machine, including Windows' hidden prompt; the dashboard names after pasting the key.
-10. Owner: create the GitHub App with `node scripts/github-app-create.mjs` on your machine (`docs/how-to/set-up-github-app.md`), set `GITHUB_APP_WEBHOOK_SECRET` (Sensitive), `GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_OWNER_ID` in Vercel Production, redeploy, install on selected repositories, claim and link, then re-run a workflow. Unverified until then: GitHub accepting a loopback `redirect_url` in the manifest. Optional: a Vercel Firewall rate rule on `/api/github/webhook`.
+10. Done 2026-11-09: GitHub App created, installed (personal account), claimed and linked; real `installation` and `workflow_run` deliveries answered 200 and stored (TEST_PLAN §S5g "Real app" PASS). Optional still: a Vercel Firewall rate rule on `/api/github/webhook`.
 
 ## Process (owner decisions 2026-10-28)
 

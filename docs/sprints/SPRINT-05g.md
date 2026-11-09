@@ -29,6 +29,7 @@
 
 Newest first: date — what changed — commit SHA.
 
+- 2026-11-09 — Real app PASS (owner run with a local agent, `docs/how-to/local-agent-github-app-and-token.md`): 2026-11-09 (UTC, production → `dev-agent`, deployment `dpl_WPtddAQ49SsK1Hs96hmb4JG3dzjX` at 8f045e2): 22:07 signed local ping 202; 22:24 `installation created` 200 applied (User account); repository linked 22:28; 22:29 `workflow_run in_progress` 200 stored (`task.started`); 22:37 `check_suite` (GitHub Actions' own) 202 ignored; 22:37 `workflow_run completed` 200 stored (`task.completed`, `duration_ms`). Both events L0, no status, attributes `tool_name`/`task_kind`/`attempt`(/`duration_ms`), `gh_` refs; project `last_signal_at` and `last_verified_delivery_at` 22:37:32. Logs carry GUID, event, action, outcome only. The helper's loopback `redirect_url` was accepted by GitHub (the last unverified assumption).
 - 2026-11-01 — Wave 2 merged: webhook handler + `POST /api/github/webhook` (2e1009a), claim/link + `/integrations/github` + project card + status (4d6d749), reader `source` + GitHub counts + labels (17c0ba5), QA runner (46131a3); orchestrator: G24 (f62dabf), re-verify across GitHub accounts (0459de6), fixtures (99abf5b).
 - 2026-11-01 — Migration 0006 applied: `dev-agent` first (12 statements, one transaction; ledger 7, 3 github tables), then restore branch `restore-pre-0006-2026-11-01` from `main`, then `main` (same transaction). Verified: `main` ledger 7 with the 0006 hash last; `compare_database_schema` `main` vs `dev-agent` empty. Code pushed after the migration (purge reads `github_deliveries`).
 - 2026-11-01 — Wave 1 merged: Developer A lane (JD-M10 package, migration 0006, reserved ingest prefixes), QA vectors (59, `docs/jgr/conformance/github/`), shared edits — 0960bae, bbb7ae8.
@@ -44,7 +45,7 @@ Newest first: date — what changed — commit SHA.
 | `pnpm gate --csp` (review fixes, before push 39bf130) | 0 | 348 s | 3330 tests, 17 packages; `test:scripts` 5; CSP check | 0 | 0 | 0 | 0 | — |
 | CI on pushed tips | 0 | — | dc26f32 run 41267384071, b96a25c run 41270489476, 39bf130 run 41271405032 — all success | 0 | 0 | 0 | 0 | — |
 | Production after b96a25c | — | — | `/api/health` 7 migrations, webhook secret `false`; `POST /api/github/webhook` → 503 `not_configured`; `/integrations/github` 200 | 0 | 0 | 0 | 0 | — |
-| Real GitHub delivery (owner) | — | — | — | — | — | — | 1 | owner step |
+| Real GitHub delivery (owner, 2026-11-09) | — | — | installation 200, `workflow_run` in_progress 200 + completed 200, 2 events stored | 0 | 0 | 0 | 0 | Vercel runtime logs (JD-M10 lines) + read-only SQL on `dev-agent` |
 
 QA mutations (each applied alone, then restored): (1) previous secret not tried → S01, S03; (2) hash recorded before `insertEvents` → R21 supplement only (no vector); (3) 3-day rule dropped → R13, R14; (4) `cancelled` → `task.completed` → M05, M14; (5) `head_branch` copied into `tool_name` → 48 steps incl. M01–M10, P01, P02; (6) raw non-GUID `X-GitHub-Delivery` logged → R22; (7) body-hash dedupe skipped → R01, R21. The QA cross-check reference programs (2 756 checks) were not committed (Guru GB-F3).
 | `pnpm gate` (wave 1 merged) | 0 | 266 s | 2856 tests, 17 packages; format, lint, typecheck, build, migration drift, docs | 0 | 0 | 0 | 0 | — |

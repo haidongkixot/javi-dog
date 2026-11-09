@@ -2,6 +2,13 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-11-09 · Session 2 (cloud), continued — GitHub App live
+
+- Wrote `docs/how-to/local-agent-github-app-and-token.md` (agent/owner split, stdin-only secret handling, signed ping check); pushed 8f045e2.
+- The owner ran Part B with a local agent: production now has the webhook secret; real deliveries 200 and two `workflow_run` events stored (evidence in SPRINT-05g log, TEST_PLAN §S5g "Real app" PASS, readiness B6 AVAILABLE).
+- Part A not done: the ingest token created 2026-10-29 for `test-01-project-horizos` is still active (never used).
+- Next: owner revokes that token; then the S5 release gate (G2/G4/G5 exceptions, G6 real agent runs, G13).
+
 ## 2026-11-01 · Session 2 (cloud), continued — S5g GitHub App bridge (JD-M10)
 
 - **Design:** ADR-0019 with owner decisions (PRs + CI only, owner link + L1/L2 warning, local helper, migration 0006). Design review D0 (4 High) and 23 QA spec gaps folded in before code.
