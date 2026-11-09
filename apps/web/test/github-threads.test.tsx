@@ -103,6 +103,7 @@ const SNAPSHOT: DashboardSnapshot = {
   },
   github: {
     ciRunning: { value: 1, lastSignalAt: ago(30) },
+    ciNoResult: { value: 0, lastSignalAt: null },
     ciFailed24h: { value: 1, lastSignalAt: ago(240) },
     prsOpen: { value: 1, lastSignalAt: ago(600) },
   },
@@ -259,5 +260,107 @@ describe('Client-side ageing', () => {
     );
     expect(s.overview.agentsWorking.value).toBe(1);
     expect(s.github).toEqual(SNAPSHOT.github);
+  });
+});
+
+// TEST_PLAN §S5h row 2 (ADR-0019 Changes "S5h decisions"): a CI thread whose newest event is
+// `task.started` and whose last delivery is more than 6 h old reads "No result received" in the
+// GitHub table and on the overview card; never "Failed", "In progress", "live" or "connected".
+describe('No result received (S5h)', () => {
+  const HOUR = 3600;
+  const CI_NO_RESULT = gh({
+    threadRef: 'gh_0000000000000000000000000000ab01',
+    githubKind: 'ci',
+    lastType: 'task.started',
+    firstSignalAt: ago(7 * HOUR),
+    lastSignalAt: ago(6 * HOUR + 60),
+    freshness: 'stale',
+  });
+  const LOST: DashboardSnapshot = {
+    ...SNAPSHOT,
+    github: {
+      ...SNAPSHOT.github,
+      ciNoResult: { value: 1, lastSignalAt: CI_NO_RESULT.lastSignalAt },
+    },
+    threads: [...SNAPSHOT.threads, CI_NO_RESULT],
+  };
+  const NOT_ALLOWED = /\bFailed\b|In progress|\blive\b|\bconnected\b/i;
+
+  const rowOf = (ref: string) => {
+    const table = screen.getByRole('table', { name: 'GitHub threads' });
+    const row = within(table)
+      .getAllByRole('row')
+      .find((r) => r.querySelector(`[title="${ref}"]`));
+    if (!row) throw new Error(`row ${ref} missing`);
+    return [...row.querySelectorAll('th, td')].map((c) => c.textContent);
+  };
+
+  it('labels the run "No result received" in the GitHub table and explains it', () => {
+    render(<AgentsView snapshot={LOST} inspector={null} />);
+    const cells = rowOf(CI_NO_RESULT.threadRef);
+    expect([cells[0], cells[3], cells[4]]).toEqual(['GitHub CI', 'No result received', 'Stale']);
+    expect(cells.join(' ')).not.toMatch(NOT_ALLOWED);
+    // The last signal stays as it was: when the last delivery came.
+    expect(cells[5]).toContain('6 h ago');
+    const card = region('GitHub CI and pull requests');
+    expect(card.textContent).toContain(
+      'No result received: GitHub sent no result within 6 h of the run’s last delivery.',
+    );
+    expect(card.textContent).toContain('GitHub sends no heartbeat');
+    // The run that is still within 6 h keeps "In progress".
+    expect(rowOf(CI_RUNNING.threadRef)[3]).toBe('In progress');
+  });
+
+  it('shows the count on the overview card with its last delivery, apart from runs in progress', () => {
+    render(<OverviewView snapshot={LOST} />);
+    const card = region('GitHub CI and pull requests');
+    const rows = within(card).getAllByRole('listitem');
+    expect(rows.map((r) => r.textContent)).toEqual([
+      'CI runs in progressLast delivery 30 s ago (1 Nov 2026, 11:59:30 UTC)1',
+      'CI runs with no result receivedLast delivery 6 h ago (1 Nov 2026, 05:59:00 UTC)1',
+      'CI runs failedLast delivery 4 min ago (1 Nov 2026, 11:56:00 UTC)1',
+      'Open pull requestsLast delivery 10 min ago (1 Nov 2026, 11:50:00 UTC)1',
+    ]);
+    expect(card.textContent).toContain('GitHub sends no heartbeat');
+    expect(card.textContent).toContain('No result received: GitHub sent no result within 6 h');
+    expect(card.textContent).not.toMatch(/\blive\b|\bconnected\b/i);
+    expect(rows[1]!.textContent).not.toMatch(NOT_ALLOWED);
+  });
+
+  it('shows no such row or note when every started run is within 6 h', () => {
+    render(<OverviewView snapshot={SNAPSHOT} />);
+    const card = region('GitHub CI and pull requests');
+    expect(card.textContent).not.toContain('No result received');
+  });
+
+  it('a run that crosses 6 h while the browser ages the snapshot moves to no result received', () => {
+    const almost = gh({
+      threadRef: 'gh_0000000000000000000000000000ab02',
+      githubKind: 'ci',
+      lastType: 'task.started',
+      lastSignalAt: ago(6 * HOUR - 30),
+      freshness: 'stale',
+    });
+    const before: DashboardSnapshot = {
+      ...SNAPSHOT,
+      github: {
+        ...SNAPSHOT.github,
+        ciRunning: { value: 2, lastSignalAt: ago(30) },
+      },
+      threads: [CI_RUNNING, almost, AGENT, CI_FAILED, PR_OPEN, PR_MERGED],
+    };
+    // 29 s later: still within 6 h, nothing moves.
+    const early = atClientTime(before, new Date(Date.parse(NOW) + 29_000).toISOString());
+    expect(early.github).toEqual(before.github);
+    // 31 s later: more than 6 h since its last delivery.
+    const later = atClientTime(before, new Date(Date.parse(NOW) + 31_000).toISOString());
+    expect(later.github).toEqual({
+      ...before.github,
+      ciRunning: { value: 1, lastSignalAt: ago(30) },
+      ciNoResult: { value: 1, lastSignalAt: almost.lastSignalAt },
+    });
+    render(<AgentsView snapshot={later} inspector={null} />);
+    expect(rowOf(almost.threadRef)[3]).toBe('No result received');
+    expect(rowOf(CI_RUNNING.threadRef)[3]).toBe('In progress');
   });
 });
