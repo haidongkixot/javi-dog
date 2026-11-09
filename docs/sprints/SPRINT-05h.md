@@ -18,7 +18,7 @@
 |---|---|---|---|---|---|
 | H1 | A CI thread whose newest event is `task.started` and older than 6 h is "No result received", not running (review L-6a) | JD-M07, JD-APP | events → `GithubCounts.ciNoResult`, thread result label | TEST_PLAN §S5h rows 1–2 | PLANNED |
 | H2 | Raising a project with a linked repository to L1/L2 needs an explicit server-side confirmation; the GitHub card says the name stays known (review L-6b) | JD-APP | `changePrivacyClassAction` → `needsConfirm` | TEST_PLAN §S5h rows 3–4 | PLANNED |
-| H3 | The gate prints the load average next to a test failure (Guru GB-F5) | tooling | `scripts/gate.sh` | TEST_PLAN §S5h row 5 | PLANNED |
+| H3 | The gate prints the load average next to a test failure (Guru GB-F5) | tooling | `scripts/gate.sh` | TEST_PLAN §S5h row 5 | DONE |
 
 Not in scope: review L-4 (a late delivery can restore an old `full_name`; display only, needs a migration), organization installations (needs an ADR).
 
@@ -37,6 +37,7 @@ Newest first: date — what changed — commit SHA.
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `bash gate-test.sh` (copy of `scripts/gate.sh` with a forced failing first step, run from the scratchpad) | 1 | <1 s | prints `gate: FAIL — forced-fail` then `gate: load average (1/5/15 min): 0.46 0.42 0.23` | 0 | 0 | 0 | 0 | — |
 
 ## Team
 
