@@ -8,15 +8,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const WS = '11111111-1111-4111-8111-111111111111';
 const PROJECT = '22222222-2222-4222-8222-222222222222';
 
-const state = vi.hoisted(() => ({ viewer: null as unknown }));
-const projects = vi.hoisted(() => ({ setPrivacyClass: vi.fn() }));
+const state = vi.hoisted(() => ({ viewer: null as unknown, db: null as unknown }));
+const projects = vi.hoisted(() => ({ setPrivacyClass: vi.fn(), getProject: vi.fn() }));
+const github = vi.hoisted(() => ({ workspaceInstallations: vi.fn() }));
 const revalidatePath = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/viewer', async (orig) => ({
   ...(await orig<typeof import('@/lib/viewer')>()),
   getViewer: async () => state.viewer,
 }));
-vi.mock('@/lib/auth', () => ({ getDb: () => null }));
+// No database unless a test sets one; the S5h linked-repository read is faked at JD-M10's
+// boundary (its SQL runs on PGlite in privacy-class-linked-repo.test.ts).
+vi.mock('@/lib/auth', () => ({ getDb: () => state.db }));
+vi.mock('@/lib/github', () => ({ githubRepository: () => github }));
 vi.mock('next/cache', () => ({ revalidatePath }));
 
 const { changePrivacyClassAction } = await import('@/app/projects/actions');
@@ -30,6 +34,7 @@ const viewerAs = (role: unknown) => ({
 
 beforeEach(() => {
   state.viewer = viewerAs('owner');
+  state.db = null;
   projects.setPrivacyClass.mockImplementation(async (_ws, id, c) => ({ id, privacyClass: c }));
 });
 afterEach(() => vi.clearAllMocks());
@@ -91,5 +96,52 @@ describe('changePrivacyClassAction — role matrix', () => {
     await changePrivacyClassAction(PROJECT, 'L2');
     await changePrivacyClassAction(PROJECT, 'bogus');
     for (const s of spies) expect(s).not.toHaveBeenCalled();
+  });
+});
+
+describe('changePrivacyClassAction — linked repository read (S5h)', () => {
+  const FAILED = 'The privacy class could not be changed. Try again in a moment.';
+
+  it('fails closed when the linked repositories cannot be read: nothing is written', async () => {
+    state.db = {};
+    github.workspaceInstallations.mockRejectedValue(
+      new Error('connect ECONNREFUSED db.secret-host.example:5432'),
+    );
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await changePrivacyClassAction(PROJECT, 'L2')).toEqual({ error: FAILED });
+    expect(projects.setPrivacyClass).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+    // One line with the error's name only: never the driver message or the arguments.
+    expect(error).toHaveBeenCalledOnce();
+    const line = String(error.mock.calls[0]?.[0]);
+    expect(JSON.parse(line)).toMatchObject({ module: 'JD-APP', error: 'Error' });
+    expect(line).not.toMatch(/secret-host|ECONNREFUSED|L2|2222/);
+    error.mockRestore();
+  });
+
+  it('reads nothing when lowering, or when the call carries the confirmation', async () => {
+    state.db = {};
+    github.workspaceInstallations.mockRejectedValue(new Error('not expected'));
+    expect(await changePrivacyClassAction(PROJECT, 'L0')).toEqual({ privacyClass: 'L0' });
+    expect(await changePrivacyClassAction(PROJECT, 'L2', { confirmLinkedRepo: true })).toEqual({
+      privacyClass: 'L2',
+    });
+    expect(github.workspaceInstallations).not.toHaveBeenCalled();
+    expect(projects.getProject).not.toHaveBeenCalled();
+  });
+
+  it('a linked repository of another project in the workspace asks nothing', async () => {
+    state.db = {};
+    github.workspaceInstallations.mockResolvedValue([
+      {
+        repositories: [
+          { repoId: 1, fullName: 'ana/other', projectId: '33333333-3333-4333-8333-333333333333' },
+          { repoId: 2, fullName: 'ana/unlinked', projectId: null },
+        ],
+      },
+    ]);
+    expect(await changePrivacyClassAction(PROJECT, 'L2')).toEqual({ privacyClass: 'L2' });
+    expect(github.workspaceInstallations).toHaveBeenCalledExactlyOnceWith(WS);
+    expect(projects.getProject).not.toHaveBeenCalled();
   });
 });

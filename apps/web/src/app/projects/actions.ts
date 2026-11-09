@@ -10,7 +10,9 @@ import {
   type ProjectRepositoryErrorCode,
 } from '@javis-dog/projects';
 import { ZodError } from 'zod';
+import { getDb } from '@/lib/auth';
 import { budgetDeps, budgetLimitSchema, canManageBudget } from '@/lib/budgets';
+import { githubRepository } from '@/lib/github';
 import { canManageProject } from '@/lib/permissions';
 import { getViewer, isUuid } from '@/lib/viewer';
 
@@ -204,14 +206,66 @@ export async function clearBudgetAction(
 // project id and the class, never a key: raising happens in the browser's key setup flow after
 // the full recovery key was pasted back, and lowering after the warning was shown. One existing
 // column; no migration. Arguments are never logged.
+//
+// Raising with a linked GitHub repository (ADR-0019 Changes "S5h"): L1 and L2 keep repository
+// names away from Javi's Dog, but a linked repository's name (owner/repo) stays stored with the
+// project. Raising L0 → L1/L2 or L1 → L2 while one is linked therefore needs an explicit
+// confirmation, checked here like the link's own (ADR-0019 decision 4): without
+// `{ confirmLinkedRepo: true }` the action answers `needsConfirm` with the name(s) and changes
+// nothing. Lowering, keeping the class, or a project with no linked repository never asks. The
+// names come from installations the viewer's workspace claimed, so another workspace's project
+// reads as not found and its repository is never named.
 
-export type PrivacyClassActionResult = { privacyClass: 'L0' | 'L1' | 'L2' } | { error: string };
+export type PrivacyClassActionResult =
+  | { privacyClass: 'L0' | 'L1' | 'L2' }
+  /**
+   * Nothing changed: the project has a linked repository; retry with the confirmation.
+   * `repository` is the first name (owner/repo), `repositories` all of them in name order. It
+   * carries an `error` text too (like the link action's `needsConfirm`), so a caller that does not
+   * handle the confirmation shows why nothing changed instead of failing silently.
+   */
+  | { needsConfirm: true; repository: string; repositories: string[]; error: string }
+  | { error: string };
+
+export interface PrivacyClassOptions {
+  /** The owner saw that the linked repository's name stays known and confirmed. Only `true` counts. */
+  confirmLinkedRepo?: boolean;
+}
 
 const NOT_ALLOWED_PRIVACY = 'Only workspace owners and admins can change the privacy class.';
+const PRIVACY_FAILED = 'The privacy class could not be changed. Try again in a moment.';
+const CLASS_RANK: Readonly<Record<string, number>> = { L0: 0, L1: 1, L2: 2 };
+
+/** The `error` text of a `needsConfirm` answer (the browser flow shows its own warning). */
+const linkedRepoNotice = (names: string[], privacyClass: string) =>
+  names.length === 1
+    ? `This project is linked to GitHub repository ${names[0]}, and Javi’s Dog keeps knowing that name under ${privacyClass}. Confirm to turn on ${privacyClass}.`
+    : `This project is linked to GitHub repositories ${names.join(', ')}, and Javi’s Dog keeps knowing those names under ${privacyClass}. Confirm to turn on ${privacyClass}.`;
+
+/** Only a plain `{ confirmLinkedRepo: true }` confirms; anything else (a string, 1, a key) does not. */
+const confirmsLinkedRepo = (options: unknown) =>
+  typeof options === 'object' &&
+  options !== null &&
+  (options as { confirmLinkedRepo?: unknown }).confirmLinkedRepo === true;
+
+/** Names (owner/repo) of repositories linked to the project in the viewer's workspace, sorted. */
+const linkedRepositoryNames = async (workspaceId: string, projectId: string) => {
+  const db = getDb();
+  // Without a database there are no GitHub links (ADR-0019 §4 stores them in the database).
+  if (!db) return [];
+  const installations = await githubRepository(db).workspaceInstallations(workspaceId);
+  return installations
+    .flatMap((i) => i.repositories)
+    .filter((r) => r.projectId === projectId)
+    .map((r) => r.fullName)
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+};
 
 export async function changePrivacyClassAction(
   projectId: string,
   privacyClass: string,
+  // A default keeps the two required arguments (project id, class); never a key.
+  options: PrivacyClassOptions = {},
 ): Promise<PrivacyClassActionResult> {
   const viewer = await getViewer();
   if (!viewer) return { error: SIGNED_OUT };
@@ -219,6 +273,37 @@ export async function changePrivacyClassAction(
   if (!isUuid(projectId)) return { error: NOT_FOUND };
   const parsed = PrivacyClass.safeParse(privacyClass);
   if (!parsed.success) return { error: 'Choose L0, L1 or L2.' };
+  if (parsed.data !== 'L0' && !confirmsLinkedRepo(options)) {
+    let names: string[];
+    try {
+      names = await linkedRepositoryNames(viewer.workspaceId, projectId);
+    } catch (error) {
+      // Fail closed: never raise without the warning because the links could not be read.
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          module: 'JD-APP',
+          msg: 'linked repository read failed',
+          // The name only: driver messages can echo hosts or credentials.
+          error: error instanceof Error ? error.name : typeof error,
+        }),
+      );
+      return { error: PRIVACY_FAILED };
+    }
+    if (names.length > 0) {
+      const project = await viewer.projects.getProject(viewer.workspaceId, projectId);
+      if (!project) return { error: NOT_FOUND };
+      // An unknown stored class counts as the lowest, so raising from it asks.
+      if (CLASS_RANK[parsed.data]! > (CLASS_RANK[project.privacyClass] ?? -1)) {
+        return {
+          needsConfirm: true,
+          repository: names[0]!,
+          repositories: names,
+          error: linkedRepoNotice(names, parsed.data),
+        };
+      }
+    }
+  }
   const row = await viewer.projects.setPrivacyClass(viewer.workspaceId, projectId, parsed.data);
   if (!row) return { error: NOT_FOUND };
   revalidatePath(`/projects/${projectId}`);

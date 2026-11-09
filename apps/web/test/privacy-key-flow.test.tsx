@@ -625,3 +625,137 @@ describe('lowering the class', () => {
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Lower to L0…']);
   });
 });
+
+// TEST_PLAN §S5h row 4 (ADR-0019 Changes "S5h decisions"): raising a project with a linked GitHub
+// repository answers `needsConfirm` and changes nothing. The key setup flow must show the warning
+// with the repository name and retry with the confirmation, or leave the class as it was on
+// cancel; it never fails silently and never sends the key.
+describe('S5h — raising with a linked repository', () => {
+  const linked = (names: string[], to: 'L1' | 'L2' = 'L2') => ({
+    needsConfirm: true,
+    repository: names[0],
+    repositories: names,
+    error: `This project is linked to GitHub repository ${names[0]}, and Javi’s Dog keeps knowing that name under ${to}. Confirm to turn on ${to}.`,
+  });
+  const WARNING =
+    'This project is linked to GitHub repository ana/alpha-repo. Javi’s Dog will keep knowing that name, which L2 otherwise hides. Unlink it on the project’s GitHub card if you want it hidden.';
+  const GROUP = 'Linked GitHub repository';
+
+  const pasteAndCheck = async (button = 'Check key and turn on L2') => {
+    keyInputAfter(await goToConfirm());
+    fireEvent.click(screen.getByRole('button', { name: button }));
+  };
+
+  it('shows the warning, then confirming retries with the confirmation and completes', async () => {
+    changePrivacyClassAction
+      .mockResolvedValueOnce(linked(['ana/alpha-repo']))
+      .mockResolvedValueOnce({ privacyClass: 'L2' });
+    renderSetup('L0');
+    await pasteAndCheck();
+    const group = await screen.findByRole('group', { name: GROUP });
+    expect(within(group).getByText(WARNING)).toBeTruthy();
+    expect(group.textContent).not.toMatch(/\blive\b|\bconnected\b|\bsecure\b/i);
+    // Nothing is on yet: no key in the tab, no success text, one call with the class only.
+    expect(store.list(PROJECT)).toEqual([]);
+    expect(screen.queryByText('L2 is on for this project.', { exact: false })).toBeNull();
+    expect(changePrivacyClassAction).toHaveBeenCalledExactlyOnceWith(PROJECT, 'L2');
+
+    fireEvent.click(within(group).getByRole('button', { name: 'Turn on L2 and keep the link' }));
+    await screen.findByText('L2 is on for this project.', { exact: false });
+    expect(changePrivacyClassAction.mock.calls).toEqual([
+      [PROJECT, 'L2'],
+      [PROJECT, 'L2', { confirmLinkedRepo: true }],
+    ]);
+    const kid = (await crypto.deriveProjectKeys(SENTINEL_SECRET, SLUG)).kid;
+    expect(store.list(PROJECT)).toEqual([{ kid, remembered: false }]);
+    expect(screen.queryByRole('group', { name: GROUP })).toBeNull();
+    captured.push(document.body.innerHTML);
+    expectNoLeak();
+  });
+
+  it('cancel leaves the class unchanged, loads no key and says so', async () => {
+    changePrivacyClassAction.mockResolvedValueOnce(linked(['ana/alpha-repo']));
+    renderSetup('L0');
+    await pasteAndCheck();
+    const group = await screen.findByRole('group', { name: GROUP });
+    fireEvent.click(within(group).getByRole('button', { name: 'Cancel, stay on L0' }));
+    expect(
+      (await screen.findByText(/^Nothing changed: this project stays on L0\./)).textContent,
+    ).toBe(
+      'Nothing changed: this project stays on L0. The recovery key you just saved will not be used.',
+    );
+    expect(changePrivacyClassAction).toHaveBeenCalledOnce();
+    expect(store.list(PROJECT)).toEqual([]);
+    // Back at the start: a new key is needed to try again.
+    expect(screen.getByRole('button', { name: 'Generate recovery key' })).toBeTruthy();
+    expect(findSentinel(document.body.innerHTML)).toEqual([]);
+    expectNoLeak();
+  });
+
+  it('a refused retry shows why and keeps the warning open; nothing is loaded', async () => {
+    changePrivacyClassAction
+      .mockResolvedValueOnce(linked(['ana/alpha-repo']))
+      .mockResolvedValueOnce({
+        error: 'Only workspace owners and admins can change the privacy class.',
+      })
+      .mockResolvedValueOnce({ privacyClass: 'L2' });
+    renderSetup('L0');
+    await pasteAndCheck();
+    const group = await screen.findByRole('group', { name: GROUP });
+    fireEvent.click(within(group).getByRole('button', { name: 'Turn on L2 and keep the link' }));
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'Only workspace owners and admins can change the privacy class.',
+    );
+    expect(store.list(PROJECT)).toEqual([]);
+    // The retry can be tried again from the same warning.
+    fireEvent.click(
+      within(screen.getByRole('group', { name: GROUP })).getByRole('button', {
+        name: 'Turn on L2 and keep the link',
+      }),
+    );
+    await screen.findByText('L2 is on for this project.', { exact: false });
+    expect(changePrivacyClassAction).toHaveBeenCalledTimes(3);
+  });
+
+  it('a retry that throws is not silent either', async () => {
+    changePrivacyClassAction
+      .mockResolvedValueOnce(linked(['ana/alpha-repo']))
+      .mockRejectedValueOnce(new Error('network'));
+    renderSetup('L0');
+    await pasteAndCheck();
+    const group = await screen.findByRole('group', { name: GROUP });
+    fireEvent.click(within(group).getByRole('button', { name: 'Turn on L2 and keep the link' }));
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      'The privacy class could not be changed. Try again in a moment.',
+    );
+    expect(store.list(PROJECT)).toEqual([]);
+  });
+
+  it('L0 → L1 and several repositories: the warning names the class and every repository', async () => {
+    changePrivacyClassAction.mockResolvedValueOnce(
+      linked(['ana/fourth-repo', 'ana/spare-repo'], 'L1'),
+    );
+    renderSetup('L0');
+    fireEvent.click(screen.getByLabelText(/^L1:/));
+    await pasteAndCheck('Check key and turn on L1');
+    const group = await screen.findByRole('group', { name: GROUP });
+    expect(group.textContent).toContain(
+      'This project is linked to GitHub repositories ana/fourth-repo and ana/spare-repo. Javi’s Dog will keep knowing those names, which L1 otherwise hides. Unlink them on the project’s GitHub card if you want them hidden.',
+    );
+    expect(
+      within(group).getByRole('button', { name: 'Turn on L1 and keep the links' }),
+    ).toBeTruthy();
+    expect(within(group).getByRole('button', { name: 'Cancel, stay on L0' })).toBeTruthy();
+  });
+
+  it('L1 → L2 asks the same way and cancel keeps L1', async () => {
+    changePrivacyClassAction.mockResolvedValueOnce(linked(['ana/second-repo']));
+    renderSetup('L1');
+    await pasteAndCheck();
+    const group = await screen.findByRole('group', { name: GROUP });
+    expect(group.textContent).toContain('GitHub repository ana/second-repo');
+    fireEvent.click(within(group).getByRole('button', { name: 'Cancel, stay on L1' }));
+    await screen.findByText(/^Nothing changed: this project stays on L1\./);
+    expect(store.list(PROJECT)).toEqual([]);
+  });
+});

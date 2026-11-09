@@ -87,6 +87,13 @@ export function GithubProjectCard({
               ))}
             </ul>
           )}
+          {linked.length > 0 && privacyClass !== 'L0' ? (
+            // ADR-0019 Changes "S5h": L1/L2 hide repository names, but a link stores the name.
+            <p className="px-5 pt-3 text-xs text-muted">
+              Under {privacyClass}, Javi’s Dog still knows the name of a linked repository until it
+              is unlinked.
+            </p>
+          ) : null}
           {!canManage ? (
             <p className="px-5 pt-3 pb-5 text-xs text-muted">
               Only workspace owners and admins can link or unlink repositories.

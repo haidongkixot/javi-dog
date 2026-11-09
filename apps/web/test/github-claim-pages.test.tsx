@@ -530,6 +530,54 @@ describe('project page GitHub card', () => {
     expect(card().textContent).toContain(OWNER_ONLY_TEXT);
   });
 
+  // TEST_PLAN §S5h row 4 (ADR-0019 Changes "S5h decisions"): on an L1/L2 project with a linked
+  // repository, the card says the name stays known to Javi's Dog until it is unlinked.
+  const KNOWN_NAME = (cls: string) =>
+    `Under ${cls}, Javi’s Dog still knows the name of a linked repository until it is unlinked.`;
+
+  it.each([
+    ['L1', 'owner', (): string => w.ownerA],
+    ['L2', 'owner', (): string => w.ownerA],
+    ['L2', 'member', (): string => w.memberA],
+  ] as const)(
+    'an %s project with a linked repository says the name stays known (%s)',
+    async (cls, _, user) => {
+      fullyConfigured();
+      await claimDirect(w.A, INST.A, GH.ownerA);
+      await createProjectRepository(db).setPrivacyClass(w.A, w.PL1, cls);
+      await createGithubRepository(db).linkRepository({
+        workspaceId: w.A,
+        repoId: REPO.A2,
+        projectId: w.PL1,
+        userId: w.ownerA,
+      });
+      signInAs(user(), w.A);
+      await renderPage(projectPage(w.PL1));
+      expect(card().textContent).toContain('Linked to ana/second-repo');
+      expect(within(card()).getByText(KNOWN_NAME(cls))).toBeTruthy();
+      expect(card().textContent).not.toMatch(/\blive\b|\bsecure\b/i);
+    },
+  );
+
+  it('no such line on an L0 project with a link, or an L1 project without one', async () => {
+    fullyConfigured();
+    await claimDirect(w.A, INST.A, GH.ownerA);
+    await createGithubRepository(db).linkRepository({
+      workspaceId: w.A,
+      repoId: REPO.A1,
+      projectId: w.PA,
+      userId: w.ownerA,
+    });
+    signInAs(w.ownerA, w.A);
+    await renderPage(projectPage(w.PA));
+    expect(card().textContent).toContain('Linked to ana/alpha-repo');
+    expect(card().textContent).not.toContain('still knows the name');
+    cleanup();
+    await renderPage(projectPage(w.PL1));
+    expect(card().textContent).toContain('No repository is linked to this project.');
+    expect(card().textContent).not.toContain('still knows the name');
+  });
+
   it('not set up: the card says so and offers no link form', async () => {
     signInAs(w.ownerA, w.A);
     await renderPage(projectPage(w.PA));
