@@ -228,3 +228,7 @@ The orchestrator re-checked two facts:
   - **L-3.** Releasing a claim clears `last_verified_delivery_at`.
   - **L-5.** A concurrent second link to another project cannot overwrite the first.
   - **Follow-ups, not fixed:** L-4 (a late delivery can briefly restore an old `full_name`, display only); L-6 (a run whose `completed` delivery was lost counts as running for 24 h; an L0 → L1/L2 class change keeps an existing link without a warning).
+- 2026-11-09 — S5h decisions (follow-ups L-6 from the wave-2 review):
+  - **No result received.** A CI thread whose newest event is `task.started` and whose last signal is more than 6 hours old is counted as `ciNoResult`, not as running, and reads "No result received". GitHub-hosted jobs stop at 6 hours; a longer run on a self-hosted runner reads the same until its result arrives, which is still a true statement.
+  - **Class change with a linked repository.** Raising a project to L1 or L2 while a repository is linked needs an explicit confirmation on the server, like the link itself (decision 4). The GitHub card on such a project says the repository name stays known to Javi's Dog until the repository is unlinked. Lowering a class never asks.
+  - L-4 stays open (a late delivery can briefly restore an old `full_name`; display only, needs a migration).

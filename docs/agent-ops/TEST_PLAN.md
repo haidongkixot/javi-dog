@@ -391,3 +391,15 @@ Written before the lanes start (ADR-0019). Risk: **HIGH**. This is an unauthenti
 | D0: GitHub threads end on a terminal event, carry no status, stay out of the squad, agents-working and agent-task counts, and have separate CI/PR counts; `run_attempt` > 1 keeps strictly increasing sequences | High | Reader on PGlite + component | snapshot counts | QA vectors |
 | D0: `timingSafeEqual` only on equal-length buffers (code-level check, not a timing test); the 10 s budget is NOT RUN (S5a p95 1 529 ms as context) | Medium | Unit | no throw on a length mismatch | No |
 | D0: Windows file mode for the helper's result file is NOT RUN (owner) | Low | Owner | — | Owner |
+
+## S5h — JD-M10 follow-ups (2026-11-09)
+
+Written before the lane starts (ADR-0019 Changes "S5h"). Risk: **MEDIUM** (honest labels, privacy warning). Screenshot budget: **0**.
+
+| Requirement | Risk | Lowest reliable layer | Test / assertion | Higher layer? |
+|---|---|---|---|---|
+| A CI thread whose newest event (by sequence) is `task.started` and whose last signal is older than 6 h counts as `ciNoResult`, not `ciRunning`; 6 h minus a second is still running | Medium | Reader on PGlite | snapshot counts at the boundary | No |
+| The GitHub table and overview card read "No result received" for such a thread; never "Failed", "live" or "connected" | Medium | Component | text | No |
+| Raising L0 → L1/L2 on a project with a linked repository returns `needsConfirm` without changing the class; with the confirmation it changes; without a linked repository nothing new is asked; lowering never asks | High | Action test on PGlite | class before/after, result shape | No |
+| The key-setup flow shows the linked-repository warning and completes after confirming; the GitHub card on an L1/L2 project with a linked repository says the name stays known to Javi's Dog | Medium | Component | text, retried call | No |
+| `scripts/gate.sh` prints the load average when a step fails | Low | Script run with a forced failing step | output line | No |
