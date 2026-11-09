@@ -3,6 +3,8 @@
 > Readiness item B6. Decisions: [ADR-0019](../adr/0019-github-app-bridge.md) (decision 7 and design review D0 H1, L1–L5). The GitHub App sends pull request and CI signals to Javi's Dog. About ten minutes, on your own machine.
 >
 > Never paste the webhook secret, private key or client secret into chat, an issue, a commit or a screenshot. Report names and presence only.
+>
+> Working with a coding agent on your machine? Give it [local-agent-github-app-and-token.md](local-agent-github-app-and-token.md): the same steps split into agent and owner actions, with scripts that move the secret into Vercel without printing it.
 
 ## What you get, and what you do not
 
