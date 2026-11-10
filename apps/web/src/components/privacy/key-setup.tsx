@@ -113,6 +113,8 @@ export function KeySetup({
   const secret = useRef<Uint8Array | null>(null);
   // Keys derived from the confirmed secret while the linked-repository confirmation is open.
   const pendingKeys = useRef<DerivedKeys | null>(null);
+  /** A confirmed retry threw: the server may or may not have changed the class. */
+  const outcomeUnknown = useRef(false);
   const pasted = useRef<HTMLInputElement | null>(null);
   // Review L9: the node that shows the key. The text is written into it directly (never through
   // React state or props) and wiped when the node is hidden or unmounted.
@@ -214,7 +216,11 @@ export function KeySetup({
     setState({ ...state, pending: true });
     const result = await changePrivacyClassAction(projectId, target, {
       confirmLinkedRepo: true,
-    }).catch(() => ({ error: CHANGE_FAILED }));
+    }).catch(() => {
+      // The server may have changed the class before the answer was lost (S5h review L1).
+      outcomeUnknown.current = true;
+      return { error: CHANGE_FAILED };
+    });
     if ('error' in result || !('privacyClass' in result)) {
       setState({ ...state, pending: false });
       setError('error' in result ? result.error : CHANGE_FAILED);
@@ -229,8 +235,11 @@ export function KeySetup({
     setError(null);
     setState({ step: 'intro' });
     setNotice(
-      `Nothing changed: this project stays on ${currentClass}. The recovery key you just saved will not be used.`,
+      outcomeUnknown.current
+        ? `We could not confirm whether the class changed. Reload the page to see the project's class, and keep the recovery key you just saved until you have checked.`
+        : `Nothing changed: this project stays on ${currentClass}. The recovery key you just saved will not be used.`,
     );
+    outcomeUnknown.current = false;
   };
 
   return (

@@ -148,7 +148,7 @@ Javi's Dog — *Every agent. One clear signal.* A privacy-aware observability co
 5. Owner: review the G4 Orcasus PR proposal and the `CLAUDE.md` §2 rule-4 proposal in `guru/WISDOM_LOG.md` (nothing opened).
 6. Owner (optional): approve upgrading dev-only tooling with advisories (`markdownlint-cli2`, `drizzle-kit`; readiness "Dependency advisories").
 7. Owner (optional): approve a bounded visual check of the dashboard/chart (≤ 6 screenshots).
-8. Agent: JD-M11 (S5f) and JD-M10 (S5g) are built. JD-M10 follow-ups: L-4 (late delivery restores an old `full_name`), L-6 (lost `completed` delivery counts as running for 24 h; L0 → L1/L2 change keeps a link without a warning), organization installations (needs an ADR).
+8. Agent: JD-M11 (S5f) and JD-M10 (S5g) are built. JD-M10 follow-ups: L-6 done in S5h ("No result received" after 6 h; raising a linked project asks); still open: L-4 (late delivery restores an old `full_name`, needs a migration), organization installations (needs an ADR).
 9. Owner: L1/L2 runs (how-to step 7): key setup in the browser with the console checked for CSP errors, which unlocks "Remember on this device"; `javi init --privacy L2` on your machine, including Windows' hidden prompt; the dashboard names after pasting the key.
 10. Done 2026-11-09: GitHub App created, installed (personal account), claimed and linked; real `installation` and `workflow_run` deliveries answered 200 and stored (TEST_PLAN §S5g "Real app" PASS). Optional still: a Vercel Firewall rate rule on `/api/github/webhook`.
 

@@ -86,7 +86,8 @@ function CountRow({
  */
 export function GithubCountsCard({ snapshot: s }: { snapshot: DashboardSnapshot }) {
   if (!s.threads.some(isGithubThread)) return null;
-  const g = s.github;
+  // A snapshot from an older deployment may lack `ciNoResult` (S5h review L4): read it as none.
+  const g = { ...s.github, ciNoResult: s.github.ciNoResult ?? { value: 0, lastSignalAt: null } };
   return (
     <Card labelledBy="github-counts-title">
       <CardHead

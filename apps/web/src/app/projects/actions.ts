@@ -274,27 +274,28 @@ export async function changePrivacyClassAction(
   const parsed = PrivacyClass.safeParse(privacyClass);
   if (!parsed.success) return { error: 'Choose L0, L1 or L2.' };
   if (parsed.data !== 'L0' && !confirmsLinkedRepo(options)) {
-    let names: string[];
-    try {
-      names = await linkedRepositoryNames(viewer.workspaceId, projectId);
-    } catch (error) {
-      // Fail closed: never raise without the warning because the links could not be read.
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          module: 'JD-APP',
-          msg: 'linked repository read failed',
-          // The name only: driver messages can echo hosts or credentials.
-          error: error instanceof Error ? error.name : typeof error,
-        }),
-      );
-      return { error: PRIVACY_FAILED };
-    }
-    if (names.length > 0) {
-      const project = await viewer.projects.getProject(viewer.workspaceId, projectId);
-      if (!project) return { error: NOT_FOUND };
-      // An unknown stored class counts as the lowest, so raising from it asks.
-      if (CLASS_RANK[parsed.data]! > (CLASS_RANK[project.privacyClass] ?? -1)) {
+    // The current class first: only a raise reads the links, so lowering never depends on them
+    // (S5h review L2). An unknown stored class counts as the lowest, so raising from it asks.
+    const project = await viewer.projects.getProject(viewer.workspaceId, projectId);
+    if (!project) return { error: NOT_FOUND };
+    if (CLASS_RANK[parsed.data]! > (CLASS_RANK[project.privacyClass] ?? -1)) {
+      let names: string[];
+      try {
+        names = await linkedRepositoryNames(viewer.workspaceId, projectId);
+      } catch (error) {
+        // Fail closed: never raise without the warning because the links could not be read.
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            module: 'JD-APP',
+            msg: 'linked repository read failed',
+            // The name only: driver messages can echo hosts or credentials.
+            error: error instanceof Error ? error.name : typeof error,
+          }),
+        );
+        return { error: PRIVACY_FAILED };
+      }
+      if (names.length > 0) {
         return {
           needsConfirm: true,
           repository: names[0]!,

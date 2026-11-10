@@ -363,4 +363,25 @@ describe('No result received (S5h)', () => {
     expect(rowOf(almost.threadRef)[3]).toBe('No result received');
     expect(rowOf(CI_RUNNING.threadRef)[3]).toBe('In progress');
   });
+
+  it('a snapshot from an older deployment without ciNoResult renders and ages (review L4)', () => {
+    const older: Partial<DashboardSnapshot['github']> = { ...SNAPSHOT.github };
+    delete older.ciNoResult;
+    const legacy = { ...SNAPSHOT, github: older } as unknown as DashboardSnapshot;
+    render(<OverviewView snapshot={legacy} />);
+    expect(region('GitHub CI and pull requests').textContent).not.toContain('No result received');
+    cleanup();
+    const almost = gh({
+      threadRef: 'gh_0000000000000000000000000000ab03',
+      githubKind: 'ci',
+      lastType: 'task.started',
+      lastSignalAt: ago(6 * HOUR - 30),
+      freshness: 'stale',
+    });
+    const aged = atClientTime(
+      { ...legacy, threads: [...legacy.threads, almost] },
+      new Date(Date.parse(NOW) + 31_000).toISOString(),
+    );
+    expect(aged.github.ciNoResult).toEqual({ value: 1, lastSignalAt: almost.lastSignalAt });
+  });
 });

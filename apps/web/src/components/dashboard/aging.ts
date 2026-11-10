@@ -27,7 +27,9 @@ function githubAt(s: DashboardSnapshot, now: string): GithubCounts {
   );
   if (crossed.length === 0) return s.github;
   const running = started.filter((t) => !githubNoResult(t, now));
-  const previous = s.github.ciNoResult.lastSignalAt;
+  // A snapshot from an older deployment may lack `ciNoResult` (S5h review L4).
+  const before = s.github.ciNoResult ?? { value: 0, lastSignalAt: null };
+  const previous = before.lastSignalAt;
   return {
     ...s.github,
     ciRunning: {
@@ -35,7 +37,7 @@ function githubAt(s: DashboardSnapshot, now: string): GithubCounts {
       lastSignalAt: newest(running.map((t) => t.lastSignalAt)),
     },
     ciNoResult: {
-      value: s.github.ciNoResult.value + crossed.length,
+      value: before.value + crossed.length,
       lastSignalAt: newest([
         ...(previous ? [previous] : []),
         ...crossed.map((t) => t.lastSignalAt),

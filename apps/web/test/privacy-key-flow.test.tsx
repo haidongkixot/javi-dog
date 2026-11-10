@@ -731,6 +731,29 @@ describe('S5h — raising with a linked repository', () => {
     expect(store.list(PROJECT)).toEqual([]);
   });
 
+  it('cancelling after a retry that threw never claims nothing changed (review L1)', async () => {
+    changePrivacyClassAction
+      .mockResolvedValueOnce(linked(['ana/alpha-repo']))
+      .mockRejectedValueOnce(new Error('response lost'));
+    renderSetup('L0');
+    await pasteAndCheck();
+    const group = await screen.findByRole('group', { name: GROUP });
+    fireEvent.click(within(group).getByRole('button', { name: 'Turn on L2 and keep the link' }));
+    await screen.findByRole('alert');
+    fireEvent.click(
+      within(screen.getByRole('group', { name: GROUP })).getByRole('button', {
+        name: 'Cancel, stay on L0',
+      }),
+    );
+    const notice = await screen.findByText(/could not confirm whether the class changed/);
+    expect(notice.textContent).toBe(
+      "We could not confirm whether the class changed. Reload the page to see the project's class, and keep the recovery key you just saved until you have checked.",
+    );
+    expect(screen.queryByText(/^Nothing changed/)).toBeNull();
+    expect(store.list(PROJECT)).toEqual([]);
+    expectNoLeak();
+  });
+
   it('L0 → L1 and several repositories: the warning names the class and every repository', async () => {
     changePrivacyClassAction.mockResolvedValueOnce(
       linked(['ana/fourth-repo', 'ana/spare-repo'], 'L1'),

@@ -36,6 +36,8 @@ beforeEach(() => {
   state.viewer = viewerAs('owner');
   state.db = null;
   projects.setPrivacyClass.mockImplementation(async (_ws, id, c) => ({ id, privacyClass: c }));
+  // The current class is read first when raising (S5h review L2).
+  projects.getProject.mockImplementation(async (_ws, id) => ({ id, privacyClass: 'L0' }));
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -142,6 +144,16 @@ describe('changePrivacyClassAction — linked repository read (S5h)', () => {
     ]);
     expect(await changePrivacyClassAction(PROJECT, 'L2')).toEqual({ privacyClass: 'L2' });
     expect(github.workspaceInstallations).toHaveBeenCalledExactlyOnceWith(WS);
-    expect(projects.getProject).not.toHaveBeenCalled();
+    expect(projects.getProject).toHaveBeenCalledExactlyOnceWith(WS, PROJECT);
+  });
+
+  it('lowering L2 → L1 never reads the links, so it works even when they cannot be read (review L2)', async () => {
+    state.db = {};
+    projects.getProject.mockImplementation(async (_ws, id) => ({ id, privacyClass: 'L2' }));
+    github.workspaceInstallations.mockRejectedValue(new Error('not expected'));
+    expect(await changePrivacyClassAction(PROJECT, 'L1')).toEqual({ privacyClass: 'L1' });
+    expect(await changePrivacyClassAction(PROJECT, 'L2')).toEqual({ privacyClass: 'L2' });
+    expect(github.workspaceInstallations).not.toHaveBeenCalled();
+    expect(projects.setPrivacyClass).toHaveBeenCalledTimes(2);
   });
 });
