@@ -1,7 +1,7 @@
 # Project Memory — Javi's Dog
 
 > Read this first in every session. Keep it short and current; history goes to `SESSION_LOG.md`.
-> Last updated: 2026-11-01 · Current sprint: **S5g JD-M10 GitHub App bridge — CLOSED** (`docs/sprints/SPRINT-05g.md`, ADR-0019, Guru `ad-hoc-github-bridge`). GitHub App live since 2026-11-09 (real deliveries stored). Next: revoke the 2026-10-29 ingest token (still active); then the S5 release gate. Other owner items: real Claude Code, Gemini and Codex runs (`docs/how-to/run-first-real-sessions.md`); release exceptions G2/G4/G5 and G13.
+> Last updated: 2026-11-10 · Current sprint: **S5h JD-M10 follow-ups — CLOSED** (`docs/sprints/SPRINT-05h.md`, ADR-0019 Changes "S5h", Guru `ad-hoc-github-followups`). GitHub App live since 2026-11-09 (real deliveries stored). Next: the owner revokes the 2026-10-29 ingest token (still active; Part A of `docs/how-to/local-agent-github-app-and-token.md`); then the S5 release gate (G6 real agent runs, G2/G4/G5 exceptions, G13).
 
 ## What we are building
 

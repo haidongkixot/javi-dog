@@ -2,6 +2,13 @@
 
 Append-only handoff log, newest first. Each entry: date · session · what happened · state left behind · next step.
 
+## 2026-11-10 · Session 2 (cloud), continued — S5h JD-M10 follow-ups
+
+- **S5h built and closed:** "No result received" for a CI run with no result 6 h after its last delivery (`ciNoResult`); raising a project with a linked repository to L1/L2 needs a server-side confirmation, and the GitHub card says the name stays known; the gate prints the load average on a failure.
+- **Review:** 0 High, 0 Medium, 4 Low; L1, L2, L4 fixed red-first; L3 (raise/link write skew by two admins) accepted.
+- **Evidence:** `pnpm gate --csp` 3379 tests; pushed 68e5c2e; Guru `ad-hoc-github-followups` (9ae4639).
+- **State left:** nothing in progress. Owner items: revoke the 2026-10-29 ingest token (still active), the S5 release gate.
+
 ## 2026-11-09 · Session 2 (cloud), continued — GitHub App live
 
 - Wrote `docs/how-to/local-agent-github-app-and-token.md` (agent/owner split, stdin-only secret handling, signed ping check); pushed 8f045e2.

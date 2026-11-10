@@ -38,6 +38,7 @@ Newest first: date — what changed — commit SHA.
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| CI on pushed tips | 0 | — | 67bf43f+4482685 run 42724651337 success; 68e5c2e run 42726687643 (read before the next push) | 0 | 0 | 0 | 0 | — |
 | `pnpm gate --csp` (review fixes; a first run failed at lint on an unused test variable, fixed) | 0 | 244 s | 3379 tests, 17 packages; CSP check | 0 | 0 | 0 | 0 | — |
 | `pnpm gate --csp` (after the H1/H2 merge) | 0 | 321 s | 3376 tests, 17 packages; CSP check | 0 | 0 | 0 | 0 | — |
 | Red-before (Developer G) | — | — | — | 30 new tests failed before the change (H1 reader 5, web 3; H2 action 13, key setup 6, card 3) | 0 | 0 | 0 | scratchpad `h1-red-reader.txt` |
@@ -69,4 +70,4 @@ Team log, newest first:
 
 ## Guru checkpoint
 
-—
+Sprint end, `ad-hoc-github-followups` (9ae4639): `guru/WISDOM_LOG.md` S5h entry; refined `signed-webhook-receiver` 0.2.0, `truthful-live-status` 0.4.0, `fail-closed-checks` 0.3.0, `prove-secrets-and-pii-minimization` 0.4.0, `bounded-production-verification` 0.2.0. Findings S5H-F1–F3 closed in the S5h close-out commit; F4 (token still active) is an owner item; F5 (a test-plan template row for "what must still work when the guard's read fails") needs the owner, because the template is Orcasus-owned.
