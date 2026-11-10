@@ -1,10 +1,10 @@
 ---
 name: fail-closed-checks
-description: Make guard checks fail closed — every check that protects a push, a commit, an install or an edit of someone's file answers yes, no or unknown, and "unknown" (the tool errored, timed out, is missing, or got bad input) is treated like the unsafe answer unless the user explicitly overrides it. Covers three-valued exit codes that shell idioms collapse to two (grep 0/1/2 read by `if grep` or `! grep`; `git ls-files --error-unmatch` 0/1/128; `diff`/`cmp` 0/1/2; timeouts and missing binaries), validating the check's own inputs (pattern compiles, revision range resolves, argument present), chaining guards with `&&` and making the chain a script rather than a habit, self-tests that prove a check can say "cannot", choosing the failure direction deliberately when the guarded action is recording data rather than changing it, and searching for twins of a fail-open check. Also covers turning a team rule that lives in memory ("read CI on the previous tip before pushing") into a three-valued check. Includes a fail-closed secret-scan script and a previous-tip CI check, each with a self-test. Use when writing a pre-push or pre-commit secret scan, a "is this file tracked/ignored/committed" check, a guard before editing a user's config, a CI or release gate, any `check; act` or `check && act` shell line, a wrapper around grep/git/diff exit codes, or when a check "passed" on a machine where its tool is missing, when a process rule keeps slipping because nothing runs it, when a secret scanner flags a fake credential in a test fixture, or when asked to "add a safety check", "scan before push" or "refuse unless".
+description: Make guard checks fail closed — every check that protects a push, a commit, an install or an edit of someone's file answers yes, no or unknown, and "unknown" (the tool errored, timed out, is missing, or got bad input) is treated like the unsafe answer unless the user explicitly overrides it. Covers three-valued exit codes that shell idioms collapse to two (grep 0/1/2 read by `if grep` or `! grep`; `git ls-files --error-unmatch` 0/1/128; `diff`/`cmp` 0/1/2; timeouts and missing binaries), validating the check's own inputs (pattern compiles, revision range resolves, argument present), chaining guards with `&&` and making the chain a script rather than a habit, self-tests that prove a check can say "cannot", choosing the failure direction deliberately when the guarded action is recording data rather than changing it, and searching for twins of a fail-open check. Also covers turning a team rule that lives in memory ("read CI on the previous tip before pushing") into a three-valued check. Includes a fail-closed secret-scan script and a previous-tip CI check, each with a self-test. Use when writing a pre-push or pre-commit secret scan, a "is this file tracked/ignored/committed" check, a guard before editing a user's config, a CI or release gate, any `check; act` or `check && act` shell line, a wrapper around grep/git/diff exit codes, or when a check "passed" on a machine where its tool is missing, when a process rule keeps slipping because nothing runs it, when a secret scanner flags a fake credential in a test fixture, when a guard is added to an existing action or endpoint (a confirmation, a permission or consistency read that refuses on error), or when asked to "add a safety check", "scan before push" or "refuse unless". Also covers scoping a fail-closed guard to the path it protects, so its read cannot break paths that never needed it.
 metadata:
-  version: "0.2.1"
-  origin: "javis-dog ad-hoc-self-report (S5d), drawing on G2–G4 records; updated ad-hoc-privacy (S5e/S5f), ad-hoc-github-bridge (S5g)"
-  confidence: "high (the failure class: seven recorded fail-open or ungated guard slips in four checkpoint windows, three of them after the team had recorded the rule against them); medium (the remedies: a tri-state git check fixed red-first once; the secret-scan script adopted in the origin's push checklist; the previous-tip CI script verified by its self-test and two read-only runs only)"
+  version: "0.3.0"
+  origin: "javis-dog ad-hoc-self-report (S5d), drawing on G2–G4 records; updated ad-hoc-privacy (S5e/S5f), ad-hoc-github-bridge (S5g), ad-hoc-github-followups (S5h)"
+  confidence: "high (the failure class: seven recorded fail-open or ungated guard slips in four checkpoint windows, three of them after the team had recorded the rule against them); medium (the remedies: a tri-state git check fixed red-first once; the secret-scan script adopted in the origin's push checklist; the previous-tip CI script verified by its self-test and two read-only runs only; guard scoping: once, found by a code reviewer and fixed red-first)"
 ---
 
 # Fail-closed checks
@@ -101,6 +101,14 @@ Option 2 is the same technique that would hide a real secret, so keep it rare, m
 
 After fixing one fail-open mapping, search for the same helper or idiom elsewhere (`catch { return false }`, `status !== 0 →`, `if grep -q`). In the origin the fixed git check had a twin in a sibling installer that only drove a warning; it was logged as a follow-up.
 
+## 8. Scope the guard to the path it protects
+
+A fail-closed read added to an existing action makes **every path through that action** depend on the read — including paths the guard was never meant to cover. In the origin, a "warn before raising the privacy class while a repository is linked" guard read the links first and refused on a read error; lowering the class, which never needs the warning, then failed whenever the links could not be read.
+
+- Order the reads so the **cheapest discriminating read decides first** (the current state: is this a raise at all?), and only the guarded path performs the guarded read.
+- Write the test-plan row up front, next to the guard's own rows: *"what must still work when the guard's read fails"*. Test it by making the guard's read throw and asserting that the unguarded path succeeds **and never calls** that read.
+- Name the guarded path in the code comment at the read ("only a raise reads the links, so lowering never depends on them").
+
 ## Pitfalls
 
 - **`if grep -q …; then MATCH; fi` as a scanner.** A broken pattern, an unreadable input or a pipe error reads as clean.
@@ -111,6 +119,7 @@ After fixing one fail-open mapping, search for the same helper or idiom elsewher
 - **An abbreviated SHA passed to an API that matches full SHAs.** "No run" is then a false unknown (or, in a fail-open wrapper, a false pass).
 - **Silent success.** "Revert done" when the file could not be read; "clean" when nothing was scanned.
 - **Failing closed on a recorder.** A dedupe store that drops events when it is corrupt loses data the user cannot get back.
+- **A guard read in front of the whole action.** Its outage now blocks paths that never needed it.
 
 ## Evidence from origin project
 
@@ -146,3 +155,9 @@ Guru verification at this checkpoint:
 
 - Scanner hit on fixtures (`SPRINT-05g.md` Team log 03:47): "Secret scan matched fake database URLs in three new tests (dead endpoints `127.0.0.1:9`, `db.example`); reshaped so they no longer look like credentials (b96a25c); scan clean." Guru read the diff: two URLs lost their `user:password@` part (option 1); one test that asserts a driver error never leaks keeps the credential-shaped string at run time, now built by concatenation around a sentinel constant (option 2). `scripts/secret-scan.sh` is unchanged in the window (`git diff 29a6b8a..39bf130 -- scripts/secret-scan.sh` empty). Confidence **medium** (once).
 - Rule 9 held by timing in all 8 pushes of the window (see `diagnose-red-ci-from-history`); still a habit — `previous-tip-ci.sh` is not in the origin's push step (proposal PV-F4 open).
+
+### Update at ad-hoc-github-followups (Sprint 5h, 2026-11-09/10)
+
+- §8 from S5h H2 (`80438e7`) and review L2 (`5acdc84`): the action read the linked repositories before the project's class and returned an error when that read failed ("Fail closed: never raise without the warning"), so lowering depended on it. The reviewer of the combined diff found it (Low); the fix reads the current class first and only a raise reads the links; test "lowering L2 → L1 never reads the links, so it works even when they cannot be read" (`apps/web/test/privacy-action.test.ts`). The test plan had the row "lowering never asks" but no row for the guard's read failing. Retro: "the review, not the plan, caught it"; action: "when an action gains a guard, write the 'what must still work when the guard's read fails' row into the test plan up front" (`docs/sprints/SPRINT-05h.md`). Confidence **medium** (once).
+- Accepted, not fixed (recorded): a concurrent link between the guard's read and the class write is not caught (no row lock; one admin per workspace today) — a check-then-act window, the guard's own limit.
+- Rule 9 held by timing for the four pushes in the window (each push started after the previous tip's CI run had completed: `c63f006` completed 2026-11-01, `8f045e2` pushed 2026-11-09 20:53; `8f045e2` attempt 2 completed 22:37, `cba33a4` pushed 23:40; `cba33a4` run completed 23:49, `4482685` pushed 23:58; `4482685` run completed 00:06, `68e5c2e` pushed 00:13; Guru, from CI history).

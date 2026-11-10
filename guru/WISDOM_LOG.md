@@ -2,6 +2,78 @@
 
 Newest checkpoint first. Each entry: date · checkpoint · commit window · lessons (verified / hypothesis) · skills created/updated · proposals for the owner.
 
+## 2026-11-10 · ad-hoc-github-followups — S5h JD-M10 follow-ups and the real GitHub App run: sprint end
+
+Sprint-end checkpoint (trigger: sprint end, `CLAUDE.md` §7). Not G5 (the roadmap assigns G5 to S6), so this entry uses the `ad-hoc-<topic>` form. Not an Orcasus-PR checkpoint: no PR opened or drafted.
+
+- **Window:** `c63f006..68e5c2e` — 9 commits (35 files, +1 672 / −38): local-agent runbook (`8f045e2`); real app evidence (`cba33a4`); S5h plan (`67bf43f`); H3 gate load note (`4482685`); H1 no-result CI state (`6d4e316`); H2 class change with a linked repository (`80438e7`); merge `6dea2cb`; review fixes and close (`5acdc84`); gate evidence (`68e5c2e`).
+- **Records read:** `docs/sprints/SPRINT-05h.md` (all sections); `SPRINT-05g.md` Log and Test evidence 2026-11-09; `docs/how-to/local-agent-github-app-and-token.md`; ADR-0019 *Changes* "S5h"; `docs/agent-ops/TEST_PLAN.md` §S5g "Real app" and §S5h; `READINESS_MATRIX.md` B6 diff; `docs/memory/SESSION_LOG.md` 2026-11-09; `PROJECT_MEMORY.md` header and next actions; diffs of `5acdc84` (source and tests), `4482685`, `cba33a4`.
+- **Probes by Guru (read-only):** `gh run list` and the attempts of run 42697273918. No project suite re-run.
+
+### CI verification of every pushed tip
+
+4 pushed tips: `8f045e2` 42697273918 `success` (attempt 1 completed 21:02; **attempt 2** started 22:29:21 by the owner's account, `success` 22:37) · `cba33a4` 42722296446 `success` · `4482685` 42724651337 `success` · `68e5c2e` 42726687643 **in progress** at the end of this checkpoint (not re-read to completion). Every push started after the previous tip's run had completed. The S5h record names no CI run id (see S5H-F1).
+
+### Lessons from the brief, checked against evidence
+
+| # | Expected lesson | Verdict | Evidence |
+|---|---|---|---|
+| 1 | An agent/owner runbook with stdin-only secret handling let a local agent finish a credentialed setup with no secret in chat; the owner did the GitHub half, not the token rotation; such items stall more easily | **Runbook and outcome verified; "no secret in chat" not recorded; stall cause hypothesis** | Runbook `8f045e2` (AGENT/OWNER marks, stdin piping script outside the repo, owner-typed `Read-Host`, report-back template); Part B done (SPRINT-05g Log 2026-11-09); "Part A not done … still active (never used)" (SESSION_LOG 2026-11-09). The committed evidence carries no secret values; whether one reached the local transcript is not recorded. Part A was listed first in the runbook and still not done; why is not recorded. → `prove-secrets-and-pii-minimization` 0.4.0 §10 |
+| 2 | Real-app verification read-only: runtime logs with safe fields + read-only SQL on the database production reads; the first query went to `main` and showed nothing | **Method verified (once); wrong-branch query reported only** | TEST_PLAN §S5g "Real app" PASS row and SPRINT-05g Test evidence ("Vercel runtime logs (JD-M10 lines) + read-only SQL on `dev-agent`"). The `main` query appears in no committed record. → `bounded-production-verification` 0.2.0 §8 (step 1 kept as a rule, the incident at low confidence) |
+| 3 | A guard added to an action (links read before class) made lowering depend on the guard's read; caught by review, not the plan | **Verified** | Review L2, fix `5acdc84` (class read first, only a raise reads links), test "lowering … works even when they cannot be read"; TEST_PLAN §S5h had "lowering never asks" but no read-failure row; retro "the review, not the plan, caught it". → `fail-closed-checks` 0.3.0 §8 |
+| 4 | "Nothing changed" after a thrown server call is false certainty | **Verified** | Review L1, `5acdc84`: `outcomeUnknown` flag, new wording, test with the confirmed retry rejecting. → `truthful-live-status` 0.4.0 §5 |
+| 5 | Additive snapshot fields need a tolerant client during rollbacks | **Verified (older deployment); "rollbacks" is Guru's/the brief's framing** | Review L4, `5acdc84`: default in the counts card **and** in client ageing; test without the field. The record says "older deployment", not rollback. → `truthful-live-status` §2 |
+| 6 | `signed-webhook-receiver`: real run exists (installation 200, `workflow_run` 200 stored, `check_suite` 202 ignored); second vendor still missing | **Verified** | SPRINT-05g Log 2026-11-09 and TEST_PLAN §S5g "Real app"; readiness B6 AVAILABLE (`cba33a4`). → `signed-webhook-receiver` 0.2.0 (real-delivery confidence low → medium; still "not yet" for sharing) |
+
+### Further verified lessons (Guru's own)
+
+1. **Started-never-finished closed by time** (H1, `6d4e316`): a separate "No result received" count after the vendor's maximum run time (6 h), never "Failed"; boundary rows in the plan; red-before 8 tests. → `truthful-live-status` §11, `signed-webhook-receiver` §10.
+2. **Setup order for push integrations** — secret deployed and proven by a self-signed ping before installing, because the lifecycle event is not retried by itself; ping `202` at 22:07, install `200` at 22:24 (runbook B3–B5; record). → `signed-webhook-receiver` §9.
+3. **An event trigger shows up as a CI re-run.** Run 42697273918 attempt 2 (22:29:21) lines up with the 22:29 `in_progress` delivery; the record does not name it, so a history reader could take it for a flake retry (Guru inference that the linked repository is this one). → `bounded-production-verification` §8 step 4.
+4. **Closed from the previous entry:** GB-F5 half done — `scripts/gate.sh` prints the load average on a failure (`4482685`, forced-fail run recorded); the lane-brief dependency field is not recorded as done.
+
+### Findings needing orchestrator action (verified by reading; Guru changed nothing outside `guru/`)
+
+| ID | Severity | Finding | Suggested fix |
+|---|---|---|---|
+| S5H-F1 | medium | **Session-end records stale** (CLAUDE.md §0.4): `PROJECT_MEMORY.md` header still says "Last updated: 2026-11-01 · Current sprint: S5g … CLOSED"; `SESSION_LOG.md` has no S5h entry; SPRINT-05h Test evidence names no CI run id and "Guru checkpoint: —" (GB-F1 pattern, third window). | Update the header to S5h CLOSED with this checkpoint, add a SESSION_LOG entry, add runs 42724651337 and 42726687643 (after reading the latter to completion) to the Test evidence, point the Guru section here. |
+| S5H-F2 | low | **Unrecorded first-query miss:** the read-only query on `main` that returned nothing is not in SPRINT-05g. | One line in the 2026-11-09 Log entry: which database was queried first and why the result was discarded. |
+| S5H-F3 | low | **Event-trigger re-run unnamed:** run 42697273918 attempt 2 is not linked to the real-app entry. | Name the run and attempt in the 2026-11-09 Log entry. |
+| S5H-F4 | low | **Token rotation open 11 days after "revoke now" advice** (owner item; reason unrecorded). | Keep it first in Next actions with the date; ask the owner at session start whether a shorter rotation-only runbook would help (hypothesis, see lesson 1). |
+| S5H-F5 | low | **Retro action is a convention again:** "write the 'what must still work when the guard's read fails' row up front". | Add a column or prompt to the TEST_PLAN template for guarded actions; `/efficient-testing` is Orcasus-owned, so propose there only via the owner. |
+
+### Still NOT RUN / UNVERIFIED
+
+A real lost completion delivery; the 10 s response budget under load; organization installations (refused by design); a second webhook vendor; L-4 (late delivery restores an old repository name; needs a migration); the write-skew window between a concurrent raise and link (accepted, one admin per workspace); CI on `68e5c2e` (in progress at checkpoint end).
+
+### Hypotheses (unverified)
+
+- Owner items that need a browser **and** a typed secret, with no agent-side completion check, stall more easily than agent-assisted ones.
+- Older snapshots in the origin would come mainly from rollbacks or a rollout in progress.
+- The linked repository of the real run is the origin repository itself (from CI timing only).
+
+### Rejected or not packaged
+
+- H3 load average on failure: data point for `orchestrated-agent-team-lanes` / `diagnose-red-ci-from-history` (GB-F5 remedy); no new lesson, no version bump.
+- `needsConfirm` carrying `error` for callers that ignore it (lane deviation): a sound API pattern, once, not reviewed as a lesson; noted here only.
+- The 6 h threshold value: vendor-specific; packaged only as "the vendor's documented maximum run time".
+
+### Skills created and updated
+
+| Skill | Version | Change | Confidence | Why |
+|---|---|---|---|---|
+| [`signed-webhook-receiver`](skills/signed-webhook-receiver/SKILL.md) | 0.1.0 → 0.2.0 | §9 first real run (order, self-signed ping, new event after link, read-only evidence); §10 lost completion deliveries; real-run evidence | medium (real run once, one vendor); low (other vendors, budget, real loss) | Brief 6; lessons 1–2 |
+| [`truthful-live-status`](skills/truthful-live-status/SKILL.md) | 0.3.0 → 0.4.0 | §5 unknown outcome after a thrown call; §2 later-added fields read tolerantly; §11 started-never-finished | medium (once each) | Brief 4, 5; lesson 1 |
+| [`fail-closed-checks`](skills/fail-closed-checks/SKILL.md) | 0.2.1 → 0.3.0 | §8 scope a guard to the path it protects | medium (once) | Brief 3 |
+| [`prove-secrets-and-pii-minimization`](skills/prove-secrets-and-pii-minimization/SKILL.md) | 0.3.0 → 0.4.0 | §10 credentialed setup with a local agent and the owner | medium (pattern once); low (stall hypothesis) | Brief 1 |
+| [`bounded-production-verification`](skills/bounded-production-verification/SKILL.md) | 0.1.0 → 0.2.0 | §8 read-only verification of an integration's first real run | medium (once); low (wrong-database incident: reported only) | Brief 2; lesson 3 |
+
+### Proposals for the owner
+
+1. **Token rotation** (S5H-F4): revoke the 2026-10-29 ingest token (Part A of the runbook); it is the only open item from that runbook.
+2. **Record completeness** (S5H-F1, recurring GB-F1): the sprint-close check proposed at the previous checkpoint ("Guru checkpoint: —", no CI run id for the last pushed tip, stale memory header) would have flagged all three this time.
+3. **Next Orcasus checkpoint (not now):** no new candidates. `signed-webhook-receiver` now has a real run but stays "not yet" until a second vendor or iteration; `fail-closed-checks` 0.3.0 supersedes 0.2.1 for the carried "later" candidacy. Earlier carried proposals unchanged.
+
 ## 2026-11-01 · ad-hoc-github-bridge — S5g GitHub App bridge (JD-M10): sprint end
 
 Sprint-end checkpoint (trigger: sprint end, `CLAUDE.md` §7). Not G5: the roadmap assigns G5 to S6, so this entry uses the `ad-hoc-<topic>` form. Not an Orcasus-PR checkpoint: no PR opened or drafted.

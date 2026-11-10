@@ -1,10 +1,10 @@
 ---
 name: bounded-production-verification
-description: Verify a release on the real production environment with bounded, owner-approved checks — a load test whose budget (requests, events, wall time, concurrency, one ephemeral tenant) is fixed in a decision record before the run and frozen in code so no flag can raise it; an end-to-end smoke that installs the packed artifact in a temporary home and sends real events with planted privacy sentinels; credentials generated locally, stored on the server only as a hash, kept in a scratch file, passed on stdin and never printed; results read as counts and through the product's real reader; first-run failures treated as product findings, not tuning targets; destructive cleanup only after the owner says yes, with before/after counts. Also covers an evidence-per-item release checklist with a fixed status vocabulary and written exceptions. Use before a first release or a release gate, when someone wants to "load test production", "smoke test prod", "run an end-to-end check against the live site", measure p95 latency or payload limits on the real stack, seed test data on production, or decide whether a release checklist item is PASS.
+description: Verify a release on the real production environment with bounded, owner-approved checks — a load test whose budget (requests, events, wall time, concurrency, one ephemeral tenant) is fixed in a decision record before the run and frozen in code so no flag can raise it; an end-to-end smoke that installs the packed artifact in a temporary home and sends real events with planted privacy sentinels; credentials generated locally, stored on the server only as a hash, kept in a scratch file, passed on stdin and never printed; results read as counts and through the product's real reader; first-run failures treated as product findings, not tuning targets; destructive cleanup only after the owner says yes, with before/after counts. Also covers an evidence-per-item release checklist with a fixed status vocabulary and written exceptions, and verifying an integration's first real run read-only from a remote session (resolve which database the deployment reads before the first query; triangulate the vendor's log, safe runtime log fields and row shapes). Use before a first release or a release gate, when someone wants to "load test production", "smoke test prod", "run an end-to-end check against the live site", measure p95 latency or payload limits on the real stack, seed test data on production, decide whether a release checklist item is PASS, or confirm that a third-party integration's first real events arrived ("did the webhook land in prod?").
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog G4"
-  confidence: "medium (budgeted load test, packed end-to-end smoke, never-printed credentials and counted cleanup: each run once on production with recorded results; the first smoke run found a product defect)"
+  version: "0.2.0"
+  origin: "javis-dog G4; updated ad-hoc-github-followups (S5h)"
+  confidence: "medium (budgeted load test, packed end-to-end smoke, never-printed credentials and counted cleanup: each run once on production with recorded results; the first smoke run found a product defect; read-only first-run verification of an integration: once); low (the wrong-database first query: reported by the orchestrator, not in the written record)"
 ---
 
 # Bounded production verification
@@ -61,6 +61,15 @@ Template: [`templates/release-checklist.md`](templates/release-checklist.md).
 - Use one fixed status vocabulary (PASS / FAIL / BLOCKED / NOT RUN / ACCEPTED RISK). A deferral by the owner is not a new status: it is an **exception written in the checklist with date and owner**, or the item is not PASS.
 - If evidence was gathered on a different environment than the item names (the owner kept production on the old database), the item says so and needs the same written exception.
 
+## 8. Verify an integration's first real run, read-only
+
+When the owner performs a real setup elsewhere (their machine, the vendor's site) and a remote session must confirm it, the remote session needs no write access:
+
+1. **Resolve which database the deployment reads before the first query.** Projects often keep several (a development branch, a production branch, a restore copy), and production may still read the development one by decision. Take it from the deployment's own evidence (a health endpoint naming the database or branch, the readiness record) and write it next to the result ("production → `<branch>`"). A query on the wrong database returns **empty**, which reads like "nothing arrived".
+2. **Triangulate three sources:** the vendor's delivery log (the owner reads status per delivery), the platform's runtime logs filtered to the receiver's safe fields (ids, event, outcome), and read-only queries for **shapes**: counts, types, classes, attribute names, timestamps — never payload values.
+3. **Record per step:** time with zone, status code, what was stored or ignored, the deployment id and commit. Unexpected-but-correct outcomes (a duplicate kind acknowledged and dropped) belong in the record too.
+4. **Event triggers leave traces elsewhere.** A CI job re-run used to produce a fresh event appears as a second attempt in the CI history; name the run in the record so a later reader does not take it for a retried flake.
+
 ## Pitfalls
 
 - **Caps as defaults.** A flag that raises them will be used once by mistake.
@@ -69,6 +78,7 @@ Template: [`templates/release-checklist.md`](templates/release-checklist.md).
 - **Tuning until the target passes.** Record the miss.
 - **Testing without the users' environment variables.** Proxies, locales and shells change runtime output.
 - **Cleanup without counts.** Nobody can tell later what was removed.
+- **Querying the database the name suggests.** "Production" may read another branch; an empty result there proves nothing.
 
 ## Evidence from origin project
 
@@ -81,3 +91,9 @@ Javi's Dog, Sprint 5a (2026-10-28/29), release gate of a Next.js + Postgres SaaS
 - Cleanup (owner-approved): one cascading delete of the ephemeral workspace; before 1 workspace / 2 projects / 2 tokens / 5 514 events, after 0/0/0/0; scratch token files removed. Purge job's first run: "inconclusive", conclusive check scheduled for a date (`SPRINT-05a.md` Log).
 - Release checklist with evidence per item: `docs/how-to/release-checklist.md`. Guru G4 finding: it uses statuses outside its own vocabulary (DEFERRED, IN PROGRESS, OPEN), and two PASS items were measured on the development database that production still reads, without a written exception — the reason for §7's last two rules.
 - Deviation: the ADR named the new production database; the owner kept production on the old one, so the runs used the database production actually reads. The ADR has no *Changes* entry for this (G4 finding).
+
+### Update at ad-hoc-github-followups (Sprint 5h, 2026-11-09/10)
+
+- §8 from the real GitHub App run (`docs/sprints/SPRINT-05g.md` Log 2026-11-09; `docs/agent-ops/TEST_PLAN.md` §S5g "Real app" PASS; `cba33a4`): evidence "Vercel runtime logs (JD-M10 lines) + read-only SQL on `dev-agent`", the branch production reads (readiness matrix: "Production reads the `dev-agent` branch until S5"; cutover deferred by the owner). Recorded per delivery: time, status code, stored or ignored, event type and attribute names, deployment id at `8f045e2`. Confidence **medium** (once).
+- The first read-only query went to the production-named branch (`main`) and found nothing — **reported by the orchestrator to Guru, not in the written record**; kept as the reason for step 1, confidence **low** for the incident itself.
+- Step 4 from Guru's CI-history probe: the CI run for `8f045e2` has attempt 2, started 22:29:21 after a green attempt 1 (completed 21:02), matching the 22:29 `workflow_run in_progress` delivery. The record does not name the re-run.

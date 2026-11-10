@@ -1,10 +1,10 @@
 ---
 name: signed-webhook-receiver
-description: Build a receiver for a third-party vendor's signed webhooks (HMAC signature header over the request body, such as a GitHub App, a payment, chat or e-commerce platform) that stores only what it should — a fixed check order (configured, encoding, header shape, size, signature over the raw bytes, dedupe, shape, routing, age, map, validate, store), nothing parsed before the signature passes, dedupe and event ids from the signed body instead of unsigned delivery-id or event-type headers, replay bounded by timestamps inside the signed payload, hash-recording rules that keep the vendor's manual redelivery useful (record after success, never on a 500, never purge hashes of events with no timestamp), runbooks that match those rules, ownership claims verified from a signed delivery and not from a redirect's query parameter, one secret-validity rule shared by handler, setup screen and health check, and a vector and mutation list. Use when adding a webhook endpoint, an "install our app" integration, a vendor callback, a signature check (`X-Hub-Signature-256`, `X-…-Signature`, HMAC-SHA256), webhook dedupe or replay protection, a "redeliver" or "resend" instruction in a runbook, a setup flow that returns an installation or account id in a redirect URL, secret rotation for a webhook, or when reviewing a receiver that parses JSON before verifying or dedupes on a delivery-id header.
+description: Build a receiver for a third-party vendor's signed webhooks (HMAC signature header over the request body, such as a GitHub App, a payment, chat or e-commerce platform) that stores only what it should — a fixed check order (configured, encoding, header shape, size, signature over the raw bytes, dedupe, shape, routing, age, map, validate, store), nothing parsed before the signature passes, dedupe and event ids from the signed body instead of unsigned delivery-id or event-type headers, replay bounded by timestamps inside the signed payload, hash-recording rules that keep the vendor's manual redelivery useful (record after success, never on a 500, never purge hashes of events with no timestamp), runbooks that match those rules, ownership claims verified from a signed delivery and not from a redirect's query parameter, one secret-validity rule shared by handler, setup screen and health check, a vector and mutation list, the first real run (secret deployed and proven with a self-signed ping before the vendor sends a lifecycle event it never retries, a new event after linking, evidence read from the vendor's delivery log, safe log fields and read-only rows), and lost terminal deliveries (a started run with no result after the vendor's maximum run time). Use when adding a webhook endpoint, an "install our app" integration, a vendor callback, a signature check (`X-Hub-Signature-256`, `X-…-Signature`, HMAC-SHA256), webhook dedupe or replay protection, a "redeliver" or "resend" instruction in a runbook, a setup flow that returns an installation or account id in a redirect URL, secret rotation for a webhook, the first real installation of a webhook integration on production, a "running" state that never ends because a completion delivery was lost, or when reviewing a receiver that parses JSON before verifying or dedupes on a delivery-id header.
 metadata:
-  version: "0.1.0"
-  origin: "javis-dog ad-hoc-github-bridge (S5g, JD-M10 GitHub App bridge)"
-  confidence: "medium (check order, raw-byte HMAC, signed-body dedupe and hash-recording rules: one iteration, design review before code, 59 independent vectors through the real route on an embedded Postgres, 7 mutations caught, review fixes red-first); low (a real vendor delivery: NOT RUN at this checkpoint; vendors other than GitHub: not tried; constant-time comparison is checked by code shape only, not by timing)"
+  version: "0.2.0"
+  origin: "javis-dog ad-hoc-github-bridge (S5g, JD-M10 GitHub App bridge); updated ad-hoc-github-followups (S5h, real app run)"
+  confidence: "medium (check order, raw-byte HMAC, signed-body dedupe and hash-recording rules: one iteration, design review before code, 59 independent vectors through the real route on an embedded Postgres, 7 mutations caught, review fixes red-first; first real run with one vendor (GitHub): signed ping 202, installation 200, two activity deliveries 200 stored, the vendor's own duplicate kind 202 dropped, once); low (vendors other than GitHub: not tried; the vendor's response-time budget under load: not measured; constant-time comparison is checked by code shape only, not by timing; the lost-delivery rule of section 9: one iteration, no real lost delivery observed)"
 ---
 
 # Signed webhook receiver
@@ -96,6 +96,26 @@ If your persistence module composes the receiver's tables into its migrations, i
 - Row-level tests for claims, links, races (an embedded single-connection engine cannot run two statements at once; test the statement shape and say so).
 - **A real vendor delivery is the only proof the integration works.** Until it runs, the status page says "not set up" or "waiting for the first delivery" (see `truthful-live-status` §10) and the record says NOT RUN.
 
+## 9. The first real run
+
+The order matters more than any single step, because some vendor events are sent once:
+
+1. **Secret deployed before anything can be sent.** Set the secret where the receiver reads it, redeploy (variables usually reach new deployments only), and check presence through your health endpoint (a boolean, see `presence-only-health-endpoint`).
+2. **Prove the deployed secret with a self-signed ping** before installing: a small script reads the secret from the vendor's result file, signs a harmless body (a `ping` kind your receiver acknowledges and drops) and posts it. `202` = the deployed secret matches; `401` = it differs (often a pasted trailing newline); `503` = the new deployment is not live yet. The secret never leaves the script. Vary the body on each run so dedupe does not swallow a repeat.
+3. **Then install.** In the origin's vendor, the installation event is sent once and not retried automatically; if the receiver answers `503` at that moment, the installation never appears to claim until someone redelivers it by hand inside the vendor's window.
+4. **After linking, trigger a new event** (re-run a CI job, push to an open pull request). Deliveries from before the link were acknowledged and remembered (§2); redelivering them stores nothing.
+5. **Read the evidence without write access:** the vendor's delivery log (status per delivery, the owner looks), your runtime logs filtered to the safe fields of §1 (delivery id, event, action, outcome), and read-only queries for the stored rows' shape (count, type, privacy class, attribute **names**, timestamps) on **the database the deployment actually reads** (see `bounded-production-verification` §8). Record times and status codes per delivery, not payloads.
+
+The vendor's own duplicate kinds (its CI suite next to the CI run you map) should show up as acknowledged and dropped (`202`); seeing that on the first real run confirms the classification of §3 against real traffic.
+
+## 10. A lost delivery leaves a state open
+
+Push integrations lose deliveries (outage, a `500`, the vendor gives up). A "started" event whose "completed" never arrives would read as running forever. Close it **in the reader, by time, in words that state only what is known**:
+
+- After the vendor's documented maximum run time (the origin used 6 h, the hosted CI job limit), count the item as "No result received", separately from running, finished and failed. Never "Failed" — the run may have passed.
+- Say what the label means for long runs the limit does not cover (self-hosted runners): it still reads "No result received" until the result arrives, which stays true.
+- Boundary test at the threshold and one second before; the client-side ageing moves the item across the threshold without a new snapshot (see `truthful-live-status` §11).
+
 ## Pitfalls
 
 - **`JSON.parse` before the HMAC**, or an HMAC over re-serialized JSON or decoded text.
@@ -106,6 +126,8 @@ If your persistence module composes the receiver's tables into its migrations, i
 - **`timingSafeEqual` on buffers of different lengths** — it throws; length-check first.
 - **Trusting the setup redirect's installation id.**
 - **A health or setup screen with its own idea of "configured".**
+- **Installing before the deployed secret is proven.** A lifecycle event answered `503` is not retried by itself.
+- **"Running" with no end.** A lost completion delivery keeps a run open unless the reader closes it by time.
 
 ## Evidence from origin project
 
@@ -120,3 +142,13 @@ Javi's Dog, Sprint 5g (2026-11-01), JD-M10 GitHub App bridge; decision record `d
 - Injected-deps handler because the event store already depends on the bridge package (`fbebc0c`; sprint Team log "so no cycle"; retro).
 - Open follow-ups, not fixed: a late delivery can briefly restore an old repository name (display only); a run whose `completed` delivery was lost counts as running for 24 h.
 - Not verified: GitHub accepting the local helper's loopback redirect; a real delivery with a `200` in the vendor's delivery log; behaviour under the vendor's 10 s budget; other vendors' header and signing schemes.
+
+### Update at ad-hoc-github-followups (Sprint 5h, 2026-11-09/10)
+
+Real app run and the follow-ups of the S5g review (`docs/sprints/SPRINT-05g.md` Log 2026-11-09, `docs/agent-ops/TEST_PLAN.md` §S5g "Real app" and §S5h, `docs/sprints/SPRINT-05h.md`, ADR-0019 *Changes* "S5h"). Confidence for a real delivery raised from **low** to **medium** (one vendor, one run); a second vendor is still missing, so the skill stays "not yet" for wider sharing.
+
+- Setup by the owner with a local agent, following an agent/owner runbook (`docs/how-to/local-agent-github-app-and-token.md`, `8f045e2`): secret set through stdin, redeploy, self-signed ping, then install (see `prove-secrets-and-pii-minimization` §10).
+- Recorded sequence (UTC, production reading the development database, deployment at `8f045e2`): 22:07 signed local ping `202`; 22:24 `installation created` `200` applied; repository linked 22:28; 22:29 `workflow_run in_progress` `200` stored (`task.started`); 22:37 `check_suite` from the vendor's own CI `202` ignored; 22:37 `workflow_run completed` `200` stored (`task.completed`, with duration). Both events at the lowest privacy class, attributes by name only, hashed thread refs; the project's last-signal and last-verified-delivery times set to 22:37:32. "Logs carry GUID, event, action, outcome only" (TEST_PLAN §S5g, `cba33a4`). The vendor accepted the local helper's loopback redirect, the last unverified assumption of the setup design.
+- Guru probe (read-only, CI history): the branch's CI run for `8f045e2` has a second attempt started at 22:29:21 by the owner's account, after a green first attempt — consistent with the runbook's "re-run a workflow" trigger and the 22:29 `in_progress` delivery. That the linked repository was this one is Guru's inference; the record does not name it.
+- §10 from review follow-up L-6a: S5h H1 (`6d4e316`) counts a CI thread whose newest event is `task.started` and older than 6 h as `ciNoResult`, label "No result received"; decision and its reason in ADR-0019 *Changes* "S5h"; red-before for every new test group (sprint Test evidence). Before S5h such a run counted as running for 24 h.
+- Not verified: behaviour within the vendor's 10 s budget under load; a real lost completion delivery; organization installations (refused by design); any second vendor.

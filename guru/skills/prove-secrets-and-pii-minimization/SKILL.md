@@ -1,10 +1,10 @@
 ---
 name: prove-secrets-and-pii-minimization
-description: Design and then prove what an app stores about secrets and personal data — API/ingest tokens kept only as a hash with a recognizable prefix and a display prefix, shown once; third-party OAuth tokens encrypted; fields you do not use (such as an OAuth provider's id_token) not stored at all; logs structured and redacted; failures that leave evidence without leaking; secrets pasted in chat handled by hash comparison and recorded for rotation. The proof step inspects real stored rows by shape (counts, booleans, lengths, prefix classes) and scans every column for plaintext markers, never printing values, and turns each finding into a red-to-green test through the same call path the real flow uses. Use when issuing API keys or personal access tokens, integrating an auth library or OAuth/OIDC sign-in, enabling token encryption at rest, writing auth or error logging, after the first real sign-ins or token issues in an environment, when a user or owner pastes a secret into chat or an issue, when a script or smoke test needs a production credential, when your tool writes its own secret into another tool's config or backups, when a secret is meant to stay in the user's browser or machine and never reach your server, or when someone claims data is "hashed", "encrypted", "not stored" or "never sent to the server".
+description: Design and then prove what an app stores about secrets and personal data — API/ingest tokens kept only as a hash with a recognizable prefix and a display prefix, shown once; third-party OAuth tokens encrypted; fields you do not use (such as an OAuth provider's id_token) not stored at all; logs structured and redacted; failures that leave evidence without leaking; secrets pasted in chat handled by hash comparison and recorded for rotation. The proof step inspects real stored rows by shape (counts, booleans, lengths, prefix classes) and scans every column for plaintext markers, never printing values, and turns each finding into a red-to-green test through the same call path the real flow uses. Use when issuing API keys or personal access tokens, integrating an auth library or OAuth/OIDC sign-in, enabling token encryption at rest, writing auth or error logging, after the first real sign-ins or token issues in an environment, when a user or owner pastes a secret into chat or an issue, when a script or smoke test needs a production credential, when your tool writes its own secret into another tool's config or backups, when a secret is meant to stay in the user's browser or machine and never reach your server, when a coding agent on the owner's machine must help with a credentialed setup (create an app, set platform secrets, rotate a token) without any secret reaching its chat, or when someone claims data is "hashed", "encrypted", "not stored" or "never sent to the server".
 metadata:
-  version: "0.3.0"
-  origin: "javis-dog G2-prep; updated G4, ad-hoc-self-report, ad-hoc-privacy (S5f)"
-  confidence: "medium (sections 1–7: each applied once with recorded results; section 8: production smoke credentials and own-secret hygiene, once each; section 9: client-held key never reaching the server, once, with a mutation that the earlier test missed)"
+  version: "0.4.0"
+  origin: "javis-dog G2-prep; updated G4, ad-hoc-self-report, ad-hoc-privacy (S5f), ad-hoc-github-followups (S5h)"
+  confidence: "medium (sections 1–7: each applied once with recorded results; section 8: production smoke credentials and own-secret hygiene, once each; section 9: client-held key never reaching the server, once, with a mutation that the earlier test missed; section 10: agent/owner runbook, the credentialed half completed once, the token-rotation half not done)"
 ---
 
 # Prove secrets and PII minimization
@@ -95,6 +95,20 @@ When a secret (an encryption key, a recovery code) must stay on the client, "the
 
 For CLIs: sentinel absent from stdout, stderr, argv, spool files, logs and the **environment of every child process** (read `/proc/<pid>/environ` on Linux); see `local-companion-process-hardening` §8.
 
+## 10. Credentialed setup with a local agent and the owner
+
+A coding agent on the owner's machine can do most of a credentialed setup (run a creation helper, push values to the hosting platform, verify) — but its transcript is a chat. Write the setup as a runbook for **two actors**:
+
+- **Mark every step AGENT or OWNER.** OWNER steps are browser sign-ins, clicks on the vendor's site and typing a secret; the agent asks and waits.
+- **Rules first, in the runbook:** never print, echo, log, paste, commit or send a secret; never put one in a command-line argument or an environment variable the agent sets (history, process lists); report names, presence and status codes only; never read the result file in the agent's shell; stop and report the exact non-secret output on failure.
+- **Move secrets program to program.** Small scripts saved **outside the repository** read the vendor's result file and pipe each value to the next program on stdin (the platform CLI's "add variable" command, with its own output discarded); they print only `NAME: set`. Validate inside the script (missing, surrounding whitespace) and stop by name.
+- **The owner types secrets in their own terminal.** An agent's shell is usually not interactive, so a hidden prompt (`Read-Host`, `read -s`) must run in a window the owner controls; the runbook gives that block verbatim.
+- **Protect the result file** (owner-only permissions; on Windows, explicit ACLs) and let the owner decide where unused secrets go (password manager, delete).
+- **Verify without exposure:** a script signs or uses the secret internally and prints only the status code (see `signed-webhook-receiver` §9); presence through a health endpoint that returns booleans.
+- **A report-back template with only non-secret fields** (masked prefixes, counts, times with time zone, status codes, exit codes), so the remote session can record evidence without asking for values.
+
+Expect the halves to finish at different times. In the origin the vendor-setup half was completed in one sitting and the token-rotation half was not, although the runbook listed rotation first. *Hypothesis (reason not recorded):* steps that need the owner's browser **and** a typed secret in the owner's own terminal, with no agent-side check to finish them, stall more easily; record each open half with a date in the project memory and raise it again at the next session start.
+
 ## Pitfalls
 
 - **A leak test that searches one channel.** The leak goes through another; prove the test fails with a mutation.
@@ -104,6 +118,7 @@ For CLIs: sentinel absent from stdout, stderr, argv, spool files, logs and the *
 - **Prefix-only plaintext search.** Also search for the random part.
 - **Logging the library's extra arguments.** Drop them.
 - **Assuming platform logs exist.** Check that they return anything before an incident.
+- **"Paste the value here and I will set it."** A local agent's chat is a transcript; move the value by stdin between programs instead.
 
 ## Evidence from origin project
 
@@ -141,3 +156,9 @@ Javi's Dog, Sprints 2a–2c (2026-10-22). Confidence **medium**: each practice a
 - Security review L7 (`69a23f6`): "privacy-pages now drives the real project page with the sentinel as the generated key … the REAL changePrivacyClassAction (wrapped to capture every argument) … A positive control shows the capture catches a key passed as an action argument. Mutation evidence (not committed): KeySetup changed to call changePrivacyClassAction(projectId, target, typed) -> the new test FAILED (actionArgs: 40 sentinel windows) while the old SSR-only test still PASSED under the same mutation."
 - L9 (`0489182`): "key found in fiber state/props, detached node still held the key, field kept the key after a mismatch and after a refused action" → 4 red, then green.
 - Review summary: "No path was found where the key reaches the server" (ADR-0018 *Changes* security review). Real browsers: NOT RUN.
+
+### Update at ad-hoc-github-followups (Sprint 5h, 2026-11-09/10)
+
+- Runbook `docs/how-to/local-agent-github-app-and-token.md` (`8f045e2`): AGENT/OWNER marks, six rules for the agent, Part A (revoke and re-issue an ingest token; the owner types it at a `Read-Host` prompt in their own PowerShell window "An agent's shell is not interactive"), Part B (vendor app via a local helper; four platform variables piped on stdin by a script outside the repository, `stdio` output discarded; owner-only ACL on the result file; signed ping check; report-back template with masked prefixes and status codes).
+- Outcome: Part B completed by the owner with a local agent on 2026-11-09 (real deliveries stored, see `signed-webhook-receiver`); "Part A not done: the ingest token created 2026-10-29 … is still active (never used)" (`docs/memory/SESSION_LOG.md` 2026-11-09, `PROJECT_MEMORY.md` next action 1). The reason is not recorded. Confidence **medium** for the runbook pattern (once), **low** for the stall hypothesis.
+- Not recorded: whether any secret value reached the local agent's transcript. The committed evidence contains names, status codes, times and ids only (Guru read `cba33a4`).
