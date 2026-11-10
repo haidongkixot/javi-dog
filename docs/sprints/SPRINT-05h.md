@@ -38,6 +38,7 @@ Newest first: date — what changed — commit SHA.
 
 | Command | Exit | Duration | PASS | FAIL | SKIPPED | BLOCKED | NOT RUN | Artifacts |
 |---|---:|---:|---:|---:|---:|---:|---:|---|
+| `pnpm gate --csp` (review fixes; a first run failed at lint on an unused test variable, fixed) | 0 | 244 s | 3379 tests, 17 packages; CSP check | 0 | 0 | 0 | 0 | — |
 | `pnpm gate --csp` (after the H1/H2 merge) | 0 | 321 s | 3376 tests, 17 packages; CSP check | 0 | 0 | 0 | 0 | — |
 | Red-before (Developer G) | — | — | — | 30 new tests failed before the change (H1 reader 5, web 3; H2 action 13, key setup 6, card 3) | 0 | 0 | 0 | scratchpad `h1-red-reader.txt` |
 | `bash gate-test.sh` (copy of `scripts/gate.sh` with a forced failing first step, run from the scratchpad) | 1 | <1 s | prints `gate: FAIL — forced-fail` then `gate: load average (1/5/15 min): 0.46 0.42 0.23` | 0 | 0 | 0 | 0 | — |
