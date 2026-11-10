@@ -2,6 +2,7 @@ import type { AnyDb } from '@javis-dog/event-store';
 import { readActivity, readDbNow, readProjects, readThreads, type ThreadRow } from './queries.ts';
 import {
   GITHUB_TERMINAL_TYPES,
+  githubNoResult,
   STATUS_REASONS,
   THREAD_IDENTITY_TYPE,
   type ActivityItem,
@@ -240,7 +241,11 @@ export const createDashboardReader = (db: AnyDb) => ({
     // GitHub threads carry no status, so they are never "working"; the filter states the rule.
     const working = fresh.filter((t) => t.source === 'agent' && t.status === 'working');
     const ci = threads.filter((t) => t.source === 'github' && t.githubKind === 'ci');
-    const ciRunning = ci.filter((t) => t.freshness !== 'ended' && t.lastType === 'task.started');
+    // Started and not ended: running for 6 h after the last delivery, then no result received
+    // (ADR-0019 Changes "S5h"); the same snapshot clock decides both.
+    const ciStarted = ci.filter((t) => t.freshness !== 'ended' && t.lastType === 'task.started');
+    const ciNoResult = ciStarted.filter((t) => githubNoResult(t, now));
+    const ciRunning = ciStarted.filter((t) => !githubNoResult(t, now));
     const ciFailed = ci.filter((t) => t.lastType === 'task.failed');
     const prsOpen = threads.filter(
       (t) => t.source === 'github' && t.githubKind === 'pr' && t.freshness !== 'ended',
@@ -308,6 +313,7 @@ export const createDashboardReader = (db: AnyDb) => ({
       },
       github: {
         ciRunning: threadCounter(ciRunning),
+        ciNoResult: threadCounter(ciNoResult),
         ciFailed24h: threadCounter(ciFailed),
         prsOpen: threadCounter(prsOpen),
       },

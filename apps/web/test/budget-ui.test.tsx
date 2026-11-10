@@ -48,7 +48,9 @@ vi.mock('@javis-dog/analytics', () => ({
     },
   }),
 }));
-vi.mock('@javis-dog/realtime', () => ({
+// The reader is faked; the pure rules (`githubNoResult`, constants) stay the real ones.
+vi.mock('@javis-dog/realtime', async (orig) => ({
+  ...(await orig<typeof import('@javis-dog/realtime')>()),
   createDashboardReader: () => ({
     snapshot: async () => {
       throw new Error('not under test');

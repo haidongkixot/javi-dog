@@ -124,6 +124,20 @@ const GITHUB_OUTCOMES = new Map<string, { text: string; tone: StatusTone }>(
   } satisfies Record<string, { text: string; tone: StatusTone }>),
 );
 
-/** Words and tone for a GitHub thread's `lastType`; an unknown type is shown as sent. */
-export const githubOutcome = (lastType: string): { text: string; tone: StatusTone } =>
-  GITHUB_OUTCOMES.get(lastType) ?? { text: lastType, tone: 'info' };
+/**
+ * A started run with no result 6 h after its last delivery (ADR-0019 Changes "S5h"): what is
+ * known, never "Failed" and never "In progress".
+ */
+export const GITHUB_NO_RESULT_TEXT = 'No result received';
+
+/**
+ * Words and tone for a GitHub thread's `lastType`; an unknown type is shown as sent. With
+ * `noResult` (the reader's `githubNoResult` rule), "No result received" in the info tone.
+ */
+export const githubOutcome = (
+  lastType: string,
+  noResult = false,
+): { text: string; tone: StatusTone } =>
+  noResult
+    ? { text: GITHUB_NO_RESULT_TEXT, tone: 'info' }
+    : (GITHUB_OUTCOMES.get(lastType) ?? { text: lastType, tone: 'info' });

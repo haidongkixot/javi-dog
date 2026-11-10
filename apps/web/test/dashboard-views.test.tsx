@@ -7,7 +7,9 @@ const state = vi.hoisted(() => ({ viewer: null as unknown, db: null as unknown }
 const readSnapshot = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/viewer', () => ({ getViewer: async () => state.viewer }));
 vi.mock('@/lib/auth', () => ({ getDb: () => state.db }));
-vi.mock('@javis-dog/realtime', () => ({
+// The reader is faked; the pure rules (`githubNoResult`, constants) stay the real ones.
+vi.mock('@javis-dog/realtime', async (orig) => ({
+  ...(await orig<typeof import('@javis-dog/realtime')>()),
   createDashboardReader: () => ({ snapshot: readSnapshot }),
 }));
 
@@ -88,6 +90,7 @@ const SNAPSHOT: DashboardSnapshot = {
   },
   github: {
     ciRunning: { value: 0, lastSignalAt: null },
+    ciNoResult: { value: 0, lastSignalAt: null },
     ciFailed24h: { value: 0, lastSignalAt: null },
     prsOpen: { value: 0, lastSignalAt: null },
   },

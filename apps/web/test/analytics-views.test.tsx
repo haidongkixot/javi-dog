@@ -29,7 +29,9 @@ vi.mock('@javis-dog/analytics', () => ({
   ANALYTICS_DEFAULT_DAYS: 14,
   createAnalyticsReader: () => ({ usage: readUsage }),
 }));
-vi.mock('@javis-dog/realtime', () => ({
+// The reader is faked; the pure rules (`githubNoResult`, constants) stay the real ones.
+vi.mock('@javis-dog/realtime', async (orig) => ({
+  ...(await orig<typeof import('@javis-dog/realtime')>()),
   createDashboardReader: () => ({ snapshot: readSnapshot }),
 }));
 vi.mock('next/navigation', () => ({ notFound }));

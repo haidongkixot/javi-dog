@@ -48,6 +48,7 @@ describe('snapshot shape', () => {
       },
       github: {
         ciRunning: { value: 0, lastSignalAt: null },
+        ciNoResult: { value: 0, lastSignalAt: null },
         ciFailed24h: { value: 0, lastSignalAt: null },
         prsOpen: { value: 0, lastSignalAt: null },
       },

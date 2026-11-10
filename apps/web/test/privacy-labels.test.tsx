@@ -503,6 +503,7 @@ describe('dashboard rows show the identity (ADR-0018 §8)', () => {
     },
     github: {
       ciRunning: { value: 0, lastSignalAt: null },
+      ciNoResult: { value: 0, lastSignalAt: null },
       ciFailed24h: { value: 0, lastSignalAt: null },
       prsOpen: { value: 0, lastSignalAt: null },
     },

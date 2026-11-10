@@ -1,6 +1,19 @@
-import type { Counter, DashboardSnapshot, GithubKind, ThreadState } from '@javis-dog/realtime';
+import {
+  GITHUB_NO_RESULT_AFTER_MS,
+  githubNoResult,
+  type Counter,
+  type DashboardSnapshot,
+  type GithubKind,
+  type ThreadState,
+} from '@javis-dog/realtime';
 import { Card, CardHead, Icon, StatusPill } from '@javis-dog/ui/components';
-import { formatNumber, githubLabel, githubOutcome, isGithubThread } from './format';
+import {
+  formatNumber,
+  GITHUB_NO_RESULT_TEXT,
+  githubLabel,
+  githubOutcome,
+  isGithubThread,
+} from './format';
 import { FreshnessPill, SignalTime, ThreadRef } from './signal';
 
 // GitHub threads (ADR-0019 decision 6, D0 M1): CI runs, check suites and pull requests from the
@@ -9,6 +22,11 @@ import { FreshnessPill, SignalTime, ThreadRef } from './signal';
 
 const NO_HEARTBEAT =
   'GitHub sends no heartbeat: an open run or pull request reads stale between deliveries.';
+
+const NO_RESULT_HOURS = GITHUB_NO_RESULT_AFTER_MS / 3_600_000;
+
+/** Shown wherever a "No result received" value is: what is known, and what it may mean. */
+const NO_RESULT_NOTE = `${GITHUB_NO_RESULT_TEXT}: GitHub sent no result within ${NO_RESULT_HOURS} h of the run’s last delivery. The result may have been lost, or a self-hosted run is still going.`;
 
 /** "GitHub CI" / "GitHub PR" as text with the git glyph; the words carry the meaning. */
 export function GithubSourceLabel({ kind }: { kind: GithubKind | null }) {
@@ -20,9 +38,13 @@ export function GithubSourceLabel({ kind }: { kind: GithubKind | null }) {
   );
 }
 
-/** The newest GitHub result of a thread in words ("Failed", "Merged"…), never an agent status. */
-export function GithubOutcomePill({ lastType }: { lastType: string }) {
-  const { text, tone } = githubOutcome(lastType);
+/**
+ * The newest GitHub result of a thread in words ("Failed", "Merged"…), never an agent status. A
+ * run started more than 6 h before `now` (the snapshot clock) without a result reads "No result
+ * received" (`githubNoResult`).
+ */
+export function GithubOutcomePill({ thread, now }: { thread: ThreadState; now: string }) {
+  const { text, tone } = githubOutcome(thread.lastType, githubNoResult(thread, now));
   return <StatusPill tone={tone}>{text}</StatusPill>;
 }
 
@@ -79,6 +101,14 @@ export function GithubCountsCard({ snapshot: s }: { snapshot: DashboardSnapshot 
           snapshot={s}
           none="No run in progress"
         />
+        {g.ciNoResult.value > 0 ? (
+          <CountRow
+            label="CI runs with no result received"
+            counter={g.ciNoResult}
+            snapshot={s}
+            none=""
+          />
+        ) : null}
         <CountRow
           label="CI runs failed"
           counter={g.ciFailed24h}
@@ -87,6 +117,9 @@ export function GithubCountsCard({ snapshot: s }: { snapshot: DashboardSnapshot 
         />
         <CountRow label="Open pull requests" counter={g.prsOpen} snapshot={s} none="None open" />
       </ul>
+      {g.ciNoResult.value > 0 ? (
+        <p className="px-5 pb-2 text-xs text-muted">{NO_RESULT_NOTE}</p>
+      ) : null}
       <p className="px-5 pb-5 text-xs text-muted">{NO_HEARTBEAT}</p>
     </Card>
   );
@@ -109,6 +142,7 @@ export function GithubThreadsCard({
     .filter(isGithubThread)
     .sort((a, b) => b.lastSignalAt.localeCompare(a.lastSignalAt));
   if (threads.length === 0) return null;
+  const anyNoResult = threads.some((t) => githubNoResult(t, s.generatedAt));
   return (
     <Card labelledBy="github-threads-title">
       <CardHead
@@ -145,7 +179,7 @@ export function GithubThreadsCard({
                   <ThreadRef value={t.threadRef} />
                 </td>
                 <td className="px-4 py-3">
-                  <GithubOutcomePill lastType={t.lastType} />
+                  <GithubOutcomePill thread={t} now={s.generatedAt} />
                 </td>
                 <td className="px-4 py-3">
                   <FreshnessPill freshness={t.freshness} notCurrent={notCurrent} />
@@ -158,6 +192,7 @@ export function GithubThreadsCard({
           </tbody>
         </table>
       </div>
+      {anyNoResult ? <p className="px-5 pt-3 pb-5 text-xs text-muted">{NO_RESULT_NOTE}</p> : null}
     </Card>
   );
 }

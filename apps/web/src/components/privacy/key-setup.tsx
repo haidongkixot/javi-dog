@@ -26,7 +26,27 @@ type Step =
   | { step: 'show' }
   | { step: 'confirm' }
   | { step: 'saving' }
+  // ADR-0019 Changes "S5h": the project has a linked GitHub repository; the server changed
+  // nothing and waits for an explicit confirmation. The derived keys wait in a ref.
+  | { step: 'linked'; repositories: string[]; pending: boolean }
   | { step: 'done'; kid: string; privacyClass: Raise; changed: boolean };
+
+type DerivedKeys = Awaited<ReturnType<typeof deriveProjectKeys>>;
+
+const CHANGE_FAILED = 'The privacy class could not be changed. Try again in a moment.';
+
+/** "a/b", "a/b and c/d", "a/b, c/d and e/f". */
+const namesText = (names: string[]) =>
+  names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+
+/**
+ * The linked-repository warning (ADR-0019 Changes "S5h", ADR-0018 §7): L1 and L2 keep repository
+ * names away from Javi's Dog, but a linked repository's name stays stored with the project.
+ */
+const linkedRepoWarning = (names: string[], privacyClass: Raise) =>
+  names.length === 1
+    ? `This project is linked to GitHub repository ${names[0]}. Javi’s Dog will keep knowing that name, which ${privacyClass} otherwise hides. Unlink it on the project’s GitHub card if you want it hidden.`
+    : `This project is linked to GitHub repositories ${namesText(names)}. Javi’s Dog will keep knowing those names, which ${privacyClass} otherwise hides. Unlink them on the project’s GitHub card if you want them hidden.`;
 
 const buttonPrimary =
   'rounded-control bg-primary px-4 py-2.5 text-xs font-bold text-on-primary disabled:opacity-60';
@@ -87,8 +107,12 @@ export function KeySetup({
   const [state, setState] = useState<Step>({ step: 'intro' });
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Shown after a cancelled linked-repository confirmation: what did (not) happen.
+  const [notice, setNotice] = useState<string | null>(null);
   // The secret lives in a ref (never in rendered state) until the paste-back succeeds.
   const secret = useRef<Uint8Array | null>(null);
+  // Keys derived from the confirmed secret while the linked-repository confirmation is open.
+  const pendingKeys = useRef<DerivedKeys | null>(null);
   const pasted = useRef<HTMLInputElement | null>(null);
   // Review L9: the node that shows the key. The text is written into it directly (never through
   // React state or props) and wiped when the node is hidden or unmounted.
@@ -102,12 +126,23 @@ export function KeySetup({
   const discard = () => {
     secret.current?.fill(0);
     secret.current = null;
+    pendingKeys.current = null;
     if (pasted.current) pasted.current.value = '';
+  };
+
+  /** The class is on (or unchanged for a rotation): load the key in this tab and say so. */
+  const finish = (keys: DerivedKeys, changed: boolean) => {
+    // Review L5: the "checked" flag described the old class; it is earned again under this one.
+    if (changed) clearChecked(projectId);
+    store?.add(projectId, keys.kid, keys.l2Key);
+    discard();
+    setState({ step: 'done', kid: keys.kid, privacyClass: target, changed });
   };
 
   const generate = async () => {
     discard();
     setError(null);
+    setNotice(null);
     setCopied(false);
     const fresh = generateProjectSecret();
     secret.current = fresh;
@@ -154,19 +189,48 @@ export function KeySetup({
     if (changed) {
       // The class only, never the key (ADR-0018 §1).
       const result = await changePrivacyClassAction(projectId, target).catch(() => ({
-        error: 'The privacy class could not be changed. Try again in a moment.',
+        error: CHANGE_FAILED,
       }));
+      if ('needsConfirm' in result) {
+        // Nothing changed on the server: ask, and keep the derived keys until the answer.
+        pendingKeys.current = keys;
+        setState({ step: 'linked', repositories: result.repositories, pending: false });
+        return;
+      }
       if ('error' in result) {
         setState({ step: 'confirm' });
         setError(result.error);
         return;
       }
-      // Review L5: the "checked" flag described the old class; it is earned again under this one.
-      clearChecked(projectId);
     }
-    store?.add(projectId, keys.kid, keys.l2Key);
+    finish(keys, changed);
+  };
+
+  /** Retries with the explicit confirmation the server checks (ADR-0019 Changes "S5h"). */
+  const confirmLinked = async () => {
+    const keys = pendingKeys.current;
+    if (!keys || state.step !== 'linked' || state.pending) return;
+    setError(null);
+    setState({ ...state, pending: true });
+    const result = await changePrivacyClassAction(projectId, target, {
+      confirmLinkedRepo: true,
+    }).catch(() => ({ error: CHANGE_FAILED }));
+    if ('error' in result || !('privacyClass' in result)) {
+      setState({ ...state, pending: false });
+      setError('error' in result ? result.error : CHANGE_FAILED);
+      return;
+    }
+    finish(keys, true);
+  };
+
+  /** Leaves the class as it was; the confirmed key is dropped, so a new one is needed. */
+  const cancelLinked = () => {
     discard();
-    setState({ step: 'done', kid: keys.kid, privacyClass: target, changed });
+    setError(null);
+    setState({ step: 'intro' });
+    setNotice(
+      `Nothing changed: this project stays on ${currentClass}. The recovery key you just saved will not be used.`,
+    );
   };
 
   return (
@@ -174,6 +238,12 @@ export function KeySetup({
       <h3 id="key-setup-title" className="text-sm font-bold text-ink">
         {rotation ? 'Generate a new recovery key' : 'Turn on L1 or L2'}
       </h3>
+
+      {state.step === 'intro' && notice ? (
+        <p role="status" className="text-xs text-ink">
+          {notice}
+        </p>
+      ) : null}
 
       {state.step === 'intro' ? (
         <>
@@ -290,6 +360,39 @@ export function KeySetup({
               }}
             >
               Start over with a new key
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {state.step === 'linked' ? (
+        <div
+          role="group"
+          aria-label="Linked GitHub repository"
+          className="grid gap-3 rounded-control border border-line bg-warn-bg p-3"
+        >
+          <p id="key-setup-linked-warning" className="text-xs text-ink">
+            {linkedRepoWarning(state.repositories, target)}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={buttonPrimary}
+              disabled={state.pending}
+              aria-describedby="key-setup-linked-warning"
+              onClick={() => void confirmLinked()}
+            >
+              {state.pending
+                ? 'Turning on…'
+                : `Turn on ${target} and keep the ${state.repositories.length === 1 ? 'link' : 'links'}`}
+            </button>
+            <button
+              type="button"
+              className={buttonSecondary}
+              disabled={state.pending}
+              onClick={cancelLinked}
+            >
+              Cancel, stay on {currentClass}
             </button>
           </div>
         </div>

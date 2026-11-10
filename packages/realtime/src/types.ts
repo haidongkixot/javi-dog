@@ -61,6 +61,31 @@ export const GITHUB_TERMINAL_TYPES = Object.freeze([
 ] as const);
 
 /**
+ * A CI run or suite whose newest event (by sequence) is still `task.started` this long after its
+ * last delivery has had no result received (ADR-0019 Changes "S5h"): GitHub-hosted jobs stop at
+ * 6 h, so the result was most likely lost. It is counted as `ciNoResult`, not as running, and
+ * never as failed. A longer run on a self-hosted runner reads the same until its result arrives,
+ * which is still a true statement.
+ */
+export const GITHUB_NO_RESULT_AFTER_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * True for a GitHub thread that is not ended, whose newest event is `task.started` and whose last
+ * signal is more than `GITHUB_NO_RESULT_AFTER_MS` before `now` (the snapshot clock, never the
+ * browser's own unless it was aged with it). Exactly 6 h is still running. Pure: the reader and
+ * the dashboard share this one rule.
+ */
+export const githubNoResult = (
+  thread: Pick<ThreadState, 'source' | 'lastType' | 'freshness' | 'lastSignalAt'>,
+  now: string | Date,
+): boolean => {
+  if (thread.source !== 'github' || thread.freshness === 'ended') return false;
+  if (thread.lastType !== 'task.started') return false;
+  const nowMs = typeof now === 'string' ? Date.parse(now) : now.getTime();
+  return nowMs - Date.parse(thread.lastSignalAt) > GITHUB_NO_RESULT_AFTER_MS;
+};
+
+/**
  * JGR extension type that carries a thread's L1 hashes and, in an L2 project, its encrypted
  * repo and branch names (ADR-0018 §5). It counts as a signal for freshness, but it is never a
  * status, a task or an activity item.
@@ -185,8 +210,16 @@ export interface Counter {
  * GitHub sends no heartbeat, so `lastSignalAt` is the time of the newest delivery that counted.
  */
 export interface GithubCounts {
-  /** CI threads (`ci`) whose newest event is `task.started` (requested or in progress). */
+  /**
+   * CI threads (`ci`) whose newest event is `task.started` (requested or in progress) and whose
+   * last delivery is at most `GITHUB_NO_RESULT_AFTER_MS` (6 h) old.
+   */
   ciRunning: Counter;
+  /**
+   * CI threads whose newest event is `task.started` and whose last delivery is more than 6 h old
+   * (`githubNoResult`): no result received. Never counted as running or as failed.
+   */
+  ciNoResult: Counter;
   /** CI threads whose newest event is `task.failed`. */
   ciFailed24h: Counter;
   /** PR threads that are not ended (newest event opened, updated or ready for review). */

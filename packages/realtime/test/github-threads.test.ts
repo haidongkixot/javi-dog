@@ -5,12 +5,14 @@ import { createEventRepository, type NewEvent } from '@javis-dog/event-store';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   createDashboardReader,
+  GITHUB_NO_RESULT_AFTER_MS,
   GITHUB_PRODUCER_PREFIX,
   GITHUB_TERMINAL_TYPES,
+  githubNoResult,
   type DashboardSnapshot,
   type ThreadState,
 } from '../src/index.ts';
-import { ago, freshDb, MIN, SEC, seeder, type Scope } from './helpers.ts';
+import { ago, freshDb, HOUR, MIN, SEC, seeder, type Scope } from './helpers.ts';
 
 // TEST_PLAN §S5g rows "Dashboard: GitHub threads labelled with their source…" and "D0: GitHub
 // threads end on a terminal event…" (ADR-0019 decision 6, D0 M1, M2), reader layer on PGlite
@@ -392,6 +394,7 @@ describe('GitHub threads: counters (D0 M1)', () => {
     });
     expect(s.github).toEqual({
       ciRunning: { value: 2, lastSignalAt: ago(NOW, 30 * SEC).toISOString() },
+      ciNoResult: { value: 0, lastSignalAt: null },
       ciFailed24h: { value: 2, lastSignalAt: ago(NOW, 3 * MIN).toISOString() },
       prsOpen: { value: 1, lastSignalAt: ago(NOW, 50 * SEC).toISOString() },
     });
@@ -411,9 +414,102 @@ describe('GitHub threads: counters (D0 M1)', () => {
     const s = await snap(p);
     expect(s.github).toEqual({
       ciRunning: { value: 0, lastSignalAt: null },
+      ciNoResult: { value: 0, lastSignalAt: null },
       ciFailed24h: { value: 0, lastSignalAt: null },
       prsOpen: { value: 0, lastSignalAt: null },
     });
+  });
+});
+
+// TEST_PLAN §S5h row 1 (ADR-0019 Changes "S5h decisions"): a CI thread whose newest event (by
+// sequence) is `task.started` and whose last signal is more than 6 h old is "No result
+// received", not running. The boundary is measured against the snapshot clock.
+describe('GitHub CI threads: no result received after 6 h (S5h)', () => {
+  const r = (n: number) => `gh_${(0x500 + n).toString(16).padStart(32, '0')}`;
+
+  it('uses a 6 h threshold', () => {
+    expect(GITHUB_NO_RESULT_AFTER_MS).toBe(6 * HOUR);
+  });
+
+  it('counts a run as running up to 6 h after its last delivery and as no result after that', async () => {
+    const p = await oneProject();
+    await put(
+      runEvent(p, r(1), 1, 'task.started', ago(NOW, 6 * HOUR - SEC)),
+      runEvent(p, r(2), 1, 'task.started', ago(NOW, 6 * HOUR)),
+      runEvent(p, r(3), 1, 'task.started', ago(NOW, 6 * HOUR + SEC)),
+      // Requested, then in progress: the newest delivery is what ages.
+      runEvent(p, r(4), 1, 'task.started', ago(NOW, 9 * HOUR)),
+      runEvent(p, r(4), 2, 'task.started', ago(NOW, 7 * HOUR)),
+    );
+    const s = await snap(p);
+    expect(s.github.ciRunning).toEqual({
+      value: 2,
+      lastSignalAt: ago(NOW, 6 * HOUR - SEC).toISOString(),
+    });
+    expect(s.github.ciNoResult).toEqual({
+      value: 2,
+      lastSignalAt: ago(NOW, 6 * HOUR + SEC).toISOString(),
+    });
+    expect(s.github.ciFailed24h).toEqual({ value: 0, lastSignalAt: null });
+    // The thread itself keeps what GitHub sent: no status, no failure, never ended.
+    for (const ref of [r(3), r(4)]) {
+      expect(threadOf(s, ref)).toMatchObject({
+        lastType: 'task.started',
+        status: null,
+        freshness: 'stale',
+        needsAttention: false,
+      });
+      expect(githubNoResult(threadOf(s, ref), s.generatedAt)).toBe(true);
+    }
+    for (const ref of [r(1), r(2)]) {
+      expect(githubNoResult(threadOf(s, ref), s.generatedAt)).toBe(false);
+    }
+  });
+
+  it('ends the thread normally when a result arrives after the threshold', async () => {
+    const p = await oneProject();
+    await put(
+      runEvent(p, r(5), 1, 'task.started', ago(NOW, 8 * HOUR)),
+      runEvent(p, r(5), 2, 'task.completed', ago(NOW, MIN)),
+      runEvent(p, r(6), 1, 'task.started', ago(NOW, 8 * HOUR)),
+      runEvent(p, r(6), 2, 'task.failed', ago(NOW, 2 * MIN)),
+      // A late in_progress delivery with a lower sequence does not reopen it (D0 M3).
+      runEvent(p, r(5), 0, 'task.started', ago(NOW, 30 * SEC)),
+    );
+    const s = await snap(p);
+    expect(threadOf(s, r(5))).toMatchObject({ lastType: 'task.completed', freshness: 'ended' });
+    expect(threadOf(s, r(6))).toMatchObject({ lastType: 'task.failed', freshness: 'ended' });
+    for (const ref of [r(5), r(6)]) {
+      expect(githubNoResult(threadOf(s, ref), s.generatedAt)).toBe(false);
+    }
+    expect(s.github.ciRunning).toEqual({ value: 0, lastSignalAt: null });
+    expect(s.github.ciNoResult).toEqual({ value: 0, lastSignalAt: null });
+    expect(s.github.ciFailed24h).toEqual({
+      value: 1,
+      lastSignalAt: ago(NOW, 2 * MIN).toISOString(),
+    });
+  });
+
+  it('applies to CI only: an open PR older than 6 h stays open', async () => {
+    const p = await oneProject();
+    await put(prEvent(p, r(7), 14348272800, 'x.github.pr.opened', ago(NOW, 7 * HOUR)));
+    const s = await snap(p);
+    expect(s.github.prsOpen.value).toBe(1);
+    expect(s.github.ciNoResult.value).toBe(0);
+  });
+
+  it('measures against the database clock when no clock is pinned', async () => {
+    const p = await oneProject();
+    const dbNow = new Date(
+      String(((await ctx.client.query('select now() as n')).rows[0] as { n: unknown }).n),
+    );
+    await put(
+      runEvent(p, r(8), 1, 'task.started', ago(dbNow, 6 * HOUR + MIN)),
+      runEvent(p, r(9), 1, 'task.started', ago(dbNow, 6 * HOUR - MIN)),
+    );
+    const s = await reader.snapshot(p.workspaceId);
+    expect(s.github.ciNoResult.value).toBe(1);
+    expect(s.github.ciRunning.value).toBe(1);
   });
 });
 
