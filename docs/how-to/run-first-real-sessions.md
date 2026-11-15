@@ -2,6 +2,8 @@
 
 The owner (or a local Claude Code session on the owner's machine) follows these steps to close the runtime checks that the cloud sandbox cannot do. That is release-checklist item G6, plus the UNVERIFIED rows "OTel session correlation" and "Gemini runtime checks" in the readiness matrix. Decisions: ADR-0010, ADR-0011, ADR-0016, ADR-0017, ADR-0018.
 
+> Working with a coding agent on your machine? Give it [local-agent-real-sessions.md](local-agent-real-sessions.md): the same checks split into agent and owner steps, with the token rotation first and one masked token entry for all three platforms.
+
 ## Rules for whoever runs this
 
 - **Never paste, print or commit an ingest token.** Enter it only at the `Read-Host` prompt below. If a token was ever pasted into a chat, revoke it on the project page and issue a new one.
